@@ -1,0 +1,80 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 32px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.projectCard {
+  background: var(--color-bg-container);
+  border-color: var(--color-border);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.projectCard:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.cardContent {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.cardIcon {
+  font-size: 32px;
+  color: var(--color-primary);
+  padding: 12px;
+  background: rgba(124, 58, 237, 0.1);
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.cardInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardTitle {
+  margin: 0 0 8px !important;
+}
+
+.cardDesc {
+  margin: 0 !important;
+  min-height: 44px;
+}
+
+.cardMeta {
+  margin-top: 12px;
+}
+
+.moreBtn {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.moreBtn:hover {
+  color: var(--color-text);
+  background: var(--color-bg-elevated);
+}
+
+.emptyCard {
+  background: var(--color-bg-container);
+  border-color: var(--color-border);
+  padding: 48px;
+}
+

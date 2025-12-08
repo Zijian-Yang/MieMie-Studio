@@ -1,0 +1,93 @@
+.layout {
+  min-height: 100vh;
+  background: var(--color-bg-base);
+}
+
+.sider {
+  background: var(--color-bg-container) !important;
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sider :global(.ant-layout-sider-children) {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.logo {
+  padding: 20px 16px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.projectSelector {
+  padding: 16px;
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.projectButton {
+  flex: 1;
+  background: var(--color-bg-elevated) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+  text-align: left;
+  height: 40px;
+}
+
+.projectButton:hover {
+  border-color: var(--color-primary) !important;
+}
+
+.newProjectBtn {
+  flex-shrink: 0;
+  width: auto;
+}
+
+.menuSection {
+  padding: 16px 16px 8px;
+  flex-shrink: 0;
+}
+
+.menuSectionTitle {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-tertiary) !important;
+}
+
+.menu {
+  background: transparent !important;
+  border: none !important;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.menu :global(.ant-menu-item) {
+  margin: 4px 8px !important;
+  border-radius: 8px !important;
+  height: 40px !important;
+  line-height: 40px !important;
+}
+
+.menu :global(.ant-menu-item-selected) {
+  background: rgba(124, 58, 237, 0.15) !important;
+}
+
+.menu :global(.ant-menu-item:hover) {
+  background: rgba(124, 58, 237, 0.1) !important;
+}
+
+.content {
+  background: var(--color-bg-base);
+  padding: 24px;
+  overflow: auto;
+}
+

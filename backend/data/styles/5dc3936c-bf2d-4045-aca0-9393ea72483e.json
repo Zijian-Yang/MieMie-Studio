@@ -1,0 +1,40 @@
+{
+  "id": "5dc3936c-bf2d-4045-aca0-9393ea72483e",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "吉卜力风格",
+  "description": "",
+  "style_type": "image",
+  "style_prompt": "studio ghibli style, miyazaki inspired, whimsical fantasy, lush nature, detailed backgrounds, warm colors, magical atmosphere, hand-drawn animation look",
+  "negative_prompt": "3d, realistic, dark, horror, modern",
+  "preset_name": "studio_ghibli",
+  "image_groups": [
+    {
+      "id": "4f0704fb-bc15-42bf-aa6c-b0663405a303",
+      "group_index": 0,
+      "url": "https://dashscope-result-wlcb.oss-cn-wulanchabu.aliyuncs.com/1d/93/20251204/7a2bee47/13b0b11d-948c-4a93-a29a-a95244e3be01.png?Expires=1764917314&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=KM2Bnqj%2Fm5yO6uJzk%2BZOIxpW3DU%3D",
+      "prompt_used": "studio ghibli style, miyazaki inspired, whimsical fantasy, lush nature, detailed backgrounds, warm colors, magical atmosphere, hand-drawn animation look",
+      "created_at": "2025-12-04T14:48:37.235606"
+    },
+    {
+      "id": "fa50bba2-e0a9-4996-824b-31850ad8b013",
+      "group_index": 1,
+      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/e6/20251204/eb920ed5/95e79453-8431-41ea-9040-20f04746b6fc.png?Expires=1764917329&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=KpYxVXcIdQV%2FR2E0lZZtQ5a%2BUpk%3D",
+      "prompt_used": "studio ghibli style, miyazaki inspired, whimsical fantasy, lush nature, detailed backgrounds, warm colors, magical atmosphere, hand-drawn animation look",
+      "created_at": "2025-12-04T14:48:53.102365"
+    },
+    {
+      "id": "8961a70d-46c5-4716-a734-d237f21e59dc",
+      "group_index": 2,
+      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/7b/20251204/eb920ed5/b577d370-5e93-4b89-ac2b-d6150e451cea.png?Expires=1764917341&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=tf3uzMntHczD6BYsWSoOdmQu9cY%3D",
+      "prompt_used": "studio ghibli style, miyazaki inspired, whimsical fantasy, lush nature, detailed backgrounds, warm colors, magical atmosphere, hand-drawn animation look",
+      "created_at": "2025-12-04T14:49:02.647943"
+    }
+  ],
+  "selected_group_index": 0,
+  "text_style_content": "",
+  "text_style_versions": [],
+  "text_preset_name": null,
+  "is_selected": false,
+  "created_at": "2025-12-02T18:31:54.492314",
+  "updated_at": "2025-12-04T14:49:02.651074"
+}

@@ -1,0 +1,50 @@
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.card {
+  background: var(--color-bg-container);
+  border-color: var(--color-border);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.cardIcon {
+  font-size: 32px;
+  color: var(--color-primary);
+  padding: 12px;
+  background: rgba(124, 58, 237, 0.1);
+  border-radius: 12px;
+}
+
+.alert {
+  margin-bottom: 24px;
+}
+
+.helpSection {
+  color: var(--color-text-secondary);
+}
+
+.helpList {
+  margin: 12px 0 0;
+  padding-left: 20px;
+}
+
+.helpList li {
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+
+.helpList a {
+  color: var(--color-primary);
+}
+
+.helpList a:hover {
+  text-decoration: underline;
+}
+

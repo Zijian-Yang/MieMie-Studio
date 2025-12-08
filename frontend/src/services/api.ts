@@ -1,0 +1,768 @@
+import axios from 'axios'
+
+// 创建 axios 实例
+const api = axios.create({
+  baseURL: '/api',
+  timeout: 360000, // 6分钟超时，支持长时间图片生成任务
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
+// 请求拦截器
+api.interceptors.request.use(
+  (config) => {
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
+
+// 响应拦截器
+api.interceptors.response.use(
+  (response) => {
+    return response.data
+  },
+  (error) => {
+    const message = error.response?.data?.detail || error.message || '请求失败'
+    return Promise.reject(new Error(message))
+  }
+)
+
+// ============ 设置 API ============
+
+export interface LLMModelInfo {
+  name: string
+  max_output_tokens: number
+  supports_thinking: boolean
+  supports_search: boolean
+  supports_json_mode: boolean
+}
+
+export interface ImageModelSizeOption {
+  width: number
+  height: number
+  label: string
+}
+
+export interface ImageModelInfo {
+  name: string
+  description?: string
+  min_pixels: number
+  max_pixels: number
+  min_ratio: number
+  max_ratio: number
+  common_sizes: ImageModelSizeOption[]
+}
+
+export interface VideoModelInfo {
+  name: string
+  sizes: string[]
+}
+
+export interface RegionInfo {
+  name: string
+  base_url: string
+}
+
+export interface LLMConfig {
+  model: string
+  max_tokens: number
+  top_p: number
+  temperature: number
+  enable_thinking: boolean
+  thinking_budget: number
+  result_format: string
+  enable_search: boolean
+}
+
+export interface ImageConfig {
+  model: string
+  width: number
+  height: number
+  prompt_extend: boolean
+  seed: number | null
+}
+
+export interface ImageEditConfig {
+  model: string
+  width: number
+  height: number
+  prompt_extend: boolean
+  seed: number | null
+}
+
+export interface VideoConfig {
+  model: string
+  size: string
+  prompt_extend: boolean
+  watermark: boolean
+  seed: number | null
+}
+
+export interface ConfigResponse {
+  api_key_masked: string
+  is_api_key_set: boolean
+  api_region: string
+  base_url: string
+  llm: LLMConfig
+  image: ImageConfig
+  image_edit: ImageEditConfig
+  video: VideoConfig
+  available_regions: Record<string, RegionInfo>
+  available_llm_models: Record<string, LLMModelInfo>
+  available_image_models: Record<string, ImageModelInfo>
+  available_image_edit_models: Record<string, ImageModelInfo>
+  available_video_models: Record<string, VideoModelInfo>
+}
+
+export interface ConfigUpdateRequest {
+  api_key?: string
+  api_region?: string
+  llm?: Partial<LLMConfig>
+  image?: Partial<ImageConfig>
+  image_edit?: Partial<ImageEditConfig>
+  video?: Partial<VideoConfig>
+}
+
+export const settingsApi = {
+  getSettings: () => api.get<any, ConfigResponse>('/settings'),
+  updateSettings: (data: ConfigUpdateRequest) => api.put('/settings', data),
+  setApiKey: (apiKey: string) => api.post('/settings/api-key', { api_key: apiKey }),
+  deleteApiKey: () => api.delete('/settings/api-key'),
+}
+
+// ============ 项目 API ============
+
+// 项目级别的 LLM 配置
+export interface ProjectLLMConfig {
+  model?: string
+  max_tokens?: number | null
+  top_p?: number | null
+  temperature?: number | null
+  enable_thinking?: boolean | null
+  thinking_budget?: number | null
+  result_format?: string | null
+  enable_search?: boolean | null
+}
+
+export interface Project {
+  id: string
+  name: string
+  description: string
+  script?: Script
+  character_ids: string[]
+  scene_ids: string[]
+  prop_ids: string[]
+  llm_configs?: Record<string, ProjectLLMConfig>  // key 为模型名称
+  created_at: string
+  updated_at: string
+}
+
+export interface Script {
+  id: string
+  title: string
+  original_content: string
+  processed_content: string
+  model_used?: string
+  prompt_used?: string
+  shots: Shot[]
+  created_at: string
+  updated_at: string
+}
+
+export interface Shot {
+  id: string
+  shot_number: number
+  shot_design: string
+  scene_type: string
+  voice_subject: string
+  dialogue: string
+  characters: string[]
+  character_appearance: string
+  character_action: string
+  scene_setting: string
+  lighting: string
+  mood: string
+  composition: string
+  props: string[]
+  sound_effects: string
+  duration: number
+  // 关联的素材ID
+  character_ids: string[]
+  scene_id?: string
+  prop_ids: string[]
+  // 生成的素材
+  first_frame_url?: string
+  video_url?: string
+  audio_url?: string
+}
+
+export const projectsApi = {
+  list: () => api.get<any, { projects: Project[]; total: number }>('/projects'),
+  get: (id: string) => api.get<any, Project>(`/projects/${id}`),
+  create: (data: { name: string; description?: string }) => api.post<any, Project>('/projects', data),
+  update: (id: string, data: { name?: string; description?: string }) => api.put<any, Project>(`/projects/${id}`, data),
+  delete: (id: string) => api.delete(`/projects/${id}`),
+  getSummary: (id: string) => api.get(`/projects/${id}/summary`),
+  // 项目级 LLM 配置
+  getLLMConfigs: (id: string) => api.get<any, { llm_configs: Record<string, ProjectLLMConfig> }>(`/projects/${id}/llm-configs`),
+  getLLMConfig: (id: string, model: string) => api.get<any, { model: string; config: ProjectLLMConfig }>(`/projects/${id}/llm-configs/${model}`),
+  updateLLMConfig: (id: string, model: string, config: ProjectLLMConfig) => api.put(`/projects/${id}/llm-configs/${model}`, config),
+  deleteLLMConfig: (id: string, model: string) => api.delete(`/projects/${id}/llm-configs/${model}`),
+}
+
+// ============ 分镜脚本 API ============
+
+export interface ShotCreateRequest {
+  shot_design?: string
+  scene_type?: string
+  voice_subject?: string
+  dialogue?: string
+  characters?: string[]
+  character_appearance?: string
+  character_action?: string
+  scene_setting?: string
+  lighting?: string
+  mood?: string
+  composition?: string
+  props?: string[]
+  sound_effects?: string
+  duration?: number
+  insert_after_shot_id?: string
+}
+
+export const scriptsApi = {
+  get: (projectId: string) => api.get<any, Script>(`/scripts/${projectId}`),
+  upload: (projectId: string, file: File) => {
+    const formData = new FormData()
+    formData.append('project_id', projectId)
+    formData.append('file', file)
+    return api.post('/scripts/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  save: (data: {
+    project_id: string
+    content: string
+    model_used?: string
+    prompt_used?: string
+  }) => api.post('/scripts/save', data),
+  parseShots: (projectId: string) => api.post(`/scripts/${projectId}/parse-shots`),
+  updateShots: (projectId: string, shots: Shot[]) => api.put(`/scripts/${projectId}/shots`, { shots }),
+  updateShot: (projectId: string, shotId: string, data: Partial<Shot>) => 
+    api.put<any, { shot: Shot }>(`/scripts/${projectId}/shots/${shotId}`, data),
+  reorderShots: (projectId: string, shotIds: string[]) => 
+    api.put<any, { shots: Shot[] }>(`/scripts/${projectId}/shots-reorder`, { shot_ids: shotIds }),
+  createShot: (projectId: string, data: ShotCreateRequest) => 
+    api.post<any, { shot: Shot; shots: Shot[] }>(`/scripts/${projectId}/shots`, data),
+  deleteShot: (projectId: string, shotId: string) => 
+    api.delete<any, { message: string; shots: Shot[] }>(`/scripts/${projectId}/shots/${shotId}`),
+  getDefaultPrompt: () => api.get<any, { prompt: string }>('/scripts/prompts/default'),
+}
+
+// SSE 流式生成
+export const generateScriptStream = (
+  projectId: string,
+    content: string,
+    model: string,
+  prompt?: string,
+  onMessage: (content: string) => void = () => {},
+  onDone: () => void = () => {},
+  onError: (error: string) => void = () => {}
+) => {
+  const controller = new AbortController()
+  
+  fetch('/api/scripts/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ project_id: projectId, content, model, prompt }),
+    signal: controller.signal,
+  })
+    .then(async (response) => {
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      
+      if (!reader) {
+        onError('无法读取响应')
+        return
+      }
+
+    while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const text = decoder.decode(value)
+        const lines = text.split('\n')
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              if (data.content) {
+                onMessage(data.content)
+              }
+              if (data.done) {
+                onDone()
+              }
+              if (data.error) {
+                onError(data.error)
+              }
+            } catch {
+              // 忽略解析错误
+            }
+          }
+        }
+      }
+    })
+    .catch((error) => {
+      if (error.name !== 'AbortError') {
+        onError(error.message)
+      }
+    })
+  
+  return () => controller.abort()
+}
+
+// ============ 角色 API ============
+
+export interface CharacterImage {
+  id: string
+  group_index: number
+  front_url?: string
+  side_url?: string
+  back_url?: string
+  prompt_used?: string
+  created_at: string
+}
+
+export interface Character {
+  id: string
+  project_id: string
+  name: string
+  description: string
+  appearance: string
+  personality: string
+  common_prompt: string
+  character_prompt: string
+  negative_prompt: string  // 负向提示词
+  image_groups: CharacterImage[]
+  selected_group_index: number
+  voice: {
+    voice_id?: string
+    custom_audio_url?: string
+    test_text: string
+  }
+  created_at: string
+  updated_at: string
+}
+
+export const charactersApi = {
+  list: (projectId: string) => api.get<any, { characters: Character[] }>('/characters', { params: { project_id: projectId } }),
+  get: (id: string) => api.get<any, Character>(`/characters/${id}`),
+  extract: (projectId: string) => api.post<any, { characters: Character[] }>('/characters/extract', { project_id: projectId }),
+  update: (id: string, data: Partial<Character>) => api.put<any, Character>(`/characters/${id}`, data),
+  generate: (id: string, data: {
+    group_index?: number
+    common_prompt?: string
+    character_prompt?: string
+    negative_prompt?: string
+    use_style?: boolean
+    style_id?: string
+  }) => api.post(`/characters/${id}/generate`, data),
+  generateAll: (id: string, data: {
+    common_prompt?: string
+    character_prompt?: string
+    negative_prompt?: string
+    group_count?: number
+    use_style?: boolean
+    style_id?: string
+  }) => api.post<any, { image_groups: CharacterImage[] }>(`/characters/${id}/generate-all`, data),
+  delete: (id: string) => api.delete(`/characters/${id}`),
+  deleteAll: (projectId: string) => api.delete(`/characters/project/${projectId}/all`),
+}
+
+// ============ 场景 API ============
+
+export interface SceneImage {
+  id: string
+  group_index: number
+  url?: string
+  prompt_used?: string
+  created_at: string
+}
+
+export interface Scene {
+  id: string
+  project_id: string
+  name: string
+  description: string  // 说明用，不参与生图
+  common_prompt: string
+  scene_prompt: string  // 用于生图
+  negative_prompt: string
+  image_groups: SceneImage[]
+  selected_group_index: number
+  created_at: string
+  updated_at: string
+}
+
+export const scenesApi = {
+  list: (projectId: string) => api.get<any, { scenes: Scene[] }>('/scenes', { params: { project_id: projectId } }),
+  get: (id: string) => api.get<any, Scene>(`/scenes/${id}`),
+  extract: (projectId: string) => api.post<any, { scenes: Scene[] }>('/scenes/extract', { project_id: projectId }),
+  update: (id: string, data: Partial<Scene>) => api.put<any, Scene>(`/scenes/${id}`, data),
+  generate: (id: string, data: {
+    group_index?: number
+    common_prompt?: string
+    scene_prompt?: string
+    negative_prompt?: string
+    use_style?: boolean
+    style_id?: string
+  }) => api.post(`/scenes/${id}/generate`, data),
+  generateAll: (id: string, data: {
+    common_prompt?: string
+    scene_prompt?: string
+    negative_prompt?: string
+    group_count?: number
+    use_style?: boolean
+    style_id?: string
+  }) => api.post<any, { image_groups: SceneImage[] }>(`/scenes/${id}/generate-all`, data),
+  delete: (id: string) => api.delete(`/scenes/${id}`),
+  deleteAll: (projectId: string) => api.delete(`/scenes/project/${projectId}/all`),
+}
+
+// ============ 道具 API ============
+
+export interface PropImage {
+  id: string
+  group_index: number
+  url?: string
+  prompt_used?: string
+  created_at: string
+}
+
+export interface Prop {
+  id: string
+  project_id: string
+  name: string
+  description: string  // 说明用，不参与生图
+  common_prompt: string
+  prop_prompt: string  // 用于生图
+  negative_prompt: string
+  image_groups: PropImage[]
+  selected_group_index: number
+  created_at: string
+  updated_at: string
+}
+
+export const propsApi = {
+  list: (projectId: string) => api.get<any, { props: Prop[] }>('/props', { params: { project_id: projectId } }),
+  get: (id: string) => api.get<any, Prop>(`/props/${id}`),
+  extract: (projectId: string) => api.post<any, { props: Prop[] }>('/props/extract', { project_id: projectId }),
+  update: (id: string, data: Partial<Prop>) => api.put<any, Prop>(`/props/${id}`, data),
+  generate: (id: string, data: {
+    group_index?: number
+    common_prompt?: string
+    prop_prompt?: string
+    negative_prompt?: string
+    use_style?: boolean
+    style_id?: string
+  }) => api.post(`/props/${id}/generate`, data),
+  generateAll: (id: string, data: {
+    common_prompt?: string
+    prop_prompt?: string
+    negative_prompt?: string
+    group_count?: number
+    use_style?: boolean
+    style_id?: string
+  }) => api.post<any, { image_groups: PropImage[] }>(`/props/${id}/generate-all`, data),
+  delete: (id: string) => api.delete(`/props/${id}`),
+  deleteAll: (projectId: string) => api.delete(`/props/project/${projectId}/all`),
+}
+
+// ============ 分镜首帧 API ============
+
+export interface FrameImage {
+  id: string
+  group_index: number
+  url?: string
+  prompt_used?: string
+  created_at: string
+}
+
+export interface Frame {
+  id: string
+  project_id: string
+  shot_id: string
+  shot_number: number
+  prompt: string
+  image_groups: FrameImage[]
+  selected_group_index: number
+  created_at: string
+  updated_at: string
+}
+
+export const framesApi = {
+  list: (projectId: string) => api.get<any, { frames: Frame[] }>('/frames', { params: { project_id: projectId } }),
+  get: (id: string) => api.get<any, Frame>(`/frames/${id}`),
+  generate: (data: {
+    project_id: string
+    shot_id: string
+    shot_number?: number
+    prompt: string
+    negative_prompt?: string
+    group_index?: number
+    use_shot_references?: boolean
+  }) => api.post<any, { frame: Frame }>('/frames/generate', data),
+  generateBatch: (projectId: string) => api.post('/frames/generate-batch', { project_id: projectId }),
+  update: (id: string, data: { prompt?: string; selected_group_index?: number }) => api.put(`/frames/${id}`, data),
+  delete: (id: string) => api.delete(`/frames/${id}`),
+  setFromGallery: (data: {
+    project_id: string
+    shot_id: string
+    shot_number?: number
+    gallery_image_id: string
+    gallery_image_url: string
+    group_index?: number
+  }) => api.post<any, { frame: Frame; message: string }>('/frames/set-from-gallery', data),
+  saveToGallery: (frameId: string, data: { name?: string; description?: string }) => 
+    api.post<any, { gallery_image: GalleryImage; message: string }>(`/frames/${frameId}/save-to-gallery`, data),
+}
+
+// ============ 视频 API ============
+
+export interface VideoTask {
+  id: string
+  task_id: string
+  status: 'pending' | 'processing' | 'succeeded' | 'failed'
+  progress: number
+  error_message?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Video {
+  id: string
+  project_id: string
+  shot_id: string
+  shot_number: number
+  first_frame_url?: string
+  prompt: string
+  duration: number
+  task?: VideoTask
+  video_url?: string
+  created_at: string
+  updated_at: string
+}
+
+export const videosApi = {
+  list: (projectId: string) => api.get<any, { videos: Video[] }>('/videos', { params: { project_id: projectId } }),
+  get: (id: string) => api.get<any, Video>(`/videos/${id}`),
+  generate: (data: {
+    project_id: string
+    shot_id: string
+    shot_number?: number
+    first_frame_url?: string  // 可选，后端会自动从分镜获取
+    prompt?: string  // 可选，后端会自动生成
+    duration?: number
+  }) => api.post('/videos/generate', data),
+  generateBatch: (projectId: string) => api.post('/videos/generate-batch', { project_id: projectId }),
+  getStatus: (taskId: string) => api.get<any, { task_id: string; status: string; video_url?: string }>(`/videos/status/${taskId}`),
+  delete: (id: string) => api.delete(`/videos/${id}`),
+}
+
+// ============ 风格 API ============
+
+export interface ImageStylePreset {
+  name: string
+  prompt: string
+  negative_prompt: string
+}
+
+export interface TextStylePreset {
+  name: string
+  content: string
+}
+
+export interface StyleImage {
+  id: string
+  group_index: number
+  url?: string
+  prompt_used?: string
+  created_at: string
+}
+
+export interface TextStyleVersion {
+  id: string
+  name: string
+  content: string
+  created_at: string
+  modified_info: string
+}
+
+export interface Style {
+  id: string
+  project_id: string
+  name: string
+  description: string
+  style_type: 'image' | 'text'
+  // 图片风格字段
+  style_prompt: string
+  negative_prompt: string
+  preset_name?: string
+  image_groups: StyleImage[]
+  selected_group_index: number
+  // 文本风格字段
+  text_style_content: string
+  text_style_versions: TextStyleVersion[]
+  text_preset_name?: string
+  // 共用字段
+  is_selected: boolean
+  created_at: string
+  updated_at: string
+}
+
+export const stylesApi = {
+  getPresets: () => api.get<any, { 
+    image_presets: Record<string, ImageStylePreset>,
+    text_presets: Record<string, TextStylePreset> 
+  }>('/styles/presets'),
+  list: (projectId: string) => api.get<any, { styles: Style[] }>('/styles', { params: { project_id: projectId } }),
+  get: (id: string) => api.get<any, Style>(`/styles/${id}`),
+  create: (data: {
+    project_id: string
+    name: string
+    style_type?: 'image' | 'text'
+    style_prompt?: string
+    negative_prompt?: string
+    preset_name?: string
+    text_style_content?: string
+    text_preset_name?: string
+  }) => api.post<any, Style>('/styles/create', data),
+  update: (id: string, data: Partial<Style>) => api.put<any, Style>(`/styles/${id}`, data),
+  generate: (id: string, data: {
+    group_index?: number
+    style_prompt?: string
+    negative_prompt?: string
+  }) => api.post(`/styles/${id}/generate`, data),
+  generateAll: (id: string, data: {
+    style_prompt?: string
+    negative_prompt?: string
+    group_count?: number
+  }) => api.post<any, { image_groups: StyleImage[] }>(`/styles/${id}/generate-all`, data),
+  select: (id: string, groupIndex: number) => api.post<any, Style>(`/styles/${id}/select`, null, { params: { group_index: groupIndex } }),
+  saveTextVersion: (id: string, data: {
+    version_name: string
+    content: string
+    modified_info?: string
+  }) => api.post(`/styles/${id}/save-text-version`, data),
+  loadTextVersion: (id: string, versionId: string) => api.post<any, { message: string, content: string }>(`/styles/${id}/load-text-version/${versionId}`),
+  delete: (id: string) => api.delete(`/styles/${id}`),
+  deleteAll: (projectId: string) => api.delete(`/styles/project/${projectId}/all`),
+}
+
+// ============ 图库 API ============
+
+export interface GalleryImage {
+  id: string
+  project_id: string
+  name: string
+  description: string
+  url: string
+  prompt_used?: string
+  source: string
+  task_id?: string
+  tags: string[]
+  created_at: string
+  updated_at: string
+}
+
+export const galleryApi = {
+  list: (projectId: string) => api.get<any, { images: GalleryImage[] }>('/gallery', { params: { project_id: projectId } }),
+  get: (id: string) => api.get<any, GalleryImage>(`/gallery/${id}`),
+  create: (data: {
+    project_id: string
+    name: string
+    description?: string
+    url: string
+    prompt_used?: string
+    source?: string
+    task_id?: string
+    tags?: string[]
+  }) => api.post<any, GalleryImage>('/gallery', data),
+  batchCreate: (projectId: string, images: Array<{
+    name: string
+    description?: string
+    url: string
+    prompt_used?: string
+    source?: string
+    task_id?: string
+    tags?: string[]
+  }>) => api.post<any, { images: GalleryImage[] }>('/gallery/batch', { project_id: projectId, images }),
+  update: (id: string, data: Partial<GalleryImage>) => api.put<any, GalleryImage>(`/gallery/${id}`, data),
+  delete: (id: string) => api.delete(`/gallery/${id}`),
+  deleteAll: (projectId: string) => api.delete(`/gallery/project/${projectId}/all`),
+}
+
+// ============ 图片工作室 API ============
+
+export interface ReferenceItem {
+  type: 'character' | 'scene' | 'prop' | 'gallery'
+  id: string
+  name: string
+  url?: string
+}
+
+export interface StudioTaskImage {
+  id: string
+  group_index: number
+  url?: string
+  prompt_used?: string
+  is_selected: boolean
+  created_at: string
+}
+
+export interface StudioTask {
+  id: string
+  project_id: string
+  name: string
+  description: string
+  model: string
+  prompt: string
+  negative_prompt: string
+  group_count: number
+  references: ReferenceItem[]
+  images: StudioTaskImage[]
+  status: 'pending' | 'generating' | 'completed' | 'failed'
+  error_message?: string
+  created_at: string
+  updated_at: string
+}
+
+export const studioApi = {
+  list: (projectId: string) => api.get<any, { tasks: StudioTask[] }>('/studio', { params: { project_id: projectId } }),
+  get: (id: string) => api.get<any, StudioTask>(`/studio/${id}`),
+  create: (data: {
+    project_id: string
+    name: string
+    description?: string
+    model?: string
+    prompt?: string
+    negative_prompt?: string
+    group_count?: number
+    references?: Array<{ type: string, id: string }>
+  }) => api.post<any, StudioTask>('/studio', data),
+  update: (id: string, data: Partial<StudioTask>) => api.put<any, StudioTask>(`/studio/${id}`, data),
+  generate: (id: string, data?: {
+    prompt?: string
+    negative_prompt?: string
+    group_count?: number
+  }) => api.post<any, { task: StudioTask }>(`/studio/${id}/generate`, data || {}),
+  saveToGallery: (id: string, imageIds: string[]) => api.post<any, { saved_images: GalleryImage[] }>(`/studio/${id}/save-to-gallery`, { image_ids: imageIds }),
+  delete: (id: string) => api.delete(`/studio/${id}`),
+  deleteAll: (projectId: string) => api.delete(`/studio/project/${projectId}/all`),
+  getAvailableModels: () => api.get<any, { models: string[] }>('/studio/models/available'),
+}
+
+export default api

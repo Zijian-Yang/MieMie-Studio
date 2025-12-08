@@ -1,0 +1,38 @@
+{
+  "id": "dcebc85d-9fd7-44e7-adaf-4c9d996bb663",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "在草坪",
+  "description": "",
+  "model": "wan2.5-i2i-preview",
+  "prompt": "第一个图的两个人在第二个图的草坪上",
+  "negative_prompt": "",
+  "group_count": 1,
+  "references": [
+    {
+      "type": "gallery",
+      "id": "92c8c68c-5a48-4e6e-a081-1a008c618465",
+      "name": "小明和爸爸合影 - 第1组",
+      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/e3/20251204/e67b8045/2e521e35-5f6b-49b7-ab45-2cd822ddf69d.png?Expires=1764919982&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=hYusG9NCeWqBoE%2Fenw9n%2BEla1oQ%3D"
+    },
+    {
+      "type": "scene",
+      "id": "ca60ab1b-55fd-4cd8-b0e5-655ce8f29a9b",
+      "name": "野餐草坪",
+      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/0e/20251203/eb920ed5/e6c91336-386c-477f-994e-ac635a641a5a.png?Expires=1764836153&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=%2BL9PakmVi70MR%2FhNu0%2FSmob6qRY%3D"
+    }
+  ],
+  "images": [
+    {
+      "id": "ee3f3041-a7a8-4ae0-b654-0f60f962d9f1",
+      "group_index": 0,
+      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/e0/20251204/e67b8045/24109e6d-598e-4bd0-a896-38171ede1418.png?Expires=1764922442&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=SQn09y%2FdwVFWuQyzmZ0ZSdeqJUw%3D",
+      "prompt_used": "第一个图的两个人在第二个图的草坪上",
+      "is_selected": true,
+      "created_at": "2025-12-04T16:14:04.931090"
+    }
+  ],
+  "status": "completed",
+  "error_message": null,
+  "created_at": "2025-12-04T16:13:22.621278",
+  "updated_at": "2025-12-04T16:14:10.080171"
+}

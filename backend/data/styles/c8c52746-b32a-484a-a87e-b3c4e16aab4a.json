@@ -1,0 +1,18 @@
+{
+  "id": "c8c52746-b32a-484a-a87e-b3c4e16aab4a",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "像素艺术风格",
+  "description": "",
+  "style_type": "text",
+  "style_prompt": "",
+  "negative_prompt": "",
+  "preset_name": null,
+  "image_groups": [],
+  "selected_group_index": 0,
+  "text_style_content": "{\n  \"style_definition\": {\n    \"art_style\": \"pixel art, retro game art\",\n    \"rendering\": \"limited color palette, visible pixels, dithering\",\n    \"color_palette\": [\"16-bit color  palette\", \"limited but vibrant colors\"],\n    \"lighting\": \"simplified lighting, cel-shaded pixels\"\n  },\n  \"subject_treatment\": {\n    \"character_style\": \"chibi or retro game character proportions\",\n    \"pose_preference\": \"iconic, readable silhouettes\",\n    \"expression\": \"simple, clear expressions\"\n  },\n  \"composition\": {\n    \"background\": \"pixel art environment or solid color\",\n    \"framing\": \"game sprite composition\",\n    \"style\": \"retro video game aesthetic\"\n  },\n  \"tags\": [\"pixel\", \"retro\", \"8-bit\", \"16-bit\", \"game art\", \"nostalgic\"]\n}",
+  "text_style_versions": [],
+  "text_preset_name": "pixel_art",
+  "is_selected": false,
+  "created_at": "2025-12-02T23:49:21.013612",
+  "updated_at": "2025-12-03T11:31:54.215704"
+}

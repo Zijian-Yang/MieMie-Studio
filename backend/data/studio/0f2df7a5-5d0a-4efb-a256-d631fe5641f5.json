@@ -1,0 +1,60 @@
+{
+  "id": "0f2df7a5-5d0a-4efb-a256-d631fe5641f5",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "儿子爸爸一起",
+  "description": "儿子爸爸一起在草地",
+  "model": "wan2.5-i2i-preview",
+  "prompt": "小明和爸爸在公园草地上面对面坐着",
+  "negative_prompt": "",
+  "group_count": 3,
+  "references": [
+    {
+      "type": "character",
+      "id": "807630d9-2a49-4bd7-96d9-216f251cf257",
+      "name": "小明",
+      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/60/20251203/eb920ed5/5cd439a2-3575-42ec-929a-79d691bcabd8.png?Expires=1764834732&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=JdJ0UIaIKU7V1XyMfMjHKoHNoss%3D"
+    },
+    {
+      "type": "character",
+      "id": "daf96f0c-d7ce-48a9-9afe-43dda28ee80d",
+      "name": "爸爸",
+      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/b7/20251203/eb920ed5/a589097c-2d29-4a0b-a3be-d52c81fe5ee4.png?Expires=1764834757&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=GvibKIr2AB1WlXVw1R4q4F%2BzbsA%3D"
+    },
+    {
+      "type": "scene",
+      "id": "34eaac80-b92b-4b56-b6b9-fc1743e68ae5",
+      "name": "春日公园全景",
+      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/ee/20251203/eb920ed5/ef2d386c-d383-494a-bffa-c2bc8ea1e463.png?Expires=1764836118&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=%2FhyNzBWVn5L74c4aeE7Ea3%2BG%2Bxs%3D"
+    }
+  ],
+  "images": [
+    {
+      "id": "035466e8-1867-4028-86b3-a6ba4912e09e",
+      "group_index": 0,
+      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/fa/20251204/e67b8045/d02a8125-3063-44c2-b484-9e8739d65c03.png?Expires=1764917514&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=iPvTob%2FMYzLRXmZkFsgWTOuH7SM%3D",
+      "prompt_used": "小明和爸爸在公园草地上面对面坐着",
+      "is_selected": false,
+      "created_at": "2025-12-04T14:51:56.314182"
+    },
+    {
+      "id": "cd4af851-cf12-4620-9fec-610fb5085cc7",
+      "group_index": 1,
+      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/01/20251204/e67b8045/12cb66e1-887e-4c70-bf01-c3de2ee19665.png?Expires=1764917546&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=8OFqOZROxrFX8zDwV6GHc6kad8g%3D",
+      "prompt_used": "小明和爸爸在公园草地上面对面坐着",
+      "is_selected": false,
+      "created_at": "2025-12-04T14:52:28.171678"
+    },
+    {
+      "id": "e356ddc7-0363-45cb-879f-ffc53ec2fe5a",
+      "group_index": 2,
+      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/91/20251204/e67b8045/a3fca5dc-6f1f-4865-88a5-28b633b4576f.png?Expires=1764917578&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=CrZ8PoPeVVZztB23ex6DdjFaPug%3D",
+      "prompt_used": "小明和爸爸在公园草地上面对面坐着",
+      "is_selected": true,
+      "created_at": "2025-12-04T14:53:00.000276"
+    }
+  ],
+  "status": "completed",
+  "error_message": null,
+  "created_at": "2025-12-04T14:51:16.549495",
+  "updated_at": "2025-12-04T15:01:08.909637"
+}

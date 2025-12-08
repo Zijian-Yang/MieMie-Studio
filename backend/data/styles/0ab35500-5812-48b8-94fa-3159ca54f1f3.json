@@ -1,0 +1,40 @@
+{
+  "id": "0ab35500-5812-48b8-94fa-3159ca54f1f3",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "赛博朋克风格",
+  "description": "",
+  "style_type": "image",
+  "style_prompt": "cyberpunk style, neon lights, futuristic city, high tech low life, characters with cybernetic enhancements, rainy night scene, holographic displays, blade runner inspired",
+  "negative_prompt": "natural, daylight, medieval, fantasy, cartoon",
+  "preset_name": "cyberpunk",
+  "image_groups": [
+    {
+      "id": "10411968-a7ce-4a68-ba51-21794d9c105d",
+      "group_index": 0,
+      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/2e/20251204/eb920ed5/e6714478-2d15-439e-9713-a9509e8eb588.png?Expires=1764917285&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=cqy6Em%2BGa5BXKZ%2F98INDaQaysso%3D",
+      "prompt_used": "cyberpunk style, neon lights, futuristic city, high tech low life, characters with cybernetic enhancements, rainy night scene, holographic displays, blade runner inspired",
+      "created_at": "2025-12-04T14:48:08.525177"
+    },
+    {
+      "id": "39d1395f-ce91-497e-a8a5-b66eb832ffbc",
+      "group_index": 1,
+      "url": "https://dashscope-result-wlcb.oss-cn-wulanchabu.aliyuncs.com/1d/0c/20251204/7a2bee47/c98408c7-6b5b-4489-b667-c658dc26f1dc.png?Expires=1764917295&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=2uG4kI22HAhEadi7%2F2DQWeI5oI4%3D",
+      "prompt_used": "cyberpunk style, neon lights, futuristic city, high tech low life, characters with cybernetic enhancements, rainy night scene, holographic displays, blade runner inspired",
+      "created_at": "2025-12-04T14:48:18.051066"
+    },
+    {
+      "id": "6bfebcb8-fff1-4304-9c2f-490f7d4e30b5",
+      "group_index": 2,
+      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/9c/20251204/eb920ed5/84e533cd-e478-401e-8455-c4fd27904c05.png?Expires=1764917304&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=jNamReldTkWj64G9NWKakx%2FFMcY%3D",
+      "prompt_used": "cyberpunk style, neon lights, futuristic city, high tech low life, characters with cybernetic enhancements, rainy night scene, holographic displays, blade runner inspired",
+      "created_at": "2025-12-04T14:48:27.652739"
+    }
+  ],
+  "selected_group_index": 0,
+  "text_style_content": "",
+  "text_style_versions": [],
+  "text_preset_name": null,
+  "is_selected": false,
+  "created_at": "2025-12-02T18:28:08.277978",
+  "updated_at": "2025-12-04T14:49:02.648122"
+}

@@ -1,0 +1,264 @@
+"""
+配置管理模块
+支持从 JSON 文件读写配置，包括 API Key 等敏感信息
+"""
+
+import json
+from pathlib import Path
+from typing import Optional, List
+from pydantic import BaseModel
+
+
+# API 地域配置
+API_REGIONS = {
+    "beijing": {
+        "name": "北京",
+        "base_url": "https://dashscope.aliyuncs.com/api/v1"
+    },
+    "singapore": {
+        "name": "新加坡",
+        "base_url": "https://dashscope-intl.aliyuncs.com/api/v1"
+    }
+}
+
+# 文本模型配置
+# 参考文档：
+# - JSON Mode: https://help.aliyun.com/zh/model-studio/json-mode
+# - 深度思考: https://help.aliyun.com/zh/model-studio/deep-thinking
+# - 联网搜索: https://help.aliyun.com/zh/model-studio/web-search
+LLM_MODELS = {
+    "qwen3-max": {
+        "name": "Qwen3-Max",
+        "max_output_tokens": 65536,
+        "supports_thinking": False,  # 仅非思考模式
+        "supports_search": True,
+        "supports_json_mode": True  # 非思考模式下支持
+    },
+    "qwen-plus-latest": {
+        "name": "Qwen-Plus-Latest",
+        "max_output_tokens": 32768,
+        "supports_thinking": True,  # 支持思考和非思考模式
+        "supports_search": True,
+        "supports_json_mode": True  # 非思考模式下支持
+    }
+}
+
+# 文生图模型配置
+# wan2.5-t2i-preview：总像素在[768*768, 1440*1440]之间，宽高比[1:4, 4:1]
+# 参考: https://help.aliyun.com/zh/model-studio/text-to-image-v2-api-reference
+IMAGE_MODELS = {
+    "wan2.5-t2i-preview": {
+        "name": "万相2.5 Preview",
+        "description": "取消单边限制，在总像素面积与宽高比约束内自由选尺寸",
+        "min_pixels": 768 * 768,  # 最小总像素
+        "max_pixels": 1440 * 1440,  # 最大总像素
+        "min_ratio": 0.25,  # 最小宽高比 1:4
+        "max_ratio": 4.0,  # 最大宽高比 4:1
+        "common_sizes": [
+            {"width": 1024, "height": 1024, "label": "1:1 方形"},
+            {"width": 1280, "height": 720, "label": "16:9 横屏"},
+            {"width": 720, "height": 1280, "label": "9:16 竖屏"},
+            {"width": 1024, "height": 768, "label": "4:3 横屏"},
+            {"width": 768, "height": 1024, "label": "3:4 竖屏"},
+            {"width": 1440, "height": 810, "label": "16:9 高清横屏"},
+            {"width": 810, "height": 1440, "label": "9:16 高清竖屏"},
+        ]
+    }
+}
+
+# 图像编辑模型配置 (图生图)
+# 参考: https://www.alibabacloud.com/help/zh/model-studio/wan2-5-image-edit-api-reference
+IMAGE_EDIT_MODELS = {
+    "wan2.5-i2i-preview": {
+        "name": "万相2.5 图像编辑 Preview",
+        "description": "支持风格迁移、局部编辑等图像编辑功能",
+        "min_pixels": 768 * 768,  # 最小总像素
+        "max_pixels": 1440 * 1440,  # 最大总像素
+        "min_ratio": 0.25,  # 最小宽高比 1:4
+        "max_ratio": 4.0,  # 最大宽高比 4:1
+        "common_sizes": [
+            {"width": 1024, "height": 1024, "label": "1:1 方形"},
+            {"width": 1280, "height": 720, "label": "16:9 横屏"},
+            {"width": 720, "height": 1280, "label": "9:16 竖屏"},
+            {"width": 1024, "height": 768, "label": "4:3 横屏"},
+            {"width": 768, "height": 1024, "label": "3:4 竖屏"},
+        ]
+    }
+}
+
+# 图生视频模型配置
+VIDEO_MODELS = {
+    "wanx2.1-i2v-turbo": {
+        "name": "万相2.1 图生视频 Turbo",
+        "sizes": ["1280*720", "720*1280", "960*960"]
+    }
+}
+
+
+class LLMConfig(BaseModel):
+    """LLM 模型配置"""
+    model: str = "qwen3-max"
+    max_tokens: int = 8192
+    top_p: float = 0.8
+    temperature: float = 0.7
+    enable_thinking: bool = False
+    thinking_budget: int = 4096
+    result_format: str = "message"  # message 或 json_object
+    enable_search: bool = False
+
+
+class ImageConfig(BaseModel):
+    """文生图配置"""
+    model: str = "wan2.5-t2i-preview"
+    width: int = 1024  # 图片宽度
+    height: int = 1024  # 图片高度
+    prompt_extend: bool = True  # 智能改写
+    seed: Optional[int] = None  # 种子，None表示随机
+    
+    @property
+    def size(self) -> str:
+        """返回 width*height 格式的尺寸字符串"""
+        return f"{self.width}*{self.height}"
+
+
+class ImageEditConfig(BaseModel):
+    """图像编辑配置（图生图）"""
+    model: str = "wan2.5-i2i-preview"
+    width: int = 1024  # 图片宽度
+    height: int = 1024  # 图片高度
+    prompt_extend: bool = True  # 智能改写
+    seed: Optional[int] = None  # 种子，None表示随机
+    
+    @property
+    def size(self) -> str:
+        """返回 width*height 格式的尺寸字符串"""
+        return f"{self.width}*{self.height}"
+
+
+class VideoConfig(BaseModel):
+    """图生视频配置"""
+    model: str = "wanx2.1-i2v-turbo"
+    size: str = "1280*720"
+    prompt_extend: bool = True  # 智能改写
+    watermark: bool = False  # 水印，默认关闭
+    seed: Optional[int] = None  # 种子，None表示随机
+
+
+class AppConfig(BaseModel):
+    """应用配置模型"""
+    dashscope_api_key: str = ""
+    api_region: str = "beijing"  # beijing 或 singapore
+    
+    # LLM 配置
+    llm: LLMConfig = LLMConfig()
+    
+    # 文生图配置
+    image: ImageConfig = ImageConfig()
+    
+    # 图像编辑配置
+    image_edit: ImageEditConfig = ImageEditConfig()
+    
+    # 图生视频配置
+    video: VideoConfig = VideoConfig()
+    
+    @property
+    def base_url(self) -> str:
+        """根据地域获取 API 基础地址"""
+        return API_REGIONS.get(self.api_region, API_REGIONS["beijing"])["base_url"]
+
+
+class ConfigManager:
+    """配置管理器"""
+    
+    def __init__(self, config_dir: Optional[str] = None):
+        """
+        初始化配置管理器
+        
+        Args:
+            config_dir: 配置文件目录，默认为 backend/data
+        """
+        if config_dir is None:
+            self.config_dir = Path(__file__).parent.parent / "data"
+        else:
+            self.config_dir = Path(config_dir)
+        
+        self.config_file = self.config_dir / "config.json"
+        self._ensure_config_dir()
+        self._config: Optional[AppConfig] = None
+    
+    def _ensure_config_dir(self):
+        """确保配置目录存在"""
+        self.config_dir.mkdir(parents=True, exist_ok=True)
+    
+    def load(self) -> AppConfig:
+        """加载配置"""
+        if self._config is not None:
+            return self._config
+        
+        if self.config_file.exists():
+            with open(self.config_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                self._config = AppConfig(**data)
+        else:
+            self._config = AppConfig()
+            self.save(self._config)
+        
+        return self._config
+    
+    def save(self, config: AppConfig) -> None:
+        """保存配置"""
+        with open(self.config_file, 'w', encoding='utf-8') as f:
+            json.dump(config.model_dump(), f, ensure_ascii=False, indent=2)
+        self._config = config
+    
+    def update(self, **kwargs) -> AppConfig:
+        """更新配置"""
+        config = self.load()
+        updated_data = config.model_dump()
+        
+        # 处理嵌套更新
+        for key, value in kwargs.items():
+            if key in ['llm', 'image', 'image_edit', 'video'] and isinstance(value, dict):
+                # 合并嵌套配置
+                if key in updated_data:
+                    updated_data[key].update(value)
+                else:
+                    updated_data[key] = value
+            else:
+                updated_data[key] = value
+        
+        new_config = AppConfig(**updated_data)
+        self.save(new_config)
+        return new_config
+    
+    def reload(self) -> AppConfig:
+        """强制重新加载配置"""
+        self._config = None
+        return self.load()
+    
+    def get_api_key(self) -> str:
+        """获取 API Key"""
+        return self.load().dashscope_api_key
+    
+    def set_api_key(self, api_key: str) -> None:
+        """设置 API Key"""
+        self.update(dashscope_api_key=api_key)
+
+
+# 全局配置管理器实例
+config_manager = ConfigManager()
+
+
+def get_config() -> AppConfig:
+    """获取当前配置"""
+    return config_manager.load()
+
+
+def get_api_key() -> str:
+    """获取 API Key"""
+    return config_manager.get_api_key()
+
+
+def get_base_url() -> str:
+    """获取 API 基础地址"""
+    return get_config().base_url
