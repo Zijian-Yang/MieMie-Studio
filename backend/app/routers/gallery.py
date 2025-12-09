@@ -2,12 +2,16 @@
 图库 API 路由
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from typing import Optional, List
+import uuid
+import asyncio
 
 from app.models.gallery import GalleryImage
 from app.services.storage import storage_service
+from app.services.oss import oss_service
+from app.config import get_config
 
 router = APIRouter()
 
@@ -35,6 +39,139 @@ class BatchSaveRequest(BaseModel):
     """批量保存到图库请求"""
     project_id: str
     images: List[GalleryImageCreateRequest]
+
+
+class UploadUrlsRequest(BaseModel):
+    """通过URL上传图片请求"""
+    project_id: str
+    urls: List[str]  # 图片URL列表
+
+
+class OSSStatusResponse(BaseModel):
+    """OSS状态响应"""
+    enabled: bool
+    configured: bool
+
+
+@router.get("/oss-status")
+async def get_oss_status():
+    """获取OSS配置状态"""
+    config = get_config().oss
+    return OSSStatusResponse(
+        enabled=config.enabled,
+        configured=bool(config.access_key_id and config.access_key_secret and config.bucket_name)
+    )
+
+
+@router.post("/upload-files")
+async def upload_files(
+    project_id: str = Form(...),
+    files: List[UploadFile] = File(...)
+):
+    """
+    上传多个图片文件到OSS并保存到图库
+    需要启用OSS功能
+    """
+    # 检查OSS是否启用
+    if not oss_service.is_enabled():
+        raise HTTPException(status_code=400, detail="OSS未启用，请先在设置中配置并启用OSS")
+    
+    uploaded_images = []
+    errors = []
+    
+    for file in files:
+        try:
+            # 读取文件内容
+            content = await file.read()
+            
+            # 获取文件扩展名
+            filename = file.filename or "image.png"
+            ext = filename.split('.')[-1].lower() if '.' in filename else 'png'
+            if ext not in ['png', 'jpg', 'jpeg', 'gif', 'webp']:
+                ext = 'png'
+            
+            # 生成唯一文件名
+            object_name = f"gallery/{uuid.uuid4().hex[:8]}.{ext}"
+            
+            # 上传到OSS
+            success, result = oss_service.upload_from_bytes(content, "image", ext, project_id)
+            
+            if not success:
+                errors.append({"filename": filename, "error": result})
+                continue
+            
+            # 创建图库记录
+            image = GalleryImage(
+                project_id=project_id,
+                name=filename.rsplit('.', 1)[0] if '.' in filename else filename,
+                description="用户上传",
+                url=result,
+                source="upload"
+            )
+            storage_service.save_gallery_image(image)
+            uploaded_images.append(image)
+            
+        except Exception as e:
+            errors.append({"filename": file.filename, "error": str(e)})
+    
+    return {
+        "images": uploaded_images,
+        "success_count": len(uploaded_images),
+        "error_count": len(errors),
+        "errors": errors
+    }
+
+
+@router.post("/upload-urls")
+async def upload_from_urls(request: UploadUrlsRequest):
+    """
+    从URL列表下载图片并上传到OSS保存到图库
+    需要启用OSS功能
+    """
+    # 检查OSS是否启用
+    if not oss_service.is_enabled():
+        raise HTTPException(status_code=400, detail="OSS未启用，请先在设置中配置并启用OSS")
+    
+    uploaded_images = []
+    errors = []
+    
+    for idx, url in enumerate(request.urls):
+        url = url.strip()
+        if not url:
+            continue
+            
+        try:
+            # 从URL上传到OSS
+            success, result = oss_service.upload_from_url(url, "image", "png", request.project_id)
+            
+            if not success:
+                errors.append({"url": url, "error": result})
+                continue
+            
+            # 从URL提取文件名
+            url_filename = url.split('/')[-1].split('?')[0]
+            name = url_filename.rsplit('.', 1)[0] if '.' in url_filename else f"图片_{idx + 1}"
+            
+            # 创建图库记录
+            image = GalleryImage(
+                project_id=request.project_id,
+                name=name,
+                description=f"从URL导入: {url[:50]}...",
+                url=result,
+                source="upload"
+            )
+            storage_service.save_gallery_image(image)
+            uploaded_images.append(image)
+            
+        except Exception as e:
+            errors.append({"url": url, "error": str(e)})
+    
+    return {
+        "images": uploaded_images,
+        "success_count": len(uploaded_images),
+        "error_count": len(errors),
+        "errors": errors
+    }
 
 
 @router.get("")

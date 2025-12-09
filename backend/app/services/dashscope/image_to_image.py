@@ -15,7 +15,7 @@
    - 将风格文本嵌入提示词
 """
 
-import time
+import asyncio
 import requests
 from typing import Optional, List
 from http import HTTPStatus
@@ -244,6 +244,6 @@ class ImageToImageService:
                 code = status_result.get("output", {}).get("code", "")
                 raise Exception(f"图片生成失败: {code} - {error_msg}")
             elif task_status in ["PENDING", "RUNNING"]:
-                time.sleep(3)
+                await asyncio.sleep(3)
             else:
                 raise Exception(f"未知的任务状态: {task_status}")

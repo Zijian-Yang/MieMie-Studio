@@ -727,6 +727,30 @@ export const galleryApi = {
   update: (id: string, data: Partial<GalleryImage>) => api.put<any, GalleryImage>(`/gallery/${id}`, data),
   delete: (id: string) => api.delete(`/gallery/${id}`),
   deleteAll: (projectId: string) => api.delete(`/gallery/project/${projectId}/all`),
+  // OSS状态
+  getOSSStatus: () => api.get<any, { enabled: boolean; configured: boolean }>('/gallery/oss-status'),
+  // 上传文件
+  uploadFiles: (projectId: string, files: File[]) => {
+    const formData = new FormData()
+    formData.append('project_id', projectId)
+    files.forEach(file => formData.append('files', file))
+    return api.post<any, { 
+      images: GalleryImage[]
+      success_count: number
+      error_count: number
+      errors: Array<{ filename?: string; error: string }>
+    }>('/gallery/upload-files', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+  // 从URL上传
+  uploadFromUrls: (projectId: string, urls: string[]) => 
+    api.post<any, { 
+      images: GalleryImage[]
+      success_count: number
+      error_count: number
+      errors: Array<{ url?: string; error: string }>
+    }>('/gallery/upload-urls', { project_id: projectId, urls }),
 }
 
 // ============ 图片工作室 API ============

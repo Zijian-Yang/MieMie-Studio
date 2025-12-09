@@ -2,16 +2,19 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { 
   Button, Modal, Form, Input, Empty, Spin, message, 
-  Image, Space, Popconfirm, Card, Tag, Tooltip
+  Image, Space, Popconfirm, Card, Tag, Tooltip, Upload, Tabs
 } from 'antd'
+import type { UploadFile, RcFile } from 'antd/es/upload/interface'
 import { 
   DeleteOutlined, EditOutlined, PictureOutlined,
-  ExclamationCircleOutlined, EyeOutlined
+  ExclamationCircleOutlined, EyeOutlined, UploadOutlined,
+  InboxOutlined, LinkOutlined, CloudUploadOutlined
 } from '@ant-design/icons'
 import { galleryApi, GalleryImage } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 
 const { TextArea } = Input
+const { Dragger } = Upload
 
 const GalleryPage = () => {
   const { projectId } = useParams<{ projectId: string }>()
@@ -21,6 +24,11 @@ const GalleryPage = () => {
   const [loading, setLoading] = useState(true)
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [ossEnabled, setOssEnabled] = useState(false)
+  const [fileList, setFileList] = useState<UploadFile[]>([])
+  const [urlInput, setUrlInput] = useState('')
   const [form] = Form.useForm()
   
   const isMountedRef = useRef(true)
@@ -42,8 +50,12 @@ const GalleryPage = () => {
       safeSetState(setLoading, true)
       try {
         fetchProject(projectId).catch(() => {})
-        const { images: data } = await galleryApi.list(projectId)
+        const [{ images: data }, ossStatus] = await Promise.all([
+          galleryApi.list(projectId),
+          galleryApi.getOSSStatus()
+        ])
         safeSetState(setImages, data)
+        safeSetState(setOssEnabled, ossStatus.enabled && ossStatus.configured)
       } catch (error) {
         message.error('加载失败')
       } finally {
@@ -102,6 +114,70 @@ const GalleryPage = () => {
     }
   }
 
+  // 上传文件
+  const handleUploadFiles = async () => {
+    if (!projectId || fileList.length === 0) return
+    
+    safeSetState(setUploading, true)
+    try {
+      const files = fileList.map(f => f.originFileObj as File).filter(Boolean)
+      const result = await galleryApi.uploadFiles(projectId, files)
+      
+      if (result.success_count > 0) {
+        safeSetState(setImages, (prev: GalleryImage[]) => [...result.images, ...prev])
+        message.success(`成功上传 ${result.success_count} 张图片`)
+      }
+      if (result.error_count > 0) {
+        message.warning(`${result.error_count} 张图片上传失败`)
+      }
+      
+      setFileList([])
+      setIsUploadModalOpen(false)
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || '上传失败')
+    } finally {
+      safeSetState(setUploading, false)
+    }
+  }
+
+  // 从URL上传
+  const handleUploadFromUrls = async () => {
+    if (!projectId || !urlInput.trim()) return
+    
+    const urls = urlInput.split('\n').map(u => u.trim()).filter(Boolean)
+    if (urls.length === 0) {
+      message.warning('请输入有效的URL')
+      return
+    }
+    
+    safeSetState(setUploading, true)
+    try {
+      const result = await galleryApi.uploadFromUrls(projectId, urls)
+      
+      if (result.success_count > 0) {
+        safeSetState(setImages, (prev: GalleryImage[]) => [...result.images, ...prev])
+        message.success(`成功导入 ${result.success_count} 张图片`)
+      }
+      if (result.error_count > 0) {
+        message.warning(`${result.error_count} 个URL导入失败`)
+      }
+      
+      setUrlInput('')
+      setIsUploadModalOpen(false)
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || '导入失败')
+    } finally {
+      safeSetState(setUploading, false)
+    }
+  }
+
+  // 打开上传弹窗
+  const openUploadModal = () => {
+    setFileList([])
+    setUrlInput('')
+    setIsUploadModalOpen(true)
+  }
+
   if (loading) {
     return (
       <div style={{ padding: 24, textAlign: 'center' }}>
@@ -122,6 +198,16 @@ const GalleryPage = () => {
           </p>
         </div>
         <Space>
+          <Tooltip title={!ossEnabled ? "请先在设置中配置并启用OSS" : ""}>
+            <Button 
+              type="primary"
+              icon={<CloudUploadOutlined />} 
+              onClick={openUploadModal}
+              disabled={!ossEnabled}
+            >
+              上传图片
+            </Button>
+          </Tooltip>
           {images.length > 0 && (
             <Popconfirm 
               title="确定删除所有图片？" 
@@ -200,6 +286,121 @@ const GalleryPage = () => {
           ))}
         </div>
       )}
+
+      {/* 上传图片弹窗 */}
+      <Modal
+        title={
+          <Space>
+            <CloudUploadOutlined />
+            <span>上传图片到图库</span>
+          </Space>
+        }
+        open={isUploadModalOpen}
+        onCancel={() => !uploading && setIsUploadModalOpen(false)}
+        footer={null}
+        width={600}
+        maskClosable={!uploading}
+      >
+        <Tabs
+          items={[
+            {
+              key: 'file',
+              label: (
+                <span>
+                  <UploadOutlined /> 文件上传
+                </span>
+              ),
+              children: (
+                <div>
+                  <Dragger
+                    multiple
+                    accept="image/*"
+                    fileList={fileList}
+                    beforeUpload={(file) => {
+                      // 不自动上传，添加到列表
+                      setFileList(prev => [...prev, {
+                        uid: file.uid,
+                        name: file.name,
+                        status: 'done',
+                        originFileObj: file as RcFile
+                      }])
+                      return false
+                    }}
+                    onRemove={(file) => {
+                      setFileList(prev => prev.filter(f => f.uid !== file.uid))
+                    }}
+                    disabled={uploading}
+                  >
+                    <p className="ant-upload-drag-icon">
+                      <InboxOutlined style={{ color: '#1890ff', fontSize: 48 }} />
+                    </p>
+                    <p className="ant-upload-text" style={{ color: '#e0e0e0' }}>
+                      点击或拖拽图片到此区域上传
+                    </p>
+                    <p className="ant-upload-hint" style={{ color: '#888' }}>
+                      支持 PNG、JPG、GIF、WebP 格式，可多选
+                    </p>
+                  </Dragger>
+                  
+                  <div style={{ marginTop: 16, textAlign: 'right' }}>
+                    <Space>
+                      <Button onClick={() => setIsUploadModalOpen(false)} disabled={uploading}>
+                        取消
+                      </Button>
+                      <Button 
+                        type="primary" 
+                        onClick={handleUploadFiles}
+                        loading={uploading}
+                        disabled={fileList.length === 0}
+                      >
+                        上传 {fileList.length > 0 ? `(${fileList.length})` : ''}
+                      </Button>
+                    </Space>
+                  </div>
+                </div>
+              )
+            },
+            {
+              key: 'url',
+              label: (
+                <span>
+                  <LinkOutlined /> URL导入
+                </span>
+              ),
+              children: (
+                <div>
+                  <div style={{ marginBottom: 12, color: '#888', fontSize: 12 }}>
+                    输入图片URL，每行一个。图片将下载后上传到OSS保存。
+                  </div>
+                  <TextArea
+                    rows={8}
+                    placeholder={'https://example.com/image1.jpg\nhttps://example.com/image2.png'}
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    disabled={uploading}
+                  />
+                  
+                  <div style={{ marginTop: 16, textAlign: 'right' }}>
+                    <Space>
+                      <Button onClick={() => setIsUploadModalOpen(false)} disabled={uploading}>
+                        取消
+                      </Button>
+                      <Button 
+                        type="primary" 
+                        onClick={handleUploadFromUrls}
+                        loading={uploading}
+                        disabled={!urlInput.trim()}
+                      >
+                        导入
+                      </Button>
+                    </Space>
+                  </div>
+                </div>
+              )
+            }
+          ]}
+        />
+      </Modal>
 
       {/* 编辑图片弹窗 */}
       <Modal

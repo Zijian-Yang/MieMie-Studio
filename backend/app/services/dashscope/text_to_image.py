@@ -138,7 +138,7 @@ class TextToImageService:
             raise Exception(f"创建任务失败: {rsp.code} - {rsp.message}")
         
         # 等待任务完成，设置更长的超时时间（最多等待5分钟）
-        import time
+        import asyncio
         task_id = rsp.output.task_id
         max_wait_time = 300  # 5分钟
         poll_interval = 3  # 每3秒检查一次
@@ -166,8 +166,8 @@ class TextToImageService:
                 error_msg = getattr(rsp.output, 'message', '未知错误')
                 raise Exception(f"图片生成失败: {error_msg}")
             elif task_status in ['PENDING', 'RUNNING']:
-                # 继续等待
-                time.sleep(poll_interval)
+                # 继续等待（使用异步 sleep 避免阻塞事件循环）
+                await asyncio.sleep(poll_interval)
                 elapsed_time += poll_interval
             else:
                 raise Exception(f"未知的任务状态: {task_status}")

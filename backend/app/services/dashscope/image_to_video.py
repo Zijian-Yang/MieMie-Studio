@@ -120,7 +120,7 @@ class ImageToVideoService:
     
     async def wait_for_task(self, task_id: str, project_id: str = "") -> str:
         """
-        等待任务完成并返回视频 URL
+        等待任务完成并返回视频 URL（使用异步轮询避免阻塞）
         
         Args:
             task_id: 任务 ID
@@ -129,25 +129,40 @@ class ImageToVideoService:
         Returns:
             视频 URL（如果启用 OSS，返回 OSS URL）
         """
-        rsp = VideoSynthesis.wait(
-            api_key=self.api_key,
-            task=task_id
-        )
+        import asyncio
         
-        if rsp.status_code != HTTPStatus.OK:
-            raise Exception(f"任务失败: {rsp.code} - {rsp.message}")
+        max_wait_time = 600  # 10分钟超时（视频生成需要更长时间）
+        poll_interval = 5  # 每5秒检查一次
+        elapsed_time = 0
         
-        if rsp.output.task_status == 'SUCCEEDED':
-            video_url = rsp.output.video_url
-            # 如果启用了 OSS，上传视频并返回 OSS URL
-            if oss_service.is_enabled():
-                video_url = oss_service.upload_video(video_url, project_id)
-            return video_url
-        elif rsp.output.task_status == 'FAILED':
-            error_msg = getattr(rsp.output, 'message', '未知错误')
-            raise Exception(f"视频生成失败: {error_msg}")
-        else:
-            raise Exception(f"未知的任务状态: {rsp.output.task_status}")
+        while elapsed_time < max_wait_time:
+            rsp = VideoSynthesis.fetch(
+                api_key=self.api_key,
+                task=task_id
+            )
+            
+            if rsp.status_code != HTTPStatus.OK:
+                raise Exception(f"任务查询失败: {rsp.code} - {rsp.message}")
+            
+            task_status = rsp.output.task_status
+            
+            if task_status == 'SUCCEEDED':
+                video_url = rsp.output.video_url
+                # 如果启用了 OSS，上传视频并返回 OSS URL
+                if oss_service.is_enabled():
+                    video_url = oss_service.upload_video(video_url, project_id)
+                return video_url
+            elif task_status == 'FAILED':
+                error_msg = getattr(rsp.output, 'message', '未知错误')
+                raise Exception(f"视频生成失败: {error_msg}")
+            elif task_status in ['PENDING', 'RUNNING']:
+                # 使用异步 sleep 避免阻塞事件循环
+                await asyncio.sleep(poll_interval)
+                elapsed_time += poll_interval
+            else:
+                raise Exception(f"未知的任务状态: {task_status}")
+        
+        raise Exception(f"视频生成超时（{max_wait_time}秒）")
     
     async def generate(
         self,
