@@ -2,21 +2,39 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { 
   Card, Button, Modal, Form, Input, Empty, Spin, message, 
-  Image, Progress, Tag, Tooltip, Divider, Upload, Space
+  Image, Tag, Tooltip, Divider, Upload, Space,
+  Select, Switch, InputNumber, Row, Col
 } from 'antd'
 import { 
   PlayCircleOutlined, ReloadOutlined, VideoCameraOutlined,
   LoadingOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  SoundOutlined, UploadOutlined
+  SoundOutlined, UploadOutlined, SettingOutlined
 } from '@ant-design/icons'
-import { videosApi, framesApi, Video, Shot, Frame } from '../../services/api'
+import { videosApi, framesApi, settingsApi, Video, Shot, Frame, VideoModelInfo } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
+import { useGenerationStore } from '../../stores/generationStore'
 
 const { TextArea } = Input
+const { Option } = Select
 
 const VideosPage = () => {
   const { projectId } = useParams<{ projectId: string }>()
   const { currentProject, fetchProject } = useProjectStore()
+  const {
+    videoGroupCount,
+    setVideoGroupCount,
+    videoModel,
+    setVideoModel,
+    videoSize,
+    setVideoSize,
+    videoPromptExtend,
+    setVideoPromptExtend,
+    videoWatermark,
+    setVideoWatermark,
+    videoSeed,
+    setVideoSeed,
+    resetVideoSettings,
+  } = useGenerationStore()
   
   const [videos, setVideos] = useState<Video[]>([])
   const [frames, setFrames] = useState<Frame[]>([])
@@ -25,13 +43,29 @@ const VideosPage = () => {
   const [generating, setGenerating] = useState(false)
   const [selectedShot, setSelectedShot] = useState<Shot | null>(null)
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
-  const [selectedFrame, setSelectedFrame] = useState<Frame | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [settingsModalVisible, setSettingsModalVisible] = useState(false)
   const [singleGenerating, setSingleGenerating] = useState(false)
   const [form] = Form.useForm()
   
+  // 视频模型配置
+  const [videoModels, setVideoModels] = useState<Record<string, VideoModelInfo>>({})
+  const [systemVideoConfig, setSystemVideoConfig] = useState<{model: string, size: string, prompt_extend: boolean, watermark: boolean}>({
+    model: 'wan2.5-i2v-preview',
+    size: '1280*720',
+    prompt_extend: true,
+    watermark: false
+  })
+  
   // 轮询状态更新
   const pollingRef = useRef<Set<string>>(new Set())
+  const isMountedRef = useRef(true)
+  const videosRef = useRef<Video[]>([])
+  
+  // 保持 videosRef 同步
+  useEffect(() => {
+    videosRef.current = videos
+  }, [videos])
 
   useEffect(() => {
     const loadData = async () => {
@@ -41,12 +75,20 @@ const VideosPage = () => {
       try {
         // 不阻塞加载
         fetchProject(projectId).catch(() => {})
-        const [videosRes, framesRes] = await Promise.all([
+        const [videosRes, framesRes, settingsRes] = await Promise.all([
           videosApi.list(projectId),
           framesApi.list(projectId),
+          settingsApi.getSettings(),
         ])
         setVideos(videosRes.videos)
         setFrames(framesRes.frames)
+        setVideoModels(settingsRes.available_video_models)
+        setSystemVideoConfig({
+          model: settingsRes.video.model,
+          size: settingsRes.video.size,
+          prompt_extend: settingsRes.video.prompt_extend,
+          watermark: settingsRes.video.watermark,
+        })
         
         // 启动轮询检查进行中的任务
         videosRes.videos.forEach(v => {
@@ -63,10 +105,20 @@ const VideosPage = () => {
     loadData()
     
     return () => {
-      // 清理轮询
-      pollingRef.current.clear()
+      // 组件卸载时标记
+      isMountedRef.current = false
+      // 注意：不清理 pollingRef，让轮询继续运行
+      // 这样下次加载时可以从后端获取最新状态
     }
   }, [projectId, fetchProject])
+  
+  // 组件挂载时重置标记
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
 
   useEffect(() => {
     if (currentProject?.script?.shots) {
@@ -89,6 +141,7 @@ const VideosPage = () => {
     pollingRef.current.add(taskId)
     
     const poll = async () => {
+      // 检查是否还需要继续轮询
       if (!pollingRef.current.has(taskId)) return
       
       try {
@@ -97,34 +150,80 @@ const VideosPage = () => {
         if (result.status === 'SUCCEEDED' || result.status === 'FAILED') {
           pollingRef.current.delete(taskId)
           
-          // 更新视频列表
-          setVideos(prev => prev.map(v => {
-            if (v.task?.task_id === taskId) {
-              return {
-                ...v,
-                video_url: result.video_url,
-                task: {
-                  ...v.task!,
-                  status: result.status.toLowerCase() as 'succeeded' | 'failed'
+          // 只有组件仍然挂载时才更新状态
+          if (isMountedRef.current) {
+            // 更新视频列表
+            setVideos(prev => prev.map(v => {
+              if (v.task?.task_id === taskId) {
+                return {
+                  ...v,
+                  video_url: result.video_url,
+                  task: {
+                    ...v.task!,
+                    status: result.status.toLowerCase() as 'succeeded' | 'failed'
+                  }
                 }
               }
+              return v
+            }))
+            
+            // 同步更新 selectedVideo
+            setSelectedVideo(prev => {
+              if (prev?.task?.task_id === taskId) {
+                return {
+                  ...prev,
+                  video_url: result.video_url,
+                  task: {
+                    ...prev.task!,
+                    status: result.status.toLowerCase() as 'succeeded' | 'failed'
+                  }
+                }
+              }
+              return prev
+            })
+            
+            if (result.status === 'SUCCEEDED') {
+              message.success('视频生成完成')
+            } else if (result.status === 'FAILED') {
+              message.error('视频生成失败')
             }
-            return v
-          }))
-          
-          if (result.status === 'SUCCEEDED') {
-            message.success('视频生成完成')
           }
         } else {
-          // 继续轮询
+          // 继续轮询（即使组件卸载也继续，以便下次加载时能获取到最新状态）
           setTimeout(poll, 5000)
         }
-      } catch {
-        pollingRef.current.delete(taskId)
+      } catch (error) {
+        console.error('轮询视频状态失败:', error)
+        // 出错时也继续轮询，避免状态丢失
+        setTimeout(poll, 10000)
       }
     }
     
     poll()
+  }
+
+  // 获取当前有效的视频设置（页面设置优先于系统设置）
+  const getEffectiveVideoSettings = () => {
+    return {
+      model: videoModel || systemVideoConfig.model,
+      size: videoSize || systemVideoConfig.size,
+      prompt_extend: videoPromptExtend !== null ? videoPromptExtend : systemVideoConfig.prompt_extend,
+      watermark: videoWatermark !== null ? videoWatermark : systemVideoConfig.watermark,
+      seed: videoSeed,
+    }
+  }
+
+  // 获取当前模型的分辨率选项
+  const getCurrentModelSizes = () => {
+    const currentModel = videoModel || systemVideoConfig.model
+    const modelInfo = videoModels[currentModel]
+    return modelInfo?.sizes || []
+  }
+
+  // 获取当前模型信息
+  const getCurrentModelInfo = () => {
+    const currentModel = videoModel || systemVideoConfig.model
+    return videoModels[currentModel]
   }
 
   // 构建视频提示词
@@ -181,7 +280,14 @@ const VideosPage = () => {
     setGenerating(true)
     
     try {
-      const result = await videosApi.generateBatch(projectId)
+      const settings = getEffectiveVideoSettings()
+      const result = await videosApi.generateBatch(projectId, {
+        model: settings.model,
+        size: settings.size,
+        prompt_extend: settings.prompt_extend,
+        watermark: settings.watermark,
+        seed: settings.seed,
+      })
       setVideos(prev => [...prev, ...result.videos])
       
       // 启动轮询
@@ -206,11 +312,16 @@ const VideosPage = () => {
   // 打开单个视频编辑
   const openVideoModal = (shot: Shot) => {
     setSelectedShot(shot)
-    const video = videos.find(v => v.shot_id === shot.id)
-    setSelectedVideo(video || null)
-    
-    const frame = frames.find(f => f.shot_id === shot.id)
-    setSelectedFrame(frame || null)
+    // 找到最新的该镜头视频（优先显示处理中的，否则显示最新的）
+    const shotVideos = videos.filter(v => v.shot_id === shot.id)
+    const processingVideo = shotVideos.find(v => v.task?.status === 'processing')
+    const latestVideo = shotVideos.length > 0 
+      ? shotVideos.reduce((latest, v) => 
+          new Date(v.created_at) > new Date(latest.created_at) ? v : latest
+        )
+      : null
+    const video = processingVideo || latestVideo
+    setSelectedVideo(video)
     
     // 使用改进的提示词生成
     form.setFieldsValue({
@@ -218,6 +329,11 @@ const VideosPage = () => {
     })
     
     setIsModalOpen(true)
+    
+    // 如果视频正在处理中，确保轮询正在运行
+    if (video?.task?.status === 'processing' && video.task.task_id) {
+      startPolling(video.task.task_id)
+    }
   }
 
   // 生成单个视频
@@ -233,6 +349,7 @@ const VideosPage = () => {
     }
     
     const values = await form.validateFields()
+    const settings = getEffectiveVideoSettings()
     
     setSingleGenerating(true)
     try {
@@ -242,16 +359,17 @@ const VideosPage = () => {
         shot_number: selectedShot.shot_number,
         first_frame_url: frameUrl,
         prompt: values.prompt,
-        duration: Math.min(selectedShot.duration || 5, 10) // 确保不超过10秒
+        duration: Math.min(selectedShot.duration || 5, 10), // 确保不超过10秒
+        // 使用页面设置
+        model: settings.model,
+        size: settings.size,
+        prompt_extend: settings.prompt_extend,
+        watermark: settings.watermark,
+        seed: settings.seed,
       })
       
-      setVideos(prev => {
-        const exists = prev.find(v => v.shot_id === selectedShot.id)
-        if (exists) {
-          return prev.map(v => v.shot_id === selectedShot.id ? result.video : v)
-        }
-        return [...prev, result.video]
-      })
+      // 添加新视频到列表（不替换旧的，因为可能想保留历史记录）
+      setVideos(prev => [...prev, result.video])
       
       setSelectedVideo(result.video)
       
@@ -269,7 +387,7 @@ const VideosPage = () => {
   }
 
   // 获取视频状态标签
-  const getStatusTag = (video?: Video) => {
+  const getStatusTag = (video?: Video | null) => {
     if (!video?.task) return null
     
     const status = video.task.status
@@ -304,16 +422,43 @@ const VideosPage = () => {
             {currentProject?.name} - 共 {shots.length} 个分镜
           </p>
         </div>
-        <Button
-          type="primary"
-          icon={<PlayCircleOutlined />}
-          onClick={generateAllVideos}
-          loading={generating}
-          disabled={shots.length === 0}
-        >
-          批量生成视频
-        </Button>
+        <Space>
+          <Button 
+            icon={<SettingOutlined />} 
+            onClick={() => setSettingsModalVisible(true)}
+          >
+            设置
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlayCircleOutlined />}
+            onClick={generateAllVideos}
+            loading={generating}
+            disabled={shots.length === 0}
+          >
+            批量生成视频
+          </Button>
+        </Space>
       </div>
+      
+      {/* 当前设置预览 */}
+      <Card size="small" style={{ marginBottom: 16, background: '#1a1a1a' }}>
+        <div style={{ display: 'flex', gap: 24, fontSize: 12, color: '#888' }}>
+          <span>
+            <strong>模型：</strong>
+            {getCurrentModelInfo()?.name || (videoModel || systemVideoConfig.model)}
+          </span>
+          <span>
+            <strong>分辨率：</strong>
+            {videoSize || systemVideoConfig.size}
+          </span>
+          <span>
+            <strong>智能改写：</strong>
+            {(videoPromptExtend !== null ? videoPromptExtend : systemVideoConfig.prompt_extend) ? '开' : '关'}
+          </span>
+          {videoModel && <Tag color="blue" style={{ marginLeft: 8 }}>自定义设置</Tag>}
+        </div>
+      </Card>
 
       {shots.length === 0 ? (
         <Empty 
@@ -323,7 +468,15 @@ const VideosPage = () => {
       ) : (
         <div className="timeline" style={{ flexWrap: 'wrap' }}>
           {shots.map((shot) => {
-            const video = videos.find(v => v.shot_id === shot.id)
+            // 找到该镜头的最新视频（优先显示处理中的，否则显示最新的）
+            const shotVideos = videos.filter(v => v.shot_id === shot.id)
+            const processingVideo = shotVideos.find(v => v.task?.status === 'processing')
+            const latestVideo = shotVideos.length > 0
+              ? shotVideos.reduce((latest, v) => 
+                  new Date(v.created_at) > new Date(latest.created_at) ? v : latest
+                )
+              : null
+            const video = processingVideo || latestVideo
             const videoUrl = video?.video_url || shot.video_url
             const frameUrl = getFrameUrl(shot.id) || shot.first_frame_url
             
@@ -547,6 +700,128 @@ const VideosPage = () => {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* 设置弹窗 */}
+      <Modal
+        title="视频生成设置"
+        open={settingsModalVisible}
+        onCancel={() => setSettingsModalVisible(false)}
+        footer={[
+          <Button key="reset" onClick={() => {
+            resetVideoSettings()
+            message.success('已重置为系统默认设置')
+          }}>
+            重置为默认
+          </Button>,
+          <Button key="close" type="primary" onClick={() => setSettingsModalVisible(false)}>
+            确定
+          </Button>
+        ]}
+        width={600}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ color: '#888', fontSize: 12, marginBottom: 16 }}>
+            这里的设置会覆盖系统设置页面中的默认配置，仅对当前页面的视频生成生效。
+          </div>
+          
+          <Row gutter={16}>
+            <Col span={12}>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: 8, color: '#e0e0e0' }}>视频模型</div>
+                <Select
+                  style={{ width: '100%' }}
+                  value={videoModel || systemVideoConfig.model}
+                  onChange={(value) => {
+                    setVideoModel(value)
+                    // 切换模型时重置分辨率为该模型的默认值
+                    const modelInfo = videoModels[value]
+                    if (modelInfo?.default_size) {
+                      setVideoSize(modelInfo.default_size)
+                    }
+                  }}
+                >
+                  {Object.entries(videoModels).map(([key, info]) => (
+                    <Option key={key} value={key}>{info.name}</Option>
+                  ))}
+                </Select>
+                {getCurrentModelInfo()?.description && (
+                  <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+                    {getCurrentModelInfo()?.description}
+                  </div>
+                )}
+              </div>
+            </Col>
+            <Col span={12}>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: 8, color: '#e0e0e0' }}>视频分辨率</div>
+                <Select
+                  style={{ width: '100%' }}
+                  value={videoSize || systemVideoConfig.size}
+                  onChange={setVideoSize}
+                >
+                  {getCurrentModelSizes().map(size => (
+                    <Option key={size.value} value={size.value}>{size.label}</Option>
+                  ))}
+                </Select>
+              </div>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: 8, color: '#e0e0e0' }}>生成组数</div>
+                <InputNumber
+                  style={{ width: '100%' }}
+                  min={1}
+                  max={10}
+                  value={videoGroupCount}
+                  onChange={(v) => setVideoGroupCount(v || 1)}
+                />
+                <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+                  每个分镜生成的视频数量
+                </div>
+              </div>
+            </Col>
+            <Col span={12}>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: 8, color: '#e0e0e0' }}>随机种子</div>
+                <InputNumber
+                  style={{ width: '100%' }}
+                  min={0}
+                  value={videoSeed}
+                  onChange={(v) => setVideoSeed(v)}
+                  placeholder="留空为随机"
+                />
+              </div>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ color: '#e0e0e0' }}>智能改写</span>
+                <Switch
+                  checked={videoPromptExtend !== null ? videoPromptExtend : systemVideoConfig.prompt_extend}
+                  onChange={setVideoPromptExtend}
+                />
+              </div>
+              <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+                自动优化和扩展提示词
+              </div>
+            </Col>
+            <Col span={12}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ color: '#e0e0e0' }}>添加水印</span>
+                <Switch
+                  checked={videoWatermark !== null ? videoWatermark : systemVideoConfig.watermark}
+                  onChange={setVideoWatermark}
+                />
+              </div>
+            </Col>
+          </Row>
+        </div>
       </Modal>
     </div>
   )

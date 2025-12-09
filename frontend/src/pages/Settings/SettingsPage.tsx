@@ -242,6 +242,13 @@ const SettingsPage = () => {
     return modelInfo?.sizes || []
   }
 
+  // 获取当前视频模型信息
+  const getCurrentVideoModelInfo = () => {
+    if (!config) return null
+    const videoModel = form.getFieldValue('video_model') || config.video.model
+    return config.available_video_models[videoModel]
+  }
+
   // 获取当前图像编辑模型的常用尺寸选项
   const getImageEditSizeOptions = () => {
     if (!config) return []
@@ -844,18 +851,23 @@ const SettingsPage = () => {
                 <Select
                   options={
                     config ? Object.entries(config.available_video_models).map(([key, info]) => ({
-                      label: info.name,
+                      label: `${info.name}`,
                       value: key
                     })) : []
                   }
-                  onChange={() => {
-                    const sizes = getVideoSizes()
-                    if (sizes.length > 0) {
-                      form.setFieldValue('video_size', sizes[0])
+                  onChange={(value) => {
+                    const modelInfo = config?.available_video_models[value]
+                    if (modelInfo) {
+                      form.setFieldValue('video_size', modelInfo.default_size)
                     }
                   }}
                 />
               </Form.Item>
+              {getCurrentVideoModelInfo()?.description && (
+                <div style={{ fontSize: 12, color: '#888', marginTop: -16, marginBottom: 16 }}>
+                  {getCurrentVideoModelInfo()?.description}
+                </div>
+              )}
             </Col>
             <Col span={12}>
               <Form.Item
@@ -864,8 +876,8 @@ const SettingsPage = () => {
               >
                 <Select
                   options={getVideoSizes().map(size => ({
-                    label: size,
-                    value: size
+                    label: size.label,
+                    value: size.value
                   }))}
                 />
               </Form.Item>

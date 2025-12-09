@@ -17,6 +17,13 @@ interface GenerationState {
   frameGroupCount: number
   videoGroupCount: number
   
+  // 视频生成设置（页面级覆盖，优先于系统设置）
+  videoModel: string | null  // null 表示使用系统默认
+  videoSize: string | null
+  videoPromptExtend: boolean | null
+  videoWatermark: boolean | null
+  videoSeed: number | null
+  
   // 风格参考设置 - 全局开关
   characterUseStyle: boolean
   characterSelectedStyleId: string | null
@@ -41,6 +48,14 @@ interface GenerationState {
   setStyleGroupCount: (count: number) => void
   setFrameGroupCount: (count: number) => void
   setVideoGroupCount: (count: number) => void
+  
+  // 视频生成设置 actions
+  setVideoModel: (model: string | null) => void
+  setVideoSize: (size: string | null) => void
+  setVideoPromptExtend: (value: boolean | null) => void
+  setVideoWatermark: (value: boolean | null) => void
+  setVideoSeed: (seed: number | null) => void
+  resetVideoSettings: () => void
   
   // 风格参考设置 actions
   setCharacterUseStyle: (use: boolean) => void
@@ -70,7 +85,14 @@ export const useGenerationStore = create<GenerationState>()(
       propGroupCount: 3,
       styleGroupCount: 3,
       frameGroupCount: 3,
-      videoGroupCount: 3,
+      videoGroupCount: 1,
+      
+      // 视频生成设置（页面级覆盖）
+      videoModel: null,
+      videoSize: null,
+      videoPromptExtend: null,
+      videoWatermark: null,
+      videoSeed: null,
       
       // 风格参考设置
       characterUseStyle: false,
@@ -93,6 +115,20 @@ export const useGenerationStore = create<GenerationState>()(
       setStyleGroupCount: (count) => set({ styleGroupCount: count }),
       setFrameGroupCount: (count) => set({ frameGroupCount: count }),
       setVideoGroupCount: (count) => set({ videoGroupCount: count }),
+      
+      // 视频生成设置 actions
+      setVideoModel: (model) => set({ videoModel: model }),
+      setVideoSize: (size) => set({ videoSize: size }),
+      setVideoPromptExtend: (value) => set({ videoPromptExtend: value }),
+      setVideoWatermark: (value) => set({ videoWatermark: value }),
+      setVideoSeed: (seed) => set({ videoSeed: seed }),
+      resetVideoSettings: () => set({
+        videoModel: null,
+        videoSize: null,
+        videoPromptExtend: null,
+        videoWatermark: null,
+        videoSeed: null,
+      }),
       
       setCharacterUseStyle: (use) => set({ characterUseStyle: use }),
       setCharacterSelectedStyleId: (id) => set({ characterSelectedStyleId: id }),
@@ -149,6 +185,13 @@ export const useGenerationStore = create<GenerationState>()(
         styleGroupCount: state.styleGroupCount,
         frameGroupCount: state.frameGroupCount,
         videoGroupCount: state.videoGroupCount,
+        // 视频生成设置
+        videoModel: state.videoModel,
+        videoSize: state.videoSize,
+        videoPromptExtend: state.videoPromptExtend,
+        videoWatermark: state.videoWatermark,
+        videoSeed: state.videoSeed,
+        // 风格设置
         characterUseStyle: state.characterUseStyle,
         characterSelectedStyleId: state.characterSelectedStyleId,
         sceneUseStyle: state.sceneUseStyle,

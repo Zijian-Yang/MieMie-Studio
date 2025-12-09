@@ -45,40 +45,44 @@ class ImageToVideoService:
         Returns:
             任务 ID
         """
-        input_data = {
-            'image_url': image_url
-        }
+        model_name = model or self.video_config.model
         
-        if prompt:
-            input_data['prompt'] = prompt
-        
+        # VideoSynthesis SDK 参数
+        # 注意：不同模型使用不同的图片参数
+        # - wan2.5-i2v-preview: 使用 img_url 参数
+        # - wanx2.1-i2v-turbo/plus: 使用 image_url 参数
         params = {
             'api_key': self.api_key,
-            'model': model or self.video_config.model,
-            'input': input_data
+            'model': model_name,
         }
         
-        # 添加可选参数
-        parameters = {}
+        # 根据模型选择正确的图片参数名
+        if 'wan2.5' in model_name:
+            # wan2.5 系列使用 img_url
+            params['img_url'] = image_url
+        else:
+            # wanx2.1 系列使用 image_url
+            params['image_url'] = image_url
         
+        if prompt:
+            params['prompt'] = prompt
+        
+        # 添加可选参数
         size_value = size or self.video_config.size
         if size_value:
-            parameters['size'] = size_value
+            params['size'] = size_value
         
         prompt_extend_value = prompt_extend if prompt_extend is not None else self.video_config.prompt_extend
         if prompt_extend_value is not None:
-            parameters['prompt_extend'] = prompt_extend_value
+            params['prompt_extend'] = prompt_extend_value
         
         watermark_value = watermark if watermark is not None else self.video_config.watermark
         if watermark_value is not None:
-            parameters['watermark'] = watermark_value
+            params['watermark'] = watermark_value
         
         seed_value = seed if seed is not None else self.video_config.seed
         if seed_value is not None:
-            parameters['seed'] = seed_value
-        
-        if parameters:
-            params['parameters'] = parameters
+            params['seed'] = seed_value
         
         rsp = VideoSynthesis.async_call(**params)
         

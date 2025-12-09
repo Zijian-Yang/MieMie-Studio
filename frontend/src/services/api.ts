@@ -56,9 +56,18 @@ export interface ImageModelInfo {
   common_sizes: ImageModelSizeOption[]
 }
 
+export interface VideoModelSizeOption {
+  value: string
+  label: string
+}
+
 export interface VideoModelInfo {
   name: string
-  sizes: string[]
+  description?: string
+  sizes: VideoModelSizeOption[]
+  default_size: string
+  max_duration?: number
+  supports_prompt_extend?: boolean
 }
 
 export interface RegionInfo {
@@ -99,6 +108,7 @@ export interface VideoConfig {
   prompt_extend: boolean
   watermark: boolean
   seed: number | null
+  duration?: number  // 视频时长（秒）
 }
 
 // OSS 配置
@@ -590,8 +600,20 @@ export const videosApi = {
     first_frame_url?: string  // 可选，后端会自动从分镜获取
     prompt?: string  // 可选，后端会自动生成
     duration?: number
-  }) => api.post('/videos/generate', data),
-  generateBatch: (projectId: string) => api.post('/videos/generate-batch', { project_id: projectId }),
+    // 视频生成参数（覆盖系统设置）
+    model?: string
+    size?: string
+    prompt_extend?: boolean
+    watermark?: boolean
+    seed?: number | null
+  }) => api.post<any, { video: Video; task_id: string }>('/videos/generate', data),
+  generateBatch: (projectId: string, options?: {
+    model?: string
+    size?: string
+    prompt_extend?: boolean
+    watermark?: boolean
+    seed?: number | null
+  }) => api.post<any, { videos: Video[]; errors: Array<{ shot_id: string; error: string }>; success_count: number; error_count: number }>('/videos/generate-batch', { project_id: projectId, ...options }),
   getStatus: (taskId: string) => api.get<any, { task_id: string; status: string; video_url?: string }>(`/videos/status/${taskId}`),
   delete: (id: string) => api.delete(`/videos/${id}`),
 }

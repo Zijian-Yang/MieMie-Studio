@@ -87,10 +87,33 @@ IMAGE_EDIT_MODELS = {
 }
 
 # 图生视频模型配置
+# 参考: https://www.alibabacloud.com/help/zh/model-studio/image-to-video-api-reference
 VIDEO_MODELS = {
+    "wan2.5-i2v-preview": {
+        "name": "万相2.5 图生视频 Preview",
+        "description": "最新的图生视频模型，支持更多分辨率和更高质量",
+        "sizes": [
+            {"value": "1280*720", "label": "1280x720 (16:9 横屏)"},
+            {"value": "720*1280", "label": "720x1280 (9:16 竖屏)"},
+            {"value": "960*960", "label": "960x960 (1:1 方形)"},
+            {"value": "1920*1080", "label": "1920x1080 (1080P 横屏)"},
+            {"value": "1080*1920", "label": "1080x1920 (1080P 竖屏)"},
+        ],
+        "default_size": "1280*720",
+        "max_duration": 5,  # 最大时长（秒）
+        "supports_prompt_extend": True,
+    },
     "wanx2.1-i2v-turbo": {
         "name": "万相2.1 图生视频 Turbo",
-        "sizes": ["1280*720", "720*1280", "960*960"]
+        "description": "快速生成模型，适合快速预览",
+        "sizes": [
+            {"value": "1280*720", "label": "1280x720 (16:9 横屏)"},
+            {"value": "720*1280", "label": "720x1280 (9:16 竖屏)"},
+            {"value": "960*960", "label": "960x960 (1:1 方形)"},
+        ],
+        "default_size": "1280*720",
+        "max_duration": 5,
+        "supports_prompt_extend": True,
     }
 }
 
@@ -137,11 +160,12 @@ class ImageEditConfig(BaseModel):
 
 class VideoConfig(BaseModel):
     """图生视频配置"""
-    model: str = "wanx2.1-i2v-turbo"
+    model: str = "wan2.5-i2v-preview"  # 默认使用最新的 2.5 模型
     size: str = "1280*720"
     prompt_extend: bool = True  # 智能改写
     watermark: bool = False  # 水印，默认关闭
     seed: Optional[int] = None  # 种子，None表示随机
+    duration: int = 5  # 视频时长（秒）
 
 
 class OSSConfig(BaseModel):

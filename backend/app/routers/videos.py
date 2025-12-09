@@ -21,6 +21,12 @@ class VideoGenerateRequest(BaseModel):
     first_frame_url: Optional[str] = None  # 首帧图 URL（可从分镜中自动获取）
     prompt: Optional[str] = None  # 视频生成提示词（可自动生成）
     duration: float = 5.0  # 目标时长（秒），不超过10秒
+    # 视频生成参数（覆盖系统设置）
+    model: Optional[str] = None
+    size: Optional[str] = None
+    prompt_extend: Optional[bool] = None
+    watermark: Optional[bool] = None
+    seed: Optional[int] = None
 
 
 def generate_video_prompt(shot) -> str:
@@ -59,6 +65,12 @@ def generate_video_prompt(shot) -> str:
 class VideoBatchGenerateRequest(BaseModel):
     """批量视频生成请求"""
     project_id: str
+    # 视频生成参数（覆盖系统设置）
+    model: Optional[str] = None
+    size: Optional[str] = None
+    prompt_extend: Optional[bool] = None
+    watermark: Optional[bool] = None
+    seed: Optional[int] = None
 
 
 @router.post("/generate")
@@ -116,10 +128,15 @@ async def generate_video(request: VideoGenerateRequest):
             duration=duration
         )
         
-        # 提交生成任务
+        # 提交生成任务（传递可选参数）
         task_id = await i2v_service.create_task(
             image_url=first_frame_url,
-            prompt=prompt
+            prompt=prompt,
+            model=request.model,
+            size=request.size,
+            prompt_extend=request.prompt_extend,
+            watermark=request.watermark,
+            seed=request.seed
         )
         
         video.task = VideoTask(
@@ -183,7 +200,12 @@ async def generate_videos_batch(request: VideoBatchGenerateRequest):
             
             task_id = await i2v_service.create_task(
                 image_url=first_frame_url,
-                prompt=prompt
+                prompt=prompt,
+                model=request.model,
+                size=request.size,
+                prompt_extend=request.prompt_extend,
+                watermark=request.watermark,
+                seed=request.seed
             )
             
             video.task = VideoTask(
