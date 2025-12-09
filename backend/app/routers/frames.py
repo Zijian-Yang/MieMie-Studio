@@ -24,7 +24,8 @@ class FrameGenerateRequest(BaseModel):
     negative_prompt: str = ""
     group_index: int = 0
     # 使用分镜关联的素材进行多图生图
-    use_shot_references: bool = True  # 是否使用分镜关联的角色/场景/道具
+    use_shot_references: bool = True  # 是否使用素材参照
+    reference_urls: Optional[List[str]] = None  # 前端直接传入的参考图片URL列表（按用户选择顺序）
 
 
 class FrameBatchGenerateRequest(BaseModel):
@@ -52,6 +53,7 @@ class SaveFrameToGalleryRequest(BaseModel):
     """保存首帧到图库请求"""
     name: str = ""
     description: str = ""
+    group_index: Optional[int] = None  # 指定保存哪组图片，默认为选中组
 
 
 def get_shot_reference_urls(project_id: str, shot) -> List[str]:
@@ -146,26 +148,34 @@ async def generate_frame(request: FrameGenerateRequest):
                 shot = s
                 break
     
-    # 获取关联素材的图片URL
+    # 获取参考图片URL列表
+    # 优先使用前端直接传入的 reference_urls（用户自定义选择和顺序）
     ref_urls = []
-    if request.use_shot_references and shot:
-        ref_urls = get_shot_reference_urls(request.project_id, shot)
+    if request.use_shot_references:
+        if request.reference_urls:
+            ref_urls = request.reference_urls
+        elif shot:
+            ref_urls = get_shot_reference_urls(request.project_id, shot)
     
     try:
         if ref_urls:
             # 使用多图生图
             i2i_service = ImageToImageService()
-            # 在提示词中说明使用参考图
-            enhanced_prompt = f"参考输入的图片素材，{request.prompt}"
+            # 提示词已经包含了对各图片的引用说明
             url = await i2i_service.generate_with_multi_images(
-                prompt=enhanced_prompt,
+                prompt=request.prompt,
                 image_urls=ref_urls,
-                negative_prompt=request.negative_prompt
+                negative_prompt=request.negative_prompt,
+                project_id=request.project_id
             )
         else:
             # 使用纯文生图
             t2i_service = TextToImageService()
-            url = await t2i_service.generate(request.prompt, negative_prompt=request.negative_prompt)
+            url = await t2i_service.generate(
+                request.prompt, 
+                negative_prompt=request.negative_prompt,
+                project_id=request.project_id
+            )
         
         # 查找或创建 Frame
         frame = storage_service.get_frame_by_shot(request.project_id, request.shot_id)
@@ -373,13 +383,16 @@ async def save_frame_to_gallery(frame_id: str, request: SaveFrameToGalleryReques
     if not frame:
         raise HTTPException(status_code=404, detail="首帧不存在")
     
-    # 获取选中的图片
-    if frame.selected_group_index >= len(frame.image_groups):
-        raise HTTPException(status_code=400, detail="没有可保存的图片")
+    # 确定要保存的组索引
+    group_index = request.group_index if request.group_index is not None else frame.selected_group_index
     
-    image = frame.image_groups[frame.selected_group_index]
+    # 获取指定组的图片
+    if group_index >= len(frame.image_groups):
+        raise HTTPException(status_code=400, detail="指定的组不存在")
+    
+    image = frame.image_groups[group_index]
     if not image.url:
-        raise HTTPException(status_code=400, detail="选中的图片没有URL")
+        raise HTTPException(status_code=400, detail="指定的图片没有URL")
     
     # 创建图库图片
     gallery_image = GalleryImage(

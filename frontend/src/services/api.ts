@@ -537,6 +537,7 @@ export const framesApi = {
     negative_prompt?: string
     group_index?: number
     use_shot_references?: boolean
+    reference_urls?: string[]
   }) => api.post<any, { frame: Frame }>('/frames/generate', data),
   generateBatch: (projectId: string) => api.post('/frames/generate-batch', { project_id: projectId }),
   update: (id: string, data: { prompt?: string; selected_group_index?: number }) => api.put(`/frames/${id}`, data),
@@ -549,7 +550,7 @@ export const framesApi = {
     gallery_image_url: string
     group_index?: number
   }) => api.post<any, { frame: Frame; message: string }>('/frames/set-from-gallery', data),
-  saveToGallery: (frameId: string, data: { name?: string; description?: string }) => 
+  saveToGallery: (frameId: string, data: { name?: string; description?: string; group_index?: number }) => 
     api.post<any, { gallery_image: GalleryImage; message: string }>(`/frames/${frameId}/save-to-gallery`, data),
 }
 
