@@ -1,0 +1,48 @@
+{
+  "id": "0e7ac4e9-241e-4fab-a489-bb9080958a92",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "宫女拿水空白",
+  "description": "",
+  "model": "wan2.5-i2i-preview",
+  "prompt": "生成图中宫女拿着饮料的全身特写，背景空白，保持宫女和瓶子不变化",
+  "negative_prompt": "",
+  "group_count": 3,
+  "references": [
+    {
+      "type": "gallery",
+      "id": "f39c99c3-2045-4c25-8977-58dce7a42246",
+      "name": "宫女拿着外星人水",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/f96d7434-4033-4345-b69d-0810ebeff76d/20251209/132246_01fdad7e.png"
+    }
+  ],
+  "images": [
+    {
+      "id": "40e57996-cf74-4aec-8d5d-47d06d4742ea",
+      "group_index": 0,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251209/134352_e6f868d2.png",
+      "prompt_used": "生成图中宫女拿着饮料的全身特写，背景空白，保持宫女和瓶子不变化",
+      "is_selected": false,
+      "created_at": "2025-12-09T13:43:53.221069"
+    },
+    {
+      "id": "fc5510fb-efba-448e-81a0-f76d400db9bc",
+      "group_index": 1,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251209/134402_69f25e93.png",
+      "prompt_used": "生成图中宫女拿着饮料的全身特写，背景空白，保持宫女和瓶子不变化",
+      "is_selected": false,
+      "created_at": "2025-12-09T13:44:03.217822"
+    },
+    {
+      "id": "da06ce06-0aa8-493d-bc64-f60fa5cf1b6b",
+      "group_index": 2,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251209/134403_d2355d43.png",
+      "prompt_used": "生成图中宫女拿着饮料的全身特写，背景空白，保持宫女和瓶子不变化",
+      "is_selected": false,
+      "created_at": "2025-12-09T13:44:03.936470"
+    }
+  ],
+  "status": "completed",
+  "error_message": null,
+  "created_at": "2025-12-09T13:25:49.957793",
+  "updated_at": "2025-12-09T13:44:03.936647"
+}

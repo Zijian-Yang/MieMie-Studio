@@ -29,32 +29,32 @@
   ],
   "images": [
     {
-      "id": "44329ec2-e358-4b59-a9b5-38c3bc18318e",
+      "id": "0ce27814-7c03-4597-a52e-22cf08e31874",
       "group_index": 0,
-      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/86/20251208/e67b8045/e5da5686-b47d-425f-9da4-90a8d8a5a75e.png?Expires=1765276610&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=WvgJgYfYXuisnsF8400C3zfhggA%3D",
+      "url": null,
       "prompt_used": "第一个图中的小明在第二个图中的草地上放第三个图中的风筝",
       "is_selected": false,
-      "created_at": "2025-12-08T18:36:52.094917"
+      "created_at": "2025-12-09T13:27:41.732417"
     },
     {
-      "id": "bb2357a6-f4aa-4604-adf8-b4487eb5afee",
+      "id": "08eaf12f-ac58-4c06-9ba4-a7e4e00ca55f",
       "group_index": 1,
-      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/e8/20251208/e67b8045/6cc77eb2-6705-4b61-a8fa-227b6e07ad68.png?Expires=1765276658&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=qP2k%2FhMGetJ3Sa1FXqICc4Fw0hI%3D",
+      "url": null,
       "prompt_used": "第一个图中的小明在第二个图中的草地上放第三个图中的风筝",
       "is_selected": false,
-      "created_at": "2025-12-08T18:37:39.511705"
+      "created_at": "2025-12-09T13:27:42.498849"
     },
     {
-      "id": "4c2e9565-9b7a-4d63-bb87-92a5dde6a710",
+      "id": "4cfa0081-1afa-48e9-a30f-e79015be8808",
       "group_index": 2,
-      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/21/20251208/91b79333/d4f69e47-9463-4426-ad1b-beb32e80e6fd.png?Expires=1765276699&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=hsZHqqAAvS509ByIUBqsEd2%2FjT8%3D",
+      "url": null,
       "prompt_used": "第一个图中的小明在第二个图中的草地上放第三个图中的风筝",
-      "is_selected": true,
-      "created_at": "2025-12-08T18:38:21.134835"
+      "is_selected": false,
+      "created_at": "2025-12-09T13:27:43.303708"
     }
   ],
   "status": "completed",
   "error_message": null,
   "created_at": "2025-12-08T18:36:04.241877",
-  "updated_at": "2025-12-08T18:38:42.490245"
+  "updated_at": "2025-12-09T13:27:43.307598"
 }
