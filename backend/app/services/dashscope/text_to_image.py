@@ -9,6 +9,7 @@ import dashscope
 from dashscope import ImageSynthesis
 
 from app.config import get_config, IMAGE_MODELS
+from app.services.oss import oss_service
 
 
 class TextToImageService:
@@ -44,7 +45,8 @@ class TextToImageService:
         height: Optional[int] = None,
         model: Optional[str] = None,
         prompt_extend: Optional[bool] = None,
-        seed: Optional[int] = None
+        seed: Optional[int] = None,
+        project_id: str = ""
     ) -> str:
         """
         生成单张图片
@@ -57,9 +59,10 @@ class TextToImageService:
             model: 模型名称（使用配置默认值）
             prompt_extend: 智能改写（使用配置默认值）
             seed: 种子（使用配置默认值）
+            project_id: 项目ID，用于 OSS 上传路径
             
         Returns:
-            图片 URL
+            图片 URL（如果启用 OSS，返回 OSS URL）
         """
         urls = await self.generate_batch(
             prompt=prompt,
@@ -69,7 +72,8 @@ class TextToImageService:
             n=1,
             model=model,
             prompt_extend=prompt_extend,
-            seed=seed
+            seed=seed,
+            project_id=project_id
         )
         return urls[0] if urls else ""
     
@@ -82,10 +86,25 @@ class TextToImageService:
         n: int = 1,
         model: Optional[str] = None,
         prompt_extend: Optional[bool] = None,
-        seed: Optional[int] = None
+        seed: Optional[int] = None,
+        project_id: str = ""
     ) -> List[str]:
         """
         批量生成图片
+        
+        Args:
+            prompt: 正向提示词
+            negative_prompt: 负向提示词
+            width: 图片宽度
+            height: 图片高度
+            n: 生成数量
+            model: 模型名称
+            prompt_extend: 智能改写
+            seed: 种子
+            project_id: 项目ID，用于 OSS 上传路径
+            
+        Returns:
+            图片 URL 列表（如果启用 OSS，返回 OSS URL）
         """
         # 使用配置的默认值
         final_width = width if width is not None else self.image_config.width
@@ -135,6 +154,13 @@ class TextToImageService:
             
             if task_status == 'SUCCEEDED':
                 urls = [result.url for result in rsp.output.results]
+                # 如果启用了 OSS，上传图片并返回 OSS URL
+                if oss_service.is_enabled():
+                    oss_urls = []
+                    for url in urls:
+                        oss_url = oss_service.upload_image(url, project_id)
+                        oss_urls.append(oss_url)
+                    return oss_urls
                 return urls
             elif task_status == 'FAILED':
                 error_msg = getattr(rsp.output, 'message', '未知错误')

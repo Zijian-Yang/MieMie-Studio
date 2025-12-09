@@ -1,0 +1,54 @@
+{
+  "id": "dd61ae4c-c209-404a-9a20-febe9c45bb68",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "小明和爸爸",
+  "description": "",
+  "model": "wan2.5-i2i-preview",
+  "prompt": "小明（图1）和爸爸（图2）合影，",
+  "negative_prompt": "",
+  "group_count": 3,
+  "references": [
+    {
+      "type": "character",
+      "id": "1e9bb68c-a280-4346-b00f-e8ad615fa5a2",
+      "name": "小明",
+      "url": "https://dashscope-result-wlcb.oss-cn-wulanchabu.aliyuncs.com/1d/c0/20251208/7a2bee47/ec9ceac4-5fc8-4492-a118-157d16166aaf.png?Expires=1765275649&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=5C4aiPWx3zv%2BkLGakNRAxRGBR%2BU%3D"
+    },
+    {
+      "type": "character",
+      "id": "bdc43331-7896-43d7-a8d1-d2b8aaacf5d3",
+      "name": "爸爸",
+      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/8f/20251208/eb920ed5/0d39ef43-12cc-48b7-88e7-4c3821bcfcbc.png?Expires=1765275738&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=GukbIk4ZM4xyJ18NaCWi0okAqkk%3D"
+    }
+  ],
+  "images": [
+    {
+      "id": "b2b0c06c-7b6c-41a5-9b90-20dfbde93d03",
+      "group_index": 0,
+      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/b4/20251208/e67b8045/78f3d9fe-f9fd-4733-9c61-aa7e327bee57.png?Expires=1765276481&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=U%2F%2FJy2JgMR9FG6sNUqHXcp2jSn4%3D",
+      "prompt_used": "小明（图1）和爸爸（图2）合影，",
+      "is_selected": false,
+      "created_at": "2025-12-08T18:34:41.813532"
+    },
+    {
+      "id": "7564cf5d-8211-4a3f-9309-439e56034df7",
+      "group_index": 1,
+      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/40/20251208/e67b8045/f43b05a9-378f-4685-a182-a79a0485667a.png?Expires=1765276522&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=UIvEb04pNxYDgVDm4SvE8lN52lc%3D",
+      "prompt_used": "小明（图1）和爸爸（图2）合影，",
+      "is_selected": false,
+      "created_at": "2025-12-08T18:35:26.088715"
+    },
+    {
+      "id": "1680728d-9515-4b61-ba7c-26ca7e6aa3c3",
+      "group_index": 2,
+      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/75/20251208/91b79333/f1476f0e-2132-48d3-8f90-a9c470b6228e.png?Expires=1765276560&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=rpFjUiuxxLSgU8W26Q6jU%2BoRtqc%3D",
+      "prompt_used": "小明（图1）和爸爸（图2）合影，",
+      "is_selected": true,
+      "created_at": "2025-12-08T18:36:04.231235"
+    }
+  ],
+  "status": "completed",
+  "error_message": null,
+  "created_at": "2025-12-08T18:33:51.221119",
+  "updated_at": "2025-12-08T18:38:31.091459"
+}

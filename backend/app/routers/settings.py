@@ -7,9 +7,10 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 
 from app.config import (
-    config_manager, AppConfig, LLMConfig, ImageConfig, ImageEditConfig, VideoConfig,
+    config_manager, AppConfig, LLMConfig, ImageConfig, ImageEditConfig, VideoConfig, OSSConfig,
     API_REGIONS, LLM_MODELS, IMAGE_MODELS, IMAGE_EDIT_MODELS, VIDEO_MODELS
 )
+from app.services.oss import oss_service
 
 router = APIRouter()
 
@@ -64,6 +65,16 @@ class VideoConfigRequest(BaseModel):
     seed: Optional[int] = None
 
 
+class OSSConfigRequest(BaseModel):
+    """OSS 配置请求"""
+    enabled: Optional[bool] = None
+    access_key_id: Optional[str] = None
+    access_key_secret: Optional[str] = None
+    bucket_name: Optional[str] = None
+    endpoint: Optional[str] = None
+    prefix: Optional[str] = None
+
+
 class ConfigUpdateRequest(BaseModel):
     """配置更新请求"""
     api_key: Optional[str] = None
@@ -72,6 +83,18 @@ class ConfigUpdateRequest(BaseModel):
     image: Optional[ImageConfigRequest] = None
     image_edit: Optional[ImageEditConfigRequest] = None
     video: Optional[VideoConfigRequest] = None
+    oss: Optional[OSSConfigRequest] = None
+
+
+class OSSConfigResponse(BaseModel):
+    """OSS 配置响应（隐藏敏感信息）"""
+    enabled: bool
+    access_key_id_masked: str
+    access_key_secret_masked: str
+    is_configured: bool
+    bucket_name: str
+    endpoint: str
+    prefix: str
 
 
 class ConfigResponse(BaseModel):
@@ -92,6 +115,9 @@ class ConfigResponse(BaseModel):
     
     # 图生视频配置
     video: Dict[str, Any]
+    
+    # OSS 配置
+    oss: OSSConfigResponse
     
     # 可用选项
     available_regions: Dict[str, Dict[str, str]]
@@ -115,6 +141,25 @@ async def get_settings():
     """获取当前设置"""
     config = config_manager.load()
     
+    # 构建 OSS 配置响应
+    oss_config = config.oss
+    oss_is_configured = bool(
+        oss_config.access_key_id and 
+        oss_config.access_key_secret and 
+        oss_config.bucket_name and 
+        oss_config.endpoint
+    )
+    
+    oss_response = OSSConfigResponse(
+        enabled=oss_config.enabled,
+        access_key_id_masked=mask_api_key(oss_config.access_key_id),
+        access_key_secret_masked=mask_api_key(oss_config.access_key_secret),
+        is_configured=oss_is_configured,
+        bucket_name=oss_config.bucket_name,
+        endpoint=oss_config.endpoint,
+        prefix=oss_config.prefix
+    )
+    
     return ConfigResponse(
         api_key_masked=mask_api_key(config.dashscope_api_key),
         is_api_key_set=bool(config.dashscope_api_key),
@@ -124,6 +169,7 @@ async def get_settings():
         image=config.image.model_dump(),
         image_edit=config.image_edit.model_dump(),
         video=config.video.model_dump(),
+        oss=oss_response,
         available_regions=API_REGIONS,
         available_llm_models=LLM_MODELS,
         available_image_models=IMAGE_MODELS,
@@ -182,8 +228,21 @@ async def update_settings(request: ConfigUpdateRequest):
                 raise HTTPException(status_code=400, detail=f"无效的视频模型: {video_update['model']}")
             update_data["video"] = video_update
     
+    if request.oss is not None:
+        oss_update = {k: v for k, v in request.oss.model_dump().items() if v is not None}
+        if oss_update:
+            # 验证 endpoint 格式
+            if "endpoint" in oss_update:
+                endpoint = oss_update["endpoint"]
+                if endpoint and not endpoint.startswith("https://"):
+                    raise HTTPException(status_code=400, detail="OSS Endpoint 必须以 https:// 开头")
+            update_data["oss"] = oss_update
+    
     if update_data:
         config_manager.update(**update_data)
+        # 如果更新了 OSS 配置，重新初始化 OSS 服务
+        if "oss" in update_data:
+            oss_service.reinitialize()
     
     return {"message": "设置已更新"}
 
@@ -243,3 +302,13 @@ async def get_video_models():
 async def get_regions():
     """获取可用的 API 地域列表"""
     return {"regions": API_REGIONS}
+
+
+@router.post("/oss/test")
+async def test_oss_connection():
+    """测试 OSS 连接"""
+    success, message = oss_service.test_connection()
+    return {
+        "success": success,
+        "message": message
+    }

@@ -9,25 +9,18 @@
   "preset_name": "cyberpunk",
   "image_groups": [
     {
-      "id": "10411968-a7ce-4a68-ba51-21794d9c105d",
+      "id": "8721f30d-fe28-41e9-a824-1c3d4b1766ef",
       "group_index": 0,
-      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/2e/20251204/eb920ed5/e6714478-2d15-439e-9713-a9509e8eb588.png?Expires=1764917285&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=cqy6Em%2BGa5BXKZ%2F98INDaQaysso%3D",
+      "url": "https://dashscope-result-wlcb.oss-cn-wulanchabu.aliyuncs.com/1d/cc/20251208/7a2bee47/a5509be2-35aa-47f0-876d-79e14371b058.png?Expires=1765274957&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=m4DFTZUmElsPuVJtni8RSt5celM%3D",
       "prompt_used": "cyberpunk style, neon lights, futuristic city, high tech low life, characters with cybernetic enhancements, rainy night scene, holographic displays, blade runner inspired",
-      "created_at": "2025-12-04T14:48:08.525177"
+      "created_at": "2025-12-08T18:09:20.127170"
     },
     {
-      "id": "39d1395f-ce91-497e-a8a5-b66eb832ffbc",
+      "id": "b4160ac5-08f4-4529-bf65-a8c8ffe040ff",
       "group_index": 1,
-      "url": "https://dashscope-result-wlcb.oss-cn-wulanchabu.aliyuncs.com/1d/0c/20251204/7a2bee47/c98408c7-6b5b-4489-b667-c658dc26f1dc.png?Expires=1764917295&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=2uG4kI22HAhEadi7%2F2DQWeI5oI4%3D",
+      "url": "https://dashscope-result-wlcb.oss-cn-wulanchabu.aliyuncs.com/1d/8b/20251208/7a2bee47/ea26a7ff-dbd1-43f7-861e-d3708eebd471.png?Expires=1765274966&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=yObw1EA4ZE5cHGOzX1xx2AgZrFM%3D",
       "prompt_used": "cyberpunk style, neon lights, futuristic city, high tech low life, characters with cybernetic enhancements, rainy night scene, holographic displays, blade runner inspired",
-      "created_at": "2025-12-04T14:48:18.051066"
-    },
-    {
-      "id": "6bfebcb8-fff1-4304-9c2f-490f7d4e30b5",
-      "group_index": 2,
-      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/9c/20251204/eb920ed5/84e533cd-e478-401e-8455-c4fd27904c05.png?Expires=1764917304&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=jNamReldTkWj64G9NWKakx%2FFMcY%3D",
-      "prompt_used": "cyberpunk style, neon lights, futuristic city, high tech low life, characters with cybernetic enhancements, rainy night scene, holographic displays, blade runner inspired",
-      "created_at": "2025-12-04T14:48:27.652739"
+      "created_at": "2025-12-08T18:09:29.746964"
     }
   ],
   "selected_group_index": 0,
@@ -36,5 +29,5 @@
   "text_preset_name": null,
   "is_selected": false,
   "created_at": "2025-12-02T18:28:08.277978",
-  "updated_at": "2025-12-04T14:49:02.648122"
+  "updated_at": "2025-12-08T18:09:48.912457"
 }

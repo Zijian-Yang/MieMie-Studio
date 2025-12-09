@@ -101,6 +101,26 @@ export interface VideoConfig {
   seed: number | null
 }
 
+// OSS 配置
+export interface OSSConfig {
+  enabled: boolean
+  access_key_id: string
+  access_key_secret: string
+  bucket_name: string
+  endpoint: string
+  prefix: string
+}
+
+export interface OSSConfigResponse {
+  enabled: boolean
+  access_key_id_masked: string
+  access_key_secret_masked: string
+  is_configured: boolean
+  bucket_name: string
+  endpoint: string
+  prefix: string
+}
+
 export interface ConfigResponse {
   api_key_masked: string
   is_api_key_set: boolean
@@ -110,6 +130,7 @@ export interface ConfigResponse {
   image: ImageConfig
   image_edit: ImageEditConfig
   video: VideoConfig
+  oss: OSSConfigResponse
   available_regions: Record<string, RegionInfo>
   available_llm_models: Record<string, LLMModelInfo>
   available_image_models: Record<string, ImageModelInfo>
@@ -124,6 +145,7 @@ export interface ConfigUpdateRequest {
   image?: Partial<ImageConfig>
   image_edit?: Partial<ImageEditConfig>
   video?: Partial<VideoConfig>
+  oss?: Partial<OSSConfig>
 }
 
 export const settingsApi = {
@@ -131,6 +153,7 @@ export const settingsApi = {
   updateSettings: (data: ConfigUpdateRequest) => api.put('/settings', data),
   setApiKey: (apiKey: string) => api.post('/settings/api-key', { api_key: apiKey }),
   deleteApiKey: () => api.delete('/settings/api-key'),
+  testOSSConnection: () => api.post<any, { success: boolean; message: string }>('/settings/oss/test'),
 }
 
 // ============ 项目 API ============

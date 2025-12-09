@@ -144,6 +144,28 @@ class VideoConfig(BaseModel):
     seed: Optional[int] = None  # 种子，None表示随机
 
 
+class OSSConfig(BaseModel):
+    """阿里云 OSS 配置"""
+    enabled: bool = False  # 是否启用 OSS 持久化
+    access_key_id: str = ""
+    access_key_secret: str = ""
+    bucket_name: str = ""
+    endpoint: str = "https://oss-cn-beijing.aliyuncs.com"  # 包含 https:// 前缀
+    prefix: str = "aistudio/"  # OSS 存储目录前缀
+    
+    @property
+    def endpoint_url(self) -> str:
+        """返回完整的 endpoint URL（确保有 https://）"""
+        if self.endpoint.startswith("https://") or self.endpoint.startswith("http://"):
+            return self.endpoint
+        return f"https://{self.endpoint}"
+    
+    @property
+    def endpoint_host(self) -> str:
+        """返回不含协议的 endpoint 主机名"""
+        return self.endpoint.replace("https://", "").replace("http://", "")
+
+
 class AppConfig(BaseModel):
     """应用配置模型"""
     dashscope_api_key: str = ""
@@ -160,6 +182,9 @@ class AppConfig(BaseModel):
     
     # 图生视频配置
     video: VideoConfig = VideoConfig()
+    
+    # OSS 配置
+    oss: OSSConfig = OSSConfig()
     
     @property
     def base_url(self) -> str:
@@ -218,7 +243,7 @@ class ConfigManager:
         
         # 处理嵌套更新
         for key, value in kwargs.items():
-            if key in ['llm', 'image', 'image_edit', 'video'] and isinstance(value, dict):
+            if key in ['llm', 'image', 'image_edit', 'video', 'oss'] and isinstance(value, dict):
                 # 合并嵌套配置
                 if key in updated_data:
                     updated_data[key].update(value)

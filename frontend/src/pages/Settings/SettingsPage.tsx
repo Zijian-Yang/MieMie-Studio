@@ -6,7 +6,7 @@ import {
 import { 
   SaveOutlined, EyeInvisibleOutlined, EyeOutlined, 
   CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined,
-  InfoCircleOutlined
+  InfoCircleOutlined, CloudUploadOutlined, ApiOutlined
 } from '@ant-design/icons'
 import { settingsApi, ConfigResponse } from '../../services/api'
 
@@ -14,6 +14,7 @@ const SettingsPage = () => {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [testingOSS, setTestingOSS] = useState(false)
   const [config, setConfig] = useState<ConfigResponse | null>(null)
   const [selectedLLMModel, setSelectedLLMModel] = useState<string>('')
   const [enableThinking, setEnableThinking] = useState(false)
@@ -58,6 +59,11 @@ const SettingsPage = () => {
         video_prompt_extend: data.video.prompt_extend,
         video_watermark: data.video.watermark,
         video_seed: data.video.seed,
+        // OSS 配置
+        oss_enabled: data.oss.enabled,
+        oss_bucket_name: data.oss.bucket_name,
+        oss_endpoint: data.oss.endpoint,
+        oss_prefix: data.oss.prefix,
       })
     } catch (error) {
       message.error('加载设置失败')
@@ -123,6 +129,14 @@ const SettingsPage = () => {
           prompt_extend: values.video_prompt_extend,
           watermark: values.video_watermark,
           seed: values.video_seed || null,
+        },
+        oss: {
+          enabled: values.oss_enabled,
+          access_key_id: values.oss_access_key_id || undefined,
+          access_key_secret: values.oss_access_key_secret || undefined,
+          bucket_name: values.oss_bucket_name,
+          endpoint: values.oss_endpoint,
+          prefix: values.oss_prefix,
         },
       })
       message.success('设置已保存')
@@ -266,6 +280,23 @@ const SettingsPage = () => {
   // 应用图像编辑预设尺寸
   const applyImageEditPresetSize = (width: number, height: number) => {
     form.setFieldsValue({ image_edit_width: width, image_edit_height: height })
+  }
+
+  // 测试 OSS 连接
+  const handleTestOSSConnection = async () => {
+    setTestingOSS(true)
+    try {
+      const result = await settingsApi.testOSSConnection()
+      if (result.success) {
+        message.success(result.message)
+      } else {
+        message.error(result.message)
+      }
+    } catch (error) {
+      message.error('测试连接失败')
+    } finally {
+      setTestingOSS(false)
+    }
   }
 
   if (loading) {
@@ -870,6 +901,151 @@ const SettingsPage = () => {
           >
             <InputNumber min={0} style={{ width: '100%' }} placeholder="留空为随机" />
           </Form.Item>
+        </Form>
+      </Card>
+
+      {/* 阿里云 OSS 配置 */}
+      <Card 
+        title={
+          <Space>
+            <CloudUploadOutlined />
+            阿里云 OSS 配置
+          </Space>
+        }
+        style={{ marginBottom: 24, background: '#242424', borderColor: '#333' }}
+        extra={
+          <Tooltip title="OSS 用于存储生成的图片和视频，确保链接不会过期">
+            <InfoCircleOutlined style={{ color: '#888' }} />
+          </Tooltip>
+        }
+      >
+        <Alert
+          message={
+            config?.oss.is_configured ? (
+              <span>
+                <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
+                OSS 已配置：{config.oss.bucket_name}
+                {config.oss.enabled ? ' (已启用)' : ' (未启用)'}
+              </span>
+            ) : (
+              <span>
+                <CloseCircleOutlined style={{ color: '#ff4d4f', marginRight: 8 }} />
+                OSS 尚未配置
+              </span>
+            )
+          }
+          type={config?.oss.is_configured ? 'success' : 'warning'}
+          style={{ marginBottom: 16 }}
+        />
+
+        <Form form={form} layout="vertical">
+          <Form.Item
+            name="oss_enabled"
+            label="启用 OSS 存储"
+            valuePropName="checked"
+            extra="启用后，生成的图片和视频将上传到 OSS，获得持久化链接"
+          >
+            <Switch />
+          </Form.Item>
+
+          <Alert
+            message="配置说明"
+            description={
+              <ul style={{ paddingLeft: 16, marginBottom: 0 }}>
+                <li>Access Key ID 和 Secret 在阿里云控制台获取</li>
+                <li>Bucket 需要提前创建，并设置为公共读取（用于生成可访问的图片/视频链接）</li>
+                <li>Endpoint 根据 Bucket 所在地域选择，必须以 https:// 开头</li>
+              </ul>
+            }
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="oss_access_key_id"
+                label={
+                  <Space>
+                    Access Key ID
+                    {config?.oss.access_key_id_masked && (
+                      <span style={{ color: '#888', fontSize: 12 }}>
+                        (当前: {config.oss.access_key_id_masked})
+                      </span>
+                    )}
+                  </Space>
+                }
+                extra="留空表示不修改"
+              >
+                <Input.Password 
+                  placeholder="输入新的 Access Key ID"
+                  iconRender={(visible) => (visible ? <EyeOutlined /> : <EyeInvisibleOutlined />)}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="oss_access_key_secret"
+                label={
+                  <Space>
+                    Access Key Secret
+                    {config?.oss.access_key_secret_masked && (
+                      <span style={{ color: '#888', fontSize: 12 }}>
+                        (当前: {config.oss.access_key_secret_masked})
+                      </span>
+                    )}
+                  </Space>
+                }
+                extra="留空表示不修改"
+              >
+                <Input.Password 
+                  placeholder="输入新的 Access Key Secret"
+                  iconRender={(visible) => (visible ? <EyeOutlined /> : <EyeInvisibleOutlined />)}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="oss_bucket_name"
+                label="Bucket 名称"
+                rules={[{ required: form.getFieldValue('oss_enabled'), message: '请输入 Bucket 名称' }]}
+              >
+                <Input placeholder="例如: my-bucket" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="oss_endpoint"
+                label="Endpoint"
+                rules={[
+                  { required: form.getFieldValue('oss_enabled'), message: '请输入 Endpoint' },
+                  { pattern: /^https:\/\//, message: 'Endpoint 必须以 https:// 开头' }
+                ]}
+              >
+                <Input placeholder="https://oss-cn-beijing.aliyuncs.com" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item
+            name="oss_prefix"
+            label="存储路径前缀"
+            extra="文件将存储在此目录下，例如 aistudio/ 表示存储在 bucket/aistudio/ 目录"
+          >
+            <Input placeholder="例如: aistudio/" />
+          </Form.Item>
+
+          <Button
+            icon={<ApiOutlined />}
+            onClick={handleTestOSSConnection}
+            loading={testingOSS}
+          >
+            测试连接
+          </Button>
         </Form>
       </Card>
 

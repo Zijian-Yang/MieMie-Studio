@@ -8,6 +8,7 @@ import dashscope
 from dashscope import VideoSynthesis
 
 from app.config import get_config
+from app.services.oss import oss_service
 
 
 class ImageToVideoService:
@@ -86,15 +87,17 @@ class ImageToVideoService:
         
         return rsp.output.task_id
     
-    async def get_task_status(self, task_id: str) -> Tuple[str, Optional[str]]:
+    async def get_task_status(self, task_id: str, project_id: str = "") -> Tuple[str, Optional[str]]:
         """
         获取任务状态
         
         Args:
             task_id: 任务 ID
+            project_id: 项目ID，用于 OSS 上传路径
             
         Returns:
             (状态, 视频URL) 元组，状态为 PENDING/PROCESSING/SUCCEEDED/FAILED
+            如果启用 OSS，视频 URL 将是 OSS URL
         """
         rsp = VideoSynthesis.fetch(
             api_key=self.api_key,
@@ -109,18 +112,22 @@ class ImageToVideoService:
         
         if status == 'SUCCEEDED':
             video_url = rsp.output.video_url
+            # 如果启用了 OSS，上传视频并返回 OSS URL
+            if video_url and oss_service.is_enabled():
+                video_url = oss_service.upload_video(video_url, project_id)
         
         return status, video_url
     
-    async def wait_for_task(self, task_id: str) -> str:
+    async def wait_for_task(self, task_id: str, project_id: str = "") -> str:
         """
         等待任务完成并返回视频 URL
         
         Args:
             task_id: 任务 ID
+            project_id: 项目ID，用于 OSS 上传路径
             
         Returns:
-            视频 URL
+            视频 URL（如果启用 OSS，返回 OSS URL）
         """
         rsp = VideoSynthesis.wait(
             api_key=self.api_key,
@@ -131,7 +138,11 @@ class ImageToVideoService:
             raise Exception(f"任务失败: {rsp.code} - {rsp.message}")
         
         if rsp.output.task_status == 'SUCCEEDED':
-            return rsp.output.video_url
+            video_url = rsp.output.video_url
+            # 如果启用了 OSS，上传视频并返回 OSS URL
+            if oss_service.is_enabled():
+                video_url = oss_service.upload_video(video_url, project_id)
+            return video_url
         elif rsp.output.task_status == 'FAILED':
             error_msg = getattr(rsp.output, 'message', '未知错误')
             raise Exception(f"视频生成失败: {error_msg}")
@@ -146,12 +157,26 @@ class ImageToVideoService:
         size: Optional[str] = None,
         prompt_extend: Optional[bool] = None,
         watermark: Optional[bool] = None,
-        seed: Optional[int] = None
+        seed: Optional[int] = None,
+        project_id: str = ""
     ) -> str:
         """
         生成视频（完整流程：创建任务并等待完成）
+        
+        Args:
+            image_url: 首帧图片 URL
+            prompt: 视频生成提示词
+            model: 模型名称（使用配置默认值）
+            size: 视频分辨率（使用配置默认值）
+            prompt_extend: 智能改写（使用配置默认值）
+            watermark: 水印（使用配置默认值）
+            seed: 种子（使用配置默认值）
+            project_id: 项目ID，用于 OSS 上传路径
+            
+        Returns:
+            视频 URL（如果启用 OSS，返回 OSS URL）
         """
         task_id = await self.create_task(
             image_url, prompt, model, size, prompt_extend, watermark, seed
         )
-        return await self.wait_for_task(task_id)
+        return await self.wait_for_task(task_id, project_id)

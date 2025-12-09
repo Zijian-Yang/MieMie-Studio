@@ -23,6 +23,7 @@ import dashscope
 from dashscope import ImageSynthesis
 
 from app.config import get_config, IMAGE_EDIT_MODELS, IMAGE_MODELS
+from app.services.oss import oss_service
 
 
 class ImageToImageService:
@@ -75,6 +76,7 @@ class ImageToImageService:
         model: Optional[str] = None,
         prompt_extend: Optional[bool] = None,
         seed: Optional[int] = None,
+        project_id: str = ""
     ) -> str:
         """
         使用单张图片风格生成新图片（图生图）
@@ -89,9 +91,10 @@ class ImageToImageService:
             model: 使用的模型（默认 wan2.5-i2i-preview）
             prompt_extend: 是否智能改写
             seed: 随机种子
+            project_id: 项目ID，用于 OSS 上传路径
             
         Returns:
-            生成的图片 URL
+            生成的图片 URL（如果启用 OSS，返回 OSS URL）
         """
         return await self.generate_with_multi_images(
             prompt=prompt,
@@ -101,7 +104,8 @@ class ImageToImageService:
             height=height,
             model=model,
             prompt_extend=prompt_extend,
-            seed=seed
+            seed=seed,
+            project_id=project_id
         )
     
     async def generate_with_multi_images(
@@ -114,6 +118,7 @@ class ImageToImageService:
         model: Optional[str] = None,
         prompt_extend: Optional[bool] = None,
         seed: Optional[int] = None,
+        project_id: str = ""
     ) -> str:
         """
         使用多张参考图片生成新图片（多图生图）
@@ -132,9 +137,10 @@ class ImageToImageService:
             model: 使用的模型（默认 wan2.5-i2i-preview）
             prompt_extend: 是否智能改写
             seed: 随机种子
+            project_id: 项目ID，用于 OSS 上传路径
             
         Returns:
-            生成的图片 URL
+            生成的图片 URL（如果启用 OSS，返回 OSS URL）
         """
         if not image_urls:
             raise ValueError("至少需要一张参考图片")
@@ -200,9 +206,9 @@ class ImageToImageService:
         task_id = result["output"]["task_id"]
         
         # 轮询任务状态
-        return await self._poll_task(task_id)
+        return await self._poll_task(task_id, project_id)
 
-    async def _poll_task(self, task_id: str) -> str:
+    async def _poll_task(self, task_id: str, project_id: str = "") -> str:
         """轮询任务状态直到完成"""
         status_url = f"{self.base_url}/tasks/{task_id}"
         timeout = 300  # 5分钟超时
@@ -227,7 +233,11 @@ class ImageToImageService:
             if task_status == "SUCCEEDED":
                 results = status_result.get("output", {}).get("results", [])
                 if results and "url" in results[0]:
-                    return results[0]["url"]
+                    image_url = results[0]["url"]
+                    # 如果启用了 OSS，上传图片并返回 OSS URL
+                    if oss_service.is_enabled():
+                        return oss_service.upload_image(image_url, project_id)
+                    return image_url
                 raise Exception("图片生成成功但未返回URL")
             elif task_status == "FAILED":
                 error_msg = status_result.get("output", {}).get("message", "未知错误")
