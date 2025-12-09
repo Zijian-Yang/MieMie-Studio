@@ -19,10 +19,12 @@ interface GenerationState {
   
   // 视频生成设置（页面级覆盖，优先于系统设置）
   videoModel: string | null  // null 表示使用系统默认
-  videoSize: string | null
+  videoResolution: string | null  // 分辨率
+  videoDuration: number | null   // 时长（秒）
   videoPromptExtend: boolean | null
   videoWatermark: boolean | null
   videoSeed: number | null
+  videoAudio: boolean | null  // 是否自动生成音频
   
   // 风格参考设置 - 全局开关
   characterUseStyle: boolean
@@ -51,10 +53,12 @@ interface GenerationState {
   
   // 视频生成设置 actions
   setVideoModel: (model: string | null) => void
-  setVideoSize: (size: string | null) => void
+  setVideoResolution: (resolution: string | null) => void
+  setVideoDuration: (duration: number | null) => void
   setVideoPromptExtend: (value: boolean | null) => void
   setVideoWatermark: (value: boolean | null) => void
   setVideoSeed: (seed: number | null) => void
+  setVideoAudio: (audio: boolean | null) => void
   resetVideoSettings: () => void
   
   // 风格参考设置 actions
@@ -89,10 +93,12 @@ export const useGenerationStore = create<GenerationState>()(
       
       // 视频生成设置（页面级覆盖）
       videoModel: null,
-      videoSize: null,
+      videoResolution: null,
+      videoDuration: null,
       videoPromptExtend: null,
       videoWatermark: null,
       videoSeed: null,
+      videoAudio: null,
       
       // 风格参考设置
       characterUseStyle: false,
@@ -118,16 +124,20 @@ export const useGenerationStore = create<GenerationState>()(
       
       // 视频生成设置 actions
       setVideoModel: (model) => set({ videoModel: model }),
-      setVideoSize: (size) => set({ videoSize: size }),
+      setVideoResolution: (resolution) => set({ videoResolution: resolution }),
+      setVideoDuration: (duration) => set({ videoDuration: duration }),
       setVideoPromptExtend: (value) => set({ videoPromptExtend: value }),
       setVideoWatermark: (value) => set({ videoWatermark: value }),
       setVideoSeed: (seed) => set({ videoSeed: seed }),
+      setVideoAudio: (audio) => set({ videoAudio: audio }),
       resetVideoSettings: () => set({
         videoModel: null,
-        videoSize: null,
+        videoResolution: null,
+        videoDuration: null,
         videoPromptExtend: null,
         videoWatermark: null,
         videoSeed: null,
+        videoAudio: null,
       }),
       
       setCharacterUseStyle: (use) => set({ characterUseStyle: use }),
@@ -187,10 +197,12 @@ export const useGenerationStore = create<GenerationState>()(
         videoGroupCount: state.videoGroupCount,
         // 视频生成设置
         videoModel: state.videoModel,
-        videoSize: state.videoSize,
+        videoResolution: state.videoResolution,
+        videoDuration: state.videoDuration,
         videoPromptExtend: state.videoPromptExtend,
         videoWatermark: state.videoWatermark,
         videoSeed: state.videoSeed,
+        videoAudio: state.videoAudio,
         // 风格设置
         characterUseStyle: state.characterUseStyle,
         characterSelectedStyleId: state.characterSelectedStyleId,

@@ -15,6 +15,9 @@ import {
   FormatPainterOutlined,
   DatabaseOutlined,
   ExperimentOutlined,
+  SoundOutlined,
+  PlayCircleOutlined,
+  AudioOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 
@@ -90,6 +93,31 @@ const MainLayout = () => {
       key: `/project/${projectId}/studio`,
       icon: <ExperimentOutlined />,
       label: '图片工作室',
+    },
+    {
+      key: `/project/${projectId}/audio-library`,
+      icon: <SoundOutlined />,
+      label: '音频库',
+    },
+    {
+      key: `/project/${projectId}/audio-studio`,
+      icon: <AudioOutlined />,
+      label: '音频工作室',
+    },
+    {
+      key: `/project/${projectId}/video-library`,
+      icon: <PlayCircleOutlined />,
+      label: '视频库',
+    },
+    {
+      key: `/project/${projectId}/video-studio`,
+      icon: <VideoCameraOutlined />,
+      label: '视频工作室',
+    },
+    {
+      key: `/project/${projectId}/text-library`,
+      icon: <FileTextOutlined />,
+      label: '文本库',
     },
   ] : []
 

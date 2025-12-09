@@ -11,6 +11,12 @@ import FramesPage from './pages/Frames/FramesPage'
 import VideosPage from './pages/Videos/VideosPage'
 import GalleryPage from './pages/Gallery/GalleryPage'
 import StudioPage from './pages/Studio/StudioPage'
+// 新增媒体模块
+import AudioLibraryPage from './pages/AudioLibrary/AudioLibraryPage'
+import VideoLibraryPage from './pages/VideoLibrary/VideoLibraryPage'
+import TextLibraryPage from './pages/TextLibrary/TextLibraryPage'
+import VideoStudioPage from './pages/VideoStudio/VideoStudioPage'
+import AudioStudioPage from './pages/AudioStudio/AudioStudioPage'
 
 function App() {
   return (
@@ -30,6 +36,12 @@ function App() {
             <Route path="videos" element={<VideosPage />} />
             <Route path="gallery" element={<GalleryPage />} />
             <Route path="studio" element={<StudioPage />} />
+            {/* 新增媒体模块 */}
+            <Route path="audio-library" element={<AudioLibraryPage />} />
+            <Route path="video-library" element={<VideoLibraryPage />} />
+            <Route path="text-library" element={<TextLibraryPage />} />
+            <Route path="video-studio" element={<VideoStudioPage />} />
+            <Route path="audio-studio" element={<AudioStudioPage />} />
           </Route>
         </Route>
       </Routes>

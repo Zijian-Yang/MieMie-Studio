@@ -91,29 +91,35 @@ IMAGE_EDIT_MODELS = {
 VIDEO_MODELS = {
     "wan2.5-i2v-preview": {
         "name": "万相2.5 图生视频 Preview",
-        "description": "最新的图生视频模型，支持更多分辨率和更高质量",
-        "sizes": [
-            {"value": "1280*720", "label": "1280x720 (16:9 横屏)"},
-            {"value": "720*1280", "label": "720x1280 (9:16 竖屏)"},
-            {"value": "960*960", "label": "960x960 (1:1 方形)"},
-            {"value": "1920*1080", "label": "1920x1080 (1080P 横屏)"},
-            {"value": "1080*1920", "label": "1080x1920 (1080P 竖屏)"},
+        "description": "最新图生视频模型，支持音频，分辨率由输入图像决定",
+        # wan2.5 使用 resolution 参数（分辨率档位），不是具体宽高
+        "resolutions": [
+            {"value": "480P", "label": "480P (标清)"},
+            {"value": "720P", "label": "720P (高清)"},
+            {"value": "1080P", "label": "1080P (全高清)"},
         ],
-        "default_size": "1280*720",
-        "max_duration": 5,  # 最大时长（秒）
+        "default_resolution": "720P",
+        "min_duration": 5,   # 最小时长（秒）
+        "max_duration": 10,  # 最大时长（秒）
         "supports_prompt_extend": True,
+        "supports_audio": True,  # 支持音频参数
+        "image_param": "img_url",  # API 中图片参数名
     },
     "wanx2.1-i2v-turbo": {
         "name": "万相2.1 图生视频 Turbo",
         "description": "快速生成模型，适合快速预览",
-        "sizes": [
+        # wanx2.1 使用 size 参数（具体分辨率）
+        "resolutions": [
             {"value": "1280*720", "label": "1280x720 (16:9 横屏)"},
             {"value": "720*1280", "label": "720x1280 (9:16 竖屏)"},
             {"value": "960*960", "label": "960x960 (1:1 方形)"},
         ],
-        "default_size": "1280*720",
-        "max_duration": 5,
+        "default_resolution": "1280*720",
+        "min_duration": 5,
+        "max_duration": 5,  # 2.1 只支持5秒
         "supports_prompt_extend": True,
+        "supports_audio": False,
+        "image_param": "image_url",  # API 中图片参数名
     }
 }
 
@@ -161,11 +167,12 @@ class ImageEditConfig(BaseModel):
 class VideoConfig(BaseModel):
     """图生视频配置"""
     model: str = "wan2.5-i2v-preview"  # 默认使用最新的 2.5 模型
-    size: str = "1280*720"
+    resolution: str = "720P"  # 分辨率（wan2.5用480P/720P/1080P，wanx2.1用宽*高）
     prompt_extend: bool = True  # 智能改写
     watermark: bool = False  # 水印，默认关闭
     seed: Optional[int] = None  # 种子，None表示随机
     duration: int = 5  # 视频时长（秒）
+    audio: bool = False  # 是否自动生成音频（仅wan2.5支持）
 
 
 class OSSConfig(BaseModel):

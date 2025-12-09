@@ -7,7 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
-from app.routers import settings, scripts, characters, scenes, props, frames, videos, projects, styles, gallery, studio
+from app.routers import (
+    settings, scripts, characters, scenes, props, frames, videos, projects, 
+    styles, gallery, studio, audio, video_library, text_library, video_studio
+)
 
 # 创建 FastAPI 应用
 app = FastAPI(
@@ -43,6 +46,10 @@ app.include_router(videos.router, prefix="/api/videos", tags=["视频"])
 app.include_router(styles.router, prefix="/api/styles", tags=["风格"])
 app.include_router(gallery.router, prefix="/api/gallery", tags=["图库"])
 app.include_router(studio.router, prefix="/api/studio", tags=["图片工作室"])
+app.include_router(audio.router, prefix="/api/audio", tags=["音频库"])
+app.include_router(video_library.router, prefix="/api/video-library", tags=["视频库"])
+app.include_router(text_library.router, prefix="/api/text-library", tags=["文本库"])
+app.include_router(video_studio.router, prefix="/api/video-studio", tags=["视频工作室"])
 
 
 @app.get("/")

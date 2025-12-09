@@ -25,14 +25,18 @@ const VideosPage = () => {
     setVideoGroupCount,
     videoModel,
     setVideoModel,
-    videoSize,
-    setVideoSize,
+    videoResolution,
+    setVideoResolution,
+    videoDuration,
+    setVideoDuration,
     videoPromptExtend,
     setVideoPromptExtend,
     videoWatermark,
     setVideoWatermark,
     videoSeed,
     setVideoSeed,
+    videoAudio,
+    setVideoAudio,
     resetVideoSettings,
   } = useGenerationStore()
   
@@ -50,11 +54,20 @@ const VideosPage = () => {
   
   // 视频模型配置
   const [videoModels, setVideoModels] = useState<Record<string, VideoModelInfo>>({})
-  const [systemVideoConfig, setSystemVideoConfig] = useState<{model: string, size: string, prompt_extend: boolean, watermark: boolean}>({
+  const [systemVideoConfig, setSystemVideoConfig] = useState<{
+    model: string
+    resolution: string
+    duration: number
+    prompt_extend: boolean
+    watermark: boolean
+    audio: boolean
+  }>({
     model: 'wan2.5-i2v-preview',
-    size: '1280*720',
+    resolution: '720P',
+    duration: 5,
     prompt_extend: true,
-    watermark: false
+    watermark: false,
+    audio: false
   })
   
   // 轮询状态更新
@@ -85,9 +98,11 @@ const VideosPage = () => {
         setVideoModels(settingsRes.available_video_models)
         setSystemVideoConfig({
           model: settingsRes.video.model,
-          size: settingsRes.video.size,
+          resolution: settingsRes.video.resolution,
+          duration: settingsRes.video.duration,
           prompt_extend: settingsRes.video.prompt_extend,
           watermark: settingsRes.video.watermark,
+          audio: settingsRes.video.audio,
         })
         
         // 启动轮询检查进行中的任务
@@ -206,18 +221,20 @@ const VideosPage = () => {
   const getEffectiveVideoSettings = () => {
     return {
       model: videoModel || systemVideoConfig.model,
-      size: videoSize || systemVideoConfig.size,
+      resolution: videoResolution || systemVideoConfig.resolution,
+      duration: videoDuration !== null ? videoDuration : systemVideoConfig.duration,
       prompt_extend: videoPromptExtend !== null ? videoPromptExtend : systemVideoConfig.prompt_extend,
       watermark: videoWatermark !== null ? videoWatermark : systemVideoConfig.watermark,
       seed: videoSeed,
+      audio: videoAudio !== null ? videoAudio : systemVideoConfig.audio,
     }
   }
 
   // 获取当前模型的分辨率选项
-  const getCurrentModelSizes = () => {
+  const getCurrentModelResolutions = () => {
     const currentModel = videoModel || systemVideoConfig.model
     const modelInfo = videoModels[currentModel]
-    return modelInfo?.sizes || []
+    return modelInfo?.resolutions || []
   }
 
   // 获取当前模型信息
@@ -283,10 +300,11 @@ const VideosPage = () => {
       const settings = getEffectiveVideoSettings()
       const result = await videosApi.generateBatch(projectId, {
         model: settings.model,
-        size: settings.size,
+        resolution: settings.resolution,
         prompt_extend: settings.prompt_extend,
         watermark: settings.watermark,
         seed: settings.seed,
+        audio: settings.audio,
       })
       setVideos(prev => [...prev, ...result.videos])
       
@@ -359,13 +377,14 @@ const VideosPage = () => {
         shot_number: selectedShot.shot_number,
         first_frame_url: frameUrl,
         prompt: values.prompt,
-        duration: Math.min(selectedShot.duration || 5, 10), // 确保不超过10秒
+        duration: settings.duration,
         // 使用页面设置
         model: settings.model,
-        size: settings.size,
+        resolution: settings.resolution,
         prompt_extend: settings.prompt_extend,
         watermark: settings.watermark,
         seed: settings.seed,
+        audio: settings.audio,
       })
       
       // 添加新视频到列表（不替换旧的，因为可能想保留历史记录）
@@ -450,7 +469,11 @@ const VideosPage = () => {
           </span>
           <span>
             <strong>分辨率：</strong>
-            {videoSize || systemVideoConfig.size}
+            {videoResolution || systemVideoConfig.resolution}
+          </span>
+          <span>
+            <strong>时长：</strong>
+            {(videoDuration !== null ? videoDuration : systemVideoConfig.duration)}秒
           </span>
           <span>
             <strong>智能改写：</strong>
@@ -736,8 +759,8 @@ const VideosPage = () => {
                     setVideoModel(value)
                     // 切换模型时重置分辨率为该模型的默认值
                     const modelInfo = videoModels[value]
-                    if (modelInfo?.default_size) {
-                      setVideoSize(modelInfo.default_size)
+                    if (modelInfo?.default_resolution) {
+                      setVideoResolution(modelInfo.default_resolution)
                     }
                   }}
                 >
@@ -757,13 +780,43 @@ const VideosPage = () => {
                 <div style={{ marginBottom: 8, color: '#e0e0e0' }}>视频分辨率</div>
                 <Select
                   style={{ width: '100%' }}
-                  value={videoSize || systemVideoConfig.size}
-                  onChange={setVideoSize}
+                  value={videoResolution || systemVideoConfig.resolution}
+                  onChange={setVideoResolution}
                 >
-                  {getCurrentModelSizes().map(size => (
-                    <Option key={size.value} value={size.value}>{size.label}</Option>
+                  {getCurrentModelResolutions().map(res => (
+                    <Option key={res.value} value={res.value}>{res.label}</Option>
                   ))}
                 </Select>
+              </div>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: 8, color: '#e0e0e0' }}>视频时长</div>
+                <Select
+                  style={{ width: '100%' }}
+                  value={videoDuration !== null ? videoDuration : systemVideoConfig.duration}
+                  onChange={setVideoDuration}
+                >
+                  {[5, 6, 7, 8, 9, 10].map(d => (
+                    <Option key={d} value={d}>{d} 秒</Option>
+                  ))}
+                </Select>
+              </div>
+            </Col>
+            <Col span={12}>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: 8, color: '#e0e0e0' }}>自动生成音频</div>
+                <Switch
+                  checked={videoAudio !== null ? videoAudio : systemVideoConfig.audio}
+                  onChange={setVideoAudio}
+                  disabled={!getCurrentModelInfo()?.supports_audio}
+                />
+                {!getCurrentModelInfo()?.supports_audio && (
+                  <span style={{ marginLeft: 8, color: '#888' }}>（当前模型不支持）</span>
+                )}
               </div>
             </Col>
           </Row>

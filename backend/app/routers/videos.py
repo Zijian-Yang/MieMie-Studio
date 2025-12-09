@@ -20,13 +20,16 @@ class VideoGenerateRequest(BaseModel):
     shot_number: int = 0
     first_frame_url: Optional[str] = None  # 首帧图 URL（可从分镜中自动获取）
     prompt: Optional[str] = None  # 视频生成提示词（可自动生成）
-    duration: float = 5.0  # 目标时长（秒），不超过10秒
+    duration: int = 5  # 目标时长（秒），wan2.5支持5-10秒
     # 视频生成参数（覆盖系统设置）
     model: Optional[str] = None
-    size: Optional[str] = None
+    resolution: Optional[str] = None  # 分辨率（wan2.5用480P/720P/1080P，wanx2.1用宽*高）
     prompt_extend: Optional[bool] = None
     watermark: Optional[bool] = None
     seed: Optional[int] = None
+    # 音频参数（仅wan2.5支持）
+    audio_url: Optional[str] = None  # 自定义音频URL
+    audio: Optional[bool] = None  # 是否自动生成音频
 
 
 def generate_video_prompt(shot) -> str:
@@ -67,10 +70,12 @@ class VideoBatchGenerateRequest(BaseModel):
     project_id: str
     # 视频生成参数（覆盖系统设置）
     model: Optional[str] = None
-    size: Optional[str] = None
+    resolution: Optional[str] = None  # 分辨率
     prompt_extend: Optional[bool] = None
     watermark: Optional[bool] = None
     seed: Optional[int] = None
+    # 音频参数（仅wan2.5支持）
+    audio: Optional[bool] = None
 
 
 @router.post("/generate")
@@ -112,8 +117,8 @@ async def generate_video(request: VideoGenerateRequest):
     if not prompt:
         prompt = "流畅的摄像机运动, 自然的场景变化"
     
-    # 确保时长不超过10秒
-    duration = min(request.duration, 10.0)
+    # 确保时长在合理范围内（wan2.5支持5-10秒）
+    duration = max(5, min(request.duration, 10))
     
     i2v_service = ImageToVideoService()
     
@@ -133,10 +138,13 @@ async def generate_video(request: VideoGenerateRequest):
             image_url=first_frame_url,
             prompt=prompt,
             model=request.model,
-            size=request.size,
+            resolution=request.resolution,
+            duration=duration,
             prompt_extend=request.prompt_extend,
             watermark=request.watermark,
-            seed=request.seed
+            seed=request.seed,
+            audio_url=request.audio_url,
+            audio=request.audio
         )
         
         video.task = VideoTask(
@@ -186,8 +194,8 @@ async def generate_videos_batch(request: VideoBatchGenerateRequest):
             # 根据分镜信息生成详细提示词
             prompt = generate_video_prompt(shot)
             
-            # 确保时长不超过10秒
-            duration = min(shot.duration, 10.0)
+            # 确保时长在合理范围内（wan2.5支持5-10秒）
+            duration = max(5, min(shot.duration, 10))
             
             video = Video(
                 project_id=request.project_id,
@@ -202,10 +210,12 @@ async def generate_videos_batch(request: VideoBatchGenerateRequest):
                 image_url=first_frame_url,
                 prompt=prompt,
                 model=request.model,
-                size=request.size,
+                resolution=request.resolution,
+                duration=duration,
                 prompt_extend=request.prompt_extend,
                 watermark=request.watermark,
-                seed=request.seed
+                seed=request.seed,
+                audio=request.audio
             )
             
             video.task = VideoTask(

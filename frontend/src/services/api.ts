@@ -56,7 +56,7 @@ export interface ImageModelInfo {
   common_sizes: ImageModelSizeOption[]
 }
 
-export interface VideoModelSizeOption {
+export interface VideoResolutionOption {
   value: string
   label: string
 }
@@ -64,10 +64,13 @@ export interface VideoModelSizeOption {
 export interface VideoModelInfo {
   name: string
   description?: string
-  sizes: VideoModelSizeOption[]
-  default_size: string
+  resolutions: VideoResolutionOption[]
+  default_resolution: string
+  min_duration?: number
   max_duration?: number
   supports_prompt_extend?: boolean
+  supports_audio?: boolean
+  image_param?: string
 }
 
 export interface RegionInfo {
@@ -104,11 +107,12 @@ export interface ImageEditConfig {
 
 export interface VideoConfig {
   model: string
-  size: string
+  resolution: string  // 分辨率（wan2.5用480P/720P/1080P，wanx2.1用宽*高）
   prompt_extend: boolean
   watermark: boolean
   seed: number | null
-  duration?: number  // 视频时长（秒）
+  duration: number  // 视频时长（秒）
+  audio: boolean    // 是否自动生成音频（仅wan2.5支持）
 }
 
 // OSS 配置
@@ -602,17 +606,21 @@ export const videosApi = {
     duration?: number
     // 视频生成参数（覆盖系统设置）
     model?: string
-    size?: string
+    resolution?: string  // 分辨率
     prompt_extend?: boolean
     watermark?: boolean
     seed?: number | null
+    // 音频参数（仅wan2.5支持）
+    audio_url?: string
+    audio?: boolean
   }) => api.post<any, { video: Video; task_id: string }>('/videos/generate', data),
   generateBatch: (projectId: string, options?: {
     model?: string
-    size?: string
+    resolution?: string
     prompt_extend?: boolean
     watermark?: boolean
     seed?: number | null
+    audio?: boolean
   }) => api.post<any, { videos: Video[]; errors: Array<{ shot_id: string; error: string }>; success_count: number; error_count: number }>('/videos/generate-batch', { project_id: projectId, ...options }),
   getStatus: (taskId: string) => api.get<any, { task_id: string; status: string; video_url?: string }>(`/videos/status/${taskId}`),
   delete: (id: string) => api.delete(`/videos/${id}`),
@@ -833,6 +841,174 @@ export const studioApi = {
   delete: (id: string) => api.delete(`/studio/${id}`),
   deleteAll: (projectId: string) => api.delete(`/studio/project/${projectId}/all`),
   getAvailableModels: () => api.get<any, { models: string[] }>('/studio/models/available'),
+}
+
+// ============ 音频库 API ============
+export interface AudioItem {
+  id: string
+  project_id: string
+  name: string
+  description: string
+  url: string
+  file_type: string
+  file_size: number
+  duration?: number
+  sample_rate?: number
+  channels?: number
+  created_at: string
+  updated_at: string
+}
+
+export const audioApi = {
+  list: (projectId: string) => api.get<any, { audios: AudioItem[] }>('/audio', { params: { project_id: projectId } }),
+  get: (id: string) => api.get<any, AudioItem>(`/audio/${id}`),
+  uploadFiles: (projectId: string, files: File[]) => {
+    const formData = new FormData()
+    files.forEach(file => formData.append('files', file))
+    return api.post<any, { audios: AudioItem[]; errors: any[]; success_count: number; error_count: number }>(
+      `/audio/upload-files?project_id=${projectId}`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    )
+  },
+  uploadUrls: (projectId: string, urls: string[], names?: string[]) => 
+    api.post<any, { audios: AudioItem[]; errors: any[]; success_count: number; error_count: number }>(
+      '/audio/upload-urls',
+      { project_id: projectId, urls, names }
+    ),
+  update: (id: string, data: { name?: string; description?: string }) => api.put<any, AudioItem>(`/audio/${id}`, data),
+  delete: (id: string) => api.delete(`/audio/${id}`),
+  deleteAll: (projectId: string) => api.delete(`/audio?project_id=${projectId}`),
+}
+
+// ============ 视频库 API ============
+export interface VideoLibraryItem {
+  id: string
+  project_id: string
+  name: string
+  description: string
+  url: string
+  file_type: string
+  file_size: number
+  duration?: number
+  width?: number
+  height?: number
+  fps?: number
+  thumbnail_url?: string
+  created_at: string
+  updated_at: string
+}
+
+export const videoLibraryApi = {
+  list: (projectId: string) => api.get<any, { videos: VideoLibraryItem[] }>('/video-library', { params: { project_id: projectId } }),
+  get: (id: string) => api.get<any, VideoLibraryItem>(`/video-library/${id}`),
+  uploadFiles: (projectId: string, files: File[]) => {
+    const formData = new FormData()
+    files.forEach(file => formData.append('files', file))
+    return api.post<any, { videos: VideoLibraryItem[]; errors: any[]; success_count: number; error_count: number }>(
+      `/video-library/upload-files?project_id=${projectId}`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    )
+  },
+  uploadUrls: (projectId: string, urls: string[], names?: string[]) => 
+    api.post<any, { videos: VideoLibraryItem[]; errors: any[]; success_count: number; error_count: number }>(
+      '/video-library/upload-urls',
+      { project_id: projectId, urls, names }
+    ),
+  update: (id: string, data: { name?: string; description?: string }) => api.put<any, VideoLibraryItem>(`/video-library/${id}`, data),
+  delete: (id: string) => api.delete(`/video-library/${id}`),
+  deleteAll: (projectId: string) => api.delete(`/video-library?project_id=${projectId}`),
+}
+
+// ============ 文本库 API ============
+export interface TextItemVersion {
+  id: string
+  content: string
+  created_at: string
+  description: string
+}
+
+export interface TextLibraryItem {
+  id: string
+  project_id: string
+  name: string
+  content: string
+  category: string
+  versions: TextItemVersion[]
+  created_at: string
+  updated_at: string
+}
+
+export const textLibraryApi = {
+  list: (projectId: string, category?: string) => 
+    api.get<any, { texts: TextLibraryItem[] }>('/text-library', { params: { project_id: projectId, category } }),
+  get: (id: string) => api.get<any, TextLibraryItem>(`/text-library/${id}`),
+  create: (data: { project_id: string; name: string; content: string; category?: string; description?: string }) => 
+    api.post<any, TextLibraryItem>('/text-library', data),
+  update: (id: string, data: { name?: string; content?: string; category?: string; save_version?: boolean; version_description?: string }) => 
+    api.put<any, TextLibraryItem>(`/text-library/${id}`, data),
+  saveVersion: (id: string, description?: string) => 
+    api.post<any, { message: string; version: TextItemVersion }>(`/text-library/${id}/versions`, null, { params: { description } }),
+  listVersions: (id: string) => api.get<any, { versions: TextItemVersion[] }>(`/text-library/${id}/versions`),
+  restoreVersion: (id: string, versionId: string) => 
+    api.post<any, { message: string; text: TextLibraryItem }>(`/text-library/${id}/restore`, { version_id: versionId }),
+  deleteVersion: (id: string, versionId: string) => api.delete(`/text-library/${id}/versions/${versionId}`),
+  delete: (id: string) => api.delete(`/text-library/${id}`),
+  deleteAll: (projectId: string, category?: string) => 
+    api.delete(`/text-library?project_id=${projectId}${category ? `&category=${category}` : ''}`),
+}
+
+// ============ 视频工作室 API ============
+export interface VideoStudioTask {
+  id: string
+  project_id: string
+  name: string
+  mode: 'first_frame' | 'first_last_frame'
+  first_frame_url?: string
+  last_frame_url?: string
+  audio_url?: string
+  prompt: string
+  negative_prompt: string
+  model: string
+  resolution: string
+  duration: number
+  auto_audio: boolean
+  group_count: number
+  video_urls: string[]
+  selected_video_url?: string
+  task_ids: string[]
+  status: 'pending' | 'processing' | 'succeeded' | 'failed'
+  error_message?: string
+  created_at: string
+  updated_at: string
+}
+
+export const videoStudioApi = {
+  list: (projectId: string) => api.get<any, { tasks: VideoStudioTask[] }>('/video-studio', { params: { project_id: projectId } }),
+  get: (id: string) => api.get<any, VideoStudioTask>(`/video-studio/${id}`),
+  getStatus: (id: string) => api.get<any, { task: VideoStudioTask }>(`/video-studio/${id}/status`),
+  create: (data: {
+    project_id: string
+    name?: string
+    mode?: string
+    first_frame_url: string
+    last_frame_url?: string
+    audio_url?: string
+    prompt?: string
+    negative_prompt?: string
+    model?: string
+    resolution?: string
+    duration?: number
+    auto_audio?: boolean
+    group_count?: number
+  }) => api.post<any, { task: VideoStudioTask }>('/video-studio', data),
+  update: (id: string, data: { name?: string; selected_video_url?: string }) => 
+    api.put<any, VideoStudioTask>(`/video-studio/${id}`, data),
+  saveToLibrary: (id: string, videoUrl: string, name?: string) => 
+    api.post<any, { message: string; video: VideoLibraryItem }>(`/video-studio/${id}/save-to-library`, null, { params: { video_url: videoUrl, name } }),
+  delete: (id: string) => api.delete(`/video-studio/${id}`),
+  deleteAll: (projectId: string) => api.delete(`/video-studio?project_id=${projectId}`),
 }
 
 export default api

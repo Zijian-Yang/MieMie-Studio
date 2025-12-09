@@ -55,10 +55,12 @@ const SettingsPage = () => {
         image_edit_seed: data.image_edit.seed,
         // 图生视频配置
         video_model: data.video.model,
-        video_size: data.video.size,
+        video_resolution: data.video.resolution,
+        video_duration: data.video.duration,
         video_prompt_extend: data.video.prompt_extend,
         video_watermark: data.video.watermark,
         video_seed: data.video.seed,
+        video_audio: data.video.audio,
         // OSS 配置
         oss_enabled: data.oss.enabled,
         oss_bucket_name: data.oss.bucket_name,
@@ -125,10 +127,12 @@ const SettingsPage = () => {
         },
         video: {
           model: values.video_model,
-          size: values.video_size,
+          resolution: values.video_resolution,
+          duration: values.video_duration,
           prompt_extend: values.video_prompt_extend,
           watermark: values.video_watermark,
           seed: values.video_seed || null,
+          audio: values.video_audio,
         },
         oss: {
           enabled: values.oss_enabled,
@@ -234,12 +238,12 @@ const SettingsPage = () => {
     form.setFieldsValue({ image_width: width, image_height: height })
   }
 
-  // 获取当前视频模型的尺寸选项
-  const getVideoSizes = () => {
+  // 获取当前视频模型的分辨率选项
+  const getVideoResolutions = () => {
     if (!config) return []
     const videoModel = form.getFieldValue('video_model') || config.video.model
     const modelInfo = config.available_video_models[videoModel]
-    return modelInfo?.sizes || []
+    return modelInfo?.resolutions || []
   }
 
   // 获取当前视频模型信息
@@ -858,7 +862,7 @@ const SettingsPage = () => {
                   onChange={(value) => {
                     const modelInfo = config?.available_video_models[value]
                     if (modelInfo) {
-                      form.setFieldValue('video_size', modelInfo.default_size)
+                      form.setFieldValue('video_resolution', modelInfo.default_resolution)
                     }
                   }}
                 />
@@ -871,15 +875,38 @@ const SettingsPage = () => {
             </Col>
             <Col span={12}>
               <Form.Item
-                name="video_size"
+                name="video_resolution"
                 label="视频分辨率"
+                extra={getCurrentVideoModelInfo()?.supports_audio === false ? '' : '分辨率由输入图像宽高比决定'}
               >
                 <Select
-                  options={getVideoSizes().map(size => ({
-                    label: size.label,
-                    value: size.value
+                  options={getVideoResolutions().map(res => ({
+                    label: res.label,
+                    value: res.value
                   }))}
                 />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="video_duration"
+                label="默认时长"
+                extra={`wan2.5支持5-10秒，wanx2.1固定5秒`}
+              >
+                <InputNumber min={5} max={10} style={{ width: '100%' }} addonAfter="秒" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="video_audio"
+                label="自动生成音频"
+                valuePropName="checked"
+                tooltip="仅wan2.5支持，根据画面内容自动生成音频"
+              >
+                <Switch disabled={!getCurrentVideoModelInfo()?.supports_audio} />
               </Form.Item>
             </Col>
           </Row>
