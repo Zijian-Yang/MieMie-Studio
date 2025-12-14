@@ -37,7 +37,8 @@ class StudioTask(BaseModel):
     model: str = "wan2.5-i2i-preview"  # 使用的模型
     prompt: str = ""  # 生成提示词
     negative_prompt: str = ""  # 负向提示词
-    group_count: int = 3  # 生成组数
+    n: int = 1  # 每次请求生成的图片数量
+    group_count: int = 3  # 并发请求数（总图片数 = n * group_count）
     
     # 参考素材
     references: List[ReferenceItem] = []  # 参考素材列表

@@ -27,7 +27,7 @@ import {
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { framesApi, scriptsApi, galleryApi, charactersApi, scenesApi, propsApi, Frame, Shot, GalleryImage, Character, Scene, Prop } from '../../services/api'
+import { framesApi, scriptsApi, galleryApi, charactersApi, scenesApi, propsApi, stylesApi, Frame, Shot, GalleryImage, Character, Scene, Prop, Style } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 import { useGenerationStore } from '../../stores/generationStore'
 
@@ -168,6 +168,7 @@ const FramesPage = () => {
   const [characters, setCharacters] = useState<Character[]>([])
   const [scenes, setScenes] = useState<Scene[]>([])
   const [props, setProps] = useState<Prop[]>([])
+  const [styles, setStyles] = useState<Style[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 })
@@ -182,8 +183,12 @@ const FramesPage = () => {
   const [createForm] = Form.useForm()
   const [useReferences, setUseReferences] = useState(true)
   const [generatingGroups, setGeneratingGroups] = useState<Set<string>>(new Set())
-  // 素材选择（统一的顺序列表）
+  // 素材选择（不包含风格）
   const [selectedReferences, setSelectedReferences] = useState<Array<{type: 'character' | 'scene' | 'prop', id: string}>>([])
+  // 风格选择（独立）
+  const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null)
+  // 全局风格设置
+  const [globalStyleId, setGlobalStyleId] = useState<string | null>(null)
   // 多选保存到图库
   const [selectedGroupsForGallery, setSelectedGroupsForGallery] = useState<Set<number>>(new Set())
   
@@ -220,18 +225,20 @@ const FramesPage = () => {
       safeSetState(setLoading, true)
       try {
         fetchProject(projectId).catch(() => {})
-        const [framesRes, galleryRes, charsRes, scenesRes, propsRes] = await Promise.all([
+        const [framesRes, galleryRes, charsRes, scenesRes, propsRes, stylesRes] = await Promise.all([
           framesApi.list(projectId),
           galleryApi.list(projectId),
           charactersApi.list(projectId),
           scenesApi.list(projectId),
           propsApi.list(projectId),
+          stylesApi.list(projectId),
         ])
         safeSetState(setFrames, framesRes.frames)
         safeSetState(setGalleryImages, galleryRes.images)
         safeSetState(setCharacters, charsRes.characters)
         safeSetState(setScenes, scenesRes.scenes)
         safeSetState(setProps, propsRes.props)
+        safeSetState(setStyles, stylesRes.styles)
       } catch (error) {
         message.error('加载失败')
       } finally {
@@ -361,12 +368,23 @@ const FramesPage = () => {
       try {
         // 自动选择素材
         const autoRefs = autoSelectReferences(shot)
-        // 构建首帧提示词
-        const prompt = buildFramePrompt(shot, autoRefs)
+        // 构建首帧提示词（包含全局风格）
+        const prompt = buildFramePrompt(shot, autoRefs, globalStyleId)
         // 收集参考图片URL
-        const referenceUrls = useReferences ? autoRefs
+        let referenceUrls = useReferences ? autoRefs
           .map(ref => getReferenceImageUrl(ref))
           .filter((url): url is string => url !== null) : []
+        
+        // 处理全局风格：如果是图片风格，作为最后一个参考图添加
+        if (globalStyleId) {
+          const style = styles.find(s => s.id === globalStyleId)
+          if (style?.style_type === 'image') {
+            const styleUrl = getStyleImageUrl(style)
+            if (styleUrl) {
+              referenceUrls = [...referenceUrls, styleUrl]
+            }
+          }
+        }
         
         const result = await framesApi.generate({
           project_id: projectId,
@@ -409,7 +427,7 @@ const FramesPage = () => {
   }
 
   // 构建首帧提示词 - 使用角色名称和详细的构图、位置、动作描述
-  const buildFramePrompt = (shot: Shot, refs: Array<{type: 'character' | 'scene' | 'prop', id: string}>) => {
+  const buildFramePrompt = (shot: Shot, refs: Array<{type: 'character' | 'scene' | 'prop', id: string}>, styleId?: string | null) => {
     const promptParts: string[] = []
     
     // 基础画面质量
@@ -479,6 +497,22 @@ const FramesPage = () => {
     if (shot.lighting) promptParts.push(`光线效果：${shot.lighting}`)
     if (shot.mood) promptParts.push(`画面氛围：${shot.mood}`)
     
+    // 处理风格（放在尾部）
+    const effectiveStyleId = styleId !== undefined ? styleId : getEffectiveStyleId()
+    if (effectiveStyleId) {
+      const style = styles.find(s => s.id === effectiveStyleId)
+      if (style) {
+        if (style.style_type === 'image' && style.style_prompt) {
+          // 图片风格：添加风格参考说明（图片会作为最后一个参考图添加）
+          const totalRefs = refs.length
+          promptParts.push(`参考第${totalRefs + 1}个图的${style.name}风格，${style.style_prompt}`)
+        } else if (style.style_type === 'text' && style.text_style_content) {
+          // 文本风格：嵌入提示词尾部
+          promptParts.push(`风格要求：${style.text_style_content}`)
+        }
+      }
+    }
+    
     return promptParts.join('。')
   }
 
@@ -526,7 +560,15 @@ const FramesPage = () => {
     return refs
   }
 
-  // 获取素材的图片URL
+  // 获取风格图片URL
+  const getStyleImageUrl = (style: Style): string | null => {
+    if (style.style_type === 'image' && style.image_groups?.[style.selected_group_index]?.url) {
+      return style.image_groups[style.selected_group_index].url
+    }
+    return null
+  }
+
+  // 获取素材的图片URL（不含风格）
   const getReferenceImageUrl = (ref: {type: 'character' | 'scene' | 'prop', id: string}): string | null => {
     if (ref.type === 'character') {
       const char = characters.find(c => c.id === ref.id)
@@ -540,7 +582,7 @@ const FramesPage = () => {
     }
   }
 
-  // 获取素材名称
+  // 获取素材名称（不含风格）
   const getReferenceName = (ref: {type: 'character' | 'scene' | 'prop', id: string}): string => {
     if (ref.type === 'character') {
       const char = characters.find(c => c.id === ref.id)
@@ -552,6 +594,34 @@ const FramesPage = () => {
       const prop = props.find(p => p.id === ref.id)
       return prop ? `道具: ${prop.name}` : '未知道具'
     }
+  }
+  
+  // 构建风格选项
+  const buildStyleOptions = () => {
+    return [
+      { label: '不使用风格', value: '' },
+      ...styles.map(s => ({
+        label: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {s.style_type === 'image' && getStyleImageUrl(s) ? (
+              <img src={getStyleImageUrl(s)!} alt="" style={{ width: 24, height: 24, objectFit: 'cover', borderRadius: 4 }} />
+            ) : (
+              <div style={{ width: 24, height: 24, background: '#333', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>T</div>
+            )}
+            <span>{s.name}</span>
+            <Tag color={s.style_type === 'image' ? 'blue' : 'green'} style={{ fontSize: 10 }}>
+              {s.style_type === 'image' ? '图片' : '文本'}
+            </Tag>
+          </div>
+        ),
+        value: s.id
+      }))
+    ]
+  }
+  
+  // 获取有效的风格（优先使用单张选择，其次使用全局设置）
+  const getEffectiveStyleId = (): string | null => {
+    return selectedStyleId || globalStyleId
   }
 
   const handleStopGeneration = () => {
@@ -651,9 +721,21 @@ const FramesPage = () => {
     
     try {
       // 收集参考图片URL（按用户选择的顺序）
-      const referenceUrls = useReferences ? selectedReferences
+      let referenceUrls = useReferences ? selectedReferences
         .map(ref => getReferenceImageUrl(ref))
         .filter((url): url is string => url !== null) : []
+      
+      // 处理风格：如果选择了图片风格，作为最后一个参考图添加
+      const effectiveStyleId = selectedStyleId || globalStyleId
+      if (effectiveStyleId) {
+        const style = styles.find(s => s.id === effectiveStyleId)
+        if (style?.style_type === 'image') {
+          const styleUrl = getStyleImageUrl(style)
+          if (styleUrl) {
+            referenceUrls = [...referenceUrls, styleUrl]
+          }
+        }
+      }
       
       const result = await framesApi.generate({
         project_id: projectId,
@@ -1204,7 +1286,7 @@ const FramesPage = () => {
                                   // 更新提示词
                                   if (selectedShot) {
                                     form.setFieldsValue({
-                                      prompt: buildFramePrompt(selectedShot, newRefs)
+                                      prompt: buildFramePrompt(selectedShot, newRefs, getEffectiveStyleId())
                                     })
                                   }
                                 }
@@ -1323,7 +1405,7 @@ const FramesPage = () => {
                                             setSelectedReferences(newRefs)
                                             if (selectedShot) {
                                               form.setFieldsValue({
-                                                prompt: buildFramePrompt(selectedShot, newRefs)
+                                                prompt: buildFramePrompt(selectedShot, newRefs, getEffectiveStyleId())
                                               })
                                             }
                                           }}
@@ -1344,6 +1426,84 @@ const FramesPage = () => {
                             )}
                           </>
                         )}
+                      </Card>
+                      
+                      {/* 独立风格选择模块 */}
+                      <Card 
+                        size="small" 
+                        title={
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span>风格选择</span>
+                            {globalStyleId && !selectedStyleId && (
+                              <Tag color="blue" style={{ fontSize: 10 }}>使用全局风格</Tag>
+                            )}
+                          </div>
+                        }
+                        style={{ marginTop: 12, background: 'transparent', border: '1px solid #333' }}
+                      >
+                        <Select
+                          style={{ width: '100%' }}
+                          placeholder={globalStyleId ? `使用全局风格 (${styles.find(s => s.id === globalStyleId)?.name || ''})` : '选择风格（可选）'}
+                          value={selectedStyleId || undefined}
+                          onChange={(value) => {
+                            setSelectedStyleId(value || null)
+                            // 更新提示词
+                            if (selectedShot) {
+                              form.setFieldsValue({
+                                prompt: buildFramePrompt(selectedShot, selectedReferences, value || globalStyleId)
+                              })
+                            }
+                          }}
+                          allowClear
+                          options={buildStyleOptions()}
+                        />
+                        
+                        {/* 显示选中风格的预览 */}
+                        {(() => {
+                          const effectiveStyleId = selectedStyleId || globalStyleId
+                          if (!effectiveStyleId) return null
+                          const style = styles.find(s => s.id === effectiveStyleId)
+                          if (!style) return null
+                          return (
+                            <div style={{ 
+                              marginTop: 12, 
+                              padding: 12, 
+                              background: '#1a1a1a', 
+                              borderRadius: 8,
+                              border: '1px solid #333'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                                {style.style_type === 'image' && getStyleImageUrl(style) && (
+                                  <img 
+                                    src={getStyleImageUrl(style)!} 
+                                    alt={style.name}
+                                    style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 4 }}
+                                  />
+                                )}
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontWeight: 500, marginBottom: 4, fontSize: 13 }}>{style.name}</div>
+                                  <Tag color={style.style_type === 'image' ? 'blue' : 'green'} style={{ fontSize: 10 }}>
+                                    {style.style_type === 'image' ? '图片风格' : '文本风格'}
+                                  </Tag>
+                                  {style.style_type === 'text' && style.text_style_content && (
+                                    <div style={{ marginTop: 6, fontSize: 11, color: '#888' }}>
+                                      {style.text_style_content.slice(0, 80)}...
+                                    </div>
+                                  )}
+                                  {style.style_type === 'image' && style.style_prompt && (
+                                    <div style={{ marginTop: 6, fontSize: 11, color: '#888' }}>
+                                      {style.style_prompt.slice(0, 80)}...
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })()}
+                        
+                        <div style={{ marginTop: 8, fontSize: 11, color: '#666' }}>
+                          图片风格：作为最后一个参考图片。文本风格：嵌入提示词尾部。
+                        </div>
                       </Card>
                       
                       <Form form={form} layout="vertical">
@@ -1425,6 +1585,7 @@ const FramesPage = () => {
         onOk={() => setSettingsModalVisible(false)}
         okText="确定"
         cancelText="取消"
+        width={500}
       >
         <Form layout="vertical">
           <Form.Item label="每个分镜首帧生成组数" extra="生成首帧时，每个分镜将生成指定组数的图片">
@@ -1436,6 +1597,63 @@ const FramesPage = () => {
               style={{ width: '100%' }} 
             />
           </Form.Item>
+          
+          <Divider />
+          
+          <Form.Item 
+            label="全局风格设置" 
+            extra="设置后，所有分镜首帧生成时将默认使用此风格（单个分镜可覆盖）"
+          >
+            <Select
+              style={{ width: '100%' }}
+              placeholder="选择全局风格（可选）"
+              value={globalStyleId || undefined}
+              onChange={(value) => setGlobalStyleId(value || null)}
+              allowClear
+              options={buildStyleOptions()}
+            />
+          </Form.Item>
+          
+          {/* 全局风格预览 */}
+          {globalStyleId && (() => {
+            const style = styles.find(s => s.id === globalStyleId)
+            if (!style) return null
+            return (
+              <div style={{ 
+                padding: 12, 
+                background: '#1a1a1a', 
+                borderRadius: 8,
+                border: '1px solid #333',
+                marginTop: -8
+              }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                  {style.style_type === 'image' && getStyleImageUrl(style) && (
+                    <img 
+                      src={getStyleImageUrl(style)!} 
+                      alt={style.name}
+                      style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 4 }}
+                    />
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 500, marginBottom: 4 }}>{style.name}</div>
+                    <Tag color={style.style_type === 'image' ? 'blue' : 'green'}>
+                      {style.style_type === 'image' ? '图片风格' : '文本风格'}
+                    </Tag>
+                    {style.style_type === 'text' && style.text_style_content && (
+                      <div style={{ marginTop: 6, fontSize: 12, color: '#888' }}>
+                        {style.text_style_content.slice(0, 100)}...
+                      </div>
+                    )}
+                    {style.style_type === 'image' && style.style_prompt && (
+                      <div style={{ marginTop: 6, fontSize: 12, color: '#888' }}>
+                        {style.style_prompt.slice(0, 100)}...
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
         </Form>
       </Modal>
 

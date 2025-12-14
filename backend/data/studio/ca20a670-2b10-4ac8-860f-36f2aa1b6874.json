@@ -1,0 +1,47 @@
+{
+  "id": "ca20a670-2b10-4ac8-860f-36f2aa1b6874",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "小明-爸爸",
+  "description": "",
+  "model": "wan2.5-i2i-preview",
+  "prompt": "小明和爸爸合影，tpose，无动作",
+  "negative_prompt": "",
+  "n": 2,
+  "group_count": 1,
+  "references": [
+    {
+      "type": "character",
+      "id": "5d6cf2a8-1b42-4c67-a9ca-3e4d493fd772",
+      "name": "小明",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251209/133137_79dc6d8e.png"
+    },
+    {
+      "type": "character",
+      "id": "650f875a-1673-44ae-ba11-82b1da2bdcbb",
+      "name": "爸爸",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251209/121437_47d10f6c.png"
+    }
+  ],
+  "images": [
+    {
+      "id": "2fcea25e-64da-4825-a40b-891971f214f1",
+      "group_index": 0,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251212/133711_de7eced0.png",
+      "prompt_used": "小明和爸爸合影，tpose，无动作",
+      "is_selected": true,
+      "created_at": "2025-12-12T13:37:12.664602"
+    },
+    {
+      "id": "089fd4a5-117c-4fc3-8c04-1d95202c69ec",
+      "group_index": 1,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251212/133712_a65bcafb.png",
+      "prompt_used": "小明和爸爸合影，tpose，无动作",
+      "is_selected": false,
+      "created_at": "2025-12-12T13:37:12.664621"
+    }
+  ],
+  "status": "completed",
+  "error_message": null,
+  "created_at": "2025-12-12T13:36:22.773001",
+  "updated_at": "2025-12-12T13:38:28.398761"
+}

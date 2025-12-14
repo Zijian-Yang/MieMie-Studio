@@ -29,9 +29,12 @@ const VideoStudioPage = () => {
   const [prompt, setPrompt] = useState('')
   const [negativePrompt, setNegativePrompt] = useState('')
   const [model, setModel] = useState('wan2.5-i2v-preview')
-  const [resolution, setResolution] = useState('720P')
+  const [resolution, setResolution] = useState('1080P')  // 默认1080P
   const [duration, setDuration] = useState(5)
-  const [autoAudio, setAutoAudio] = useState(false)
+  const [promptExtend, setPromptExtend] = useState(true)  // 智能改写
+  const [watermark, setWatermark] = useState(false)  // 水印
+  const [seed, setSeed] = useState<number | undefined>(undefined)  // 随机种子
+  const [autoAudio, setAutoAudio] = useState(true)  // 自动配音（默认开启）
   const [groupCount, setGroupCount] = useState(1)
   const [creating, setCreating] = useState(false)
   
@@ -138,6 +141,9 @@ const VideoStudioPage = () => {
         model,
         resolution,
         duration,
+        prompt_extend: promptExtend,
+        watermark,
+        seed: seed || undefined,
         auto_audio: autoAudio,
         group_count: groupCount
       })
@@ -164,9 +170,12 @@ const VideoStudioPage = () => {
     setPrompt('')
     setNegativePrompt('')
     setModel('wan2.5-i2v-preview')
-    setResolution('720P')
+    setResolution('1080P')  // 默认1080P
     setDuration(5)
-    setAutoAudio(false)
+    setPromptExtend(true)
+    setWatermark(false)
+    setSeed(undefined)
+    setAutoAudio(true)  // 默认开启
     setGroupCount(1)
   }
 
@@ -430,6 +439,11 @@ const VideoStudioPage = () => {
                             if (modelInfo?.default_resolution) {
                               setResolution(modelInfo.default_resolution)
                             }
+                            // 重置音频设置（仅 wan2.5 支持）
+                            if (!v.includes('wan2.5')) {
+                              setAutoAudio(false)
+                              setAudioUrl('')
+                            }
                           }}
                         >
                           {Object.entries(videoModels).map(([key, info]) => (
@@ -450,6 +464,9 @@ const VideoStudioPage = () => {
                             <Option key={res.value} value={res.value}>{res.label}</Option>
                           ))}
                         </Select>
+                        <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                          分辨率直接影响费用：1080P {'>'} 720P {'>'} 480P
+                        </div>
                       </div>
                     </Col>
                   </Row>
@@ -457,14 +474,28 @@ const VideoStudioPage = () => {
                   <Row gutter={16}>
                     <Col span={12}>
                       <div style={{ marginBottom: 16 }}>
-                        <div style={{ marginBottom: 8 }}>时长（秒）</div>
-                        <InputNumber
+                        <div style={{ marginBottom: 8 }}>时长</div>
+                        <Select
                           style={{ width: '100%' }}
-                          min={5}
-                          max={10}
                           value={duration}
-                          onChange={(v) => setDuration(v || 5)}
-                        />
+                          onChange={setDuration}
+                        >
+                          {isWan25 ? (
+                            <>
+                              <Option value={5}>5 秒</Option>
+                              <Option value={10}>10 秒</Option>
+                            </>
+                          ) : (
+                            <>
+                              <Option value={3}>3 秒</Option>
+                              <Option value={4}>4 秒</Option>
+                              <Option value={5}>5 秒</Option>
+                            </>
+                          )}
+                        </Select>
+                        <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                          时长直接影响费用，按秒计费
+                        </div>
                       </div>
                     </Col>
                     <Col span={12}>
@@ -481,14 +512,70 @@ const VideoStudioPage = () => {
                     </Col>
                   </Row>
                   
-                  {isWan25 && (
-                    <>
+                  <Row gutter={16}>
+                    <Col span={8}>
                       <div style={{ marginBottom: 16 }}>
-                        <div style={{ marginBottom: 8 }}>音频设置</div>
+                        <Space>
+                          <Switch
+                            checked={promptExtend}
+                            onChange={setPromptExtend}
+                          />
+                          <span>智能改写</span>
+                        </Space>
+                        <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                          使用大模型优化提示词
+                        </div>
+                      </div>
+                    </Col>
+                    <Col span={8}>
+                      <div style={{ marginBottom: 16 }}>
+                        <Space>
+                          <Switch
+                            checked={watermark}
+                            onChange={setWatermark}
+                          />
+                          <span>添加水印</span>
+                        </Space>
+                        <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                          右下角"AI生成"标识
+                        </div>
+                      </div>
+                    </Col>
+                    <Col span={8}>
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ marginBottom: 8 }}>随机种子</div>
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          min={0}
+                          max={2147483647}
+                          value={seed}
+                          onChange={(v) => setSeed(v || undefined)}
+                          placeholder="留空随机"
+                        />
+                      </div>
+                    </Col>
+                  </Row>
+                  
+                  {isWan25 && (
+                    <div style={{ 
+                      padding: 12, 
+                      background: '#1a1a1a', 
+                      borderRadius: 8, 
+                      marginTop: 8,
+                      border: '1px solid #333'
+                    }}>
+                      <div style={{ marginBottom: 12, fontWeight: 500 }}>🔊 音频设置（仅 wan2.5 支持）</div>
+                      
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ marginBottom: 8 }}>自定义音频</div>
                         <Select
                           style={{ width: '100%' }}
                           value={audioUrl || undefined}
-                          onChange={setAudioUrl}
+                          onChange={(v) => {
+                            setAudioUrl(v || '')
+                            // 选择音频后，auto_audio 无效
+                            if (v) setAutoAudio(false)
+                          }}
                           placeholder="从音频库选择（可选）"
                           allowClear
                         >
@@ -498,6 +585,9 @@ const VideoStudioPage = () => {
                             </Option>
                           ))}
                         </Select>
+                        <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                          传入音频后，视频将与音频内容对齐（如口型、节奏）
+                        </div>
                       </div>
                       
                       <div>
@@ -508,10 +598,17 @@ const VideoStudioPage = () => {
                             disabled={!!audioUrl}
                           />
                           <span>自动生成音频</span>
-                          {audioUrl && <span style={{ color: '#888' }}>（已选择音频，自动生成已禁用）</span>}
                         </Space>
+                        <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                          {audioUrl 
+                            ? '已选择自定义音频，此选项无效'
+                            : autoAudio 
+                              ? '模型将根据提示词和画面自动生成匹配的背景音'
+                              : '关闭后生成无声视频'
+                          }
+                        </div>
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
               )

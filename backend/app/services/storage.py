@@ -77,7 +77,7 @@ class StorageService:
             return None
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            return Project(**data)
+        return Project(**data)
     
     def list_projects(self) -> List[Project]:
         """列出所有项目"""
@@ -85,7 +85,7 @@ class StorageService:
         for file_path in self.projects_dir.glob("*.json"):
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                projects.append(Project(**data))
+            projects.append(Project(**data))
         return sorted(projects, key=lambda p: p.updated_at, reverse=True)
     
     def delete_project(self, project_id: str) -> None:

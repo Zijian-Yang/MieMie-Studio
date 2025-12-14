@@ -119,8 +119,9 @@ class ImageToImageService:
         model: Optional[str] = None,
         prompt_extend: Optional[bool] = None,
         seed: Optional[int] = None,
+        n: int = 1,
         project_id: str = ""
-    ) -> str:
+    ) -> List[str]:
         """
         使用多张参考图片生成新图片（多图生图）
         使用 image2image 端点 + 图像编辑模型
@@ -138,10 +139,11 @@ class ImageToImageService:
             model: 使用的模型（默认 wan2.5-i2i-preview）
             prompt_extend: 是否智能改写
             seed: 随机种子
+            n: 生成图片数量（每次请求生成的图片数）
             project_id: 项目ID，用于 OSS 上传路径
             
         Returns:
-            生成的图片 URL（如果启用 OSS，返回 OSS URL）
+            生成的图片 URL 列表（如果启用 OSS，返回 OSS URL）
         """
         if not image_urls:
             raise ValueError("至少需要一张参考图片")
@@ -173,7 +175,7 @@ class ImageToImageService:
             },
             "parameters": {
                 "size": f"{final_width}*{final_height}",
-                "n": 1
+                "n": max(1, min(n, 4))  # wan2.5-i2i-preview 最多支持 4 张
             }
         }
         
@@ -207,10 +209,15 @@ class ImageToImageService:
         task_id = result["output"]["task_id"]
         
         # 轮询任务状态
-        return await self._poll_task(task_id, project_id)
+        return await self._poll_task_multiple(task_id, project_id)
 
     async def _poll_task(self, task_id: str, project_id: str = "") -> str:
-        """轮询任务状态直到完成"""
+        """轮询任务状态直到完成（返回单张图片）"""
+        urls = await self._poll_task_multiple(task_id, project_id)
+        return urls[0] if urls else ""
+    
+    async def _poll_task_multiple(self, task_id: str, project_id: str = "") -> List[str]:
+        """轮询任务状态直到完成（返回多张图片）"""
         status_url = f"{self.base_url}/tasks/{task_id}"
         timeout = 300  # 5分钟超时
         start_time = time.time()
@@ -233,12 +240,17 @@ class ImageToImageService:
             
             if task_status == "SUCCEEDED":
                 results = status_result.get("output", {}).get("results", [])
-                if results and "url" in results[0]:
-                    image_url = results[0]["url"]
-                    # 如果启用了 OSS，上传图片并返回 OSS URL
-                    if oss_service.is_enabled():
-                        return oss_service.upload_image(image_url, project_id)
-                    return image_url
+                if results:
+                    image_urls = []
+                    for result in results:
+                        if "url" in result:
+                            image_url = result["url"]
+                            # 如果启用了 OSS，上传图片并返回 OSS URL
+                            if oss_service.is_enabled():
+                                image_url = oss_service.upload_image(image_url, project_id)
+                            image_urls.append(image_url)
+                    if image_urls:
+                        return image_urls
                 raise Exception("图片生成成功但未返回URL")
             elif task_status == "FAILED":
                 error_msg = status_result.get("output", {}).get("message", "未知错误")

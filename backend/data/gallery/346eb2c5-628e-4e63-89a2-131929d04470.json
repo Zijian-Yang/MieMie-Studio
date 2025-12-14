@@ -1,0 +1,13 @@
+{
+  "id": "346eb2c5-628e-4e63-89a2-131929d04470",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "虎4",
+  "description": "从URL导入: https://qncdn.n.cn/so/ai_image/6esvAcXSOwH_ZSbDsrw...",
+  "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/f96d7434-4033-4345-b69d-0810ebeff76d/20251211/163203_387bbc34.png",
+  "prompt_used": null,
+  "source": "upload",
+  "task_id": null,
+  "tags": [],
+  "created_at": "2025-12-11T16:32:10.432393",
+  "updated_at": "2025-12-11T16:32:20.392144"
+}

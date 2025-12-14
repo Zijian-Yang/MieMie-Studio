@@ -9,18 +9,18 @@
   "preset_name": "studio_ghibli",
   "image_groups": [
     {
-      "id": "9c016dc6-106a-4daf-8bf5-e2231fba8a66",
+      "id": "7fb6b884-3eda-4c4a-9380-1661c8950ca8",
       "group_index": 0,
-      "url": "https://dashscope-result-wlcb.oss-cn-wulanchabu.aliyuncs.com/1d/97/20251208/7a2bee47/e07ea247-2fe0-45bb-9511-2bddfb16eeee.png?Expires=1765289853&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=6f3aE%2FLI9gMIT%2B7Ru5ezYW3cjS4%3D",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251211/190623_a0b8b75a.png",
       "prompt_used": "studio ghibli style, miyazaki inspired, whimsical fantasy, lush nature, detailed backgrounds, warm colors, magical atmosphere, hand-drawn animation look",
-      "created_at": "2025-12-08T22:17:35.717610"
+      "created_at": "2025-12-11T19:06:24.229149"
     },
     {
-      "id": "07f77a9b-36bf-4f2e-967a-7a4f9a0b28a6",
+      "id": "c5670503-737c-4612-b368-6c55a27a72e4",
       "group_index": 1,
-      "url": "https://dashscope-result-sh.oss-cn-shanghai.aliyuncs.com/1d/e2/20251208/eb920ed5/b3c66007-5f2c-4cc0-b4f4-55a1cd859d65.png?Expires=1765274985&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=kPKinrecWoO9NPj1qE469djhJ%2F0%3D",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251211/190627_041045d2.png",
       "prompt_used": "studio ghibli style, miyazaki inspired, whimsical fantasy, lush nature, detailed backgrounds, warm colors, magical atmosphere, hand-drawn animation look",
-      "created_at": "2025-12-08T18:09:48.911383"
+      "created_at": "2025-12-11T19:06:28.050064"
     }
   ],
   "selected_group_index": 0,
@@ -29,5 +29,5 @@
   "text_preset_name": null,
   "is_selected": false,
   "created_at": "2025-12-02T18:31:54.492314",
-  "updated_at": "2025-12-08T22:17:35.717669"
+  "updated_at": "2025-12-11T19:06:28.050196"
 }

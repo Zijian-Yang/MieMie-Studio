@@ -68,6 +68,7 @@ IMAGE_MODELS = {
 
 # 图像编辑模型配置 (图生图)
 # 参考: https://www.alibabacloud.com/help/zh/model-studio/wan2-5-image-edit-api-reference
+# 参考: https://www.alibabacloud.com/help/zh/model-studio/qwen-image-edit-api
 IMAGE_EDIT_MODELS = {
     "wan2.5-i2i-preview": {
         "name": "万相2.5 图像编辑 Preview",
@@ -82,7 +83,32 @@ IMAGE_EDIT_MODELS = {
             {"width": 720, "height": 1280, "label": "9:16 竖屏"},
             {"width": 1024, "height": 768, "label": "4:3 横屏"},
             {"width": 768, "height": 1024, "label": "3:4 竖屏"},
-        ]
+        ],
+        "supports_prompt_extend": True,
+        "supports_seed": True,
+    },
+    "qwen-image-edit-plus": {
+        "name": "通义千问 图像编辑 Plus",
+        "description": "支持单图编辑和多图融合，可修改文字、增删物体、改变动作、风格迁移等",
+        "max_images": 3,  # 最多输入3张图片
+        "max_output": 6,  # 最多输出6张图片
+        "min_size": 512,  # 最小尺寸
+        "max_size": 2048,  # 最大尺寸
+        "common_sizes": [
+            {"value": "", "label": "默认（保持原图比例）"},
+            {"value": "1024*1024", "label": "1024×1024 (1:1)"},
+            {"value": "1280*720", "label": "1280×720 (16:9 横屏)"},
+            {"value": "720*1280", "label": "720×1280 (9:16 竖屏)"},
+            {"value": "1024*768", "label": "1024×768 (4:3 横屏)"},
+            {"value": "768*1024", "label": "768×1024 (3:4 竖屏)"},
+            {"value": "1920*1080", "label": "1920×1080 (全高清横屏)"},
+            {"value": "1080*1920", "label": "1080×1920 (全高清竖屏)"},
+            {"value": "2048*2048", "label": "2048×2048 (最大方形)"},
+        ],
+        "supports_prompt_extend": True,
+        "supports_watermark": True,
+        "supports_seed": True,
+        "size_only_when_n_is_1": True,  # size 参数仅当 n=1 时可用
     }
 }
 
@@ -91,18 +117,22 @@ IMAGE_EDIT_MODELS = {
 VIDEO_MODELS = {
     "wan2.5-i2v-preview": {
         "name": "万相2.5 图生视频 Preview",
-        "description": "最新图生视频模型，支持音频，分辨率由输入图像决定",
+        "description": "最新图生视频模型，支持音频/自动配音，分辨率由输入图像决定",
         # wan2.5 使用 resolution 参数（分辨率档位），不是具体宽高
         "resolutions": [
             {"value": "480P", "label": "480P (标清)"},
             {"value": "720P", "label": "720P (高清)"},
             {"value": "1080P", "label": "1080P (全高清)"},
         ],
-        "default_resolution": "720P",
-        "min_duration": 5,   # 最小时长（秒）
-        "max_duration": 10,  # 最大时长（秒）
+        "default_resolution": "1080P",  # 官方默认值
+        "durations": [5, 10],  # 支持的时长
+        "default_duration": 5,  # 默认时长
         "supports_prompt_extend": True,
-        "supports_audio": True,  # 支持音频参数
+        "supports_watermark": True,
+        "supports_seed": True,
+        "supports_negative_prompt": True,
+        "supports_audio": True,  # 支持音频参数 (audio, audio_url)
+        "default_audio": True,  # 默认开启自动配音
         "image_param": "img_url",  # API 中图片参数名
     },
     "wanx2.1-i2v-turbo": {
@@ -115,10 +145,13 @@ VIDEO_MODELS = {
             {"value": "960*960", "label": "960x960 (1:1 方形)"},
         ],
         "default_resolution": "1280*720",
-        "min_duration": 5,
-        "max_duration": 5,  # 2.1 只支持5秒
+        "durations": [3, 4, 5],  # 支持的时长
+        "default_duration": 5,
         "supports_prompt_extend": True,
-        "supports_audio": False,
+        "supports_watermark": True,
+        "supports_seed": True,
+        "supports_negative_prompt": True,
+        "supports_audio": False,  # 不支持音频
         "image_param": "image_url",  # API 中图片参数名
     }
 }
@@ -156,6 +189,7 @@ class ImageEditConfig(BaseModel):
     width: int = 1024  # 图片宽度
     height: int = 1024  # 图片高度
     prompt_extend: bool = True  # 智能改写
+    watermark: bool = False  # 水印（仅 qwen-image-edit-plus 支持）
     seed: Optional[int] = None  # 种子，None表示随机
     
     @property
@@ -165,14 +199,23 @@ class ImageEditConfig(BaseModel):
 
 
 class VideoConfig(BaseModel):
-    """图生视频配置"""
+    """图生视频配置
+    
+    参数说明（根据官方文档）：
+    - resolution: 分辨率档位，wan2.5 支持 480P/720P/1080P，默认 1080P
+    - duration: 视频时长，wan2.5 支持 5 或 10 秒，wanx2.1 支持 3/4/5 秒
+    - prompt_extend: 智能改写，默认 True
+    - watermark: 水印标识（右下角"AI生成"），默认 False
+    - audio: 自动配音（仅 wan2.5 支持），默认 True
+    - seed: 随机种子，范围 [0, 2147483647]
+    """
     model: str = "wan2.5-i2v-preview"  # 默认使用最新的 2.5 模型
-    resolution: str = "720P"  # 分辨率（wan2.5用480P/720P/1080P，wanx2.1用宽*高）
-    prompt_extend: bool = True  # 智能改写
+    resolution: str = "1080P"  # 分辨率（wan2.5默认1080P，wanx2.1用宽*高）
+    prompt_extend: bool = True  # 智能改写，默认开启
     watermark: bool = False  # 水印，默认关闭
     seed: Optional[int] = None  # 种子，None表示随机
     duration: int = 5  # 视频时长（秒）
-    audio: bool = False  # 是否自动生成音频（仅wan2.5支持）
+    audio: bool = True  # 是否自动生成音频（仅wan2.5支持，默认开启）
 
 
 class OSSConfig(BaseModel):

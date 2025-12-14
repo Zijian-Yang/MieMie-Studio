@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { 
   Button, Modal, Form, Input, Empty, Spin, message, 
   Image, Space, Popconfirm, Card, Tag, Tooltip, Select,
-  InputNumber, Checkbox, Tabs, Radio, Progress
+  InputNumber, Checkbox, Tabs, Radio, Progress, Switch
 } from 'antd'
 import { 
   PlusOutlined, DeleteOutlined, EditOutlined, PictureOutlined,
@@ -11,8 +11,8 @@ import {
   CheckCircleOutlined, CloseCircleOutlined, SyncOutlined
 } from '@ant-design/icons'
 import { 
-  studioApi, galleryApi, charactersApi, scenesApi, propsApi,
-  StudioTask, GalleryImage, Character, Scene, Prop, ReferenceItem
+  studioApi, galleryApi, charactersApi, scenesApi, propsApi, stylesApi,
+  StudioTask, GalleryImage, Character, Scene, Prop, ReferenceItem, Style
 } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 
@@ -37,7 +37,18 @@ const StudioPage = () => {
   const [scenes, setScenes] = useState<Scene[]>([])
   const [props, setProps] = useState<Prop[]>([])
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([])
-  const [availableModels, setAvailableModels] = useState<string[]>([])
+  const [styles, setStyles] = useState<Style[]>([])
+  const [availableModels, setAvailableModels] = useState<Record<string, {
+    id: string
+    name: string
+    description?: string
+    capabilities?: {
+      supports_batch?: boolean
+      supports_async?: boolean
+      supports_negative_prompt?: boolean
+    }
+    parameters?: any[]
+  }>>({})
   
   const isMountedRef = useRef(true)
 
@@ -59,13 +70,22 @@ const StudioPage = () => {
       try {
         fetchProject(projectId).catch(() => {})
         
-        const [tasksRes, charactersRes, scenesRes, propsRes, galleryRes, modelsRes] = await Promise.all([
+        const [tasksRes, charactersRes, scenesRes, propsRes, galleryRes, stylesRes, modelsRes] = await Promise.all([
           studioApi.list(projectId),
           charactersApi.list(projectId),
           scenesApi.list(projectId),
           propsApi.list(projectId),
           galleryApi.list(projectId),
-          studioApi.getAvailableModels().catch(() => ({ models: ['wan2.5-i2i-preview'] }))
+          stylesApi.list(projectId),
+          studioApi.getAvailableModels().catch(() => ({ 
+            models: {
+              'wan2.5-i2i-preview': {
+                id: 'wan2.5-i2i-preview',
+                name: '万相2.5 图生图',
+                description: '风格迁移和多图融合'
+              }
+            }
+          }))
         ])
         
         safeSetState(setTasks, tasksRes.tasks)
@@ -73,7 +93,8 @@ const StudioPage = () => {
         safeSetState(setScenes, scenesRes.scenes)
         safeSetState(setProps, propsRes.props)
         safeSetState(setGalleryImages, galleryRes.images)
-        safeSetState(setAvailableModels, modelsRes.models)
+        safeSetState(setStyles, stylesRes.styles)
+        safeSetState(setAvailableModels, modelsRes.models || {})
       } catch (error) {
         message.error('加载失败')
       } finally {
@@ -87,7 +108,8 @@ const StudioPage = () => {
     createForm.resetFields()
     createForm.setFieldsValue({
       model: 'wan2.5-i2i-preview',
-      group_count: 3
+      n: 1,  // 每次请求生成的图片数量
+      group_count: 3  // 并发请求数
     })
     setIsCreateModalOpen(true)
   }
@@ -98,24 +120,58 @@ const StudioPage = () => {
       const values = await createForm.validateFields()
       
       // 解析选中的素材
-      const references = (values.references || []).map((ref: string) => {
+      let references = (values.references || []).map((ref: string) => {
         const [type, id] = ref.split(':')
         return { type, id }
       })
+      
+      // 处理风格选择
+      let finalPrompt = values.prompt || ''
+      let finalNegativePrompt = values.negative_prompt || ''
+      
+      const styleId = values.style_id || selectedStyleId
+      if (styleId) {
+        const style = styles.find(s => s.id === styleId)
+        if (style) {
+          if (style.style_type === 'image') {
+            // 图片风格：作为最后一个参考图片加入
+            const styleImageUrl = getStyleImageUrl(style)
+            if (styleImageUrl) {
+              references = [...references, { type: 'style', id: style.id }]
+              // 在提示词中添加风格参考说明
+              if (style.style_prompt) {
+                finalPrompt = `${finalPrompt}。参考最后一张图的${style.name}风格，${style.style_prompt}`
+              }
+              if (style.negative_prompt) {
+                finalNegativePrompt = finalNegativePrompt 
+                  ? `${finalNegativePrompt}, ${style.negative_prompt}` 
+                  : style.negative_prompt
+              }
+            }
+          } else if (style.style_type === 'text') {
+            // 文本风格：嵌入提示词尾部
+            if (style.text_style_content) {
+              finalPrompt = `${finalPrompt}。风格要求：${style.text_style_content}`
+            }
+          }
+        }
+      }
       
       const task = await studioApi.create({
         project_id: projectId,
         name: values.name,
         description: values.description,
         model: values.model,
-        prompt: values.prompt,
-        negative_prompt: values.negative_prompt,
+        prompt: finalPrompt,
+        negative_prompt: finalNegativePrompt,
+        n: values.n || 1,
         group_count: values.group_count,
         references
       })
       
       safeSetState(setTasks, (prev: StudioTask[]) => [task, ...prev])
       setIsCreateModalOpen(false)
+      setSelectedStyleId(null)
       message.success('任务已创建')
       
       // 自动打开编辑弹窗
@@ -134,7 +190,13 @@ const StudioPage = () => {
       model: task.model,
       prompt: task.prompt,
       negative_prompt: task.negative_prompt,
-      group_count: task.group_count
+      n: task.n || 1,
+      group_count: task.group_count,
+      // qwen-image-edit-plus 默认值
+      size: '',
+      prompt_extend: true,
+      watermark: false,
+      seed: undefined
     })
     setIsModalOpen(true)
   }
@@ -168,20 +230,44 @@ const StudioPage = () => {
     }
     
     const values = form.getFieldsValue()
+    const isQwenModel = values.model === 'qwen-image-edit-plus'
+    
+    // 验证 qwen-image-edit-plus 的参数
+    if (isQwenModel) {
+      if (values.size && values.n > 1) {
+        message.warning('设置输出尺寸时，生图数量必须为1')
+        return
+      }
+      if (selectedTask.references.length > 3) {
+        message.warning('qwen-image-edit-plus 最多支持3张输入图片')
+        return
+      }
+    }
     
     safeSetState(setIsGenerating, true)
     try {
-      const result = await studioApi.generate(selectedTask.id, {
+      const generateParams: any = {
         prompt: values.prompt,
         negative_prompt: values.negative_prompt,
+        n: values.n || 1,
         group_count: values.group_count
-      })
+      }
+      
+      // qwen-image-edit-plus 专用参数
+      if (isQwenModel) {
+        if (values.size) generateParams.size = values.size
+        generateParams.prompt_extend = values.prompt_extend !== false  // 默认 true
+        generateParams.watermark = values.watermark || false
+        if (values.seed) generateParams.seed = values.seed
+      }
+      
+      const result = await studioApi.generate(selectedTask.id, generateParams)
       
       safeSetState(setTasks, (prev: StudioTask[]) => prev.map(t => t.id === result.task.id ? result.task : t))
       setSelectedTask(result.task)
       message.success('图片生成完成')
-    } catch (error) {
-      message.error('图片生成失败')
+    } catch (error: any) {
+      message.error(error?.message || '图片生成失败')
     } finally {
       safeSetState(setIsGenerating, false)
     }
@@ -272,7 +358,24 @@ const StudioPage = () => {
     return undefined
   }
 
-  // 构建素材选择选项
+  // 风格选择状态
+  const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null)
+  
+  // 获取风格图片URL
+  const getStyleImageUrl = (style: Style) => {
+    if (style.style_type === 'image' && style.image_groups?.[style.selected_group_index]?.url) {
+      return style.image_groups[style.selected_group_index].url
+    }
+    return null
+  }
+  
+  // 获取选中的风格
+  const getSelectedStyle = () => {
+    if (!selectedStyleId) return null
+    return styles.find(s => s.id === selectedStyleId) || null
+  }
+
+  // 构建素材选择选项（不包含风格）
   const buildReferenceOptions = () => {
     const options: { label: string, options: { label: React.ReactNode, value: string }[] }[] = []
     
@@ -349,6 +452,29 @@ const StudioPage = () => {
     }
     
     return options
+  }
+  
+  // 构建风格选项
+  const buildStyleOptions = () => {
+    return [
+      { label: '不使用风格', value: '' },
+      ...styles.map(s => ({
+        label: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {s.style_type === 'image' && getStyleImageUrl(s) ? (
+              <img src={getStyleImageUrl(s)!} alt="" style={{ width: 24, height: 24, objectFit: 'cover', borderRadius: 4 }} />
+            ) : (
+              <div style={{ width: 24, height: 24, background: '#333', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>T</div>
+            )}
+            <span>{s.name}</span>
+            <Tag color={s.style_type === 'image' ? 'blue' : 'green'} style={{ fontSize: 10 }}>
+              {s.style_type === 'image' ? '图片' : '文本'}
+            </Tag>
+          </div>
+        ),
+        value: s.id
+      }))
+    ]
   }
 
   const getStatusTag = (status: string) => {
@@ -498,11 +624,106 @@ const StudioPage = () => {
               optionFilterProp="children"
             />
           </Form.Item>
+          
+          {/* 独立的风格选择模块 */}
+          <Form.Item 
+            name="style_id" 
+            label="风格选择" 
+            extra={
+              <span style={{ color: '#888' }}>
+                图片风格：风格图作为最后一个参考图片加入素材。
+                文本风格：风格描述嵌入提示词尾部。
+              </span>
+            }
+          >
+            <Select
+              placeholder="选择风格（可选）"
+              options={buildStyleOptions()}
+              style={{ width: '100%' }}
+              allowClear
+              onChange={(value) => setSelectedStyleId(value || null)}
+            />
+          </Form.Item>
+          
+          {/* 显示选中风格的预览 */}
+          {selectedStyleId && (() => {
+            const style = styles.find(s => s.id === selectedStyleId)
+            if (!style) return null
+            return (
+              <div style={{ 
+                marginBottom: 16, 
+                padding: 12, 
+                background: '#1a1a1a', 
+                borderRadius: 8,
+                border: '1px solid #333'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                  {style.style_type === 'image' && getStyleImageUrl(style) && (
+                    <img 
+                      src={getStyleImageUrl(style)!} 
+                      alt={style.name}
+                      style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 4 }}
+                    />
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 500, marginBottom: 4 }}>{style.name}</div>
+                    <Tag color={style.style_type === 'image' ? 'blue' : 'green'}>
+                      {style.style_type === 'image' ? '图片风格' : '文本风格'}
+                    </Tag>
+                    {style.style_type === 'text' && style.text_style_content && (
+                      <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
+                        {style.text_style_content.slice(0, 100)}...
+                      </div>
+                    )}
+                    {style.style_type === 'image' && style.style_prompt && (
+                      <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
+                        {style.style_prompt.slice(0, 100)}...
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+          <Form.Item name="model" label="生成模型" extra={
+            availableModels[createForm.getFieldValue('model')]?.description
+          }>
+            <Select 
+              options={Object.values(availableModels).map(m => ({ 
+                label: m.name, 
+                value: m.id 
+              }))} 
+              onChange={() => createForm.setFieldsValue({})} // 触发重新渲染显示描述
+            />
+          </Form.Item>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Form.Item name="model" label="生成模型">
-              <Select options={availableModels.map(m => ({ label: m, value: m }))} />
+            <Form.Item 
+              name="n" 
+              label="生图数量" 
+              tooltip="每次请求生成的图片数量"
+              extra={(() => {
+                const model = createForm.getFieldValue('model')
+                if (model === 'qwen-image-edit-plus') return '最多6张'
+                if (model === 'wan2.5-i2i-preview') return '最多4张'
+                return ''
+              })()}
+            >
+              <InputNumber 
+                min={1} 
+                max={(() => {
+                  const model = createForm.getFieldValue('model')
+                  if (model === 'qwen-image-edit-plus') return 6
+                  if (model === 'wan2.5-i2i-preview') return 4
+                  return 4
+                })()}
+                style={{ width: '100%' }} 
+              />
             </Form.Item>
-            <Form.Item name="group_count" label="生成组数">
+            <Form.Item 
+              name="group_count" 
+              label="并发组数" 
+              tooltip="并发请求数，总图片数 = 生图数量 × 并发组数"
+            >
               <InputNumber min={1} max={10} style={{ width: '100%' }} />
             </Form.Item>
           </div>
@@ -651,20 +872,139 @@ const StudioPage = () => {
                 <Form.Item name="description" label="任务描述">
                   <TextArea rows={2} />
                 </Form.Item>
+                <Form.Item 
+                  name="model" 
+                  label="生成模型"
+                  extra={
+                    selectedTask && availableModels[form.getFieldValue('model') || selectedTask.model]?.description
+                  }
+                >
+                  <Select 
+                    options={Object.values(availableModels).map(m => ({ 
+                      label: m.name, 
+                      value: m.id 
+                    }))} 
+                    onChange={() => form.setFieldsValue({})} // 触发重新渲染显示描述
+                  />
+                </Form.Item>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                  <Form.Item name="model" label="生成模型">
-                    <Select options={availableModels.map(m => ({ label: m, value: m }))} />
+                  <Form.Item 
+                    name="n" 
+                    label="生图数量" 
+                    tooltip="每次请求生成的图片数量"
+                    extra={(() => {
+                      const model = form.getFieldValue('model') || selectedTask?.model
+                      if (model === 'qwen-image-edit-plus') return '最多6张，设置size时只能1张'
+                      if (model === 'wan2.5-i2i-preview') return '最多4张'
+                      return ''
+                    })()}
+                  >
+                    <InputNumber 
+                      min={1} 
+                      max={(() => {
+                        const model = form.getFieldValue('model') || selectedTask?.model
+                        if (model === 'qwen-image-edit-plus') return 6
+                        if (model === 'wan2.5-i2i-preview') return 4
+                        return 4
+                      })()}
+                      style={{ width: '100%' }} 
+                    />
                   </Form.Item>
-                  <Form.Item name="group_count" label="生成组数">
-                    <InputNumber min={1} max={10} style={{ width: '100%' }} />
+                  <Form.Item 
+                    name="group_count" 
+                    label="并发组数" 
+                    tooltip="并发请求数，总图片数 = 生图数量 × 并发组数"
+                    extra={`总计: ${(form.getFieldValue('n') || 1) * (form.getFieldValue('group_count') || 1)} 张`}
+                  >
+                    <InputNumber 
+                      min={1} 
+                      max={10} 
+                      style={{ width: '100%' }} 
+                    />
                   </Form.Item>
                 </div>
-                <Form.Item name="prompt" label="生成提示词">
+                <Form.Item name="prompt" label="生成提示词" extra={
+                  (form.getFieldValue('model') || selectedTask?.model) === 'qwen-image-edit-plus'
+                    ? '多图时用"图1"、"图2"、"图3"指代不同图片'
+                    : ''
+                }>
                   <TextArea rows={4} />
                 </Form.Item>
                 <Form.Item name="negative_prompt" label="负向提示词">
                   <TextArea rows={2} />
                 </Form.Item>
+                
+                {/* qwen-image-edit-plus 专用参数 */}
+                {(form.getFieldValue('model') || selectedTask?.model) === 'qwen-image-edit-plus' && (
+                  <>
+                    <div style={{ 
+                      padding: '12px', 
+                      background: '#1a1a1a', 
+                      borderRadius: 8, 
+                      marginBottom: 16,
+                      border: '1px solid #333'
+                    }}>
+                      <div style={{ marginBottom: 8, color: '#888', fontSize: 12 }}>
+                        qwen-image-edit-plus 高级参数
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <Form.Item 
+                          name="size" 
+                          label="输出尺寸"
+                          style={{ marginBottom: 8 }}
+                          extra="仅当生成数量为1时可用"
+                        >
+                          <Select
+                            allowClear
+                            placeholder="默认（保持原图比例）"
+                            options={[
+                              { value: '', label: '默认（保持原图比例）' },
+                              { value: '1024*1024', label: '1024×1024 (1:1)' },
+                              { value: '1280*720', label: '1280×720 (16:9)' },
+                              { value: '720*1280', label: '720×1280 (9:16)' },
+                              { value: '1024*768', label: '1024×768 (4:3)' },
+                              { value: '768*1024', label: '768×1024 (3:4)' },
+                              { value: '1920*1080', label: '1920×1080 (FHD)' },
+                              { value: '1080*1920', label: '1080×1920 (FHD竖)' },
+                              { value: '2048*2048', label: '2048×2048 (最大)' },
+                            ]}
+                            disabled={form.getFieldValue('group_count') > 1}
+                          />
+                        </Form.Item>
+                        <Form.Item 
+                          name="seed" 
+                          label="随机种子"
+                          style={{ marginBottom: 8 }}
+                        >
+                          <InputNumber 
+                            min={0} 
+                            max={2147483647} 
+                            style={{ width: '100%' }} 
+                            placeholder="留空为随机"
+                          />
+                        </Form.Item>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <Form.Item 
+                          name="prompt_extend" 
+                          label="智能改写"
+                          valuePropName="checked"
+                          style={{ marginBottom: 0 }}
+                        >
+                          <Switch defaultChecked />
+                        </Form.Item>
+                        <Form.Item 
+                          name="watermark" 
+                          label="添加水印"
+                          valuePropName="checked"
+                          style={{ marginBottom: 0 }}
+                        >
+                          <Switch />
+                        </Form.Item>
+                      </div>
+                    </div>
+                  </>
+                )}
               </Form>
               
               <Space style={{ width: '100%' }} direction="vertical">

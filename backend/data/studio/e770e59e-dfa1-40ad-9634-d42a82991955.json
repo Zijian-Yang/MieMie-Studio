@@ -1,0 +1,61 @@
+{
+  "id": "e770e59e-dfa1-40ad-9634-d42a82991955",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "分4",
+  "description": "",
+  "model": "wan2.5-i2i-preview",
+  "prompt": "电影级画面，高清细节，专业摄影。全景镜头。三分法，图3的野餐垫占据画面下部，人物互动居中偏左构图。场景：铺开的红白格野餐垫上摆满食物，周围散落玩具和水壶。画面中出现第1个图中的妈妈、第2个图中的小明，正在妈妈蹲下递出三明治，小明接过并开心咬一口。画面中包含第3个图中的野餐垫。光线效果：柔光漫射，树荫斑驳洒在野餐垫上。画面氛围：亲切、日常幸福。风格要求：{\n  \"style_definition\": {\n    \"art_style\": \"anime, japanese animation\",\n    \"rendering\": \"cel shading, clean outlines, flat colors with gradients\",\n    \"color_palette\": [\"vibrant colors\", \"high saturation\", \"characteristic anime color schemes\"],\n    \"lighting\": \"dramatic anime lighting, rim lights, ambient occlusion\"\n  },\n  \"subject_treatment\": {\n    \"character_style\": \"anime proportions, large expressive eyes, stylized features\",\n    \"pose_preference\": \"dynamic action poses or cute idle poses\",\n    \"expression\": \"exaggerated, expressive anime emotions\"\n  },\n  \"composition\": {\n    \"background\": \"detailed anime backgrounds or simple gradient\",\n    \"framing\": \"manga-inspired composition\",\n    \"style\": \"anime key visual aesthetic\"\n  },\n  \"tags\": [\"anime\", \"manga\", \"japanese\", \"stylized\", \"expressive\"]\n}",
+  "negative_prompt": "",
+  "n": 3,
+  "group_count": 1,
+  "references": [
+    {
+      "type": "character",
+      "id": "a4a2030b-e913-45fc-9ad4-4c2129dcd538",
+      "name": "妈妈",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251209/121251_e27a811f.png"
+    },
+    {
+      "type": "character",
+      "id": "5d6cf2a8-1b42-4c67-a9ca-3e4d493fd772",
+      "name": "小明",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251209/133137_79dc6d8e.png"
+    },
+    {
+      "type": "prop",
+      "id": "ee3fa359-5bb0-440e-9b32-e79a68d8a179",
+      "name": "野餐垫",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251211/190337_b9a8dedf.png"
+    }
+  ],
+  "images": [
+    {
+      "id": "6e1e2b50-2629-418e-bdf5-652e1ff92441",
+      "group_index": 0,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251212/131008_af5c6cfd.png",
+      "prompt_used": "电影级画面，高清细节，专业摄影。全景镜头。三分法，图3的野餐垫占据画面下部，人物互动居中偏左构图。场景：铺开的红白格野餐垫上摆满食物，周围散落玩具和水壶。画面中出现第1个图中的妈妈、第2个图中的小明，正在妈妈蹲下递出三明治，小明接过并开心咬一口。画面中包含第3个图中的野餐垫。光线效果：柔光漫射，树荫斑驳洒在野餐垫上。画面氛围：亲切、日常幸福。风格要求：{\n  \"style_definition\": {\n    \"art_style\": \"anime, japanese animation\",\n    \"rendering\": \"cel shading, clean outlines, flat colors with gradients\",\n    \"color_palette\": [\"vibrant colors\", \"high saturation\", \"characteristic anime color schemes\"],\n    \"lighting\": \"dramatic anime lighting, rim lights, ambient occlusion\"\n  },\n  \"subject_treatment\": {\n    \"character_style\": \"anime proportions, large expressive eyes, stylized features\",\n    \"pose_preference\": \"dynamic action poses or cute idle poses\",\n    \"expression\": \"exaggerated, expressive anime emotions\"\n  },\n  \"composition\": {\n    \"background\": \"detailed anime backgrounds or simple gradient\",\n    \"framing\": \"manga-inspired composition\",\n    \"style\": \"anime key visual aesthetic\"\n  },\n  \"tags\": [\"anime\", \"manga\", \"japanese\", \"stylized\", \"expressive\"]\n}",
+      "is_selected": true,
+      "created_at": "2025-12-12T13:10:10.615973"
+    },
+    {
+      "id": "7cb07a5f-aef4-4fd4-b9c7-6029da9e315e",
+      "group_index": 1,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251212/131009_27445c13.png",
+      "prompt_used": "电影级画面，高清细节，专业摄影。全景镜头。三分法，图3的野餐垫占据画面下部，人物互动居中偏左构图。场景：铺开的红白格野餐垫上摆满食物，周围散落玩具和水壶。画面中出现第1个图中的妈妈、第2个图中的小明，正在妈妈蹲下递出三明治，小明接过并开心咬一口。画面中包含第3个图中的野餐垫。光线效果：柔光漫射，树荫斑驳洒在野餐垫上。画面氛围：亲切、日常幸福。风格要求：{\n  \"style_definition\": {\n    \"art_style\": \"anime, japanese animation\",\n    \"rendering\": \"cel shading, clean outlines, flat colors with gradients\",\n    \"color_palette\": [\"vibrant colors\", \"high saturation\", \"characteristic anime color schemes\"],\n    \"lighting\": \"dramatic anime lighting, rim lights, ambient occlusion\"\n  },\n  \"subject_treatment\": {\n    \"character_style\": \"anime proportions, large expressive eyes, stylized features\",\n    \"pose_preference\": \"dynamic action poses or cute idle poses\",\n    \"expression\": \"exaggerated, expressive anime emotions\"\n  },\n  \"composition\": {\n    \"background\": \"detailed anime backgrounds or simple gradient\",\n    \"framing\": \"manga-inspired composition\",\n    \"style\": \"anime key visual aesthetic\"\n  },\n  \"tags\": [\"anime\", \"manga\", \"japanese\", \"stylized\", \"expressive\"]\n}",
+      "is_selected": false,
+      "created_at": "2025-12-12T13:10:10.616009"
+    },
+    {
+      "id": "81f319d2-500b-4a6f-8dde-7432c4982387",
+      "group_index": 2,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251212/131010_061f5615.png",
+      "prompt_used": "电影级画面，高清细节，专业摄影。全景镜头。三分法，图3的野餐垫占据画面下部，人物互动居中偏左构图。场景：铺开的红白格野餐垫上摆满食物，周围散落玩具和水壶。画面中出现第1个图中的妈妈、第2个图中的小明，正在妈妈蹲下递出三明治，小明接过并开心咬一口。画面中包含第3个图中的野餐垫。光线效果：柔光漫射，树荫斑驳洒在野餐垫上。画面氛围：亲切、日常幸福。风格要求：{\n  \"style_definition\": {\n    \"art_style\": \"anime, japanese animation\",\n    \"rendering\": \"cel shading, clean outlines, flat colors with gradients\",\n    \"color_palette\": [\"vibrant colors\", \"high saturation\", \"characteristic anime color schemes\"],\n    \"lighting\": \"dramatic anime lighting, rim lights, ambient occlusion\"\n  },\n  \"subject_treatment\": {\n    \"character_style\": \"anime proportions, large expressive eyes, stylized features\",\n    \"pose_preference\": \"dynamic action poses or cute idle poses\",\n    \"expression\": \"exaggerated, expressive anime emotions\"\n  },\n  \"composition\": {\n    \"background\": \"detailed anime backgrounds or simple gradient\",\n    \"framing\": \"manga-inspired composition\",\n    \"style\": \"anime key visual aesthetic\"\n  },\n  \"tags\": [\"anime\", \"manga\", \"japanese\", \"stylized\", \"expressive\"]\n}",
+      "is_selected": false,
+      "created_at": "2025-12-12T13:10:10.616020"
+    }
+  ],
+  "status": "completed",
+  "error_message": null,
+  "created_at": "2025-12-12T13:09:10.500547",
+  "updated_at": "2025-12-12T13:11:18.844995"
+}

@@ -14,6 +14,7 @@
 ## 技术栈
 
 ### 前端
+
 - React 18 + TypeScript
 - Ant Design 5.x (深色主题)
 - Zustand 状态管理
@@ -21,6 +22,7 @@
 - TailwindCSS
 
 ### 后端
+
 - Python FastAPI
 - 阿里云 DashScope SDK
 - JSON 文件存储
@@ -112,4 +114,3 @@ npm run dev
 ## License
 
 MIT
-

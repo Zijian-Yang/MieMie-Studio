@@ -62,14 +62,19 @@ export interface VideoResolutionOption {
 }
 
 export interface VideoModelInfo {
+  id?: string
   name: string
   description?: string
   resolutions: VideoResolutionOption[]
   default_resolution: string
-  min_duration?: number
-  max_duration?: number
+  durations?: number[]  // 支持的时长列表
+  default_duration?: number
   supports_prompt_extend?: boolean
-  supports_audio?: boolean
+  supports_watermark?: boolean
+  supports_seed?: boolean
+  supports_negative_prompt?: boolean
+  supports_audio?: boolean  // 是否支持音频参数
+  default_audio?: boolean  // 默认是否开启自动配音
   image_param?: string
 }
 
@@ -102,6 +107,7 @@ export interface ImageEditConfig {
   width: number
   height: number
   prompt_extend: boolean
+  watermark: boolean  // 水印（仅 qwen-image-edit-plus 支持）
   seed: number | null
 }
 
@@ -809,7 +815,8 @@ export interface StudioTask {
   model: string
   prompt: string
   negative_prompt: string
-  group_count: number
+  n: number  // 每次请求生成的图片数量
+  group_count: number  // 并发请求数（总图片数 = n * group_count）
   references: ReferenceItem[]
   images: StudioTaskImage[]
   status: 'pending' | 'generating' | 'completed' | 'failed'
@@ -828,19 +835,51 @@ export const studioApi = {
     model?: string
     prompt?: string
     negative_prompt?: string
-    group_count?: number
+    n?: number  // 每次请求生成的图片数量
+    group_count?: number  // 并发请求数
     references?: Array<{ type: string, id: string }>
   }) => api.post<any, StudioTask>('/studio', data),
   update: (id: string, data: Partial<StudioTask>) => api.put<any, StudioTask>(`/studio/${id}`, data),
   generate: (id: string, data?: {
     prompt?: string
     negative_prompt?: string
-    group_count?: number
+    n?: number  // 每次请求生成的图片数量
+    group_count?: number  // 并发请求数（总图片数 = n * group_count）
+    // qwen-image-edit-plus 专用参数
+    size?: string  // 输出尺寸，仅当 n=1 时可用
+    prompt_extend?: boolean  // 智能改写
+    watermark?: boolean  // 水印
+    seed?: number | null  // 随机种子
   }) => api.post<any, { task: StudioTask }>(`/studio/${id}/generate`, data || {}),
   saveToGallery: (id: string, imageIds: string[]) => api.post<any, { saved_images: GalleryImage[] }>(`/studio/${id}/save-to-gallery`, { image_ids: imageIds }),
   delete: (id: string) => api.delete(`/studio/${id}`),
   deleteAll: (projectId: string) => api.delete(`/studio/project/${projectId}/all`),
-  getAvailableModels: () => api.get<any, { models: string[] }>('/studio/models/available'),
+  // 获取可用模型列表（带详情）
+  getAvailableModels: () => api.get<any, { 
+    models: Record<string, {
+      id: string
+      name: string
+      description?: string
+      capabilities?: {
+        supports_batch?: boolean
+        supports_async?: boolean
+        supports_negative_prompt?: boolean
+        max_concurrent?: number
+      }
+      parameters?: Array<{
+        name: string
+        label: string
+        type: string
+        description?: string
+        default?: any
+        constraint?: {
+          min_value?: number
+          max_value?: number
+          options?: Array<{ value: any; label: string }>
+        }
+      }>
+    }> 
+  }>('/studio/models/available'),
 }
 
 // ============ 音频库 API ============
@@ -973,7 +1012,10 @@ export interface VideoStudioTask {
   model: string
   resolution: string
   duration: number
-  auto_audio: boolean
+  prompt_extend: boolean  // 智能改写
+  watermark: boolean  // 水印
+  seed?: number | null  // 随机种子
+  auto_audio: boolean  // 自动配音
   group_count: number
   video_urls: string[]
   selected_video_url?: string
@@ -1000,7 +1042,10 @@ export const videoStudioApi = {
     model?: string
     resolution?: string
     duration?: number
-    auto_audio?: boolean
+    prompt_extend?: boolean  // 智能改写
+    watermark?: boolean  // 水印
+    seed?: number  // 随机种子
+    auto_audio?: boolean  // 自动配音
     group_count?: number
   }) => api.post<any, { task: VideoStudioTask }>('/video-studio', data),
   update: (id: string, data: { name?: string; selected_video_url?: string }) => 
@@ -1009,6 +1054,123 @@ export const videoStudioApi = {
     api.post<any, { message: string; video: VideoLibraryItem }>(`/video-studio/${id}/save-to-library`, null, { params: { video_url: videoUrl, name } }),
   delete: (id: string) => api.delete(`/video-studio/${id}`),
   deleteAll: (projectId: string) => api.delete(`/video-studio?project_id=${projectId}`),
+}
+
+// ============ 模型注册系统 API ============
+
+// 参数类型
+export type ModelParameterType =
+  | 'string'
+  | 'integer'
+  | 'float'
+  | 'boolean'
+  | 'select'
+  | 'multi_select'
+  | 'text'
+  | 'image_url'
+  | 'image_urls'
+  | 'audio_url'
+  | 'video_url'
+  | 'file'
+
+// 参数选项
+export interface ModelSelectOption {
+  value: any
+  label: string
+  description?: string
+}
+
+// 参数约束
+export interface ModelParameterConstraint {
+  min_value?: number
+  max_value?: number
+  min_length?: number
+  max_length?: number
+  pattern?: string
+  options?: ModelSelectOption[]
+  depends_on?: string
+  depends_value?: any
+}
+
+// 参数定义
+export interface ModelParameterDef {
+  name: string
+  label: string
+  type: ModelParameterType
+  description?: string
+  required?: boolean
+  default?: any
+  constraint?: ModelParameterConstraint
+  group?: string
+  advanced?: boolean
+  order?: number
+}
+
+// 模型能力
+export interface ModelCapabilities {
+  supports_streaming?: boolean
+  supports_batch?: boolean
+  supports_async?: boolean
+  supports_thinking?: boolean
+  supports_search?: boolean
+  supports_json_mode?: boolean
+  supports_tools?: boolean
+  max_context_length?: number
+  supports_negative_prompt?: boolean
+  supports_seed?: boolean
+  supports_prompt_extend?: boolean
+  supports_watermark?: boolean
+  supports_audio?: boolean
+  max_concurrent?: number
+}
+
+// 模型信息
+export interface RegisteredModelInfo {
+  id: string
+  name: string
+  type: string  // llm, text_to_image, image_to_image, image_to_video, etc.
+  description?: string
+  capabilities?: ModelCapabilities
+  parameters?: ModelParameterDef[]
+  default_values?: Record<string, any>
+  deprecated?: boolean
+  deprecated_message?: string
+  doc_url?: string
+}
+
+// 模型类型信息
+export interface ModelTypeInfo {
+  type: string
+  label: string
+  count: number
+}
+
+export const modelsApi = {
+  // 获取所有模型
+  listAll: () => api.get<any, { models: Record<string, RegisteredModelInfo> }>('/models'),
+  
+  // 按类型获取模型
+  listByType: (modelType: string) => 
+    api.get<any, { models: Record<string, RegisteredModelInfo> }>(`/models/by-type/${modelType}`),
+  
+  // 获取单个模型详情
+  getModel: (modelId: string) => 
+    api.get<any, RegisteredModelInfo>(`/models/${modelId}`),
+  
+  // 获取模型参数定义
+  getParameters: (modelId: string, group?: string) => 
+    api.get<any, { model_id: string; parameters: ModelParameterDef[] }>(
+      `/models/${modelId}/parameters`,
+      { params: group ? { group } : {} }
+    ),
+  
+  // 验证参数
+  validateParams: (modelId: string, params: Record<string, any>) => 
+    api.post<any, { valid: boolean; errors: string[] }>(`/models/${modelId}/validate`, params),
+  
+  // 获取可用的模型类型
+  listTypes: () => 
+    api.get<any, { types: ModelTypeInfo[] }>('/models/types/available'),
 }
 
 export default api

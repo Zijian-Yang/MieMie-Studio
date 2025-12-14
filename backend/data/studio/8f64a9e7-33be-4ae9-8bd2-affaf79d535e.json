@@ -1,0 +1,61 @@
+{
+  "id": "8f64a9e7-33be-4ae9-8bd2-affaf79d535e",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "小明爸爸草地水瓶",
+  "description": "",
+  "model": "wan2.5-i2i-preview",
+  "prompt": "以图1为基础，让小明身高为爸爸的一半，让两个人站在图2的草坪上，图1 中左侧小明拿着图3 中的水壶",
+  "negative_prompt": "",
+  "n": 3,
+  "group_count": 1,
+  "references": [
+    {
+      "type": "gallery",
+      "id": "e3c4785c-a3a5-49f1-bfe4-1cc1da2a9074",
+      "name": "小明-爸爸 - 第1组",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251212/133711_de7eced0.png"
+    },
+    {
+      "type": "scene",
+      "id": "66cfc7a9-b8ab-403c-a1b2-e8ebf4184351",
+      "name": "郊野公园草地",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251211/190249_f305e607.png"
+    },
+    {
+      "type": "prop",
+      "id": "62c358a2-2132-4042-9582-6456e3d7bb3f",
+      "name": "保温水壶",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251211/190337_fa303a18.png"
+    }
+  ],
+  "images": [
+    {
+      "id": "0cae4800-c218-4eb0-b0f5-63389cbfbc15",
+      "group_index": 0,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251212/134601_185a1188.png",
+      "prompt_used": "以图1为基础，让小明身高为爸爸的一半，让两个人站在图2的草坪上，图1 中左侧小明拿着图3 中的水壶",
+      "is_selected": false,
+      "created_at": "2025-12-12T13:46:03.417681"
+    },
+    {
+      "id": "9e6ba1de-dedc-4719-aeea-7369e50c366a",
+      "group_index": 1,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251212/134602_c16597f7.png",
+      "prompt_used": "以图1为基础，让小明身高为爸爸的一半，让两个人站在图2的草坪上，图1 中左侧小明拿着图3 中的水壶",
+      "is_selected": false,
+      "created_at": "2025-12-12T13:46:03.417711"
+    },
+    {
+      "id": "d6f6b219-4cf2-4177-8b5e-56127b33f144",
+      "group_index": 2,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251212/134602_2af93d66.png",
+      "prompt_used": "以图1为基础，让小明身高为爸爸的一半，让两个人站在图2的草坪上，图1 中左侧小明拿着图3 中的水壶",
+      "is_selected": true,
+      "created_at": "2025-12-12T13:46:03.417721"
+    }
+  ],
+  "status": "completed",
+  "error_message": null,
+  "created_at": "2025-12-12T13:45:12.480501",
+  "updated_at": "2025-12-12T13:46:20.397003"
+}

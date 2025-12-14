@@ -1,0 +1,61 @@
+{
+  "id": "1001e2a0-ae66-4234-8e54-2a9932bd8deb",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "分1-合影加野餐垫和风筝",
+  "description": "",
+  "model": "wan2.5-i2i-preview",
+  "prompt": "在图1的基础上，加入图2的野餐垫放在地上，加上图3的风筝放在图1中左边小男孩的手中，保持参考图的日漫风格",
+  "negative_prompt": "",
+  "n": 3,
+  "group_count": 1,
+  "references": [
+    {
+      "type": "gallery",
+      "id": "8e7447dd-e207-45ff-a0e2-bb81637a258e",
+      "name": "分1 - 第2组",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251212/111623_60d88a45.png"
+    },
+    {
+      "type": "prop",
+      "id": "ee3fa359-5bb0-440e-9b32-e79a68d8a179",
+      "name": "野餐垫",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251211/190337_b9a8dedf.png"
+    },
+    {
+      "type": "prop",
+      "id": "df91e06e-b3fc-493a-91b6-e17fc08df3b5",
+      "name": "风筝",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251211/190336_bf110213.png"
+    }
+  ],
+  "images": [
+    {
+      "id": "2eb31faf-1d83-4343-85f6-a3d0dca6c3f7",
+      "group_index": 0,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251212/112124_aed86f10.png",
+      "prompt_used": "在图1的基础上，加入图2的野餐垫放在地上，加上图3的风筝放在图1中左边小男孩的手中，保持参考图的日漫风格",
+      "is_selected": true,
+      "created_at": "2025-12-12T11:21:26.535176"
+    },
+    {
+      "id": "6110efdb-0d28-4dd3-a96c-0792a742b31e",
+      "group_index": 1,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251212/112125_35b2ef6c.png",
+      "prompt_used": "在图1的基础上，加入图2的野餐垫放在地上，加上图3的风筝放在图1中左边小男孩的手中，保持参考图的日漫风格",
+      "is_selected": true,
+      "created_at": "2025-12-12T11:21:26.535231"
+    },
+    {
+      "id": "4fbcfbec-6512-42d7-9b0c-097612d3c9df",
+      "group_index": 2,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251212/112126_3b268996.png",
+      "prompt_used": "在图1的基础上，加入图2的野餐垫放在地上，加上图3的风筝放在图1中左边小男孩的手中，保持参考图的日漫风格",
+      "is_selected": true,
+      "created_at": "2025-12-12T11:21:26.535254"
+    }
+  ],
+  "status": "completed",
+  "error_message": null,
+  "created_at": "2025-12-12T11:20:21.323394",
+  "updated_at": "2025-12-12T11:23:21.543494"
+}

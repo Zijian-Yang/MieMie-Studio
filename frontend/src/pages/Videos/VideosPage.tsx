@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { 
   Card, Button, Modal, Form, Input, Empty, Spin, message, 
   Image, Tag, Tooltip, Divider, Upload, Space,
-  Select, Switch, InputNumber, Row, Col
+  Select, Switch, InputNumber, Row, Col, Alert
 } from 'antd'
 import { 
   PlayCircleOutlined, ReloadOutlined, VideoCameraOutlined,
@@ -354,7 +354,7 @@ const VideosPage = () => {
     }
   }
 
-  // 生成单个视频
+  // 生成单个视频（支持生成组数）
   const generateSingleVideo = async () => {
     if (!projectId || !selectedShot) return
     
@@ -368,36 +368,47 @@ const VideosPage = () => {
     
     const values = await form.validateFields()
     const settings = getEffectiveVideoSettings()
+    const groupCount = videoGroupCount || 1
     
     setSingleGenerating(true)
     try {
-      const result = await videosApi.generate({
-        project_id: projectId,
-        shot_id: selectedShot.id,
-        shot_number: selectedShot.shot_number,
-        first_frame_url: frameUrl,
-        prompt: values.prompt,
-        duration: settings.duration,
-        // 使用页面设置
-        model: settings.model,
-        resolution: settings.resolution,
-        prompt_extend: settings.prompt_extend,
-        watermark: settings.watermark,
-        seed: settings.seed,
-        audio: settings.audio,
-      })
+      const newVideos: Video[] = []
       
-      // 添加新视频到列表（不替换旧的，因为可能想保留历史记录）
-      setVideos(prev => [...prev, result.video])
-      
-      setSelectedVideo(result.video)
-      
-      // 启动轮询
-      if (result.task_id) {
-        startPolling(result.task_id)
+      // 根据生成组数循环创建任务
+      for (let i = 0; i < groupCount; i++) {
+        const result = await videosApi.generate({
+          project_id: projectId,
+          shot_id: selectedShot.id,
+          shot_number: selectedShot.shot_number,
+          first_frame_url: frameUrl,
+          prompt: values.prompt,
+          duration: settings.duration,
+          // 使用页面设置
+          model: settings.model,
+          resolution: settings.resolution,
+          prompt_extend: settings.prompt_extend,
+          watermark: settings.watermark,
+          seed: settings.seed ? settings.seed + i : undefined, // 不同组使用不同种子
+          audio: settings.audio,
+        })
+        
+        newVideos.push(result.video)
+        
+        // 启动轮询
+        if (result.task_id) {
+          startPolling(result.task_id)
+        }
       }
       
-      message.success('视频生成任务已提交')
+      // 添加所有新视频到列表
+      setVideos(prev => [...prev, ...newVideos])
+      
+      // 选中第一个新视频
+      if (newVideos.length > 0) {
+        setSelectedVideo(newVideos[0])
+      }
+      
+      message.success(`已提交 ${groupCount} 个视频生成任务`)
     } catch (error) {
       message.error('视频生成失败')
     } finally {
@@ -614,44 +625,214 @@ const VideosPage = () => {
                 })()}
               </div>
               
-              <h4 style={{ marginBottom: 12 }}>视频预览</h4>
-              <div style={{ 
-                aspectRatio: '16/9',
-                background: '#1a1a1a',
-                borderRadius: 8,
-                overflow: 'hidden',
-                marginBottom: 12
-              }}>
-                {selectedVideo?.video_url || selectedShot.video_url ? (
-                  <video
-                    src={selectedVideo?.video_url || selectedShot.video_url}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    controls
-                  />
-                ) : (
-                  <div style={{ 
-                    width: '100%', 
-                    height: '100%', 
-                    display: 'flex', 
-                    flexDirection: 'column',
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    color: '#666'
-                  }}>
-                    <PlayCircleOutlined style={{ fontSize: 48, color: '#444', marginBottom: 8 }} />
-                    <span style={{ fontSize: 12 }}>视频待生成</span>
-                  </div>
-                )}
-              </div>
+              <h4 style={{ marginBottom: 12 }}>
+                视频预览
+                {(() => {
+                  const shotVideos = videos.filter(v => v.shot_id === selectedShot.id)
+                  const processingCount = shotVideos.filter(v => v.task?.status === 'processing').length
+                  return shotVideos.length > 0 && (
+                    <span style={{ fontWeight: 'normal', fontSize: 12, color: '#888', marginLeft: 8 }}>
+                      ({shotVideos.length} 个视频{processingCount > 0 && `，${processingCount} 个生成中`})
+                    </span>
+                  )
+                })()}
+              </h4>
               
-              {selectedVideo?.task?.status === 'processing' && (
-                <Card size="small" style={{ marginBottom: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <LoadingOutlined />
-                    <span>视频正在生成中...</span>
+              {/* 显示该分镜的所有视频 */}
+              {(() => {
+                const shotVideos = videos.filter(v => v.shot_id === selectedShot.id)
+                  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                
+                if (shotVideos.length === 0) {
+                  return (
+                    <div style={{ 
+                      aspectRatio: '16/9',
+                      background: '#1a1a1a',
+                      borderRadius: 8,
+                      overflow: 'hidden',
+                      marginBottom: 12,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#666'
+                    }}>
+                      <PlayCircleOutlined style={{ fontSize: 48, color: '#444', marginBottom: 8 }} />
+                      <span style={{ fontSize: 12 }}>视频待生成</span>
+                    </div>
+                  )
+                }
+                
+                return (
+                  <div style={{ marginBottom: 12 }}>
+                    {/* 主视频预览（选中的视频，自适应宽高比） */}
+                    {selectedVideo && (
+                      <div style={{ 
+                        background: '#000',
+                        borderRadius: 8,
+                        overflow: 'hidden',
+                        marginBottom: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minHeight: 200,
+                        maxHeight: 400
+                      }}>
+                        {selectedVideo.video_url ? (
+                          <video
+                            src={selectedVideo.video_url}
+                            style={{ 
+                              maxWidth: '100%', 
+                              maxHeight: 400, 
+                              objectFit: 'contain' 
+                            }}
+                            controls
+                            autoPlay={false}
+                          />
+                        ) : selectedVideo.task?.status === 'processing' ? (
+                          <div style={{ 
+                            padding: 40,
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            alignItems: 'center', 
+                            justifyContent: 'center'
+                          }}>
+                            <Spin size="large" />
+                            <span style={{ fontSize: 12, color: '#888', marginTop: 12 }}>视频生成中...</span>
+                          </div>
+                        ) : (
+                          <div style={{ padding: 40 }}>
+                            <PlayCircleOutlined style={{ fontSize: 48, color: '#444' }} />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* 缩略图列表（多个视频时显示） */}
+                    {shotVideos.length > 1 && (
+                      <div style={{ 
+                        display: 'flex', 
+                        gap: 8, 
+                        overflowX: 'auto',
+                        paddingBottom: 4
+                      }}>
+                        {shotVideos.map((video, index) => (
+                          <div 
+                            key={video.id} 
+                            style={{ 
+                              position: 'relative',
+                              width: 80,
+                              height: 80,
+                              flexShrink: 0,
+                              background: '#1a1a1a',
+                              borderRadius: 6,
+                              overflow: 'hidden',
+                              border: selectedVideo?.id === video.id ? '2px solid #1890ff' : '2px solid #333',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => setSelectedVideo(video)}
+                          >
+                            {video.video_url ? (
+                              <video
+                                src={video.video_url}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                muted
+                              />
+                            ) : video.task?.status === 'processing' ? (
+                              <div style={{ 
+                                width: '100%', 
+                                height: '100%', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                background: 'rgba(0,0,0,0.6)'
+                              }}>
+                                <Spin size="small" />
+                              </div>
+                            ) : (
+                              <div style={{ 
+                                width: '100%', 
+                                height: '100%', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center'
+                              }}>
+                                <PlayCircleOutlined style={{ fontSize: 20, color: '#444' }} />
+                              </div>
+                            )}
+                            {/* 序号标签 */}
+                            <div style={{ 
+                              position: 'absolute', 
+                              top: 2, 
+                              left: 2, 
+                              background: 'rgba(0,0,0,0.7)', 
+                              color: '#fff',
+                              fontSize: 9,
+                              padding: '1px 4px',
+                              borderRadius: 3
+                            }}>
+                              #{index + 1}
+                            </div>
+                            {/* 状态指示 */}
+                            {video.task?.status === 'processing' && (
+                              <div style={{ 
+                                position: 'absolute', 
+                                bottom: 2, 
+                                right: 2,
+                                width: 8,
+                                height: 8,
+                                background: '#1890ff',
+                                borderRadius: '50%',
+                                animation: 'pulse 1s infinite'
+                              }} />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* 单个视频时直接显示 */}
+                    {shotVideos.length === 1 && !selectedVideo && (
+                      <div style={{ 
+                        background: '#000',
+                        borderRadius: 8,
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minHeight: 200,
+                        maxHeight: 400
+                      }}>
+                        {shotVideos[0].video_url ? (
+                          <video
+                            src={shotVideos[0].video_url}
+                            style={{ 
+                              maxWidth: '100%', 
+                              maxHeight: 400, 
+                              objectFit: 'contain' 
+                            }}
+                            controls
+                          />
+                        ) : shotVideos[0].task?.status === 'processing' ? (
+                          <div style={{ 
+                            padding: 40,
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            alignItems: 'center'
+                          }}>
+                            <Spin size="large" />
+                            <span style={{ fontSize: 12, color: '#888', marginTop: 12 }}>视频生成中...</span>
+                          </div>
+                        ) : (
+                          <div style={{ padding: 40 }}>
+                            <PlayCircleOutlined style={{ fontSize: 48, color: '#444' }} />
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </Card>
-              )}
+                )
+              })()}
             </div>
 
             <div style={{ flex: 1 }}>
@@ -677,6 +858,108 @@ const VideosPage = () => {
                   <p><strong>情绪：</strong>{selectedShot.mood || '未设置'}</p>
                   <p style={{ marginBottom: 0 }}><strong>时长：</strong>{Math.min(selectedShot.duration || 5, 10)}秒</p>
                 </div>
+              </Card>
+              
+              {/* 视频生成参数 */}
+              <Card size="small" title="视频生成参数" style={{ background: '#1a1a1a', marginBottom: 16 }}>
+                <Row gutter={[12, 12]}>
+                  <Col span={12}>
+                    <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>模型</div>
+                    <Select
+                      style={{ width: '100%' }}
+                      size="small"
+                      value={videoModel || systemVideoConfig.model}
+                      onChange={(value) => {
+                        setVideoModel(value)
+                        const modelInfo = videoModels[value]
+                        if (modelInfo?.default_resolution) {
+                          setVideoResolution(modelInfo.default_resolution)
+                        }
+                        // 非 wan2.5 不支持音频
+                        if (!value.includes('wan2.5')) {
+                          setVideoAudio(false)
+                        }
+                      }}
+                    >
+                      {Object.entries(videoModels).map(([key, info]) => (
+                        <Option key={key} value={key}>{info.name}</Option>
+                      ))}
+                    </Select>
+                  </Col>
+                  <Col span={12}>
+                    <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>分辨率</div>
+                    <Select
+                      style={{ width: '100%' }}
+                      size="small"
+                      value={videoResolution || systemVideoConfig.resolution}
+                      onChange={setVideoResolution}
+                    >
+                      {getCurrentModelResolutions().map(res => (
+                        <Option key={res.value} value={res.value}>{res.label}</Option>
+                      ))}
+                    </Select>
+                  </Col>
+                  <Col span={12}>
+                    <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>时长</div>
+                    <Select
+                      style={{ width: '100%' }}
+                      size="small"
+                      value={videoDuration !== null ? videoDuration : systemVideoConfig.duration}
+                      onChange={setVideoDuration}
+                    >
+                      {(getCurrentModelInfo()?.durations || [5]).map((d: number) => (
+                        <Option key={d} value={d}>{d} 秒</Option>
+                      ))}
+                    </Select>
+                  </Col>
+                  <Col span={12}>
+                    <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>随机种子</div>
+                    <InputNumber
+                      style={{ width: '100%' }}
+                      size="small"
+                      min={0}
+                      max={2147483647}
+                      value={videoSeed}
+                      onChange={(v) => setVideoSeed(v)}
+                      placeholder="留空随机"
+                    />
+                  </Col>
+                </Row>
+                <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
+                  <Col span={8}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Switch
+                        size="small"
+                        checked={videoPromptExtend !== null ? videoPromptExtend : systemVideoConfig.prompt_extend}
+                        onChange={setVideoPromptExtend}
+                      />
+                      <span style={{ fontSize: 12 }}>智能改写</span>
+                    </div>
+                  </Col>
+                  <Col span={8}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Switch
+                        size="small"
+                        checked={videoWatermark !== null ? videoWatermark : systemVideoConfig.watermark}
+                        onChange={setVideoWatermark}
+                      />
+                      <span style={{ fontSize: 12 }}>水印</span>
+                    </div>
+                  </Col>
+                  <Col span={8}>
+                    <Tooltip title={!getCurrentModelInfo()?.supports_audio ? '当前模型不支持音频' : ''}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Switch
+                          size="small"
+                          checked={videoAudio !== null ? videoAudio : systemVideoConfig.audio}
+                          onChange={setVideoAudio}
+                          disabled={!getCurrentModelInfo()?.supports_audio}
+                        />
+                        <span style={{ fontSize: 12, opacity: getCurrentModelInfo()?.supports_audio ? 1 : 0.5 }}>自动配音</span>
+                      </div>
+                    </Tooltip>
+                  </Col>
+                </Row>
               </Card>
               
               {/* 音频上传占位 */}

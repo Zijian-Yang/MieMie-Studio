@@ -1,0 +1,38 @@
+{
+  "id": "4fdc1089-944f-485c-9771-bae8d2df57ae",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "虎3",
+  "mode": "first_frame",
+  "first_frame_url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/f96d7434-4033-4345-b69d-0810ebeff76d/20251211/163028_80492ce4.jpg",
+  "last_frame_url": null,
+  "audio_url": null,
+  "prompt": "在荒凉的山脚下，上传的图中主体人物与老虎隔石桌对坐，背后有一块“景阳冈”石碑。桌上摆着酒坛和粗瓷碗。 主体人物端起酒碗对老虎说：“虎哥，干了这杯，让我过去行不行？”仰头一饮而尽。 老虎一掌拍落人物手中空碗，碗在地上碎裂。 人物猛地拍桌站起，怒视老虎说到：“这点面子都不给？”随即抄起酒坛砸向老虎，老虎嘶吼着扑来，两人扭打在一起。",
+  "negative_prompt": "",
+  "model": "wan2.5-i2v-preview",
+  "resolution": "480P",
+  "duration": 10,
+  "prompt_extend": false,
+  "watermark": false,
+  "seed": null,
+  "auto_audio": true,
+  "group_count": 5,
+  "video_urls": [
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/f96d7434-4033-4345-b69d-0810ebeff76d/20251211/171110_0f615d15.mp4",
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/f96d7434-4033-4345-b69d-0810ebeff76d/20251211/171113_145bada7.mp4",
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/f96d7434-4033-4345-b69d-0810ebeff76d/20251211/171117_2876c591.mp4",
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/f96d7434-4033-4345-b69d-0810ebeff76d/20251211/171120_f6c543f1.mp4",
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/f96d7434-4033-4345-b69d-0810ebeff76d/20251211/171124_43909157.mp4"
+  ],
+  "selected_video_url": null,
+  "task_ids": [
+    "ff212986-cba2-4b8d-95b9-8341d2740b09",
+    "175e9adf-49f4-44e3-a461-32b9abaffef5",
+    "52fa1422-6e20-4d15-864c-72a524ac2b48",
+    "0c177144-fda4-4d66-bf93-1062db943b2d",
+    "fe216637-5484-45f4-b811-3bce35c14843"
+  ],
+  "status": "succeeded",
+  "error_message": null,
+  "created_at": "2025-12-11T17:09:31.963709",
+  "updated_at": "2025-12-11T17:11:25.459524"
+}

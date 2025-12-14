@@ -53,16 +53,19 @@ class ImageEditConfigRequest(BaseModel):
     width: Optional[int] = None
     height: Optional[int] = None
     prompt_extend: Optional[bool] = None
+    watermark: Optional[bool] = None  # 水印（仅 qwen-image-edit-plus 支持）
     seed: Optional[int] = None
 
 
 class VideoConfigRequest(BaseModel):
     """图生视频配置请求"""
     model: Optional[str] = None
-    size: Optional[str] = None
-    prompt_extend: Optional[bool] = None
-    watermark: Optional[bool] = None
-    seed: Optional[int] = None
+    resolution: Optional[str] = None  # 分辨率（wan2.5用480P/720P/1080P）
+    duration: Optional[int] = None  # 视频时长（秒）
+    prompt_extend: Optional[bool] = None  # 智能改写
+    watermark: Optional[bool] = None  # 水印
+    seed: Optional[int] = None  # 随机种子
+    audio: Optional[bool] = None  # 自动生成音频（仅wan2.5支持）
 
 
 class OSSConfigRequest(BaseModel):

@@ -1,0 +1,61 @@
+{
+  "id": "4af7960a-5b57-42e5-bc7b-f1a4e5946b63",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "分1",
+  "description": "",
+  "model": "wan2.5-i2i-preview",
+  "prompt": "场景：阳光明媚的郊野公园，远处有山丘和树林，近处是大片绿油油的草地。画面中出现第1个图中的小明、第2个图中的妈妈、第3个图中的爸爸，正在三人手牵手站在草地上。风格保持参考图片的日漫风格",
+  "negative_prompt": "",
+  "n": 3,
+  "group_count": 1,
+  "references": [
+    {
+      "type": "character",
+      "id": "5d6cf2a8-1b42-4c67-a9ca-3e4d493fd772",
+      "name": "小明",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251209/133137_79dc6d8e.png"
+    },
+    {
+      "type": "character",
+      "id": "a4a2030b-e913-45fc-9ad4-4c2129dcd538",
+      "name": "妈妈",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251209/121251_e27a811f.png"
+    },
+    {
+      "type": "character",
+      "id": "650f875a-1673-44ae-ba11-82b1da2bdcbb",
+      "name": "爸爸",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251209/121437_47d10f6c.png"
+    }
+  ],
+  "images": [
+    {
+      "id": "06718da7-4081-41a9-9128-cea7ef703e41",
+      "group_index": 0,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251212/111623_69f09fe2.png",
+      "prompt_used": "场景：阳光明媚的郊野公园，远处有山丘和树林，近处是大片绿油油的草地。画面中出现第1个图中的小明、第2个图中的妈妈、第3个图中的爸爸，正在三人手牵手站在草地上。风格保持参考图片的日漫风格",
+      "is_selected": true,
+      "created_at": "2025-12-12T11:16:24.752136"
+    },
+    {
+      "id": "ec2fe6cc-5636-4ed3-a539-e843053eb818",
+      "group_index": 1,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251212/111623_60d88a45.png",
+      "prompt_used": "场景：阳光明媚的郊野公园，远处有山丘和树林，近处是大片绿油油的草地。画面中出现第1个图中的小明、第2个图中的妈妈、第3个图中的爸爸，正在三人手牵手站在草地上。风格保持参考图片的日漫风格",
+      "is_selected": true,
+      "created_at": "2025-12-12T11:16:24.752179"
+    },
+    {
+      "id": "4717de9c-bc22-474f-92bc-5bd214e5b83d",
+      "group_index": 2,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251212/111624_55d56034.png",
+      "prompt_used": "场景：阳光明媚的郊野公园，远处有山丘和树林，近处是大片绿油油的草地。画面中出现第1个图中的小明、第2个图中的妈妈、第3个图中的爸爸，正在三人手牵手站在草地上。风格保持参考图片的日漫风格",
+      "is_selected": true,
+      "created_at": "2025-12-12T11:16:24.752191"
+    }
+  ],
+  "status": "completed",
+  "error_message": null,
+  "created_at": "2025-12-12T11:10:15.806826",
+  "updated_at": "2025-12-12T11:17:24.782670"
+}

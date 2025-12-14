@@ -1,0 +1,13 @@
+{
+  "id": "a0f3ddb1-7e38-47eb-8293-0ce0842c1e0e",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "特朗普",
+  "description": "用户上传",
+  "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/f96d7434-4033-4345-b69d-0810ebeff76d/20251209/185252_7212718c.jpg",
+  "prompt_used": null,
+  "source": "upload",
+  "task_id": null,
+  "tags": [],
+  "created_at": "2025-12-09T18:52:53.206306",
+  "updated_at": "2025-12-09T18:52:53.206504"
+}

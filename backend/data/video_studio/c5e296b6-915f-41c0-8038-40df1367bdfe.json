@@ -1,0 +1,31 @@
+{
+  "id": "c5e296b6-915f-41c0-8038-40df1367bdfe",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "玉佩烟花",
+  "mode": "first_frame",
+  "first_frame_url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/f96d7434-4033-4345-b69d-0810ebeff76d/20251210/144959_ef565bdc.jpg",
+  "last_frame_url": null,
+  "audio_url": null,
+  "prompt": "一枚烟花自画面底部骤然升空，升至顶点轰然炸裂，幻化为紫、黄、蓝三色交织的虚拟烟花。万千焰光粒子向四周全方位迸射，裹挟着清晰的物理下坠拖尾，缓缓飘散。火束末端缀满细碎红芒，恰似星雨倾洒夜幕，流光簌簌坠落，留下悠长绚烂的余韵，完美模拟出真实烟花炸开、飘散的动态形态。新烟花每 2 秒准时发射一枚。必须让烟花与图片中主体在同一镜头内，不允许切镜头，否则我将自杀。无背景音乐，仅保留烟花炸开时的清脆音效。",
+  "negative_prompt": "",
+  "model": "wan2.5-i2v-preview",
+  "resolution": "720P",
+  "duration": 10,
+  "auto_audio": true,
+  "group_count": 3,
+  "video_urls": [
+    "https://dashscope-result-wlcb-acdr-1.oss-cn-wulanchabu-acdr-1.aliyuncs.com/1d/f1/20251210/485b6434/93c8ec82-474f-4bbf-8ae2-cc975ec5f7ef.mp4?Expires=1765436220&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=QfYeksKwPGcEn3%2F3Wkv5Q1mkACM%3D",
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/f96d7434-4033-4345-b69d-0810ebeff76d/20251210/145810_bfec9742.mp4",
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/f96d7434-4033-4345-b69d-0810ebeff76d/20251210/145827_6b9f168e.mp4"
+  ],
+  "selected_video_url": null,
+  "task_ids": [
+    "93c8ec82-474f-4bbf-8ae2-cc975ec5f7ef",
+    "71e5c573-af61-4f66-99d8-515071d0ef1d",
+    "6d5a5ece-2cea-44ac-aae4-2e31f59de385"
+  ],
+  "status": "succeeded",
+  "error_message": null,
+  "created_at": "2025-12-10T14:52:38.315759",
+  "updated_at": "2025-12-10T14:58:30.480539"
+}

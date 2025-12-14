@@ -52,6 +52,7 @@ const SettingsPage = () => {
         image_edit_width: data.image_edit.width,
         image_edit_height: data.image_edit.height,
         image_edit_prompt_extend: data.image_edit.prompt_extend,
+        image_edit_watermark: data.image_edit.watermark,
         image_edit_seed: data.image_edit.seed,
         // 图生视频配置
         video_model: data.video.model,
@@ -123,6 +124,7 @@ const SettingsPage = () => {
           width: values.image_edit_width,
           height: values.image_edit_height,
           prompt_extend: values.image_edit_prompt_extend,
+          watermark: values.image_edit_watermark,
           seed: values.image_edit_seed || null,
         },
         video: {
@@ -268,29 +270,57 @@ const SettingsPage = () => {
     return config.available_image_edit_models[editModel]
   }
 
+  // 检查当前模型是否是 qwen 系列
+  const isQwenImageEditModel = () => {
+    const editModel = form.getFieldValue('image_edit_model') || config?.image_edit?.model
+    return editModel?.startsWith('qwen-image-edit')
+  }
+
   // 验证图像编辑尺寸
   const validateImageEditSize = (width: number, height: number): string | null => {
     const modelInfo = getImageEditModelInfo()
     if (!modelInfo) return null
     
+    // qwen-image-edit-plus 使用不同的尺寸限制
+    if (isQwenImageEditModel()) {
+      const minSize = modelInfo.min_size || 512
+      const maxSize = modelInfo.max_size || 2048
+      if (width < minSize || width > maxSize) {
+        return `宽度必须在 ${minSize} - ${maxSize} 之间`
+      }
+      if (height < minSize || height > maxSize) {
+        return `高度必须在 ${minSize} - ${maxSize} 之间`
+      }
+      return null
+    }
+    
+    // wan2.5-i2i-preview 使用像素和宽高比限制
     const totalPixels = width * height
     const ratio = height > 0 ? width / height : 0
     
-    if (totalPixels < modelInfo.min_pixels) {
+    if (modelInfo.min_pixels && totalPixels < modelInfo.min_pixels) {
       return `总像素 (${totalPixels.toLocaleString()}) 小于最小值 (${modelInfo.min_pixels.toLocaleString()})`
     }
-    if (totalPixels > modelInfo.max_pixels) {
+    if (modelInfo.max_pixels && totalPixels > modelInfo.max_pixels) {
       return `总像素 (${totalPixels.toLocaleString()}) 大于最大值 (${modelInfo.max_pixels.toLocaleString()})`
     }
-    if (ratio < modelInfo.min_ratio || ratio > modelInfo.max_ratio) {
+    if (modelInfo.min_ratio && modelInfo.max_ratio && (ratio < modelInfo.min_ratio || ratio > modelInfo.max_ratio)) {
       return `宽高比 (${ratio.toFixed(2)}) 超出范围 [${modelInfo.min_ratio}, ${modelInfo.max_ratio}]`
     }
     return null
   }
 
   // 应用图像编辑预设尺寸
-  const applyImageEditPresetSize = (width: number, height: number) => {
-    form.setFieldsValue({ image_edit_width: width, image_edit_height: height })
+  const applyImageEditPresetSize = (sizeValue: string) => {
+    // qwen-image-edit-plus 的 common_sizes 格式是 {value: "1024*1024", label: "..."}
+    // wan2.5-i2i-preview 的 common_sizes 格式是 {width: 1024, height: 1024, label: "..."}
+    if (sizeValue.includes('*')) {
+      const [w, h] = sizeValue.split('*').map(Number)
+      form.setFieldsValue({ image_edit_width: w, image_edit_height: h })
+    } else if (sizeValue.includes('x')) {
+      const [w, h] = sizeValue.split('x').map(Number)
+      form.setFieldsValue({ image_edit_width: w, image_edit_height: h })
+    }
   }
 
   // 测试 OSS 连接
@@ -765,12 +795,21 @@ const SettingsPage = () => {
 
           {getImageEditModelInfo() && (
             <Alert
-              message="尺寸限制"
+              message={isQwenImageEditModel() ? "qwen-image-edit-plus 说明" : "尺寸限制"}
               description={
-                <span>
-                  总像素: {getImageEditModelInfo()!.min_pixels.toLocaleString()} - {getImageEditModelInfo()!.max_pixels.toLocaleString()}，
-                  宽高比: {getImageEditModelInfo()!.min_ratio} - {getImageEditModelInfo()!.max_ratio}
-                </span>
+                isQwenImageEditModel() ? (
+                  <span>
+                    宽高范围: {getImageEditModelInfo()!.min_size || 512} - {getImageEditModelInfo()!.max_size || 2048}，
+                    最多输入{getImageEditModelInfo()!.max_images || 3}张图片，
+                    最多输出{getImageEditModelInfo()!.max_output || 6}张图片。
+                    设置输出尺寸时只能生成1张图片。
+                  </span>
+                ) : (
+                  <span>
+                    总像素: {getImageEditModelInfo()!.min_pixels?.toLocaleString()} - {getImageEditModelInfo()!.max_pixels?.toLocaleString()}，
+                    宽高比: {getImageEditModelInfo()!.min_ratio} - {getImageEditModelInfo()!.max_ratio}
+                  </span>
+                )
               }
               type="info"
               showIcon
@@ -803,21 +842,22 @@ const SettingsPage = () => {
               <Form.Item label="常用尺寸">
                 <Select
                   placeholder="选择预设"
-                  onChange={(value) => {
-                    const [w, h] = value.split('x').map(Number)
-                    applyImageEditPresetSize(w, h)
-                  }}
-                  options={getImageEditSizeOptions().map((size: { width: number; height: number; label: string }) => ({
-                    label: size.label,
-                    value: `${size.width}x${size.height}`
-                  }))}
+                  onChange={(value) => applyImageEditPresetSize(value)}
+                  options={getImageEditSizeOptions().map((size: any) => {
+                    // 支持两种格式：{value, label} 和 {width, height, label}
+                    if (size.value !== undefined) {
+                      return { label: size.label, value: size.value }
+                    } else {
+                      return { label: size.label, value: `${size.width}x${size.height}` }
+                    }
+                  })}
                 />
               </Form.Item>
             </Col>
           </Row>
 
           <Row gutter={16}>
-            <Col span={12}>
+            <Col span={isQwenImageEditModel() ? 8 : 12}>
               <Form.Item
                 name="image_edit_prompt_extend"
                 label="智能改写"
@@ -827,13 +867,25 @@ const SettingsPage = () => {
                 <Switch />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            {isQwenImageEditModel() && (
+              <Col span={8}>
+                <Form.Item
+                  name="image_edit_watermark"
+                  label="添加水印"
+                  valuePropName="checked"
+                  tooltip="在图像右下角添加 Qwen-Image 水印"
+                >
+                  <Switch />
+                </Form.Item>
+              </Col>
+            )}
+            <Col span={isQwenImageEditModel() ? 8 : 12}>
               <Form.Item
                 name="image_edit_seed"
                 label="随机种子"
                 extra="留空表示随机，设置固定值可复现结果"
               >
-                <InputNumber min={0} style={{ width: '100%' }} placeholder="留空为随机" />
+                <InputNumber min={0} max={isQwenImageEditModel() ? 2147483647 : undefined} style={{ width: '100%' }} placeholder="留空为随机" />
               </Form.Item>
             </Col>
           </Row>
@@ -894,9 +946,16 @@ const SettingsPage = () => {
               <Form.Item
                 name="video_duration"
                 label="默认时长"
-                extra={`wan2.5支持5-10秒，wanx2.1固定5秒`}
+                extra={getCurrentVideoModelInfo()?.id?.includes('wan2.5') 
+                  ? 'wan2.5 支持 5 或 10 秒' 
+                  : 'wanx2.1 支持 3/4/5 秒'
+                }
               >
-                <InputNumber min={5} max={10} style={{ width: '100%' }} addonAfter="秒" />
+                <Select>
+                  {(getCurrentVideoModelInfo()?.durations || [5]).map((d: number) => (
+                    <Select.Option key={d} value={d}>{d} 秒</Select.Option>
+                  ))}
+                </Select>
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -904,7 +963,11 @@ const SettingsPage = () => {
                 name="video_audio"
                 label="自动生成音频"
                 valuePropName="checked"
-                tooltip="仅wan2.5支持，根据画面内容自动生成音频"
+                tooltip="仅 wan2.5 支持，模型根据提示词和画面自动生成匹配的背景音频"
+                extra={getCurrentVideoModelInfo()?.supports_audio 
+                  ? '开启后默认自动配音，可在工作室中覆盖' 
+                  : '当前模型不支持音频'
+                }
               >
                 <Switch disabled={!getCurrentVideoModelInfo()?.supports_audio} />
               </Form.Item>
@@ -917,7 +980,7 @@ const SettingsPage = () => {
                 name="video_prompt_extend"
                 label="智能改写"
                 valuePropName="checked"
-                tooltip="自动优化和扩展提示词"
+                tooltip="使用大模型优化提示词，对较短的提示词效果更明显"
               >
                 <Switch />
               </Form.Item>
@@ -927,6 +990,7 @@ const SettingsPage = () => {
                 name="video_watermark"
                 label="添加水印"
                 valuePropName="checked"
+                tooltip="在视频右下角添加 'AI生成' 水印标识"
               >
                 <Switch />
               </Form.Item>
@@ -936,9 +1000,9 @@ const SettingsPage = () => {
           <Form.Item
             name="video_seed"
             label="随机种子"
-            extra="留空表示随机，设置固定值可复现结果"
+            extra="留空表示随机，固定种子可使结果相对稳定（但不保证完全一致）"
           >
-            <InputNumber min={0} style={{ width: '100%' }} placeholder="留空为随机" />
+            <InputNumber min={0} max={2147483647} style={{ width: '100%' }} placeholder="留空为随机" />
           </Form.Item>
         </Form>
       </Card>

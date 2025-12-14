@@ -15,19 +15,32 @@ router = APIRouter()
 
 
 class VideoStudioTaskCreateRequest(BaseModel):
-    """创建视频生成任务请求"""
+    """创建视频生成任务请求
+    
+    参数说明（根据官方文档）：
+    - resolution: 分辨率档位，wan2.5 支持 480P/720P/1080P（默认1080P）
+    - duration: 视频时长，wan2.5 支持 5/10 秒，wanx2.1 支持 3/4/5 秒
+    - prompt_extend: 智能改写，默认 True
+    - watermark: 水印标识（右下角"AI生成"），默认 False
+    - audio: 自动配音（仅 wan2.5 支持），默认 True
+    - audio_url: 自定义音频URL（传入时 audio 参数无效）
+    - seed: 随机种子，范围 [0, 2147483647]
+    """
     project_id: str
     name: str = ""
     mode: str = "first_frame"  # first_frame 或 first_last_frame
     first_frame_url: str  # 首帧图URL
     last_frame_url: Optional[str] = None  # 尾帧图URL（首尾帧模式）
-    audio_url: Optional[str] = None  # 音频URL
+    audio_url: Optional[str] = None  # 自定义音频URL
     prompt: str = ""
     negative_prompt: str = ""
     model: str = "wan2.5-i2v-preview"
-    resolution: str = "720P"
+    resolution: str = "1080P"  # 默认1080P
     duration: int = 5
-    auto_audio: bool = False
+    prompt_extend: bool = True  # 智能改写
+    watermark: bool = False  # 水印
+    seed: Optional[int] = None  # 随机种子
+    auto_audio: bool = True  # 自动配音（仅wan2.5，默认开启）
     group_count: int = 1
 
 
@@ -77,6 +90,9 @@ async def create_task(request: VideoStudioTaskCreateRequest):
         model=request.model,
         resolution=request.resolution,
         duration=request.duration,
+        prompt_extend=request.prompt_extend,
+        watermark=request.watermark,
+        seed=request.seed,
         auto_audio=request.auto_audio,
         group_count=request.group_count,
         status="processing"
@@ -95,7 +111,11 @@ async def create_task(request: VideoStudioTaskCreateRequest):
                     model=request.model,
                     resolution=request.resolution,
                     duration=request.duration,
+                    prompt_extend=request.prompt_extend,
+                    watermark=request.watermark,
+                    seed=request.seed,
                     audio_url=request.audio_url,
+                    # audio 参数仅在没有 audio_url 时生效
                     audio=request.auto_audio if not request.audio_url else None,
                     negative_prompt=request.negative_prompt if request.negative_prompt else None
                 )
