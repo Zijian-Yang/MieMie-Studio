@@ -214,9 +214,19 @@ const VideoStudioPage = () => {
     }
   }
 
+  // 编辑表单的额外状态（不在 Form 中管理的值）
+  const [editFirstFrameUrl, setEditFirstFrameUrl] = useState('')
+  const [editAudioUrl, setEditAudioUrl] = useState('')
+  const [editGroupCount, setEditGroupCount] = useState(1)
+
   // 打开编辑弹窗
   const openEditModal = (task: VideoStudioTask) => {
     setSelectedTask(task)
+    // 设置非 Form 管理的值
+    setEditFirstFrameUrl(task.first_frame_url || '')
+    setEditAudioUrl(task.audio_url || '')
+    setEditGroupCount(task.group_count || 1)
+    
     editForm.setFieldsValue({
       name: task.name,
       prompt: task.prompt,
@@ -236,10 +246,20 @@ const VideoStudioPage = () => {
   const handleSaveEdit = async () => {
     if (!selectedTask) return
     
+    if (!editFirstFrameUrl) {
+      message.warning('请选择首帧图')
+      return
+    }
+    
     try {
       setSaving(true)
       const values = editForm.getFieldsValue()
-      const updatedTask = await videoStudioApi.update(selectedTask.id, values)
+      const updatedTask = await videoStudioApi.update(selectedTask.id, {
+        ...values,
+        first_frame_url: editFirstFrameUrl,
+        audio_url: editAudioUrl || undefined,
+        group_count: editGroupCount,
+      })
       setTasks(prev => prev.map(t => t.id === selectedTask.id ? updatedTask : t))
       setSelectedTask(updatedTask)
       setEditModalVisible(false)
@@ -786,71 +806,181 @@ const VideoStudioPage = () => {
         cancelText="取消"
         confirmLoading={saving}
         width={700}
+        okButtonProps={{ disabled: !editFirstFrameUrl }}
       >
-        <Form form={editForm} layout="vertical">
-          <Form.Item name="name" label="任务名称">
-            <Input placeholder="任务名称" />
-          </Form.Item>
-          
-          <Form.Item name="prompt" label="提示词">
-            <TextArea rows={3} placeholder="描述想要生成的视频内容" />
-          </Form.Item>
-          
-          <Form.Item name="negative_prompt" label="负向提示词">
-            <TextArea rows={2} placeholder="不希望出现的内容" />
-          </Form.Item>
-          
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="model" label="模型">
-                <Select>
-                  {Object.entries(videoModels).map(([key, info]) => (
-                    <Option key={key} value={key}>{info.name}</Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="resolution" label="分辨率">
-                <Select>
-                  <Option value="480P">480P (标清)</Option>
-                  <Option value="720P">720P (高清)</Option>
-                  <Option value="1080P">1080P (全高清)</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="duration" label="视频时长">
-                <Select>
-                  <Option value={5}>5 秒</Option>
-                  <Option value={10}>10 秒</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-          
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="prompt_extend" label="智能改写" valuePropName="checked">
-                <Switch />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="watermark" label="添加水印" valuePropName="checked">
-                <Switch />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="auto_audio" label="自动配音" valuePropName="checked">
-                <Switch />
-              </Form.Item>
-            </Col>
-          </Row>
-          
-          <Form.Item name="seed" label="随机种子" extra="留空为随机">
-            <InputNumber style={{ width: '100%' }} min={0} max={2147483647} placeholder="留空为随机" />
-          </Form.Item>
-        </Form>
+        <Tabs
+          items={[
+            {
+              key: 'basic',
+              label: '基本信息',
+              children: (
+                <Form form={editForm} layout="vertical">
+                  <Form.Item name="name" label="任务名称">
+                    <Input placeholder="任务名称" />
+                  </Form.Item>
+                  
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ marginBottom: 8 }}>首帧图 *</div>
+                    <Select
+                      style={{ width: '100%' }}
+                      value={editFirstFrameUrl || undefined}
+                      onChange={setEditFirstFrameUrl}
+                      placeholder="从图库选择首帧图"
+                      optionLabelProp="label"
+                    >
+                      {galleryImages.map(img => (
+                        <Option key={img.id} value={img.url} label={img.name}>
+                          <Space>
+                            <img src={img.url} alt="" style={{ width: 40, height: 40, objectFit: 'cover' }} />
+                            {img.name}
+                          </Space>
+                        </Option>
+                      ))}
+                    </Select>
+                    {editFirstFrameUrl && (
+                      <div style={{ marginTop: 8 }}>
+                        <img src={editFirstFrameUrl} alt="预览" style={{ maxWidth: 200, maxHeight: 150, borderRadius: 4 }} />
+                      </div>
+                    )}
+                  </div>
+                  
+                  <Form.Item name="prompt" label="提示词">
+                    <TextArea rows={3} placeholder="描述想要生成的视频内容" />
+                  </Form.Item>
+                  
+                  <Form.Item name="negative_prompt" label="负向提示词">
+                    <TextArea rows={2} placeholder="不希望出现的内容" />
+                  </Form.Item>
+                </Form>
+              )
+            },
+            {
+              key: 'params',
+              label: '生成参数',
+              children: (
+                <Form form={editForm} layout="vertical">
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item name="model" label="模型">
+                        <Select
+                          onChange={(v) => {
+                            const modelInfo = videoModels[v]
+                            if (modelInfo?.default_resolution) {
+                              editForm.setFieldValue('resolution', modelInfo.default_resolution)
+                            }
+                          }}
+                        >
+                          {Object.entries(videoModels).map(([key, info]) => (
+                            <Option key={key} value={key}>{info.name}</Option>
+                          ))}
+                        </Select>
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item name="resolution" label="分辨率">
+                        <Select>
+                          <Option value="480P">480P (标清)</Option>
+                          <Option value="720P">720P (高清)</Option>
+                          <Option value="1080P">1080P (全高清)</Option>
+                        </Select>
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item name="duration" label="视频时长">
+                        <Select>
+                          <Option value={5}>5 秒</Option>
+                          <Option value={10}>10 秒</Option>
+                        </Select>
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <div style={{ marginBottom: 24 }}>
+                        <div style={{ marginBottom: 8 }}>生成组数</div>
+                        <InputNumber
+                          style={{ width: '100%' }}
+                          min={1}
+                          max={5}
+                          value={editGroupCount}
+                          onChange={(v) => setEditGroupCount(v || 1)}
+                        />
+                      </div>
+                    </Col>
+                  </Row>
+                  
+                  <Row gutter={16}>
+                    <Col span={8}>
+                      <Form.Item name="prompt_extend" label="智能改写" valuePropName="checked">
+                        <Switch />
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name="watermark" label="添加水印" valuePropName="checked">
+                        <Switch />
+                      </Form.Item>
+                    </Col>
+                    <Col span={8}>
+                      <Form.Item name="seed" label="随机种子" extra="留空为随机">
+                        <InputNumber style={{ width: '100%' }} min={0} max={2147483647} placeholder="留空" />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  
+                  {/* 音频设置 - 仅 wan2.5 支持 */}
+                  {editForm.getFieldValue('model')?.includes('wan2.5') && (
+                    <div style={{ 
+                      padding: 12, 
+                      background: '#1a1a1a', 
+                      borderRadius: 8, 
+                      marginTop: 8,
+                      border: '1px solid #333'
+                    }}>
+                      <div style={{ marginBottom: 12, fontWeight: 500 }}>🔊 音频设置（仅 wan2.5 支持）</div>
+                      
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ marginBottom: 8 }}>自定义音频</div>
+                        <Select
+                          style={{ width: '100%' }}
+                          value={editAudioUrl || undefined}
+                          onChange={(v) => {
+                            setEditAudioUrl(v || '')
+                            if (v) editForm.setFieldValue('auto_audio', false)
+                          }}
+                          placeholder="从音频库选择（可选）"
+                          allowClear
+                        >
+                          {audioItems.map(audio => (
+                            <Option key={audio.id} value={audio.url}>
+                              {audio.name}
+                            </Option>
+                          ))}
+                        </Select>
+                        <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                          传入音频后，视频将与音频内容对齐
+                        </div>
+                      </div>
+                      
+                      <Form.Item name="auto_audio" valuePropName="checked" style={{ marginBottom: 0 }}>
+                        <Space>
+                          <Switch disabled={!!editAudioUrl} />
+                          <span>自动生成音频</span>
+                        </Space>
+                      </Form.Item>
+                      <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                        {editAudioUrl 
+                          ? '已选择自定义音频，此选项无效'
+                          : '开启后模型将自动生成匹配的背景音'
+                        }
+                      </div>
+                    </div>
+                  )}
+                </Form>
+              )
+            }
+          ]}
+        />
       </Modal>
     </div>
   )
