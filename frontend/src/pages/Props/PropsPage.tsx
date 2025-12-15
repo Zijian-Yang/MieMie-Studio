@@ -10,7 +10,7 @@ import {
   AppstoreOutlined, ThunderboltOutlined, SettingOutlined,
   ExclamationCircleOutlined, StopOutlined, BgColorsOutlined
 } from '@ant-design/icons'
-import { propsApi, Prop, stylesApi, Style } from '../../services/api'
+import { propsApi, Prop, stylesApi, Style, galleryApi, GalleryImage } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 import { useGenerationStore } from '../../stores/generationStore'
 
@@ -52,6 +52,13 @@ const PropsPage = () => {
   const [localUseStyle, setLocalUseStyle] = useState<boolean | null>(null)
   const [localStyleId, setLocalStyleId] = useState<string | null>(null)
   
+  // 图库相关
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([])
+  const [galleryModalVisible, setGalleryModalVisible] = useState(false)
+  const [selectingForProp, setSelectingForProp] = useState<Prop | null>(null)
+  const [selectedGalleryImage, setSelectedGalleryImage] = useState<string>('')
+  const [selectingGroupIndex, setSelectingGroupIndex] = useState(0)
+  
   const selectedPropIdRef = useRef<string | null>(null)
   const shouldStopRef = useRef(false)
   const isMountedRef = useRef(true)
@@ -73,12 +80,14 @@ const PropsPage = () => {
       safeSetState(setLoading, true)
       try {
         fetchProject(projectId).catch(() => {})
-        const [propsRes, stylesRes] = await Promise.all([
+        const [propsRes, stylesRes, galleryRes] = await Promise.all([
           propsApi.list(projectId),
-          stylesApi.list(projectId)
+          stylesApi.list(projectId),
+          galleryApi.list(projectId)
         ])
         safeSetState(setProps, propsRes.props)
         safeSetState(setStyles, stylesRes.styles)
+        safeSetState(setGalleryImages, galleryRes.images)
       } catch (error) {
         message.error('加载失败')
       } finally {
@@ -284,6 +293,37 @@ const PropsPage = () => {
 
   const handleStopGeneration = () => { shouldStopRef.current = true; message.info('正在停止生成...') }
 
+  // 打开图库选择弹窗
+  const openGalleryModal = (prop: Prop, groupIndex: number) => {
+    setSelectingForProp(prop)
+    setSelectingGroupIndex(groupIndex)
+    setSelectedGalleryImage('')
+    setGalleryModalVisible(true)
+  }
+
+  // 确认从图库选择图片
+  const confirmGallerySelect = async () => {
+    if (!selectingForProp || !selectedGalleryImage) {
+      message.warning('请选择一张图片')
+      return
+    }
+    
+    try {
+      const { prop: updated } = await propsApi.selectImage(selectingForProp.id, {
+        image_url: selectedGalleryImage,
+        group_index: selectingGroupIndex
+      })
+      safeSetState(setProps, (prev: Prop[]) => prev.map(p => p.id === updated.id ? updated : p))
+      if (selectedProp?.id === updated.id) {
+        setSelectedProp(updated)
+      }
+      setGalleryModalVisible(false)
+      message.success('图片已选择')
+    } catch (error) {
+      message.error('选择失败')
+    }
+  }
+
   const selectGroup = async (propId: string, groupIndex: number) => {
     try {
       const updated = await propsApi.update(propId, { selected_group_index: groupIndex })
@@ -387,7 +427,10 @@ const PropsPage = () => {
                   <div key={groupIndex} style={{ marginBottom: 12, padding: 12, border: isSelected ? '2px solid #e5a84b' : '1px solid #333', borderRadius: 8, background: isSelected ? 'rgba(229, 168, 75, 0.1)' : '#1a1a1a' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                       <Radio checked={isSelected} onChange={() => selectGroup(selectedProp.id, groupIndex)}>第 {groupIndex + 1} 组</Radio>
-                      <Button size="small" icon={<ReloadOutlined />} onClick={() => generateImages(selectedProp.id, groupIndex)} loading={isGeneratingThis} disabled={generatingAll || (generatingGroups.size > 0 && !isGeneratingThis) || batchGenerating}>{group?.url ? '重新生成' : '生成'}</Button>
+                      <Space size={4}>
+                        <Button size="small" onClick={() => openGalleryModal(selectedProp, groupIndex)} disabled={generatingAll || batchGenerating}>从图库选</Button>
+                        <Button size="small" icon={<ReloadOutlined />} onClick={() => generateImages(selectedProp.id, groupIndex)} loading={isGeneratingThis} disabled={generatingAll || (generatingGroups.size > 0 && !isGeneratingThis) || batchGenerating}>{group?.url ? '重新生成' : '生成'}</Button>
+                      </Space>
                     </div>
                     <div style={{ aspectRatio: '1', background: '#242424', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {isGeneratingThis ? <Spin /> : group?.url ? <Image src={group.url} alt="道具" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <AppstoreOutlined style={{ fontSize: 32, color: '#444' }} />}
@@ -562,6 +605,83 @@ const PropsPage = () => {
             <TextArea rows={3} placeholder="例如：精致的复古黄铜怀表，链条，白色背景" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 图库选择弹窗 */}
+      <Modal
+        title={`从图库选择图片 - ${selectingForProp?.name || ''} 第${selectingGroupIndex + 1}组`}
+        open={galleryModalVisible}
+        onOk={confirmGallerySelect}
+        onCancel={() => setGalleryModalVisible(false)}
+        okText="确认选择"
+        cancelText="取消"
+        width={800}
+        okButtonProps={{ disabled: !selectedGalleryImage }}
+      >
+        {galleryImages.length === 0 ? (
+          <Empty description="图库暂无图片，请先上传" />
+        ) : (
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', 
+            gap: 12,
+            maxHeight: 400,
+            overflowY: 'auto'
+          }}>
+            {galleryImages.map(img => {
+              const isSelected = selectedGalleryImage === img.url
+              return (
+                <div
+                  key={img.id}
+                  onClick={() => setSelectedGalleryImage(img.url)}
+                  style={{
+                    position: 'relative',
+                    cursor: 'pointer',
+                    border: isSelected ? '2px solid #e5a84b' : '1px solid #333',
+                    borderRadius: 8,
+                    overflow: 'hidden',
+                    background: '#1a1a1a'
+                  }}
+                >
+                  <Image
+                    src={img.url}
+                    alt={img.name}
+                    style={{ width: '100%', aspectRatio: '1', objectFit: 'cover' }}
+                    preview={false}
+                  />
+                  {isSelected && (
+                    <div style={{
+                      position: 'absolute',
+                      top: 4,
+                      right: 4,
+                      background: '#e5a84b',
+                      color: '#000',
+                      borderRadius: '50%',
+                      width: 24,
+                      height: 24,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 'bold',
+                      fontSize: 12
+                    }}>
+                      ✓
+                    </div>
+                  )}
+                  <div style={{ 
+                    padding: 4, 
+                    fontSize: 11, 
+                    whiteSpace: 'nowrap', 
+                    overflow: 'hidden', 
+                    textOverflow: 'ellipsis' 
+                  }}>
+                    {img.name}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </Modal>
     </div>
   )

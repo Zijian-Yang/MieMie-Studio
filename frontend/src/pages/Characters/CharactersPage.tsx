@@ -11,7 +11,7 @@ import {
   SettingOutlined, ExclamationCircleOutlined, StopOutlined,
   BgColorsOutlined
 } from '@ant-design/icons'
-import { charactersApi, Character, stylesApi, Style } from '../../services/api'
+import { charactersApi, Character, stylesApi, Style, galleryApi, GalleryImage } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 import { useGenerationStore } from '../../stores/generationStore'
 
@@ -66,6 +66,13 @@ const CharactersPage = () => {
   const [localUseStyle, setLocalUseStyle] = useState<boolean | null>(null)
   const [localStyleId, setLocalStyleId] = useState<string | null>(null)
   
+  // 图库相关
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([])
+  const [galleryModalVisible, setGalleryModalVisible] = useState(false)
+  const [selectingForCharacter, setSelectingForCharacter] = useState<Character | null>(null)
+  const [selectedGalleryImages, setSelectedGalleryImages] = useState<string[]>([])
+  const [selectingGroupIndex, setSelectingGroupIndex] = useState(0)
+  
   const selectedCharacterIdRef = useRef<string | null>(null)
   const shouldStopRef = useRef(false)
   const isMountedRef = useRef(true)
@@ -92,12 +99,14 @@ const CharactersPage = () => {
       try {
         // 不等待 fetchProject 完成再加载角色列表
         fetchProject(projectId).catch(() => {})
-        const [charsRes, stylesRes] = await Promise.all([
+        const [charsRes, stylesRes, galleryRes] = await Promise.all([
           charactersApi.list(projectId),
-          stylesApi.list(projectId)
+          stylesApi.list(projectId),
+          galleryApi.list(projectId)
         ])
         safeSetState(setCharacters, charsRes.characters)
         safeSetState(setStyles, stylesRes.styles)
+        safeSetState(setGalleryImages, galleryRes.images)
       } catch (error) {
         message.error('加载失败')
       } finally {
@@ -414,6 +423,51 @@ const CharactersPage = () => {
     }
   }
 
+  // 打开图库选择弹窗
+  const openGalleryModal = (character: Character, groupIndex: number) => {
+    setSelectingForCharacter(character)
+    setSelectingGroupIndex(groupIndex)
+    setSelectedGalleryImages([])
+    setGalleryModalVisible(true)
+  }
+
+  // 确认从图库选择图片
+  const confirmGallerySelect = async () => {
+    if (!selectingForCharacter || selectedGalleryImages.length === 0) {
+      message.warning('请选择至少一张图片')
+      return
+    }
+    
+    try {
+      const { character: updated } = await charactersApi.selectImages(selectingForCharacter.id, {
+        image_urls: selectedGalleryImages,
+        group_index: selectingGroupIndex
+      })
+      safeSetState(setCharacters, (prev: Character[]) => prev.map(c => c.id === updated.id ? updated : c))
+      if (selectedCharacter?.id === updated.id) {
+        setSelectedCharacter(updated)
+      }
+      setGalleryModalVisible(false)
+      message.success('图片已选择')
+    } catch (error) {
+      message.error('选择失败')
+    }
+  }
+
+  // 切换图库图片选择
+  const toggleGalleryImageSelect = (url: string) => {
+    setSelectedGalleryImages(prev => {
+      if (prev.includes(url)) {
+        return prev.filter(u => u !== url)
+      } else if (prev.length < 3) {
+        return [...prev, url]
+      } else {
+        message.warning('最多选择3张图片（正面、侧面、背面）')
+        return prev
+      }
+    })
+  }
+
   if (loading) {
     return (
       <div style={{ padding: 24, textAlign: 'center' }}>
@@ -641,15 +695,24 @@ const CharactersPage = () => {
                       >
                         第 {groupIndex + 1} 组
                       </Radio>
-                      <Button
-                        size="small"
-                        icon={<ReloadOutlined />}
-                        onClick={() => generateImages(selectedCharacter.id, groupIndex)}
-                        loading={isGeneratingThis}
-                        disabled={generatingAll || (generatingGroups.size > 0 && !isGeneratingThis) || batchGenerating}
-                      >
-                        {group?.front_url ? '重新生成' : '生成'}
-                      </Button>
+                      <Space size={4}>
+                        <Button
+                          size="small"
+                          onClick={() => openGalleryModal(selectedCharacter, groupIndex)}
+                          disabled={generatingAll || batchGenerating}
+                        >
+                          从图库选
+                        </Button>
+                        <Button
+                          size="small"
+                          icon={<ReloadOutlined />}
+                          onClick={() => generateImages(selectedCharacter.id, groupIndex)}
+                          loading={isGeneratingThis}
+                          disabled={generatingAll || (generatingGroups.size > 0 && !isGeneratingThis) || batchGenerating}
+                        >
+                          {group?.front_url ? '重新生成' : '生成'}
+                        </Button>
+                      </Space>
                     </div>
                     
                     <div className="view-selector">
@@ -932,6 +995,97 @@ const CharactersPage = () => {
             <TextArea rows={3} placeholder="例如：青年男性，短黑发，浓眉大眼，穿白色T恤" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 图库选择弹窗 */}
+      <Modal
+        title={`从图库选择图片 - ${selectingForCharacter?.name || ''} 第${selectingGroupIndex + 1}组`}
+        open={galleryModalVisible}
+        onOk={confirmGallerySelect}
+        onCancel={() => setGalleryModalVisible(false)}
+        okText="确认选择"
+        cancelText="取消"
+        width={800}
+        okButtonProps={{ disabled: selectedGalleryImages.length === 0 }}
+      >
+        <Alert 
+          message="选择1-3张图片作为角色三视图（正面、侧面、背面），按选择顺序对应"
+          type="info"
+          style={{ marginBottom: 16 }}
+        />
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <span>已选择 {selectedGalleryImages.length}/3 张：</span>
+          {selectedGalleryImages.map((url, idx) => (
+            <Tag key={idx} color="blue">
+              {idx === 0 ? '正面' : idx === 1 ? '侧面' : '背面'}
+            </Tag>
+          ))}
+        </div>
+        {galleryImages.length === 0 ? (
+          <Empty description="图库暂无图片，请先上传" />
+        ) : (
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', 
+            gap: 12,
+            maxHeight: 400,
+            overflowY: 'auto'
+          }}>
+            {galleryImages.map(img => {
+              const isSelected = selectedGalleryImages.includes(img.url)
+              const selectIndex = selectedGalleryImages.indexOf(img.url)
+              return (
+                <div
+                  key={img.id}
+                  onClick={() => toggleGalleryImageSelect(img.url)}
+                  style={{
+                    position: 'relative',
+                    cursor: 'pointer',
+                    border: isSelected ? '2px solid #e5a84b' : '1px solid #333',
+                    borderRadius: 8,
+                    overflow: 'hidden',
+                    background: '#1a1a1a'
+                  }}
+                >
+                  <Image
+                    src={img.url}
+                    alt={img.name}
+                    style={{ width: '100%', aspectRatio: '1', objectFit: 'cover' }}
+                    preview={false}
+                  />
+                  {isSelected && (
+                    <div style={{
+                      position: 'absolute',
+                      top: 4,
+                      right: 4,
+                      background: '#e5a84b',
+                      color: '#000',
+                      borderRadius: '50%',
+                      width: 24,
+                      height: 24,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 'bold',
+                      fontSize: 12
+                    }}>
+                      {selectIndex + 1}
+                    </div>
+                  )}
+                  <div style={{ 
+                    padding: 4, 
+                    fontSize: 11, 
+                    whiteSpace: 'nowrap', 
+                    overflow: 'hidden', 
+                    textOverflow: 'ellipsis' 
+                  }}>
+                    {img.name}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </Modal>
     </div>
   )
