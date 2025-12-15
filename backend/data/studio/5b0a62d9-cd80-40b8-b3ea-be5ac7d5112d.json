@@ -1,0 +1,55 @@
+{
+  "id": "5b0a62d9-cd80-40b8-b3ea-be5ac7d5112d",
+  "project_id": "ff69d622-c3d2-4806-b8fd-950cc7689db4",
+  "name": "分2-场景",
+  "description": "",
+  "model": "wan2.5-i2i-preview",
+  "prompt": "全景镜头。中心对称构图，柱子居中，图1是场景，中央立有一根图2的粗木柱，周围已堆积少量干柴。",
+  "negative_prompt": "",
+  "n": 3,
+  "group_count": 1,
+  "references": [
+    {
+      "type": "scene",
+      "id": "2aa78aeb-9faa-4b26-a401-326393c5e730",
+      "name": "严冬草原",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251215/120426_9f6132d7.png"
+    },
+    {
+      "type": "scene",
+      "id": "64f58bc1-e0e3-417b-b50b-9a5566ff6287",
+      "name": "火刑柱区域",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251215/120429_19215dbe.png"
+    }
+  ],
+  "images": [
+    {
+      "id": "8d5faa63-5892-49aa-8b74-acd90dc212ce",
+      "group_index": 0,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251215/135356_a9b0f497.png",
+      "prompt_used": "全景镜头。中心对称构图，柱子居中，图1是场景，中央立有一根图2的粗木柱，周围已堆积少量干柴。",
+      "is_selected": false,
+      "created_at": "2025-12-15T13:53:58.925608"
+    },
+    {
+      "id": "ec6137db-b53d-4b52-a3d8-3d2a3d92a002",
+      "group_index": 1,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251215/135357_50eac3c7.png",
+      "prompt_used": "全景镜头。中心对称构图，柱子居中，图1是场景，中央立有一根图2的粗木柱，周围已堆积少量干柴。",
+      "is_selected": false,
+      "created_at": "2025-12-15T13:53:58.925636"
+    },
+    {
+      "id": "a5ab891b-1b17-4502-9cd0-8367e50da313",
+      "group_index": 2,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251215/135358_e5f7023f.png",
+      "prompt_used": "全景镜头。中心对称构图，柱子居中，图1是场景，中央立有一根图2的粗木柱，周围已堆积少量干柴。",
+      "is_selected": true,
+      "created_at": "2025-12-15T13:53:58.925644"
+    }
+  ],
+  "status": "completed",
+  "error_message": null,
+  "created_at": "2025-12-15T13:50:51.175059",
+  "updated_at": "2025-12-15T13:54:34.583748"
+}

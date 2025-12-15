@@ -1,0 +1,85 @@
+{
+  "id": "495488d0-f839-4f43-a135-31cb1dbf9f2e",
+  "project_id": "ff69d622-c3d2-4806-b8fd-950cc7689db4",
+  "name": "分2-加仆从C",
+  "description": "",
+  "model": "wan2.5-i2i-preview",
+  "prompt": "在图1的场景中加入图2的仆从C也在抱着地上的柴火，正背冲镜头，确保图中的三个仆从都能看得到，角落放着图3的麻绳",
+  "negative_prompt": "",
+  "n": 3,
+  "group_count": 2,
+  "references": [
+    {
+      "type": "gallery",
+      "id": "a1ea1178-0010-4f0a-b018-433ff4e640e3",
+      "name": "分2-加仆从AB2 - 第1组",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251215/135834_c60b1c6c.png"
+    },
+    {
+      "type": "character",
+      "id": "d6463955-31b1-4e69-a5b1-8e912900e8c2",
+      "name": "仆从C",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251215/133203_b21254aa.png"
+    },
+    {
+      "type": "prop",
+      "id": "3bcaaae9-4396-472a-ae8a-4c481d62b6f2",
+      "name": "粗麻绳",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251215/120652_f98c2552.png"
+    }
+  ],
+  "images": [
+    {
+      "id": "ad9a7260-08f4-4fb1-8164-967536c254cf",
+      "group_index": 0,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251215/142436_b3b511a3.png",
+      "prompt_used": "在图1的场景中加入图2的仆从C也在抱着地上的柴火，正背冲镜头，确保图中的三个仆从都能看得到，角落放着图3的麻绳",
+      "is_selected": false,
+      "created_at": "2025-12-15T14:24:39.143001"
+    },
+    {
+      "id": "731548da-3952-4c12-8b29-2f136599baf8",
+      "group_index": 1,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251215/142437_10bb596d.png",
+      "prompt_used": "在图1的场景中加入图2的仆从C也在抱着地上的柴火，正背冲镜头，确保图中的三个仆从都能看得到，角落放着图3的麻绳",
+      "is_selected": false,
+      "created_at": "2025-12-15T14:24:39.143034"
+    },
+    {
+      "id": "89223dfa-f78c-45de-b1b4-2bcfafe1f998",
+      "group_index": 2,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251215/142438_72705085.png",
+      "prompt_used": "在图1的场景中加入图2的仆从C也在抱着地上的柴火，正背冲镜头，确保图中的三个仆从都能看得到，角落放着图3的麻绳",
+      "is_selected": true,
+      "created_at": "2025-12-15T14:24:39.143044"
+    },
+    {
+      "id": "32c910c8-48c5-4f7b-a957-b48e4d4daaa0",
+      "group_index": 3,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251215/142439_661c8ac8.png",
+      "prompt_used": "在图1的场景中加入图2的仆从C也在抱着地上的柴火，正背冲镜头，确保图中的三个仆从都能看得到，角落放着图3的麻绳",
+      "is_selected": false,
+      "created_at": "2025-12-15T14:24:42.482087"
+    },
+    {
+      "id": "78162661-bcbd-446c-a5c5-debd1957e368",
+      "group_index": 4,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251215/142440_042d29ec.png",
+      "prompt_used": "在图1的场景中加入图2的仆从C也在抱着地上的柴火，正背冲镜头，确保图中的三个仆从都能看得到，角落放着图3的麻绳",
+      "is_selected": false,
+      "created_at": "2025-12-15T14:24:42.482113"
+    },
+    {
+      "id": "1fae282a-567e-4beb-85ec-e20d6b88bacd",
+      "group_index": 5,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251215/142441_ce62462a.png",
+      "prompt_used": "在图1的场景中加入图2的仆从C也在抱着地上的柴火，正背冲镜头，确保图中的三个仆从都能看得到，角落放着图3的麻绳",
+      "is_selected": false,
+      "created_at": "2025-12-15T14:24:42.482123"
+    }
+  ],
+  "status": "completed",
+  "error_message": null,
+  "created_at": "2025-12-15T14:01:02.634914",
+  "updated_at": "2025-12-15T14:25:32.236008"
+}

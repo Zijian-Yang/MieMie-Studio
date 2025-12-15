@@ -8,7 +8,7 @@ import {
 import { 
   PlayCircleOutlined, ReloadOutlined, VideoCameraOutlined,
   LoadingOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  SoundOutlined, UploadOutlined, SettingOutlined
+  SoundOutlined, UploadOutlined, SettingOutlined, SaveOutlined
 } from '@ant-design/icons'
 import { videosApi, framesApi, settingsApi, Video, Shot, Frame, VideoModelInfo } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
@@ -993,16 +993,54 @@ const VideosPage = () => {
                 </div>
               )}
               
-              <Button
-                type="primary"
-                icon={<ReloadOutlined />}
-                onClick={generateSingleVideo}
-                loading={singleGenerating}
-                disabled={!(getFrameUrl(selectedShot.id) || selectedShot.first_frame_url)}
-                block
-              >
-                {selectedVideo?.video_url ? '重新生成视频' : '生成视频'}
-              </Button>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Button
+                  type="primary"
+                  icon={<ReloadOutlined />}
+                  onClick={generateSingleVideo}
+                  loading={singleGenerating}
+                  disabled={!(getFrameUrl(selectedShot.id) || selectedShot.first_frame_url)}
+                  block
+                >
+                  {selectedVideo?.video_url ? '重新生成视频' : '生成视频'}
+                </Button>
+                
+                {selectedVideo?.video_url && (
+                  <Button
+                    type="default"
+                    icon={<SaveOutlined />}
+                    onClick={async () => {
+                      if (!selectedVideo || !selectedShot || !projectId) return
+                      try {
+                        await videosApi.select({
+                          project_id: projectId,
+                          shot_id: selectedShot.id,
+                          video_id: selectedVideo.id
+                        })
+                        // 更新本地分镜数据
+                        const updatedShot = { 
+                          ...selectedShot, 
+                          video_url: selectedVideo.video_url,
+                          selected_video_id: selectedVideo.id
+                        }
+                        setSelectedShot(updatedShot)
+                        fetchProject(projectId)
+                        message.success('已保存选中的视频')
+                      } catch (error: any) {
+                        message.error(error.message || '保存失败')
+                      }
+                    }}
+                    block
+                    style={{ 
+                      background: selectedShot.selected_video_id === selectedVideo?.id ? '#52c41a' : undefined,
+                      borderColor: selectedShot.selected_video_id === selectedVideo?.id ? '#52c41a' : undefined,
+                      color: selectedShot.selected_video_id === selectedVideo?.id ? '#fff' : undefined
+                    }}
+                  >
+                    {selectedShot.selected_video_id === selectedVideo?.id ? '✓ 已保存为最终视频' : '保存为最终视频'}
+                  </Button>
+                )}
+              </Space>
             </div>
           </div>
         )}

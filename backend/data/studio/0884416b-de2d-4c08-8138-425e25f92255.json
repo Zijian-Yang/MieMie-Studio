@@ -1,0 +1,55 @@
+{
+  "id": "0884416b-de2d-4c08-8138-425e25f92255",
+  "project_id": "ff69d622-c3d2-4806-b8fd-950cc7689db4",
+  "name": "分2-加女主",
+  "description": "",
+  "model": "wan2.5-i2i-preview",
+  "prompt": "将图2的人物放在图1的柱子前，被粗麻绳绑在柱子上",
+  "negative_prompt": "",
+  "n": 3,
+  "group_count": 1,
+  "references": [
+    {
+      "type": "gallery",
+      "id": "64b79d35-bc56-4733-a6b8-c5d09b4b95a4",
+      "name": "分2-加仆从C - 第3组",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251215/142438_72705085.png"
+    },
+    {
+      "type": "character",
+      "id": "8fe17b59-c823-4bed-a264-c2fc7267f59b",
+      "name": "赫兰",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251215/132141_e437eff6.png"
+    }
+  ],
+  "images": [
+    {
+      "id": "2f14892a-d50a-4fb3-81c6-d950c482e596",
+      "group_index": 0,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251215/144254_9ba28ba1.png",
+      "prompt_used": "将图2的人物放在图1的柱子前，被粗麻绳绑在柱子上",
+      "is_selected": false,
+      "created_at": "2025-12-15T14:42:56.902393"
+    },
+    {
+      "id": "38cb25dc-387a-4b28-af76-b75b6bf03407",
+      "group_index": 1,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251215/144255_232052f0.png",
+      "prompt_used": "将图2的人物放在图1的柱子前，被粗麻绳绑在柱子上",
+      "is_selected": true,
+      "created_at": "2025-12-15T14:42:56.902419"
+    },
+    {
+      "id": "0ec4699b-e9a9-4628-bd5f-2ede3044f29b",
+      "group_index": 2,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251215/144256_efa8e96e.png",
+      "prompt_used": "将图2的人物放在图1的柱子前，被粗麻绳绑在柱子上",
+      "is_selected": false,
+      "created_at": "2025-12-15T14:42:56.902428"
+    }
+  ],
+  "status": "completed",
+  "error_message": null,
+  "created_at": "2025-12-15T14:40:54.420700",
+  "updated_at": "2025-12-15T14:43:23.712237"
+}

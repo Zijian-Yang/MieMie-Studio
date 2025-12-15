@@ -714,6 +714,8 @@ export const videosApi = {
   }) => api.post<any, { videos: Video[]; errors: Array<{ shot_id: string; error: string }>; success_count: number; error_count: number }>('/videos/generate-batch', { project_id: projectId, ...options }),
   getStatus: (taskId: string) => api.get<any, { task_id: string; status: string; video_url?: string }>(`/videos/status/${taskId}`),
   delete: (id: string) => api.delete(`/videos/${id}`),
+  select: (data: { project_id: string; shot_id: string; video_id: string }) => 
+    api.post<any, { message: string; shot_id: string; video_url: string }>('/videos/select', data),
 }
 
 // ============ 风格 API ============

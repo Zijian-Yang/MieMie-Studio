@@ -297,6 +297,53 @@ async def get_video(video_id: str):
     return video
 
 
+class SelectVideoRequest(BaseModel):
+    """选择视频请求"""
+    project_id: str
+    shot_id: str
+    video_id: str
+
+
+@router.post("/select")
+async def select_video(request: SelectVideoRequest):
+    """保存选中的候选视频作为该分镜的最终视频"""
+    project = storage_service.get_project(request.project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    
+    if not project.script or not project.script.shots:
+        raise HTTPException(status_code=404, detail="分镜脚本不存在")
+    
+    # 获取选中的视频
+    video = storage_service.get_video(request.video_id)
+    if not video:
+        raise HTTPException(status_code=404, detail="视频不存在")
+    
+    if not video.video_url:
+        raise HTTPException(status_code=400, detail="视频尚未生成完成")
+    
+    # 找到对应的分镜并更新
+    shot_found = False
+    for shot in project.script.shots:
+        if shot.id == request.shot_id:
+            shot.video_url = video.video_url
+            shot.selected_video_id = request.video_id
+            shot_found = True
+            break
+    
+    if not shot_found:
+        raise HTTPException(status_code=404, detail="分镜不存在")
+    
+    # 保存项目
+    storage_service.save_project(project)
+    
+    return {
+        "message": "视频已保存",
+        "shot_id": request.shot_id,
+        "video_url": video.video_url
+    }
+
+
 @router.delete("/{video_id}")
 async def delete_video(video_id: str):
     """删除视频"""

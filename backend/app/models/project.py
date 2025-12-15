@@ -46,7 +46,8 @@ class Shot(BaseModel):
     
     # 生成的素材
     first_frame_url: Optional[str] = None  # 首帧图 URL
-    video_url: Optional[str] = None  # 视频 URL
+    video_url: Optional[str] = None  # 视频 URL（选中的最终视频）
+    selected_video_id: Optional[str] = None  # 选中的候选视频ID
     audio_url: Optional[str] = None  # 配音 URL
 
 
