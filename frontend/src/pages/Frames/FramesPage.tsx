@@ -83,23 +83,6 @@ const SortableShotCard = ({ shot, frameUrl, isGenerating, onClick }: SortableSho
         <DragOutlined style={{ color: '#888', fontSize: 12 }} />
       </div>
       
-      {/* 编辑按钮 */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 4,
-          right: 4,
-          zIndex: 10,
-          padding: '2px 6px',
-          background: 'rgba(0,0,0,0.6)',
-          borderRadius: 4,
-          cursor: 'pointer'
-        }}
-        onClick={(e) => { e.stopPropagation(); onClick(); }}
-      >
-        <EditOutlined style={{ color: '#1890ff', fontSize: 12 }} />
-      </div>
-      
       <div 
         className="timeline-item-preview"
         onClick={onClick}

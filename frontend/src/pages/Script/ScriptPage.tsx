@@ -2,16 +2,18 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { 
   Card, Button, Switch, Select, Input, Upload, message, Spin, 
-  Radio, Empty, Tooltip, Space, Modal, Form, List, Tag, Tabs
+  Radio, Empty, Tooltip, Space, Modal, Form, List, Tag, Tabs, Table,
+  InputNumber, Image, Popconfirm, Collapse
 } from 'antd'
 import { 
   UploadOutlined, ClearOutlined, SaveOutlined, 
   PlayCircleOutlined, PlusOutlined, MinusOutlined,
   FileTextOutlined, SettingOutlined, HistoryOutlined,
-  BookOutlined, EditOutlined
+  BookOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined,
+  CaretRightOutlined, VideoCameraOutlined, PictureOutlined, UserOutlined
 } from '@ant-design/icons'
 import type { UploadProps } from 'antd'
-import { scriptsApi, generateScriptStream, projectsApi, settingsApi, ConfigResponse, ProjectLLMConfig } from '../../services/api'
+import { scriptsApi, generateScriptStream, projectsApi, settingsApi, ConfigResponse, ProjectLLMConfig, Shot, framesApi, videosApi, Frame, Video, Character, Scene, Prop, charactersApi, scenesApi, propsApi } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 import { useScriptStore, ScriptVersion, PromptVersion, Column } from '../../stores/scriptStore'
 import LLMConfigForm from '../../components/LLMConfigForm'
@@ -73,6 +75,17 @@ const ScriptPage = () => {
   const [saveVersionModalVisible, setSaveVersionModalVisible] = useState(false)
   const [saveVersionType, setSaveVersionType] = useState<'script' | 'prompt'>('script')
   const [versionForm] = Form.useForm()
+  
+  // 剧本看板状态
+  const [showStoryboard, setShowStoryboard] = useState(true)
+  const [shots, setShots] = useState<Shot[]>([])
+  const [frames, setFrames] = useState<Frame[]>([])
+  const [videos, setVideos] = useState<Video[]>([])
+  const [characters, setCharacters] = useState<Character[]>([])
+  const [scenes, setScenes] = useState<Scene[]>([])
+  const [props, setProps] = useState<Prop[]>([])
+  const [editingShotId, setEditingShotId] = useState<string | null>(null)
+  const [shotForm] = Form.useForm()
   
   // 流式输出的取消函数引用
   const cancelFnRef = useRef<(() => void) | null>(null)
@@ -141,9 +154,56 @@ const ScriptPage = () => {
         const { prompt } = await scriptsApi.getDefaultPrompt()
         setDefaultPrompt(prompt)
         
-        // 如果没有自定义提示词，使用默认提示词
-        if (!customPrompt) {
-          setCustomPrompt(prompt)
+        // 从后端加载剧本数据（包括版本历史）
+        try {
+          const scriptData = await scriptsApi.get(projectId)
+          if (scriptData) {
+            // 同步原始内容
+            if (scriptData.original_content && !originalContent) {
+              setOriginalContent(scriptData.original_content)
+            }
+            // 同步自定义提示词
+            if (scriptData.custom_prompt) {
+              setCustomPrompt(scriptData.custom_prompt)
+            } else if (!customPrompt) {
+              setCustomPrompt(prompt)
+            }
+            // 同步版本历史到本地 store
+            if (scriptData.script_versions && scriptData.script_versions.length > 0) {
+              scriptData.script_versions.forEach((v: any) => {
+                if (!scriptVersions.find(sv => sv.id === v.id)) {
+                  scriptStore.addScriptVersion(projectId, {
+                    id: v.id,
+                    name: v.name,
+                    description: v.description,
+                    content: v.content,
+                    originalContent: v.original_content,
+                    modelUsed: v.model_used,
+                    promptUsed: v.prompt_used,
+                    createdAt: v.created_at
+                  })
+                }
+              })
+            }
+            if (scriptData.prompt_versions && scriptData.prompt_versions.length > 0) {
+              scriptData.prompt_versions.forEach((v: any) => {
+                if (!promptVersions.find(pv => pv.id === v.id)) {
+                  scriptStore.addPromptVersion(projectId, {
+                    id: v.id,
+                    name: v.name,
+                    description: v.description,
+                    prompt: v.prompt,
+                    createdAt: v.created_at
+                  })
+                }
+              })
+            }
+          }
+        } catch {
+          // 如果没有自定义提示词，使用默认提示词
+          if (!customPrompt) {
+            setCustomPrompt(prompt)
+          }
         }
         
         initedRef.current = true
@@ -163,6 +223,83 @@ const ScriptPage = () => {
       setOriginalContent(currentProject.script.original_content || '')
     }
   }, [currentProject])
+
+  // 加载剧本看板数据
+  useEffect(() => {
+    const loadStoryboardData = async () => {
+      if (!projectId) return
+      try {
+        // 加载分镜、首帧、视频、角色、场景、道具
+        const [shotsData, framesData, videosData, charsData, scenesData, propsData] = await Promise.all([
+          currentProject?.script?.shots ? Promise.resolve({ shots: currentProject.script.shots }) : scriptsApi.get(projectId).then(s => ({ shots: s?.shots || [] })),
+          framesApi.list(projectId),
+          videosApi.list(projectId),
+          charactersApi.list(projectId),
+          scenesApi.list(projectId),
+          propsApi.list(projectId),
+        ])
+        setShots(shotsData.shots || currentProject?.script?.shots || [])
+        setFrames(framesData.frames || [])
+        setVideos(videosData.videos || [])
+        setCharacters(charsData.characters || [])
+        setScenes(scenesData.scenes || [])
+        setProps(propsData.props || [])
+      } catch (error) {
+        console.error('加载剧本看板数据失败:', error)
+      }
+    }
+    loadStoryboardData()
+  }, [projectId, currentProject?.script?.shots])
+
+  // 更新单个分镜
+  const updateShot = async (shotId: string, data: Partial<Shot>) => {
+    if (!projectId) return
+    try {
+      const { shot } = await scriptsApi.updateShot(projectId, shotId, data)
+      setShots(prev => prev.map(s => s.id === shotId ? { ...s, ...shot } : s))
+      message.success('分镜已更新')
+      setEditingShotId(null)
+    } catch (error) {
+      message.error('更新失败')
+    }
+  }
+
+  // 删除分镜
+  const deleteShot = async (shotId: string) => {
+    if (!projectId) return
+    try {
+      const result = await scriptsApi.deleteShot(projectId, shotId)
+      setShots(result.shots)
+      message.success('分镜已删除')
+    } catch (error) {
+      message.error('删除失败')
+    }
+  }
+
+  // 获取分镜关联的首帧
+  const getFrameForShot = (shotId: string) => {
+    return frames.find(f => f.shot_id === shotId)
+  }
+
+  // 获取分镜关联的视频
+  const getVideoForShot = (shotId: string) => {
+    return videos.find(v => v.shot_id === shotId)
+  }
+
+  // 根据名称获取角色
+  const getCharacterByName = (name: string) => {
+    return characters.find(c => c.name === name)
+  }
+
+  // 根据名称获取场景
+  const getSceneByName = (name: string) => {
+    return scenes.find(s => s.name === name)
+  }
+
+  // 根据名称获取道具
+  const getPropByName = (name: string) => {
+    return props.find(p => p.name === name)
+  }
 
   // 文件上传配置
   const uploadProps: UploadProps = {
@@ -285,7 +422,6 @@ const ScriptPage = () => {
     
     try {
       const values = await versionForm.validateFields()
-      const now = new Date().toISOString()
       
       if (saveVersionType === 'script') {
         const selectedColumn = columns.find(c => c.selected)
@@ -296,20 +432,30 @@ const ScriptPage = () => {
           return
         }
         
-        const version: ScriptVersion = {
-          id: `script-${Date.now()}`,
+        // 保存到后端（返回带 ID 的版本）
+        const result = await scriptsApi.createScriptVersion(projectId, {
           name: values.name || `版本 ${scriptVersions.length + 1}`,
           description: values.description || '',
           content: contentToSave,
-          originalContent: originalContent,
-          modelUsed: aiEditorEnabled ? selectedColumn?.model : undefined,
-          promptUsed: aiEditorEnabled ? (customPrompt || defaultPrompt) : undefined,
-          createdAt: now,
-        }
+          original_content: originalContent,
+          model_used: aiEditorEnabled ? selectedColumn?.model : undefined,
+          prompt_used: aiEditorEnabled ? (customPrompt || defaultPrompt) : undefined,
+        })
         
+        // 同步到本地 store
+        const version: ScriptVersion = {
+          id: result.version.id,
+          name: result.version.name,
+          description: result.version.description,
+          content: result.version.content,
+          originalContent: result.version.original_content,
+          modelUsed: result.version.model_used,
+          promptUsed: result.version.prompt_used,
+          createdAt: result.version.created_at,
+        }
         scriptStore.addScriptVersion(projectId, version)
         
-        // 同时保存到后端
+        // 同时保存当前内容
         await scriptsApi.save({
           project_id: projectId,
           content: contentToSave,
@@ -324,15 +470,26 @@ const ScriptPage = () => {
           return
         }
         
-        const version: PromptVersion = {
-          id: `prompt-${Date.now()}`,
+        // 保存提示词到后端
+        const result = await scriptsApi.createPromptVersion(projectId, {
           name: values.name || `提示词 ${promptVersions.length + 1}`,
           description: values.description || '',
           prompt: customPrompt,
-          createdAt: now,
-        }
+        })
         
+        // 同步到本地 store
+        const version: PromptVersion = {
+          id: result.version.id,
+          name: result.version.name,
+          description: result.version.description,
+          prompt: result.version.prompt,
+          createdAt: result.version.created_at,
+        }
         scriptStore.addPromptVersion(projectId, version)
+        
+        // 同时保存自定义提示词
+        await scriptsApi.saveCustomPrompt(projectId, customPrompt)
+        
         message.success('提示词版本已保存')
       }
       
@@ -766,6 +923,246 @@ const ScriptPage = () => {
             )}
           </Card>
         </div>
+      </div>
+
+      {/* 剧本看板 */}
+      <div style={{ marginTop: 16 }}>
+        <Collapse
+          activeKey={showStoryboard ? ['storyboard'] : []}
+          onChange={(keys) => setShowStoryboard(keys.includes('storyboard'))}
+          expandIcon={({ isActive }) => <CaretRightOutlined rotate={isActive ? 90 : 0} />}
+          style={{ background: '#1f1f1f', border: '1px solid #333' }}
+          items={[{
+            key: 'storyboard',
+            label: (
+              <Space>
+                <AppstoreOutlined />
+                <span style={{ fontWeight: 600 }}>剧本看板</span>
+                <Tag>{shots.length} 个分镜</Tag>
+              </Space>
+            ),
+            children: shots.length === 0 ? (
+              <Empty 
+                description="暂无分镜，请先解析剧本" 
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
+            ) : (
+              <div style={{ maxHeight: 400, overflow: 'auto' }}>
+                <Table
+                  dataSource={shots}
+                  rowKey="id"
+                  size="small"
+                  pagination={false}
+                  scroll={{ x: 1800 }}
+                  columns={[
+                    {
+                      title: '序号',
+                      dataIndex: 'shot_number',
+                      width: 60,
+                      fixed: 'left',
+                      render: (num: number) => <Tag color="blue">{num}</Tag>
+                    },
+                    {
+                      title: '首帧',
+                      width: 80,
+                      render: (_: any, record: Shot) => {
+                        const frame = getFrameForShot(record.id)
+                        const frameUrl = frame?.selected_url || record.first_frame_url
+                        return frameUrl ? (
+                          <Image src={frameUrl} width={60} height={40} style={{ objectFit: 'cover', borderRadius: 4 }} />
+                        ) : (
+                          <div style={{ width: 60, height: 40, background: '#333', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <PictureOutlined style={{ color: '#666' }} />
+                          </div>
+                        )
+                      }
+                    },
+                    {
+                      title: '视频',
+                      width: 80,
+                      render: (_: any, record: Shot) => {
+                        const video = getVideoForShot(record.id)
+                        return video?.video_url ? (
+                          <Tag color="green" icon={<VideoCameraOutlined />}>已生成</Tag>
+                        ) : (
+                          <Tag color="default">待生成</Tag>
+                        )
+                      }
+                    },
+                    {
+                      title: '镜头设计',
+                      dataIndex: 'shot_design',
+                      width: 180,
+                      ellipsis: true,
+                      render: (text: string, record: Shot) => 
+                        editingShotId === record.id ? (
+                          <Input.TextArea 
+                            defaultValue={text} 
+                            autoSize={{ minRows: 1, maxRows: 3 }}
+                            onChange={(e) => shotForm.setFieldValue('shot_design', e.target.value)}
+                          />
+                        ) : text || '-'
+                    },
+                    {
+                      title: '景别',
+                      dataIndex: 'scene_type',
+                      width: 80,
+                      render: (type: string, record: Shot) => 
+                        editingShotId === record.id ? (
+                          <Select 
+                            defaultValue={type} 
+                            style={{ width: 70 }}
+                            size="small"
+                            options={[
+                              { label: '远景', value: '远景' },
+                              { label: '全景', value: '全景' },
+                              { label: '中景', value: '中景' },
+                              { label: '近景', value: '近景' },
+                              { label: '特写', value: '特写' },
+                            ]}
+                            onChange={(v) => shotForm.setFieldValue('scene_type', v)}
+                          />
+                        ) : <Tag>{type || '-'}</Tag>
+                    },
+                    {
+                      title: '角色',
+                      dataIndex: 'characters',
+                      width: 150,
+                      render: (chars: string[]) => (
+                        <Space size={4} wrap>
+                          {chars?.map((name, i) => {
+                            const char = getCharacterByName(name)
+                            const avatarUrl = char?.image_groups?.[char.selected_group_index]?.front_url
+                            return (
+                              <Tooltip key={i} title={name}>
+                                {avatarUrl ? (
+                                  <Image src={avatarUrl} width={24} height={24} style={{ borderRadius: 12, objectFit: 'cover' }} preview={false} />
+                                ) : (
+                                  <Tag icon={<UserOutlined />} style={{ margin: 0 }}>{name}</Tag>
+                                )}
+                              </Tooltip>
+                            )
+                          })}
+                          {(!chars || chars.length === 0) && '-'}
+                        </Space>
+                      )
+                    },
+                    {
+                      title: '台词',
+                      dataIndex: 'dialogue',
+                      width: 180,
+                      ellipsis: true,
+                      render: (text: string, record: Shot) => 
+                        editingShotId === record.id ? (
+                          <Input.TextArea 
+                            defaultValue={text} 
+                            autoSize={{ minRows: 1, maxRows: 3 }}
+                            onChange={(e) => shotForm.setFieldValue('dialogue', e.target.value)}
+                          />
+                        ) : text || '-'
+                    },
+                    {
+                      title: '场景',
+                      dataIndex: 'scene_setting',
+                      width: 150,
+                      ellipsis: true,
+                      render: (text: string) => text || '-'
+                    },
+                    {
+                      title: '动作',
+                      dataIndex: 'character_action',
+                      width: 150,
+                      ellipsis: true,
+                      render: (text: string, record: Shot) => 
+                        editingShotId === record.id ? (
+                          <Input.TextArea 
+                            defaultValue={text} 
+                            autoSize={{ minRows: 1, maxRows: 3 }}
+                            onChange={(e) => shotForm.setFieldValue('character_action', e.target.value)}
+                          />
+                        ) : text || '-'
+                    },
+                    {
+                      title: '情绪',
+                      dataIndex: 'mood',
+                      width: 100,
+                      render: (text: string) => text || '-'
+                    },
+                    {
+                      title: '时长',
+                      dataIndex: 'duration',
+                      width: 70,
+                      render: (duration: number, record: Shot) => 
+                        editingShotId === record.id ? (
+                          <InputNumber 
+                            defaultValue={duration} 
+                            min={1} 
+                            max={10} 
+                            size="small"
+                            style={{ width: 60 }}
+                            onChange={(v) => shotForm.setFieldValue('duration', v)}
+                          />
+                        ) : `${duration || 5}s`
+                    },
+                    {
+                      title: '操作',
+                      width: 120,
+                      fixed: 'right',
+                      render: (_: any, record: Shot) => (
+                        <Space size={4}>
+                          {editingShotId === record.id ? (
+                            <>
+                              <Button 
+                                type="link" 
+                                size="small"
+                                onClick={async () => {
+                                  const values = shotForm.getFieldsValue()
+                                  await updateShot(record.id, values)
+                                }}
+                              >
+                                保存
+                              </Button>
+                              <Button 
+                                type="link" 
+                                size="small" 
+                                onClick={() => {
+                                  setEditingShotId(null)
+                                  shotForm.resetFields()
+                                }}
+                              >
+                                取消
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button 
+                                type="link" 
+                                size="small" 
+                                icon={<EditOutlined />}
+                                onClick={() => {
+                                  setEditingShotId(record.id)
+                                  shotForm.setFieldsValue(record)
+                                }}
+                              />
+                              <Popconfirm
+                                title="确定删除此分镜？"
+                                onConfirm={() => deleteShot(record.id)}
+                                okText="删除"
+                                cancelText="取消"
+                              >
+                                <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+                              </Popconfirm>
+                            </>
+                          )}
+                        </Space>
+                      )
+                    }
+                  ]}
+                />
+              </div>
+            ),
+          }]}
+        />
       </div>
 
       {/* 模型配置弹窗 */}

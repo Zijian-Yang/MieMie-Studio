@@ -210,7 +210,10 @@ export interface Script {
   processed_content: string
   model_used?: string
   prompt_used?: string
+  custom_prompt?: string
   shots: Shot[]
+  script_versions?: ScriptVersion[]
+  prompt_versions?: PromptVersion[]
   created_at: string
   updated_at: string
 }
@@ -276,6 +279,26 @@ export interface ShotCreateRequest {
   insert_after_shot_id?: string
 }
 
+// 剧本版本接口
+export interface ScriptVersion {
+  id: string
+  name: string
+  description: string
+  content: string
+  original_content: string
+  model_used?: string
+  prompt_used?: string
+  created_at: string
+}
+
+export interface PromptVersion {
+  id: string
+  name: string
+  description: string
+  prompt: string
+  created_at: string
+}
+
 export const scriptsApi = {
   get: (projectId: string) => api.get<any, Script>(`/scripts/${projectId}`),
   upload: (projectId: string, file: File) => {
@@ -303,6 +326,29 @@ export const scriptsApi = {
   deleteShot: (projectId: string, shotId: string) => 
     api.delete<any, { message: string; shots: Shot[] }>(`/scripts/${projectId}/shots/${shotId}`),
   getDefaultPrompt: () => api.get<any, { prompt: string }>('/scripts/prompts/default'),
+  
+  // 版本管理
+  getScriptVersions: (projectId: string) => 
+    api.get<any, { versions: ScriptVersion[] }>(`/scripts/${projectId}/script-versions`),
+  createScriptVersion: (projectId: string, data: {
+    name: string
+    description?: string
+    content: string
+    original_content?: string
+    model_used?: string
+    prompt_used?: string
+  }) => api.post<any, { version: ScriptVersion; versions: ScriptVersion[] }>(`/scripts/${projectId}/script-versions`, data),
+  
+  getPromptVersions: (projectId: string) => 
+    api.get<any, { versions: PromptVersion[] }>(`/scripts/${projectId}/prompt-versions`),
+  createPromptVersion: (projectId: string, data: {
+    name: string
+    description?: string
+    prompt: string
+  }) => api.post<any, { version: PromptVersion; versions: PromptVersion[] }>(`/scripts/${projectId}/prompt-versions`, data),
+  
+  saveCustomPrompt: (projectId: string, customPrompt: string) => 
+    api.put(`/scripts/${projectId}/custom-prompt`, { custom_prompt: customPrompt }),
 }
 
 // SSE 流式生成
@@ -404,8 +450,22 @@ export interface Character {
 export const charactersApi = {
   list: (projectId: string) => api.get<any, { characters: Character[] }>('/characters', { params: { project_id: projectId } }),
   get: (id: string) => api.get<any, Character>(`/characters/${id}`),
+  create: (data: {
+    project_id: string
+    name: string
+    description?: string
+    appearance?: string
+    personality?: string
+    common_prompt?: string
+    character_prompt?: string
+    negative_prompt?: string
+  }) => api.post<any, { character: Character }>('/characters/create', data),
   extract: (projectId: string) => api.post<any, { characters: Character[] }>('/characters/extract', { project_id: projectId }),
   update: (id: string, data: Partial<Character>) => api.put<any, Character>(`/characters/${id}`, data),
+  selectImages: (id: string, data: {
+    image_urls: string[]
+    group_index?: number
+  }) => api.post<any, { character: Character }>(`/characters/${id}/select-images`, data),
   generate: (id: string, data: {
     group_index?: number
     common_prompt?: string
@@ -453,8 +513,20 @@ export interface Scene {
 export const scenesApi = {
   list: (projectId: string) => api.get<any, { scenes: Scene[] }>('/scenes', { params: { project_id: projectId } }),
   get: (id: string) => api.get<any, Scene>(`/scenes/${id}`),
+  create: (data: {
+    project_id: string
+    name: string
+    description?: string
+    common_prompt?: string
+    scene_prompt?: string
+    negative_prompt?: string
+  }) => api.post<any, { scene: Scene }>('/scenes/create', data),
   extract: (projectId: string) => api.post<any, { scenes: Scene[] }>('/scenes/extract', { project_id: projectId }),
   update: (id: string, data: Partial<Scene>) => api.put<any, Scene>(`/scenes/${id}`, data),
+  selectImage: (id: string, data: {
+    image_url: string
+    group_index?: number
+  }) => api.post<any, { scene: Scene }>(`/scenes/${id}/select-image`, data),
   generate: (id: string, data: {
     group_index?: number
     common_prompt?: string
@@ -502,8 +574,20 @@ export interface Prop {
 export const propsApi = {
   list: (projectId: string) => api.get<any, { props: Prop[] }>('/props', { params: { project_id: projectId } }),
   get: (id: string) => api.get<any, Prop>(`/props/${id}`),
+  create: (data: {
+    project_id: string
+    name: string
+    description?: string
+    common_prompt?: string
+    prop_prompt?: string
+    negative_prompt?: string
+  }) => api.post<any, { prop: Prop }>('/props/create', data),
   extract: (projectId: string) => api.post<any, { props: Prop[] }>('/props/extract', { project_id: projectId }),
   update: (id: string, data: Partial<Prop>) => api.put<any, Prop>(`/props/${id}`, data),
+  selectImage: (id: string, data: {
+    image_url: string
+    group_index?: number
+  }) => api.post<any, { prop: Prop }>(`/props/${id}/select-image`, data),
   generate: (id: string, data: {
     group_index?: number
     common_prompt?: string
@@ -1048,8 +1132,24 @@ export const videoStudioApi = {
     auto_audio?: boolean  // 自动配音
     group_count?: number
   }) => api.post<any, { task: VideoStudioTask }>('/video-studio', data),
-  update: (id: string, data: { name?: string; selected_video_url?: string }) => 
+  update: (id: string, data: { 
+    name?: string
+    selected_video_url?: string
+    prompt?: string
+    negative_prompt?: string
+    model?: string
+    resolution?: string
+    duration?: number
+    prompt_extend?: boolean
+    watermark?: boolean
+    seed?: number
+    auto_audio?: boolean
+    first_frame_url?: string
+    audio_url?: string
+  }) => 
     api.put<any, VideoStudioTask>(`/video-studio/${id}`, data),
+  regenerate: (id: string) => 
+    api.post<any, { task: VideoStudioTask; task_ids: string[] }>(`/video-studio/${id}/regenerate`),
   saveToLibrary: (id: string, videoUrl: string, name?: string) => 
     api.post<any, { message: string; video: VideoLibraryItem }>(`/video-studio/${id}/save-to-library`, null, { params: { video_url: videoUrl, name } }),
   delete: (id: string) => api.delete(`/video-studio/${id}`),

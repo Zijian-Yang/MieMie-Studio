@@ -43,6 +43,9 @@ const ScenesPage = () => {
   const [batchGenerating, setBatchGenerating] = useState(false)
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0, currentName: '' })
   const [settingsModalVisible, setSettingsModalVisible] = useState(false)
+  // 新建场景弹窗
+  const [createModalVisible, setCreateModalVisible] = useState(false)
+  const [createForm] = Form.useForm()
   
   // 风格相关
   const [styles, setStyles] = useState<Style[]>([])
@@ -100,6 +103,27 @@ const ScenesPage = () => {
       message.error('提取失败')
     } finally {
       safeSetState(setExtracting, false)
+    }
+  }
+
+  // 手动创建场景
+  const createScene = async () => {
+    if (!projectId) return
+    try {
+      const values = await createForm.validateFields()
+      const { scene } = await scenesApi.create({
+        project_id: projectId,
+        name: values.name,
+        description: values.description || '',
+        scene_prompt: values.scene_prompt || '',
+      })
+      safeSetState(setScenes, (prev: Scene[]) => [...prev, scene])
+      setCreateModalVisible(false)
+      createForm.resetFields()
+      message.success('场景已创建')
+      openSceneModal(scene)
+    } catch (error) {
+      message.error('创建失败')
     }
   }
 
@@ -315,6 +339,7 @@ const ScenesPage = () => {
               </Popconfirm>
             </>
           )}
+          <Button icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)} disabled={batchGenerating}>手动新建</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={extractScenes} loading={extracting} disabled={batchGenerating}>从剧本提取场景</Button>
         </Space>
       </div>
@@ -498,6 +523,43 @@ const ScenesPage = () => {
                 />
               )}
             </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 新建场景弹窗 */}
+      <Modal
+        title="新建场景"
+        open={createModalVisible}
+        onOk={createScene}
+        onCancel={() => {
+          setCreateModalVisible(false)
+          createForm.resetFields()
+        }}
+        okText="创建"
+        cancelText="取消"
+        width={600}
+      >
+        <Form form={createForm} layout="vertical">
+          <Form.Item
+            name="name"
+            label="场景名称"
+            rules={[{ required: true, message: '请输入场景名称' }]}
+          >
+            <Input placeholder="例如：咖啡厅内景" />
+          </Form.Item>
+          <Form.Item
+            name="description"
+            label="场景描述"
+          >
+            <TextArea rows={2} placeholder="场景的详细描述" />
+          </Form.Item>
+          <Form.Item
+            name="scene_prompt"
+            label="生图提示词"
+            extra="用于生成场景图片的提示词"
+          >
+            <TextArea rows={3} placeholder="例如：温馨的咖啡厅内景，暖色调灯光，木质桌椅" />
           </Form.Item>
         </Form>
       </Modal>

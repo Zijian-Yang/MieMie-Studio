@@ -77,6 +77,22 @@ class SceneUpdateRequest(BaseModel):
     selected_group_index: Optional[int] = None
 
 
+class SceneCreateRequest(BaseModel):
+    """手动创建场景请求"""
+    project_id: str
+    name: str
+    description: Optional[str] = ""
+    common_prompt: Optional[str] = ""
+    scene_prompt: Optional[str] = ""
+    negative_prompt: Optional[str] = ""
+
+
+class SceneSelectImageRequest(BaseModel):
+    """从图库选择图片作为场景图请求"""
+    image_url: str
+    group_index: int = 0
+
+
 # 场景提取提示词
 SCENE_EXTRACT_PROMPT = """请从以下剧本中提取所有出现的场景，并为每个场景生成详细信息。
 
@@ -106,6 +122,33 @@ SCENE_EXTRACT_PROMPT = """请从以下剧本中提取所有出现的场景，并
 
 剧本内容：
 """
+
+
+@router.post("/create")
+async def create_scene(request: SceneCreateRequest):
+    """手动创建场景"""
+    project = storage_service.get_project(request.project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    
+    # 创建场景
+    scene = Scene(
+        project_id=request.project_id,
+        name=request.name,
+        description=request.description or "",
+        common_prompt=request.common_prompt or "高清场景图，电影级画质，专业摄影",
+        scene_prompt=request.scene_prompt or "",
+        negative_prompt=request.negative_prompt or "",
+    )
+    
+    storage_service.save_scene(scene)
+    
+    # 更新项目的场景列表
+    if scene.id not in project.scene_ids:
+        project.scene_ids.append(scene.id)
+        storage_service.save_project(project)
+    
+    return {"scene": scene}
 
 
 @router.post("/extract")
@@ -189,6 +232,47 @@ async def update_scene(scene_id: str, request: SceneUpdateRequest):
     
     storage_service.save_scene(scene)
     return scene
+
+
+@router.post("/{scene_id}/select-image")
+async def select_scene_image(scene_id: str, request: SceneSelectImageRequest):
+    """从图库选择图片作为场景图"""
+    from datetime import datetime
+    
+    scene = storage_service.get_scene(scene_id)
+    if not scene:
+        raise HTTPException(status_code=404, detail="场景不存在")
+    
+    if not request.image_url:
+        raise HTTPException(status_code=400, detail="请提供图片URL")
+    
+    # 创建图片组
+    image_group = SceneImage(
+        group_index=request.group_index,
+        url=request.image_url,
+        prompt_used="从图库选择",
+        created_at=datetime.now().isoformat()
+    )
+    
+    # 检查组索引是否已存在
+    existing_index = None
+    for i, group in enumerate(scene.image_groups):
+        if group.group_index == request.group_index:
+            existing_index = i
+            break
+    
+    if existing_index is not None:
+        scene.image_groups[existing_index] = image_group
+    else:
+        scene.image_groups.append(image_group)
+        scene.image_groups.sort(key=lambda x: x.group_index)
+    
+    # 自动选中该组
+    scene.selected_group_index = request.group_index
+    
+    storage_service.save_scene(scene)
+    
+    return {"scene": scene}
 
 
 @router.post("/{scene_id}/generate")

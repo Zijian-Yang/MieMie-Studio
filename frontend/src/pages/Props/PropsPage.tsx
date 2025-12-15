@@ -43,6 +43,9 @@ const PropsPage = () => {
   const [batchGenerating, setBatchGenerating] = useState(false)
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0, currentName: '' })
   const [settingsModalVisible, setSettingsModalVisible] = useState(false)
+  // 新建道具弹窗
+  const [createModalVisible, setCreateModalVisible] = useState(false)
+  const [createForm] = Form.useForm()
   
   // 风格相关
   const [styles, setStyles] = useState<Style[]>([])
@@ -100,6 +103,27 @@ const PropsPage = () => {
       message.error('提取失败')
     } finally {
       safeSetState(setExtracting, false)
+    }
+  }
+
+  // 手动创建道具
+  const createProp = async () => {
+    if (!projectId) return
+    try {
+      const values = await createForm.validateFields()
+      const { prop } = await propsApi.create({
+        project_id: projectId,
+        name: values.name,
+        description: values.description || '',
+        prop_prompt: values.prop_prompt || '',
+      })
+      safeSetState(setProps, (prev: Prop[]) => [...prev, prop])
+      setCreateModalVisible(false)
+      createForm.resetFields()
+      message.success('道具已创建')
+      openPropModal(prop)
+    } catch (error) {
+      message.error('创建失败')
     }
   }
 
@@ -315,6 +339,7 @@ const PropsPage = () => {
               </Popconfirm>
             </>
           )}
+          <Button icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)} disabled={batchGenerating}>手动新建</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={extractProps} loading={extracting} disabled={batchGenerating}>从剧本提取道具</Button>
         </Space>
       </div>
@@ -498,6 +523,43 @@ const PropsPage = () => {
                 />
               )}
             </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 新建道具弹窗 */}
+      <Modal
+        title="新建道具"
+        open={createModalVisible}
+        onOk={createProp}
+        onCancel={() => {
+          setCreateModalVisible(false)
+          createForm.resetFields()
+        }}
+        okText="创建"
+        cancelText="取消"
+        width={600}
+      >
+        <Form form={createForm} layout="vertical">
+          <Form.Item
+            name="name"
+            label="道具名称"
+            rules={[{ required: true, message: '请输入道具名称' }]}
+          >
+            <Input placeholder="例如：复古怀表" />
+          </Form.Item>
+          <Form.Item
+            name="description"
+            label="道具描述"
+          >
+            <TextArea rows={2} placeholder="道具的详细描述" />
+          </Form.Item>
+          <Form.Item
+            name="prop_prompt"
+            label="生图提示词"
+            extra="用于生成道具图片的提示词"
+          >
+            <TextArea rows={3} placeholder="例如：精致的复古黄铜怀表，链条，白色背景" />
           </Form.Item>
         </Form>
       </Modal>

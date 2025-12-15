@@ -57,6 +57,24 @@ class CharacterUpdateRequest(BaseModel):
     voice: Optional[VoiceConfig] = None
 
 
+class CharacterCreateRequest(BaseModel):
+    """手动创建角色请求"""
+    project_id: str
+    name: str
+    description: Optional[str] = ""
+    appearance: Optional[str] = ""
+    personality: Optional[str] = ""
+    common_prompt: Optional[str] = ""
+    character_prompt: Optional[str] = ""
+    negative_prompt: Optional[str] = ""
+
+
+class CharacterSelectImageRequest(BaseModel):
+    """从图库选择图片作为角色图请求"""
+    image_urls: List[str]  # 可以是 1-3 张图片
+    group_index: int = 0  # 要设置的组索引
+
+
 # 角色提取提示词
 CHARACTER_EXTRACT_PROMPT = """请从以下剧本中提取所有出现的角色，并为每个角色生成详细信息。
 
@@ -90,6 +108,35 @@ VIEW_PROMPTS = {
     "side": "侧面视角，面向右侧",
     "back": "背面视角，背对镜头"
 }
+
+
+@router.post("/create")
+async def create_character(request: CharacterCreateRequest):
+    """手动创建角色"""
+    project = storage_service.get_project(request.project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    
+    # 创建角色
+    character = Character(
+        project_id=request.project_id,
+        name=request.name,
+        description=request.description or "",
+        appearance=request.appearance or "",
+        personality=request.personality or "",
+        common_prompt=request.common_prompt or "半身人物肖像，白色纯净背景，高清细节，一致的光线，专业摄影风格",
+        character_prompt=request.character_prompt or "",
+        negative_prompt=request.negative_prompt or "",
+    )
+    
+    storage_service.save_character(character)
+    
+    # 更新项目的角色列表
+    if character.id not in project.character_ids:
+        project.character_ids.append(character.id)
+        storage_service.save_project(project)
+    
+    return {"character": character}
 
 
 @router.post("/extract")
@@ -177,6 +224,52 @@ async def update_character(character_id: str, request: CharacterUpdateRequest):
     
     storage_service.save_character(character)
     return character
+
+
+@router.post("/{character_id}/select-images")
+async def select_character_images(character_id: str, request: CharacterSelectImageRequest):
+    """从图库选择图片作为角色图（支持1-3张：正面、侧面、背面）"""
+    from datetime import datetime
+    
+    character = storage_service.get_character(character_id)
+    if not character:
+        raise HTTPException(status_code=404, detail="角色不存在")
+    
+    if not request.image_urls or len(request.image_urls) == 0:
+        raise HTTPException(status_code=400, detail="请提供至少一张图片")
+    
+    if len(request.image_urls) > 3:
+        raise HTTPException(status_code=400, detail="最多选择3张图片（正面、侧面、背面）")
+    
+    # 创建图片组
+    image_group = CharacterImage(
+        group_index=request.group_index,
+        front_url=request.image_urls[0] if len(request.image_urls) > 0 else None,
+        side_url=request.image_urls[1] if len(request.image_urls) > 1 else None,
+        back_url=request.image_urls[2] if len(request.image_urls) > 2 else None,
+        prompt_used="从图库选择",
+        created_at=datetime.now().isoformat()
+    )
+    
+    # 检查组索引是否已存在
+    existing_index = None
+    for i, group in enumerate(character.image_groups):
+        if group.group_index == request.group_index:
+            existing_index = i
+            break
+    
+    if existing_index is not None:
+        character.image_groups[existing_index] = image_group
+    else:
+        character.image_groups.append(image_group)
+        character.image_groups.sort(key=lambda x: x.group_index)
+    
+    # 自动选中该组
+    character.selected_group_index = request.group_index
+    
+    storage_service.save_character(character)
+    
+    return {"character": character}
 
 
 def build_character_prompt(common_prompt: str, char_prompt: str, negative_prompt: str, view_prompt: str, style=None) -> tuple[str, TypingList[str]]:

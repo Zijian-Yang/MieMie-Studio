@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 import json
 
-from app.models.project import Script, Shot
+from app.models.project import Script, Shot, ScriptVersion, PromptVersion
 from app.services.storage import storage_service
 from app.services.dashscope.llm import LLMService
 from app.services.file_parser import parse_file
@@ -419,3 +419,112 @@ async def delete_shot(project_id: str, shot_id: str):
     storage_service.save_project(project)
     
     return {"message": "分镜已删除", "shots": project.script.shots}
+
+
+# ============ 版本管理 API ============
+
+class ScriptVersionCreateRequest(BaseModel):
+    """创建剧本版本请求"""
+    name: str
+    description: str = ""
+    content: str
+    original_content: str = ""
+    model_used: Optional[str] = None
+    prompt_used: Optional[str] = None
+
+
+class PromptVersionCreateRequest(BaseModel):
+    """创建提示词版本请求"""
+    name: str
+    description: str = ""
+    prompt: str
+
+
+class SaveCustomPromptRequest(BaseModel):
+    """保存自定义提示词请求"""
+    custom_prompt: str
+
+
+@router.post("/{project_id}/script-versions")
+async def create_script_version(project_id: str, request: ScriptVersionCreateRequest):
+    """创建剧本版本"""
+    project = storage_service.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    
+    if not project.script:
+        project.script = Script()
+    
+    version = ScriptVersion(
+        name=request.name,
+        description=request.description,
+        content=request.content,
+        original_content=request.original_content,
+        model_used=request.model_used,
+        prompt_used=request.prompt_used
+    )
+    
+    project.script.script_versions.insert(0, version)
+    storage_service.save_project(project)
+    
+    return {"version": version, "versions": project.script.script_versions}
+
+
+@router.get("/{project_id}/script-versions")
+async def get_script_versions(project_id: str):
+    """获取剧本版本列表"""
+    project = storage_service.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    
+    versions = project.script.script_versions if project.script else []
+    return {"versions": versions}
+
+
+@router.post("/{project_id}/prompt-versions")
+async def create_prompt_version(project_id: str, request: PromptVersionCreateRequest):
+    """创建提示词版本"""
+    project = storage_service.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    
+    if not project.script:
+        project.script = Script()
+    
+    version = PromptVersion(
+        name=request.name,
+        description=request.description,
+        prompt=request.prompt
+    )
+    
+    project.script.prompt_versions.insert(0, version)
+    storage_service.save_project(project)
+    
+    return {"version": version, "versions": project.script.prompt_versions}
+
+
+@router.get("/{project_id}/prompt-versions")
+async def get_prompt_versions(project_id: str):
+    """获取提示词版本列表"""
+    project = storage_service.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    
+    versions = project.script.prompt_versions if project.script else []
+    return {"versions": versions}
+
+
+@router.put("/{project_id}/custom-prompt")
+async def save_custom_prompt(project_id: str, request: SaveCustomPromptRequest):
+    """保存自定义提示词"""
+    project = storage_service.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    
+    if not project.script:
+        project.script = Script()
+    
+    project.script.custom_prompt = request.custom_prompt
+    storage_service.save_project(project)
+    
+    return {"message": "提示词已保存"}

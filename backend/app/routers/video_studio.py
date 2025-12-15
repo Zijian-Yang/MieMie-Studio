@@ -48,6 +48,18 @@ class VideoStudioTaskUpdateRequest(BaseModel):
     """更新任务请求"""
     name: Optional[str] = None
     selected_video_url: Optional[str] = None
+    # 支持编辑的字段
+    prompt: Optional[str] = None
+    negative_prompt: Optional[str] = None
+    model: Optional[str] = None
+    resolution: Optional[str] = None
+    duration: Optional[int] = None
+    prompt_extend: Optional[bool] = None
+    watermark: Optional[bool] = None
+    seed: Optional[int] = None
+    auto_audio: Optional[bool] = None
+    first_frame_url: Optional[str] = None
+    audio_url: Optional[str] = None
 
 
 @router.get("")
@@ -190,15 +202,88 @@ async def update_task(task_id: str, request: VideoStudioTaskUpdateRequest):
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
     
+    # 更新各字段
     if request.name is not None:
         task.name = request.name
     if request.selected_video_url is not None:
         task.selected_video_url = request.selected_video_url
+    if request.prompt is not None:
+        task.prompt = request.prompt
+    if request.negative_prompt is not None:
+        task.negative_prompt = request.negative_prompt
+    if request.model is not None:
+        task.model = request.model
+    if request.resolution is not None:
+        task.resolution = request.resolution
+    if request.duration is not None:
+        task.duration = request.duration
+    if request.prompt_extend is not None:
+        task.prompt_extend = request.prompt_extend
+    if request.watermark is not None:
+        task.watermark = request.watermark
+    if request.seed is not None:
+        task.seed = request.seed
+    if request.auto_audio is not None:
+        task.auto_audio = request.auto_audio
+    if request.first_frame_url is not None:
+        task.first_frame_url = request.first_frame_url
+    if request.audio_url is not None:
+        task.audio_url = request.audio_url
     
     task.updated_at = datetime.now()
     storage_service.save_video_studio_task(task)
     
     return task
+
+
+@router.post("/{task_id}/regenerate")
+async def regenerate_task(task_id: str):
+    """重新生成任务视频"""
+    task = storage_service.get_video_studio_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    
+    if not task.first_frame_url:
+        raise HTTPException(status_code=400, detail="任务没有首帧图")
+    
+    # 重置任务状态
+    task.status = "processing"
+    task.video_urls = []
+    task.error_message = None
+    task.task_ids = []
+    task.updated_at = datetime.now()
+    
+    # 创建服务
+    i2v_service = ImageToVideoService()
+    
+    # 根据 group_count 并发生成
+    import asyncio
+    async def generate_one(idx: int):
+        current_seed = task.seed + idx if task.seed is not None else None
+        return await i2v_service.create_task(
+            image_url=task.first_frame_url,
+            prompt=task.prompt,
+            model=task.model,
+            resolution=task.resolution,
+            duration=task.duration,
+            prompt_extend=task.prompt_extend,
+            watermark=task.watermark,
+            seed=current_seed,
+            audio_url=task.audio_url,
+            audio=task.auto_audio if not task.audio_url else None,
+            negative_prompt=task.negative_prompt,
+        )
+    
+    try:
+        task_ids = await asyncio.gather(*[generate_one(i) for i in range(task.group_count)])
+        task.task_ids = list(task_ids)
+        storage_service.save_video_studio_task(task)
+        return {"task": task, "task_ids": task_ids}
+    except Exception as e:
+        task.status = "failed"
+        task.error_message = str(e)
+        storage_service.save_video_studio_task(task)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{task_id}/save-to-library")

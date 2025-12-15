@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { Card, Button, List, Modal, Input, Select, InputNumber, Switch, message, Popconfirm, Space, Empty, Spin, Row, Col, Tabs, Tag } from 'antd'
-import { PlusOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, VideoCameraOutlined } from '@ant-design/icons'
+import { Card, Button, List, Modal, Input, Select, InputNumber, Switch, message, Popconfirm, Space, Empty, Spin, Row, Col, Tabs, Tag, Form } from 'antd'
+import { PlusOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, VideoCameraOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons'
 import { videoStudioApi, galleryApi, audioApi, settingsApi, VideoStudioTask, GalleryImage, AudioItem, VideoModelInfo } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 
@@ -16,7 +16,11 @@ const VideoStudioPage = () => {
   const [loading, setLoading] = useState(true)
   const [createModalVisible, setCreateModalVisible] = useState(false)
   const [detailModalVisible, setDetailModalVisible] = useState(false)
+  const [editModalVisible, setEditModalVisible] = useState(false)
   const [selectedTask, setSelectedTask] = useState<VideoStudioTask | null>(null)
+  const [editForm] = Form.useForm()
+  const [saving, setSaving] = useState(false)
+  const [regenerating, setRegenerating] = useState(false)
   
   // 图库和音频库
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([])
@@ -207,6 +211,64 @@ const VideoStudioPage = () => {
       message.success('删除成功')
     } catch (error: any) {
       message.error(error.message || '删除失败')
+    }
+  }
+
+  // 打开编辑弹窗
+  const openEditModal = (task: VideoStudioTask) => {
+    setSelectedTask(task)
+    editForm.setFieldsValue({
+      name: task.name,
+      prompt: task.prompt,
+      negative_prompt: task.negative_prompt,
+      model: task.model,
+      resolution: task.resolution,
+      duration: task.duration,
+      prompt_extend: task.prompt_extend,
+      watermark: task.watermark,
+      seed: task.seed,
+      auto_audio: task.auto_audio,
+    })
+    setEditModalVisible(true)
+  }
+
+  // 保存编辑
+  const handleSaveEdit = async () => {
+    if (!selectedTask) return
+    
+    try {
+      setSaving(true)
+      const values = editForm.getFieldsValue()
+      const updatedTask = await videoStudioApi.update(selectedTask.id, values)
+      setTasks(prev => prev.map(t => t.id === selectedTask.id ? updatedTask : t))
+      setSelectedTask(updatedTask)
+      setEditModalVisible(false)
+      message.success('任务已更新')
+    } catch (error: any) {
+      message.error(error.message || '更新失败')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // 重新生成
+  const handleRegenerate = async (task: VideoStudioTask) => {
+    try {
+      setRegenerating(true)
+      const { task: updatedTask, task_ids } = await videoStudioApi.regenerate(task.id)
+      setTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t))
+      setSelectedTask(updatedTask)
+      
+      // 启动轮询
+      task_ids.forEach(() => {
+        startPolling(task.id)
+      })
+      
+      message.success('已开始重新生成')
+    } catch (error: any) {
+      message.error(error.message || '重新生成失败')
+    } finally {
+      setRegenerating(false)
     }
   }
 
@@ -619,7 +681,29 @@ const VideoStudioPage = () => {
 
       {/* 详情弹窗 */}
       <Modal
-        title={selectedTask?.name || '任务详情'}
+        title={
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: 30 }}>
+            <span>{selectedTask?.name || '任务详情'}</span>
+            <Space>
+              <Button 
+                size="small" 
+                icon={<EditOutlined />}
+                onClick={() => selectedTask && openEditModal(selectedTask)}
+              >
+                编辑
+              </Button>
+              <Button 
+                size="small" 
+                icon={<ReloadOutlined />}
+                loading={regenerating}
+                onClick={() => selectedTask && handleRegenerate(selectedTask)}
+                disabled={selectedTask?.status === 'processing'}
+              >
+                重新生成
+              </Button>
+            </Space>
+          </div>
+        }
         open={detailModalVisible}
         onCancel={() => setDetailModalVisible(false)}
         footer={null}
@@ -690,6 +774,83 @@ const VideoStudioPage = () => {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* 编辑任务弹窗 */}
+      <Modal
+        title="编辑任务"
+        open={editModalVisible}
+        onOk={handleSaveEdit}
+        onCancel={() => setEditModalVisible(false)}
+        okText="保存"
+        cancelText="取消"
+        confirmLoading={saving}
+        width={700}
+      >
+        <Form form={editForm} layout="vertical">
+          <Form.Item name="name" label="任务名称">
+            <Input placeholder="任务名称" />
+          </Form.Item>
+          
+          <Form.Item name="prompt" label="提示词">
+            <TextArea rows={3} placeholder="描述想要生成的视频内容" />
+          </Form.Item>
+          
+          <Form.Item name="negative_prompt" label="负向提示词">
+            <TextArea rows={2} placeholder="不希望出现的内容" />
+          </Form.Item>
+          
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="model" label="模型">
+                <Select>
+                  {Object.entries(videoModels).map(([key, info]) => (
+                    <Option key={key} value={key}>{info.name}</Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="resolution" label="分辨率">
+                <Select>
+                  <Option value="480P">480P (标清)</Option>
+                  <Option value="720P">720P (高清)</Option>
+                  <Option value="1080P">1080P (全高清)</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="duration" label="视频时长">
+                <Select>
+                  <Option value={5}>5 秒</Option>
+                  <Option value={10}>10 秒</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+          
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item name="prompt_extend" label="智能改写" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="watermark" label="添加水印" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="auto_audio" label="自动配音" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
+          </Row>
+          
+          <Form.Item name="seed" label="随机种子" extra="留空为随机">
+            <InputNumber style={{ width: '100%' }} min={0} max={2147483647} placeholder="留空为随机" />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   )

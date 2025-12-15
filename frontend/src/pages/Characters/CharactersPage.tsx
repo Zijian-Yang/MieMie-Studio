@@ -56,6 +56,9 @@ const CharactersPage = () => {
   
   // 设置弹窗
   const [settingsModalVisible, setSettingsModalVisible] = useState(false)
+  // 新建角色弹窗
+  const [createModalVisible, setCreateModalVisible] = useState(false)
+  const [createForm] = Form.useForm()
   
   // 风格相关
   const [styles, setStyles] = useState<Style[]>([])
@@ -121,6 +124,32 @@ const CharactersPage = () => {
       message.error('提取失败')
     } finally {
       safeSetState(setExtracting, false)
+    }
+  }
+
+  // 手动创建角色
+  const createCharacter = async () => {
+    if (!projectId) return
+    
+    try {
+      const values = await createForm.validateFields()
+      const { character } = await charactersApi.create({
+        project_id: projectId,
+        name: values.name,
+        description: values.description || '',
+        appearance: values.appearance || '',
+        personality: values.personality || '',
+        character_prompt: values.character_prompt || '',
+      })
+      safeSetState(setCharacters, (prev: Character[]) => [...prev, character])
+      setCreateModalVisible(false)
+      createForm.resetFields()
+      message.success('角色已创建')
+      
+      // 自动打开编辑弹窗
+      openCharacterModal(character)
+    } catch (error) {
+      message.error('创建失败')
     }
   }
 
@@ -452,6 +481,13 @@ const CharactersPage = () => {
               </Popconfirm>
             </>
           )}
+          <Button
+            icon={<PlusOutlined />}
+            onClick={() => setCreateModalVisible(true)}
+            disabled={batchGenerating}
+          >
+            手动新建
+          </Button>
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -845,6 +881,55 @@ const CharactersPage = () => {
                 />
               )}
             </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 新建角色弹窗 */}
+      <Modal
+        title="新建角色"
+        open={createModalVisible}
+        onOk={createCharacter}
+        onCancel={() => {
+          setCreateModalVisible(false)
+          createForm.resetFields()
+        }}
+        okText="创建"
+        cancelText="取消"
+        width={600}
+      >
+        <Form form={createForm} layout="vertical">
+          <Form.Item
+            name="name"
+            label="角色名称"
+            rules={[{ required: true, message: '请输入角色名称' }]}
+          >
+            <Input placeholder="例如：李明" />
+          </Form.Item>
+          <Form.Item
+            name="description"
+            label="角色简介"
+          >
+            <TextArea rows={2} placeholder="角色的背景故事和简介" />
+          </Form.Item>
+          <Form.Item
+            name="appearance"
+            label="外观描述"
+          >
+            <TextArea rows={2} placeholder="详细的外貌、服装等描述" />
+          </Form.Item>
+          <Form.Item
+            name="personality"
+            label="性格特点"
+          >
+            <TextArea rows={2} placeholder="角色的性格特征" />
+          </Form.Item>
+          <Form.Item
+            name="character_prompt"
+            label="生图提示词"
+            extra="用于生成角色图片的提示词，只描述角色本身的样貌特征"
+          >
+            <TextArea rows={3} placeholder="例如：青年男性，短黑发，浓眉大眼，穿白色T恤" />
           </Form.Item>
         </Form>
       </Modal>

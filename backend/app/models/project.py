@@ -50,6 +50,27 @@ class Shot(BaseModel):
     audio_url: Optional[str] = None  # 配音 URL
 
 
+class ScriptVersion(BaseModel):
+    """剧本版本"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str = ""
+    description: str = ""
+    content: str = ""  # 版本的剧本内容
+    original_content: str = ""  # 原始内容
+    model_used: Optional[str] = None
+    prompt_used: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class PromptVersion(BaseModel):
+    """提示词版本"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str = ""
+    description: str = ""
+    prompt: str = ""
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
 class Script(BaseModel):
     """剧本/分镜脚本"""
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -58,7 +79,11 @@ class Script(BaseModel):
     processed_content: str = ""  # 处理后的内容（AI优化后）
     model_used: Optional[str] = None  # 使用的模型
     prompt_used: Optional[str] = None  # 使用的提示词
+    custom_prompt: str = ""  # 自定义提示词
     shots: List[Shot] = []  # 分镜列表
+    # 版本历史
+    script_versions: List[ScriptVersion] = []
+    prompt_versions: List[PromptVersion] = []
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 

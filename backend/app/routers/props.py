@@ -77,6 +77,22 @@ class PropUpdateRequest(BaseModel):
     selected_group_index: Optional[int] = None
 
 
+class PropCreateRequest(BaseModel):
+    """手动创建道具请求"""
+    project_id: str
+    name: str
+    description: Optional[str] = ""
+    common_prompt: Optional[str] = ""
+    prop_prompt: Optional[str] = ""
+    negative_prompt: Optional[str] = ""
+
+
+class PropSelectImageRequest(BaseModel):
+    """从图库选择图片作为道具图请求"""
+    image_url: str
+    group_index: int = 0
+
+
 # 道具提取提示词
 PROP_EXTRACT_PROMPT = """请从以下剧本中提取需要保持一致性的道具，并为每个道具生成详细信息。
 
@@ -111,6 +127,33 @@ PROP_EXTRACT_PROMPT = """请从以下剧本中提取需要保持一致性的道�
 
 剧本内容：
 """
+
+
+@router.post("/create")
+async def create_prop(request: PropCreateRequest):
+    """手动创建道具"""
+    project = storage_service.get_project(request.project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    
+    # 创建道具
+    prop = Prop(
+        project_id=request.project_id,
+        name=request.name,
+        description=request.description or "",
+        common_prompt=request.common_prompt or "高清道具图，白色背景，产品摄影风格",
+        prop_prompt=request.prop_prompt or "",
+        negative_prompt=request.negative_prompt or "",
+    )
+    
+    storage_service.save_prop(prop)
+    
+    # 更新项目的道具列表
+    if prop.id not in project.prop_ids:
+        project.prop_ids.append(prop.id)
+        storage_service.save_project(project)
+    
+    return {"prop": prop}
 
 
 @router.post("/extract")
@@ -194,6 +237,47 @@ async def update_prop(prop_id: str, request: PropUpdateRequest):
     
     storage_service.save_prop(prop)
     return prop
+
+
+@router.post("/{prop_id}/select-image")
+async def select_prop_image(prop_id: str, request: PropSelectImageRequest):
+    """从图库选择图片作为道具图"""
+    from datetime import datetime
+    
+    prop = storage_service.get_prop(prop_id)
+    if not prop:
+        raise HTTPException(status_code=404, detail="道具不存在")
+    
+    if not request.image_url:
+        raise HTTPException(status_code=400, detail="请提供图片URL")
+    
+    # 创建图片组
+    image_group = PropImage(
+        group_index=request.group_index,
+        url=request.image_url,
+        prompt_used="从图库选择",
+        created_at=datetime.now().isoformat()
+    )
+    
+    # 检查组索引是否已存在
+    existing_index = None
+    for i, group in enumerate(prop.image_groups):
+        if group.group_index == request.group_index:
+            existing_index = i
+            break
+    
+    if existing_index is not None:
+        prop.image_groups[existing_index] = image_group
+    else:
+        prop.image_groups.append(image_group)
+        prop.image_groups.sort(key=lambda x: x.group_index)
+    
+    # 自动选中该组
+    prop.selected_group_index = request.group_index
+    
+    storage_service.save_prop(prop)
+    
+    return {"prop": prop}
 
 
 @router.post("/{prop_id}/generate")
