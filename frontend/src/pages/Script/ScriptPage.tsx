@@ -643,7 +643,7 @@ const ScriptPage = () => {
   }
 
   return (
-    <div style={{ padding: 24, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ padding: 24, minHeight: '100%', overflow: 'auto' }}>
       {/* 页面标题 */}
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
@@ -693,7 +693,7 @@ const ScriptPage = () => {
         </Space>
       </div>
 
-      <div style={{ flex: 1, display: 'flex', gap: 16, minHeight: 0 }}>
+      <div style={{ display: 'flex', gap: 16, height: 500 }}>
         {/* 左侧：原始内容输入 */}
         <div style={{ width: 350, display: 'flex', flexDirection: 'column' }}>
           <Card 
@@ -888,7 +888,7 @@ const ScriptPage = () => {
         </div>
 
         {/* 右侧：当前剧本展示 */}
-        <div style={{ width: 320, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ width: 320, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <Card 
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -901,8 +901,8 @@ const ScriptPage = () => {
                 )}
               </div>
             }
-            style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
-            bodyStyle={{ flex: 1, overflow: 'auto', padding: 12 }}
+            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+            bodyStyle={{ flex: 1, overflow: 'auto', padding: 12, minHeight: 0 }}
           >
             {getCurrentScriptContent() ? (
               <pre style={{ 
@@ -947,13 +947,13 @@ const ScriptPage = () => {
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
             ) : (
-              <div style={{ maxHeight: 400, overflow: 'auto' }}>
+              <div style={{ maxHeight: 500, overflow: 'auto' }}>
                 <Table
                   dataSource={shots}
                   rowKey="id"
                   size="small"
                   pagination={false}
-                  scroll={{ x: 1800 }}
+                  scroll={{ x: 1400 }}
                   columns={[
                     {
                       title: '序号',
@@ -963,37 +963,9 @@ const ScriptPage = () => {
                       render: (num: number) => <Tag color="blue">{num}</Tag>
                     },
                     {
-                      title: '首帧',
-                      width: 80,
-                      render: (_: any, record: Shot) => {
-                        const frame = getFrameForShot(record.id)
-                        const frameUrl = frame?.selected_url || record.first_frame_url
-                        return frameUrl ? (
-                          <Image src={frameUrl} width={60} height={40} style={{ objectFit: 'cover', borderRadius: 4 }} />
-                        ) : (
-                          <div style={{ width: 60, height: 40, background: '#333', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <PictureOutlined style={{ color: '#666' }} />
-                          </div>
-                        )
-                      }
-                    },
-                    {
-                      title: '视频',
-                      width: 80,
-                      render: (_: any, record: Shot) => {
-                        const video = getVideoForShot(record.id)
-                        return video?.video_url ? (
-                          <Tag color="green" icon={<VideoCameraOutlined />}>已生成</Tag>
-                        ) : (
-                          <Tag color="default">待生成</Tag>
-                        )
-                      }
-                    },
-                    {
                       title: '镜头设计',
                       dataIndex: 'shot_design',
-                      width: 180,
-                      ellipsis: true,
+                      width: 200,
                       render: (text: string, record: Shot) => 
                         editingShotId === record.id ? (
                           <Input.TextArea 
@@ -1001,7 +973,7 @@ const ScriptPage = () => {
                             autoSize={{ minRows: 1, maxRows: 3 }}
                             onChange={(e) => shotForm.setFieldValue('shot_design', e.target.value)}
                           />
-                        ) : text || '-'
+                        ) : <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{text || '-'}</div>
                     },
                     {
                       title: '景别',
@@ -1050,8 +1022,7 @@ const ScriptPage = () => {
                     {
                       title: '台词',
                       dataIndex: 'dialogue',
-                      width: 180,
-                      ellipsis: true,
+                      width: 200,
                       render: (text: string, record: Shot) => 
                         editingShotId === record.id ? (
                           <Input.TextArea 
@@ -1059,20 +1030,18 @@ const ScriptPage = () => {
                             autoSize={{ minRows: 1, maxRows: 3 }}
                             onChange={(e) => shotForm.setFieldValue('dialogue', e.target.value)}
                           />
-                        ) : text || '-'
+                        ) : <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{text || '-'}</div>
                     },
                     {
                       title: '场景',
                       dataIndex: 'scene_setting',
-                      width: 150,
-                      ellipsis: true,
-                      render: (text: string) => text || '-'
+                      width: 180,
+                      render: (text: string) => <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{text || '-'}</div>
                     },
                     {
                       title: '动作',
                       dataIndex: 'character_action',
-                      width: 150,
-                      ellipsis: true,
+                      width: 180,
                       render: (text: string, record: Shot) => 
                         editingShotId === record.id ? (
                           <Input.TextArea 
@@ -1080,13 +1049,13 @@ const ScriptPage = () => {
                             autoSize={{ minRows: 1, maxRows: 3 }}
                             onChange={(e) => shotForm.setFieldValue('character_action', e.target.value)}
                           />
-                        ) : text || '-'
+                        ) : <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{text || '-'}</div>
                     },
                     {
                       title: '情绪',
                       dataIndex: 'mood',
                       width: 100,
-                      render: (text: string) => text || '-'
+                      render: (text: string) => <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{text || '-'}</div>
                     },
                     {
                       title: '时长',
@@ -1094,12 +1063,14 @@ const ScriptPage = () => {
                       width: 70,
                       render: (duration: number, record: Shot) => 
                         editingShotId === record.id ? (
-                          <InputNumber 
-                            defaultValue={duration} 
-                            min={1} 
-                            max={10} 
-                            size="small"
+                          <Select
+                            defaultValue={duration || 5}
                             style={{ width: 60 }}
+                            size="small"
+                            options={[
+                              { label: '5秒', value: 5 },
+                              { label: '10秒', value: 10 },
+                            ]}
                             onChange={(v) => shotForm.setFieldValue('duration', v)}
                           />
                         ) : `${duration || 5}s`

@@ -351,7 +351,7 @@ const SettingsPage = () => {
   const maxTokensLimit = getCurrentModelMaxTokens()
 
   return (
-    <div style={{ padding: 24, maxWidth: 900, overflowY: 'auto', height: '100%' }}>
+    <div style={{ padding: 24, maxWidth: 900 }}>
       <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 24, color: '#e0e0e0' }}>
         设置
       </h1>

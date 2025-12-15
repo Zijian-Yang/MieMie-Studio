@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Outlet, useNavigate, useLocation, useParams } from 'react-router-dom'
 import { Layout, Menu, Button, Tooltip } from 'antd'
+// Note: We use a plain div instead of Layout.Content for better scrolling behavior
 import {
   FolderOutlined,
   FileTextOutlined,
@@ -21,7 +22,7 @@ import {
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 
-const { Content } = Layout
+// Using plain div instead of Content for proper scrolling
 
 const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false)
@@ -151,7 +152,7 @@ const MainLayout = () => {
   const siderWidth = collapsed ? 64 : 220
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ minHeight: '100vh', background: '#1a1a1a' }}>
       {/* 固定侧边栏 */}
       <div
         style={{
@@ -235,17 +236,16 @@ const MainLayout = () => {
       </div>
 
       {/* 内容区域 */}
-      <Content
+      <div
         style={{
           marginLeft: siderWidth,
           minHeight: '100vh',
-          overflow: 'auto',
           background: '#1a1a1a',
           transition: 'margin-left 0.2s',
         }}
       >
         <Outlet />
-      </Content>
+      </div>
 
       {/* 滚动条样式 */}
       <style>{`

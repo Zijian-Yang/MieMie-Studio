@@ -218,11 +218,39 @@ const VideoLibraryPage = () => {
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
+                        position: 'relative',
+                        overflow: 'hidden'
                       }}
                       onClick={() => handlePreview(video)}
                     >
-                      <PlayCircleOutlined style={{ fontSize: 48, color: '#1890ff' }} />
+                      <video
+                        src={video.url}
+                        style={{ 
+                          width: '100%', 
+                          height: '100%', 
+                          objectFit: 'cover' 
+                        }}
+                        preload="metadata"
+                        muted
+                      />
+                      <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(0,0,0,0.3)',
+                        opacity: 0,
+                        transition: 'opacity 0.2s',
+                      }}
+                      className="video-play-overlay"
+                      >
+                        <PlayCircleOutlined style={{ fontSize: 48, color: '#fff' }} />
+                      </div>
                     </div>
                   }
                   actions={[
@@ -369,6 +397,13 @@ const VideoLibraryPage = () => {
           />
         </div>
       </Modal>
+      
+      {/* 视频封面悬停效果样式 */}
+      <style>{`
+        .ant-card-cover:hover .video-play-overlay {
+          opacity: 1 !important;
+        }
+      `}</style>
     </div>
   )
 }
