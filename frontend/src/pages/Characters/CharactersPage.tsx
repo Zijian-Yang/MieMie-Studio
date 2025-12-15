@@ -70,7 +70,7 @@ const CharactersPage = () => {
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([])
   const [galleryModalVisible, setGalleryModalVisible] = useState(false)
   const [selectingForCharacter, setSelectingForCharacter] = useState<Character | null>(null)
-  const [selectedGalleryImages, setSelectedGalleryImages] = useState<string[]>([])
+  const [selectedGalleryImage, setSelectedGalleryImage] = useState<string>('')
   const [selectingGroupIndex, setSelectingGroupIndex] = useState(0)
   
   const selectedCharacterIdRef = useRef<string | null>(null)
@@ -427,20 +427,20 @@ const CharactersPage = () => {
   const openGalleryModal = (character: Character, groupIndex: number) => {
     setSelectingForCharacter(character)
     setSelectingGroupIndex(groupIndex)
-    setSelectedGalleryImages([])
+    setSelectedGalleryImage('')
     setGalleryModalVisible(true)
   }
 
   // 确认从图库选择图片
   const confirmGallerySelect = async () => {
-    if (!selectingForCharacter || selectedGalleryImages.length === 0) {
-      message.warning('请选择至少一张图片')
+    if (!selectingForCharacter || !selectedGalleryImage) {
+      message.warning('请选择一张图片')
       return
     }
     
     try {
       const { character: updated } = await charactersApi.selectImages(selectingForCharacter.id, {
-        image_urls: selectedGalleryImages,
+        image_urls: [selectedGalleryImage],
         group_index: selectingGroupIndex
       })
       safeSetState(setCharacters, (prev: Character[]) => prev.map(c => c.id === updated.id ? updated : c))
@@ -452,20 +452,6 @@ const CharactersPage = () => {
     } catch (error) {
       message.error('选择失败')
     }
-  }
-
-  // 切换图库图片选择
-  const toggleGalleryImageSelect = (url: string) => {
-    setSelectedGalleryImages(prev => {
-      if (prev.includes(url)) {
-        return prev.filter(u => u !== url)
-      } else if (prev.length < 3) {
-        return [...prev, url]
-      } else {
-        message.warning('最多选择3张图片（正面、侧面、背面）')
-        return prev
-      }
-    })
   }
 
   if (loading) {
@@ -715,31 +701,31 @@ const CharactersPage = () => {
                       </Space>
                     </div>
                     
-                    <div className="view-selector">
-                      {['front', 'side', 'back'].map((view) => {
-                        const url = group?.[`${view}_url` as keyof typeof group] as string | undefined
-                        return (
-                          <Tooltip key={view} title={view === 'front' ? '正面' : view === 'side' ? '侧面' : '背面'}>
-                            <div 
-                              className="view-image"
-                              style={{ 
-                                background: '#242424',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              {isGeneratingThis ? (
-                                <Spin />
-                              ) : url ? (
-                                <Image src={url} alt={view} />
-                              ) : (
-                                <UserOutlined style={{ fontSize: 24, color: '#444' }} />
-                              )}
-                            </div>
-                          </Tooltip>
-                        )
-                      })}
+                    <div 
+                      style={{ 
+                        background: '#242424',
+                        borderRadius: 8,
+                        overflow: 'hidden',
+                        aspectRatio: '3/1',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {isGeneratingThis ? (
+                        <Spin tip="正在生成三视图..." />
+                      ) : group?.front_url ? (
+                        <Image 
+                          src={group.front_url} 
+                          alt="三视图" 
+                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                        />
+                      ) : (
+                        <div style={{ color: '#666', textAlign: 'center' }}>
+                          <UserOutlined style={{ fontSize: 32, marginBottom: 8 }} />
+                          <div style={{ fontSize: 12 }}>点击"生成"创建三视图</div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )
@@ -1006,38 +992,29 @@ const CharactersPage = () => {
         okText="确认选择"
         cancelText="取消"
         width={800}
-        okButtonProps={{ disabled: selectedGalleryImages.length === 0 }}
+        okButtonProps={{ disabled: !selectedGalleryImage }}
       >
         <Alert 
-          message="选择1-3张图片作为角色三视图（正面、侧面、背面），按选择顺序对应"
+          message="选择一张三视图图片作为角色参考图"
           type="info"
           style={{ marginBottom: 16 }}
         />
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <span>已选择 {selectedGalleryImages.length}/3 张：</span>
-          {selectedGalleryImages.map((url, idx) => (
-            <Tag key={idx} color="blue">
-              {idx === 0 ? '正面' : idx === 1 ? '侧面' : '背面'}
-            </Tag>
-          ))}
-        </div>
         {galleryImages.length === 0 ? (
           <Empty description="图库暂无图片，请先上传" />
         ) : (
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', 
             gap: 12,
             maxHeight: 400,
             overflowY: 'auto'
           }}>
             {galleryImages.map(img => {
-              const isSelected = selectedGalleryImages.includes(img.url)
-              const selectIndex = selectedGalleryImages.indexOf(img.url)
+              const isSelected = selectedGalleryImage === img.url
               return (
                 <div
                   key={img.id}
-                  onClick={() => toggleGalleryImageSelect(img.url)}
+                  onClick={() => setSelectedGalleryImage(img.url)}
                   style={{
                     position: 'relative',
                     cursor: 'pointer',
@@ -1050,7 +1027,7 @@ const CharactersPage = () => {
                   <Image
                     src={img.url}
                     alt={img.name}
-                    style={{ width: '100%', aspectRatio: '1', objectFit: 'cover' }}
+                    style={{ width: '100%', aspectRatio: '3/1', objectFit: 'cover' }}
                     preview={false}
                   />
                   {isSelected && (
@@ -1069,7 +1046,7 @@ const CharactersPage = () => {
                       fontWeight: 'bold',
                       fontSize: 12
                     }}>
-                      {selectIndex + 1}
+                      ✓
                     </div>
                   )}
                   <div style={{ 

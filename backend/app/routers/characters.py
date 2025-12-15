@@ -102,12 +102,8 @@ CHARACTER_EXTRACT_PROMPT = """请从以下剧本中提取所有出现的角色�
 剧本内容：
 """
 
-# 三视图生成提示词模板
-VIEW_PROMPTS = {
-    "front": "正面视角，面向镜头",
-    "side": "侧面视角，面向右侧",
-    "back": "背面视角，背对镜头"
-}
+# 三视图合成图提示词模板
+THREE_VIEW_PROMPT = "角色三视图，同一画面内从左到右依次展示：正面视角（面向镜头）、侧面视角（面向右侧）、背面视角（背对镜头），三个视角的角色服装和外观完全一致，白色纯净背景，专业角色设计参考图"
 
 
 @router.post("/create")
@@ -272,14 +268,14 @@ async def select_character_images(character_id: str, request: CharacterSelectIma
     return {"character": character}
 
 
-def build_character_prompt(common_prompt: str, char_prompt: str, negative_prompt: str, view_prompt: str, style=None) -> tuple[str, TypingList[str]]:
+def build_character_prompt(common_prompt: str, char_prompt: str, negative_prompt: str, style=None) -> tuple[str, TypingList[str]]:
     """
-    构建角色生图提示词
+    构建角色三视图合成图生图提示词
     返回 (final_prompt, image_urls)
-    - 生图提示词 = 通用提示词 + 角色提示词 + 视角提示词 + 风格提示词
+    - 生图提示词 = 三视图提示词 + 通用提示词 + 角色提示词 + 风格提示词
     - 外观描述和性格特点不参与生图
     """
-    prompt_parts = [common_prompt, char_prompt, view_prompt]
+    prompt_parts = [THREE_VIEW_PROMPT, common_prompt, char_prompt]
     image_urls = []
     
     if style:
@@ -300,9 +296,10 @@ def build_character_prompt(common_prompt: str, char_prompt: str, negative_prompt
 
 @router.post("/{character_id}/generate")
 async def generate_character_images(character_id: str, request: CharacterGenerateRequest):
-    """生成角色三视图（单组）
+    """生成角色三视图合成图（单组）
     
-    生图提示词构成：通用提示词 + 角色提示词（样貌） + 视角提示词 + 风格（图片或JSON）
+    生成一张包含正面、侧面、背面三个视角的合成图
+    生图提示词构成：三视图提示词 + 通用提示词 + 角色提示词 + 风格（图片或JSON）
     注意：外观描述(appearance)和性格特点(personality)不参与生图
     """
     character = storage_service.get_character(character_id)
@@ -319,35 +316,29 @@ async def generate_character_images(character_id: str, request: CharacterGenerat
     if request.use_style and request.style_id:
         style = storage_service.get_style(request.style_id)
     
-    # 生成三个视角的图片
+    # 生成一张三视图合成图
     image_group = CharacterImage(group_index=request.group_index)
     
     try:
-        for view_name, view_prompt in VIEW_PROMPTS.items():
-            final_prompt, image_urls = build_character_prompt(
-                common_prompt, char_prompt, negative_prompt, view_prompt, style
-            )
-            
-            if image_urls:
-                # 使用图生图服务（带风格图片）
-                i2i_service = ImageToImageService()
-                url = await i2i_service.generate_with_multi_images(
-                    prompt=final_prompt,
-                    image_urls=image_urls,
-                    negative_prompt=negative_prompt
-                )
-            else:
-                # 使用文生图服务
-                t2i_service = TextToImageService()
-                url = await t2i_service.generate(final_prompt, negative_prompt=negative_prompt)
-            
-            if view_name == "front":
-                image_group.front_url = url
-            elif view_name == "side":
-                image_group.side_url = url
-            else:
-                image_group.back_url = url
+        final_prompt, image_urls = build_character_prompt(
+            common_prompt, char_prompt, negative_prompt, style
+        )
         
+        if image_urls:
+            # 使用图生图服务（带风格图片）
+            i2i_service = ImageToImageService()
+            url = await i2i_service.generate_with_multi_images(
+                prompt=final_prompt,
+                image_urls=image_urls,
+                negative_prompt=negative_prompt
+            )
+        else:
+            # 使用文生图服务
+            t2i_service = TextToImageService()
+            url = await t2i_service.generate(final_prompt, negative_prompt=negative_prompt)
+        
+        # 将三视图合成图存储在 front_url 字段中
+        image_group.front_url = url
         image_group.prompt_used = f"{common_prompt}, {char_prompt}"
         
         # 更新角色
@@ -373,7 +364,7 @@ async def generate_character_images(character_id: str, request: CharacterGenerat
 
 @router.post("/{character_id}/generate-all")
 async def generate_all_character_images(character_id: str, request: CharacterGenerateAllRequest):
-    """并发生成角色三组三视图"""
+    """并发生成角色多组三视图合成图"""
     import asyncio
     
     character = storage_service.get_character(character_id)
@@ -391,32 +382,26 @@ async def generate_all_character_images(character_id: str, request: CharacterGen
         style = storage_service.get_style(request.style_id)
     
     async def generate_group(group_index: int) -> CharacterImage:
-        """生成单组三视图"""
+        """生成单组三视图合成图"""
         image_group = CharacterImage(group_index=group_index)
         
-        for view_name, view_prompt in VIEW_PROMPTS.items():
-            final_prompt, image_urls = build_character_prompt(
-                common_prompt, char_prompt, negative_prompt, view_prompt, style
-            )
-            
-            if image_urls:
-                i2i_service = ImageToImageService()
-                url = await i2i_service.generate_with_multi_images(
-                    prompt=final_prompt,
-                    image_urls=image_urls,
-                    negative_prompt=negative_prompt
-                )
-            else:
-                t2i_service = TextToImageService()
-                url = await t2i_service.generate(final_prompt, negative_prompt=negative_prompt)
-            
-            if view_name == "front":
-                image_group.front_url = url
-            elif view_name == "side":
-                image_group.side_url = url
-            else:
-                image_group.back_url = url
+        final_prompt, image_urls = build_character_prompt(
+            common_prompt, char_prompt, negative_prompt, style
+        )
         
+        if image_urls:
+            i2i_service = ImageToImageService()
+            url = await i2i_service.generate_with_multi_images(
+                prompt=final_prompt,
+                image_urls=image_urls,
+                negative_prompt=negative_prompt
+            )
+        else:
+            t2i_service = TextToImageService()
+            url = await t2i_service.generate(final_prompt, negative_prompt=negative_prompt)
+        
+        # 将三视图合成图存储在 front_url 字段中
+        image_group.front_url = url
         image_group.prompt_used = f"{common_prompt}, {char_prompt}"
         return image_group
     
