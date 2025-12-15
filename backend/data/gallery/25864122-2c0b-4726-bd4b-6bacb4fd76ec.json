@@ -1,0 +1,13 @@
+{
+  "id": "25864122-2c0b-4726-bd4b-6bacb4fd76ec",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "3people",
+  "description": "从URL导入: https://qingshui-oss.oss-cn-beijing.aliyuncs.com/D...",
+  "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/f96d7434-4033-4345-b69d-0810ebeff76d/20251215/112645_35663d22.jpg",
+  "prompt_used": null,
+  "source": "upload",
+  "task_id": null,
+  "tags": [],
+  "created_at": "2025-12-15T11:26:46.226084",
+  "updated_at": "2025-12-15T11:26:46.226137"
+}

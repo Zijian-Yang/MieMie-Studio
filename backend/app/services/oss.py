@@ -197,6 +197,39 @@ class OSSService:
         except Exception as e:
             return False, f"上传失败: {str(e)}"
     
+    def upload_bytes(self, data: bytes, object_path: str) -> str:
+        """
+        简化版：直接上传字节数据到指定OSS路径
+        
+        Args:
+            data: 文件字节数据
+            object_path: OSS对象路径（如 audio/project_id/filename.mp3）
+        
+        Returns:
+            OSS URL，失败时抛出异常
+        """
+        if not self.is_enabled():
+            raise Exception("OSS 未启用")
+        
+        if not self._init_client():
+            raise Exception("OSS 初始化失败")
+        
+        try:
+            config = self._get_config()
+            prefix = config.prefix.rstrip('/')
+            full_path = f"{prefix}/{object_path}"
+            
+            result = self._bucket.put_object(full_path, data)
+            
+            if result.status == 200:
+                oss_url = f"https://{config.bucket_name}.{config.endpoint_host}/{full_path}"
+                return oss_url
+            else:
+                raise Exception(f"上传失败: HTTP {result.status}")
+                
+        except Exception as e:
+            raise Exception(f"上传失败: {str(e)}")
+    
     def upload_image(self, url: str, project_id: str = "") -> str:
         """
         上传图片到 OSS，返回持久化 URL

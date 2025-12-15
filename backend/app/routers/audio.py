@@ -112,8 +112,20 @@ async def upload_audio_urls(request: AudioUploadRequest):
         try:
             # 从URL下载并上传到OSS
             ext = os.path.splitext(url.split("?")[0])[1].lower() or ".mp3"
-            filename = f"{datetime.now().strftime('%Y%m%d/%H%M%S')}_{uuid.uuid4().hex[:8]}{ext}"
-            oss_url = oss_service.upload_from_url(url, f"audio/{request.project_id}/{filename}")
+            if not ext.startswith("."):
+                ext = f".{ext}"
+            
+            # upload_from_url 返回 (success, result)
+            success, oss_url = oss_service.upload_from_url(
+                url, 
+                file_type="audio", 
+                extension=ext[1:],
+                project_id=request.project_id
+            )
+            
+            if not success:
+                errors.append({"url": url, "error": oss_url})
+                continue
             
             # 获取名称
             name = request.names[i] if request.names and i < len(request.names) else f"音频 {i+1}"
