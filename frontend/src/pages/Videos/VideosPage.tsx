@@ -974,6 +974,23 @@ const VideosPage = () => {
                     />
                   </Col>
                 </Row>
+                {/* 镜头类型（仅 wan2.6 支持） */}
+                {getCurrentModelInfo()?.supports_shot_type && (
+                  <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
+                    <Col span={24}>
+                      <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>镜头类型</div>
+                      <Select
+                        style={{ width: '100%' }}
+                        size="small"
+                        value={videoShotType || getCurrentModelInfo()?.default_shot_type || 'single'}
+                        onChange={setVideoShotType}
+                      >
+                        <Option value="single">单镜头 - 一个连续镜头</Option>
+                        <Option value="multi">多镜头叙事 - 多个切换镜头</Option>
+                      </Select>
+                    </Col>
+                  </Row>
+                )}
                 <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
                   <Col span={8}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
