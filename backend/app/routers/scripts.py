@@ -54,6 +54,11 @@ class SingleShotUpdateRequest(BaseModel):
     props: Optional[List[str]] = None
     sound_effects: Optional[str] = None
     duration: Optional[float] = None
+    # 视频生成相关
+    video_prompt: Optional[str] = None  # 用户编辑的视频生成提示词
+    first_frame_url: Optional[str] = None
+    video_url: Optional[str] = None
+    selected_video_id: Optional[str] = None
 
 
 class ShotReorderRequest(BaseModel):

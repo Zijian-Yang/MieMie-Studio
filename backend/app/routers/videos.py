@@ -133,6 +133,11 @@ async def generate_video(request: VideoGenerateRequest):
             duration=duration
         )
         
+        # 打印调试信息
+        print(f"[视频生成] 首帧URL: {first_frame_url[:100] if first_frame_url else 'None'}...")
+        print(f"[视频生成] 提示词: {prompt[:100] if prompt else 'None'}...")
+        print(f"[视频生成] 模型: {request.model}, 分辨率: {request.resolution}, 时长: {duration}")
+        
         # 提交生成任务（传递可选参数）
         task_id = await i2v_service.create_task(
             image_url=first_frame_url,
@@ -156,7 +161,22 @@ async def generate_video(request: VideoGenerateRequest):
         
         return {"video": video, "task_id": task_id}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"视频生成失败: {str(e)}")
+        import traceback
+        error_msg = str(e)
+        print(f"[视频生成错误] {error_msg}")
+        print(f"[视频生成错误] 堆栈: {traceback.format_exc()}")
+        
+        # 提供更友好的错误信息
+        if "DataInspectionFailed" in error_msg or "inappropriate content" in error_msg:
+            detail = "内容审核未通过：提示词或图片可能包含敏感内容，请修改提示词后重试"
+        elif "url error" in error_msg.lower():
+            detail = "首帧图URL无效，请检查图片是否可访问"
+        elif "image_url must provided" in error_msg.lower() or "img_url must provided" in error_msg.lower():
+            detail = "首帧图URL缺失，请确保已生成首帧图"
+        else:
+            detail = f"视频生成失败: {error_msg}"
+        
+        raise HTTPException(status_code=500, detail=detail)
 
 
 @router.post("/generate-batch")

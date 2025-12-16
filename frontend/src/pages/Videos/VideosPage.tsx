@@ -10,7 +10,7 @@ import {
   LoadingOutlined, CheckCircleOutlined, CloseCircleOutlined,
   SoundOutlined, UploadOutlined, SettingOutlined, SaveOutlined
 } from '@ant-design/icons'
-import { videosApi, framesApi, settingsApi, Video, Shot, Frame, VideoModelInfo } from '../../services/api'
+import { videosApi, framesApi, settingsApi, scriptsApi, Video, Shot, Frame, VideoModelInfo } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 import { useGenerationStore } from '../../stores/generationStore'
 
@@ -341,9 +341,9 @@ const VideosPage = () => {
     const video = processingVideo || latestVideo
     setSelectedVideo(video)
     
-    // 使用改进的提示词生成
+    // 优先使用分镜保存的提示词，其次是最新视频的提示词，最后自动生成
     form.setFieldsValue({
-      prompt: video?.prompt || buildVideoPrompt(shot)
+      prompt: shot.video_prompt || video?.prompt || buildVideoPrompt(shot)
     })
     
     setIsModalOpen(true)
@@ -351,6 +351,26 @@ const VideosPage = () => {
     // 如果视频正在处理中，确保轮询正在运行
     if (video?.task?.status === 'processing' && video.task.task_id) {
       startPolling(video.task.task_id)
+    }
+  }
+
+  // 保存提示词到分镜
+  const saveVideoPrompt = async () => {
+    if (!projectId || !selectedShot) return
+    try {
+      const values = await form.validateFields()
+      await scriptsApi.updateShot(projectId, selectedShot.id, {
+        video_prompt: values.prompt
+      })
+      // 更新本地状态
+      setShots(prev => prev.map(s => 
+        s.id === selectedShot.id ? { ...s, video_prompt: values.prompt } : s
+      ))
+      setSelectedShot({ ...selectedShot, video_prompt: values.prompt })
+      message.success('提示词已保存')
+      fetchProject(projectId).catch(() => {})
+    } catch (error) {
+      message.error('保存失败')
     }
   }
 
@@ -839,9 +859,26 @@ const VideosPage = () => {
               <Form form={form} layout="vertical">
                 <Form.Item 
                   name="prompt" 
-                  label="视频生成提示词"
+                  label={
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                      <span>视频生成提示词</span>
+                      <Button 
+                        size="small" 
+                        type="link" 
+                        icon={<SaveOutlined />}
+                        onClick={saveVideoPrompt}
+                      >
+                        保存提示词
+                      </Button>
+                    </div>
+                  }
                   rules={[{ required: true, message: '请输入提示词' }]}
-                  extra="描述视频中的动作和镜头运动，根据分镜信息自动生成"
+                  extra={
+                    <span>
+                      描述视频中的动作和镜头运动
+                      {selectedShot.video_prompt && <Tag color="green" style={{ marginLeft: 8 }}>已保存</Tag>}
+                    </span>
+                  }
                 >
                   <TextArea rows={6} />
                 </Form.Item>

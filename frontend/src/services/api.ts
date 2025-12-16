@@ -242,6 +242,8 @@ export interface Shot {
   // 生成的素材
   first_frame_url?: string
   video_url?: string
+  selected_video_id?: string
+  video_prompt?: string
   audio_url?: string
 }
 

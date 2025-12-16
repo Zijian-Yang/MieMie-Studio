@@ -261,6 +261,7 @@ body {
 }
 
 .timeline-item {
+  position: relative;
   flex-shrink: 0;
   width: 160px;
   background: var(--studio-panel);

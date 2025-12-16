@@ -71,16 +71,20 @@ const SortableShotCard = ({ shot, frameUrl, isGenerating, onClick }: SortableSho
         {...listeners}
         style={{ 
           position: 'absolute', 
-          top: 4, 
-          left: 4, 
+          top: 6, 
+          left: 6, 
           zIndex: 10,
-          padding: '2px 6px',
-          background: 'rgba(0,0,0,0.6)',
+          padding: '4px 8px',
+          background: 'rgba(0,0,0,0.7)',
           borderRadius: 4,
-          cursor: 'grab'
+          cursor: 'grab',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4
         }}
+        title="拖拽调整顺序"
       >
-        <DragOutlined style={{ color: '#888', fontSize: 12 }} />
+        <DragOutlined style={{ color: '#e5a84b', fontSize: 14 }} />
       </div>
       
       <div 
