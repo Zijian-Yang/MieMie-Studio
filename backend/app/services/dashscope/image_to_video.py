@@ -2,6 +2,14 @@
 阿里云 DashScope 图生视频服务封装
 
 模型参数差异：
+- wan2.6-i2v:
+  - 图片参数: img_url
+  - 分辨率参数: resolution (720P/1080P)
+  - 支持 duration (5/10/15秒)
+  - 支持音频: audio_url, audio
+  - 支持镜头类型: shot_type (single/multi)
+  - 需要通过 HTTP 请求调用
+
 - wan2.5-i2v-preview:
   - 图片参数: img_url
   - 分辨率参数: resolution (480P/720P/1080P)
@@ -19,6 +27,7 @@ from typing import Optional, Tuple
 from http import HTTPStatus
 import dashscope
 from dashscope import VideoSynthesis
+import httpx
 
 from app.config import get_config, VIDEO_MODELS
 from app.services.oss import oss_service
@@ -45,7 +54,8 @@ class ImageToVideoService:
         seed: Optional[int] = None,
         audio_url: Optional[str] = None,
         audio: Optional[bool] = None,
-        negative_prompt: Optional[str] = None
+        negative_prompt: Optional[str] = None,
+        shot_type: Optional[str] = None  # 镜头类型：single/multi（仅wan2.6支持）
     ) -> str:
         """
         创建视频生成任务
@@ -54,21 +64,42 @@ class ImageToVideoService:
             image_url: 首帧图片 URL
             prompt: 视频生成提示词
             model: 模型名称（使用配置默认值）
-            resolution: 分辨率（wan2.5用480P/720P/1080P，wanx2.1用宽*高）
+            resolution: 分辨率（wan2.5/2.6用480P/720P/1080P，wanx2.1用宽*高）
             duration: 视频时长（秒）
             prompt_extend: 智能改写（使用配置默认值）
             watermark: 水印（使用配置默认值）
             seed: 种子（使用配置默认值）
-            audio_url: 音频URL（仅wan2.5支持）
-            audio: 是否自动生成音频（仅wan2.5支持）
+            audio_url: 音频URL（仅wan2.5/2.6支持）
+            audio: 是否自动生成音频（仅wan2.5/2.6支持）
             negative_prompt: 负面提示词
+            shot_type: 镜头类型 single/multi（仅wan2.6支持）
             
         Returns:
             任务 ID
         """
         model_name = model or self.video_config.model
+        is_wan26 = 'wan2.6' in model_name
         is_wan25 = 'wan2.5' in model_name
+        is_wan25_or_newer = is_wan25 or is_wan26
         
+        # wan2.6 需要通过 HTTP 请求调用
+        if is_wan26:
+            return await self._create_task_http(
+                image_url=image_url,
+                prompt=prompt,
+                model=model_name,
+                resolution=resolution,
+                duration=duration,
+                prompt_extend=prompt_extend,
+                watermark=watermark,
+                seed=seed,
+                audio_url=audio_url,
+                audio=audio,
+                negative_prompt=negative_prompt,
+                shot_type=shot_type
+            )
+        
+        # 其他模型使用 SDK 调用
         # 基础参数
         params = {
             'api_key': self.api_key,
@@ -140,34 +171,184 @@ class ImageToVideoService:
         
         return rsp.output.task_id
     
-    async def get_task_status(self, task_id: str, project_id: str = "") -> Tuple[str, Optional[str]]:
+    async def _create_task_http(
+        self,
+        image_url: str,
+        prompt: str = "",
+        model: str = "wan2.6-i2v",
+        resolution: Optional[str] = None,
+        duration: Optional[int] = None,
+        prompt_extend: Optional[bool] = None,
+        watermark: Optional[bool] = None,
+        seed: Optional[int] = None,
+        audio_url: Optional[str] = None,
+        audio: Optional[bool] = None,
+        negative_prompt: Optional[str] = None,
+        shot_type: Optional[str] = None
+    ) -> str:
+        """
+        通过 HTTP 请求创建视频生成任务（用于 wan2.6 模型）
+        """
+        config = get_config()
+        base_url = config.base_url
+        
+        # 构建请求体
+        input_data = {
+            "img_url": image_url
+        }
+        
+        if prompt:
+            input_data["prompt"] = prompt
+        
+        if negative_prompt:
+            input_data["negative_prompt"] = negative_prompt
+        
+        if audio_url:
+            input_data["audio_url"] = audio_url
+        
+        parameters = {}
+        
+        # 分辨率
+        resolution_value = resolution or self.video_config.resolution
+        if resolution_value:
+            parameters["resolution"] = resolution_value
+        
+        # 视频时长（wan2.6 支持 5/10/15秒）
+        duration_value = duration if duration is not None else self.video_config.duration
+        if duration_value is not None:
+            parameters["duration"] = max(5, min(15, duration_value))
+        
+        # 智能改写
+        prompt_extend_value = prompt_extend if prompt_extend is not None else self.video_config.prompt_extend
+        if prompt_extend_value is not None:
+            parameters["prompt_extend"] = prompt_extend_value
+        
+        # 水印
+        watermark_value = watermark if watermark is not None else self.video_config.watermark
+        if watermark_value is not None:
+            parameters["watermark"] = watermark_value
+        
+        # 种子
+        seed_value = seed if seed is not None else self.video_config.seed
+        if seed_value is not None:
+            parameters["seed"] = seed_value
+        
+        # 音频参数
+        if not audio_url:
+            audio_value = audio if audio is not None else self.video_config.audio
+            if audio_value is not None:
+                parameters["audio"] = audio_value
+        
+        # 镜头类型（仅 wan2.6 支持，且需要 prompt_extend=true 才生效）
+        shot_type_value = shot_type or getattr(self.video_config, 'shot_type', None)
+        if shot_type_value:
+            parameters["shot_type"] = shot_type_value
+        
+        request_body = {
+            "model": model,
+            "input": input_data
+        }
+        
+        if parameters:
+            request_body["parameters"] = parameters
+        
+        # 打印请求信息用于调试
+        print(f"[wan2.6 视频生成] 请求URL: {base_url}/services/aigc/video-generation/video-synthesis")
+        print(f"[wan2.6 视频生成] 请求体: {request_body}")
+        
+        # 发送 HTTP 请求
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{base_url}/services/aigc/video-generation/video-synthesis",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                    "X-DashScope-Async": "enable"
+                },
+                json=request_body
+            )
+            
+            result = response.json()
+            print(f"[wan2.6 视频生成] 响应状态码: {response.status_code}")
+            print(f"[wan2.6 视频生成] 响应内容: {result}")
+            
+            if response.status_code != 200:
+                code = result.get("code", "Unknown")
+                message = result.get("message", "未知错误")
+                raise Exception(f"创建视频任务失败: {code} - {message}")
+            
+            task_id = result.get("output", {}).get("task_id")
+            if not task_id:
+                raise Exception("创建视频任务失败: 未返回任务ID")
+            
+            return task_id
+    
+    async def _get_task_status_http(self, task_id: str) -> Tuple[str, Optional[str]]:
+        """
+        通过 HTTP 请求获取任务状态
+        """
+        config = get_config()
+        base_url = config.base_url
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"{base_url}/tasks/{task_id}",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}"
+                }
+            )
+            
+            result = response.json()
+            print(f"[HTTP状态查询] task_id: {task_id}, 状态码: {response.status_code}, 响应: {result}")
+            
+            if response.status_code != 200:
+                code = result.get("code", "Unknown")
+                message = result.get("message", "未知错误")
+                raise Exception(f"查询任务状态失败: {code} - {message}")
+            
+            output = result.get("output", {})
+            status = output.get("task_status", "UNKNOWN")
+            video_url = output.get("video_url")
+            
+            return status, video_url
+    
+    async def get_task_status(self, task_id: str, project_id: str = "", use_http: bool = False) -> Tuple[str, Optional[str]]:
         """
         获取任务状态
         
         Args:
             task_id: 任务 ID
             project_id: 项目ID，用于 OSS 上传路径
+            use_http: 是否使用 HTTP 请求（wan2.6 需要）
             
         Returns:
             (状态, 视频URL) 元组，状态为 PENDING/PROCESSING/SUCCEEDED/FAILED
             如果启用 OSS，视频 URL 将是 OSS URL
         """
-        rsp = VideoSynthesis.fetch(
-            api_key=self.api_key,
-            task=task_id
-        )
+        # 如果指定使用 HTTP 或者默认尝试 HTTP 查询
+        if use_http:
+            status, video_url = await self._get_task_status_http(task_id)
+        else:
+            # 尝试使用 SDK
+            try:
+                rsp = VideoSynthesis.fetch(
+                    api_key=self.api_key,
+                    task=task_id
+                )
+                
+                if rsp.status_code != HTTPStatus.OK:
+                    # SDK 查询失败，尝试 HTTP
+                    status, video_url = await self._get_task_status_http(task_id)
+                else:
+                    status = rsp.output.task_status
+                    video_url = rsp.output.video_url if status == 'SUCCEEDED' else None
+            except Exception:
+                # SDK 异常，尝试 HTTP
+                status, video_url = await self._get_task_status_http(task_id)
         
-        if rsp.status_code != HTTPStatus.OK:
-            raise Exception(f"查询任务状态失败: {rsp.code} - {rsp.message}")
-        
-        status = rsp.output.task_status
-        video_url = None
-        
-        if status == 'SUCCEEDED':
-            video_url = rsp.output.video_url
-            # 如果启用了 OSS，上传视频并返回 OSS URL
-            if video_url and oss_service.is_enabled():
-                video_url = oss_service.upload_video(video_url, project_id)
+        # 如果启用了 OSS，上传视频并返回 OSS URL
+        if status == 'SUCCEEDED' and video_url and oss_service.is_enabled():
+            video_url = oss_service.upload_video(video_url, project_id)
         
         return status, video_url
     

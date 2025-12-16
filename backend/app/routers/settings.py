@@ -7,8 +7,8 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 
 from app.config import (
-    config_manager, AppConfig, LLMConfig, ImageConfig, ImageEditConfig, VideoConfig, OSSConfig,
-    API_REGIONS, LLM_MODELS, IMAGE_MODELS, IMAGE_EDIT_MODELS, VIDEO_MODELS
+    config_manager, AppConfig, LLMConfig, ImageConfig, ImageEditConfig, VideoConfig, RefVideoConfig, OSSConfig,
+    API_REGIONS, LLM_MODELS, IMAGE_MODELS, IMAGE_EDIT_MODELS, VIDEO_MODELS, REF_VIDEO_MODELS
 )
 from app.services.oss import oss_service
 
@@ -68,6 +68,17 @@ class VideoConfigRequest(BaseModel):
     audio: Optional[bool] = None  # 自动生成音频（仅wan2.5支持）
 
 
+class RefVideoConfigRequest(BaseModel):
+    """视频生视频配置请求（wan2.6-r2v）"""
+    model: Optional[str] = None
+    size: Optional[str] = None  # 分辨率（宽*高格式，如 1920*1080）
+    duration: Optional[int] = None  # 视频时长（秒），5 或 10
+    shot_type: Optional[str] = None  # 镜头类型，single/multi
+    watermark: Optional[bool] = None  # 水印
+    seed: Optional[int] = None  # 随机种子
+    audio: Optional[bool] = None  # 是否生成音频
+
+
 class OSSConfigRequest(BaseModel):
     """OSS 配置请求"""
     enabled: Optional[bool] = None
@@ -86,6 +97,7 @@ class ConfigUpdateRequest(BaseModel):
     image: Optional[ImageConfigRequest] = None
     image_edit: Optional[ImageEditConfigRequest] = None
     video: Optional[VideoConfigRequest] = None
+    ref_video: Optional[RefVideoConfigRequest] = None  # 视频生视频配置
     oss: Optional[OSSConfigRequest] = None
 
 
@@ -119,6 +131,9 @@ class ConfigResponse(BaseModel):
     # 图生视频配置
     video: Dict[str, Any]
     
+    # 视频生视频配置
+    ref_video: Dict[str, Any]
+    
     # OSS 配置
     oss: OSSConfigResponse
     
@@ -128,6 +143,7 @@ class ConfigResponse(BaseModel):
     available_image_models: Dict[str, Dict[str, Any]]
     available_image_edit_models: Dict[str, Dict[str, Any]]
     available_video_models: Dict[str, Dict[str, Any]]
+    available_ref_video_models: Dict[str, Dict[str, Any]]  # 视频生视频模型
 
 
 def mask_api_key(api_key: str) -> str:
@@ -172,12 +188,14 @@ async def get_settings():
         image=config.image.model_dump(),
         image_edit=config.image_edit.model_dump(),
         video=config.video.model_dump(),
+        ref_video=config.ref_video.model_dump(),
         oss=oss_response,
         available_regions=API_REGIONS,
         available_llm_models=LLM_MODELS,
         available_image_models=IMAGE_MODELS,
         available_image_edit_models=IMAGE_EDIT_MODELS,
-        available_video_models=VIDEO_MODELS
+        available_video_models=VIDEO_MODELS,
+        available_ref_video_models=REF_VIDEO_MODELS
     )
 
 
@@ -230,6 +248,13 @@ async def update_settings(request: ConfigUpdateRequest):
             if "model" in video_update and video_update["model"] not in VIDEO_MODELS:
                 raise HTTPException(status_code=400, detail=f"无效的视频模型: {video_update['model']}")
             update_data["video"] = video_update
+    
+    if request.ref_video is not None:
+        ref_video_update = {k: v for k, v in request.ref_video.model_dump().items() if v is not None}
+        if ref_video_update:
+            if "model" in ref_video_update and ref_video_update["model"] not in REF_VIDEO_MODELS:
+                raise HTTPException(status_code=400, detail=f"无效的视频生视频模型: {ref_video_update['model']}")
+            update_data["ref_video"] = ref_video_update
     
     if request.oss is not None:
         oss_update = {k: v for k, v in request.oss.model_dump().items() if v is not None}
@@ -299,6 +324,12 @@ async def get_image_edit_models():
 async def get_video_models():
     """获取可用的图生视频模型列表"""
     return {"models": VIDEO_MODELS}
+
+
+@router.get("/models/ref-video")
+async def get_ref_video_models():
+    """获取可用的视频生视频模型列表"""
+    return {"models": REF_VIDEO_MODELS}
 
 
 @router.get("/regions")

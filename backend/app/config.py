@@ -112,12 +112,70 @@ IMAGE_EDIT_MODELS = {
     }
 }
 
+# 视频生视频模型配置（参考视频生成视频）
+# 参考: https://help.aliyun.com/zh/model-studio/reference-to-video-api
+REF_VIDEO_MODELS = {
+    "wan2.6-r2v": {
+        "name": "万相2.6 视频生视频",
+        "description": "参考输入视频的角色形象和音色，生成保持角色一致性的新视频，支持多镜头叙事",
+        # 720P档位的所有分辨率
+        "resolutions_720p": [
+            {"value": "1280*720", "label": "1280×720 (16:9 横屏)"},
+            {"value": "720*1280", "label": "720×1280 (9:16 竖屏)"},
+            {"value": "960*960", "label": "960×960 (1:1 方形)"},
+            {"value": "1088*832", "label": "1088×832 (4:3 横屏)"},
+            {"value": "832*1088", "label": "832×1088 (3:4 竖屏)"},
+        ],
+        # 1080P档位的所有分辨率
+        "resolutions_1080p": [
+            {"value": "1920*1080", "label": "1920×1080 (16:9 横屏)"},
+            {"value": "1080*1920", "label": "1080×1920 (9:16 竖屏)"},
+            {"value": "1440*1440", "label": "1440×1440 (1:1 方形)"},
+            {"value": "1632*1248", "label": "1632×1248 (4:3 横屏)"},
+            {"value": "1248*1632", "label": "1248×1632 (3:4 竖屏)"},
+        ],
+        "default_size": "1920*1080",  # 官方默认值
+        "durations": [5, 10],  # 支持的时长
+        "default_duration": 5,  # 默认时长
+        "supports_shot_type": True,  # 支持镜头类型 (single/multi)
+        "default_shot_type": "single",
+        "supports_watermark": True,
+        "supports_seed": True,
+        "supports_negative_prompt": True,
+        "supports_audio": True,  # 默认自动配音
+        "default_audio": True,
+        "max_reference_videos": 2,  # 最多2个参考视频
+        "reference_video_duration": "2-30s",  # 参考视频时长要求
+        "reference_video_max_size": "100MB",  # 单个视频最大100MB
+    }
+}
+
 # 图生视频模型配置
 # 参考: https://www.alibabacloud.com/help/zh/model-studio/image-to-video-api-reference
 VIDEO_MODELS = {
+    "wan2.6-i2v": {
+        "name": "万相2.6 图生视频",
+        "description": "最新模型，支持多镜头叙事、自动配音，分辨率由输入图像决定",
+        "resolutions": [
+            {"value": "720P", "label": "720P (高清)"},
+            {"value": "1080P", "label": "1080P (全高清)"},
+        ],
+        "default_resolution": "1080P",  # 官方默认值
+        "durations": [5, 10, 15],  # 支持的时长（比2.5多了15秒）
+        "default_duration": 5,  # 默认时长
+        "supports_prompt_extend": True,
+        "supports_watermark": True,
+        "supports_seed": True,
+        "supports_negative_prompt": True,
+        "supports_audio": True,  # 支持音频参数 (audio, audio_url)
+        "default_audio": True,  # 默认开启自动配音
+        "supports_shot_type": True,  # 支持镜头类型 (single/multi)
+        "default_shot_type": "single",
+        "image_param": "img_url",  # API 中图片参数名
+    },
     "wan2.5-i2v-preview": {
         "name": "万相2.5 图生视频 Preview",
-        "description": "最新图生视频模型，支持音频/自动配音，分辨率由输入图像决定",
+        "description": "图生视频模型，支持音频/自动配音，分辨率由输入图像决定",
         # wan2.5 使用 resolution 参数（分辨率档位），不是具体宽高
         "resolutions": [
             {"value": "480P", "label": "480P (标清)"},
@@ -133,6 +191,7 @@ VIDEO_MODELS = {
         "supports_negative_prompt": True,
         "supports_audio": True,  # 支持音频参数 (audio, audio_url)
         "default_audio": True,  # 默认开启自动配音
+        "supports_shot_type": False,
         "image_param": "img_url",  # API 中图片参数名
     },
     "wanx2.1-i2v-turbo": {
@@ -152,6 +211,7 @@ VIDEO_MODELS = {
         "supports_seed": True,
         "supports_negative_prompt": True,
         "supports_audio": False,  # 不支持音频
+        "supports_shot_type": False,
         "image_param": "image_url",  # API 中图片参数名
     }
 }
@@ -202,20 +262,43 @@ class VideoConfig(BaseModel):
     """图生视频配置
     
     参数说明（根据官方文档）：
-    - resolution: 分辨率档位，wan2.5 支持 480P/720P/1080P，默认 1080P
-    - duration: 视频时长，wan2.5 支持 5 或 10 秒，wanx2.1 支持 3/4/5 秒
+    - resolution: 分辨率档位，wan2.5/2.6 支持 480P/720P/1080P，默认 1080P
+    - duration: 视频时长，wan2.6 支持 5/10/15 秒，wan2.5 支持 5/10 秒，wanx2.1 支持 3/4/5 秒
     - prompt_extend: 智能改写，默认 True
     - watermark: 水印标识（右下角"AI生成"），默认 False
-    - audio: 自动配音（仅 wan2.5 支持），默认 True
+    - audio: 自动配音（仅 wan2.5/2.6 支持），默认 True
     - seed: 随机种子，范围 [0, 2147483647]
+    - shot_type: 镜头类型（仅 wan2.6 支持），single/multi，默认 single
     """
-    model: str = "wan2.5-i2v-preview"  # 默认使用最新的 2.5 模型
-    resolution: str = "1080P"  # 分辨率（wan2.5默认1080P，wanx2.1用宽*高）
+    model: str = "wan2.5-i2v-preview"  # 默认使用 2.5 模型
+    resolution: str = "1080P"  # 分辨率（wan2.5/2.6默认1080P，wanx2.1用宽*高）
     prompt_extend: bool = True  # 智能改写，默认开启
     watermark: bool = False  # 水印，默认关闭
     seed: Optional[int] = None  # 种子，None表示随机
     duration: int = 5  # 视频时长（秒）
-    audio: bool = True  # 是否自动生成音频（仅wan2.5支持，默认开启）
+    audio: bool = True  # 是否自动生成音频（仅wan2.5/2.6支持，默认开启）
+    shot_type: str = "single"  # 镜头类型（仅wan2.6支持），single单镜头/multi多镜头叙事
+
+
+class RefVideoConfig(BaseModel):
+    """视频生视频配置（参考视频生成视频）
+    
+    参数说明（根据官方文档 wan2.6-r2v）：
+    - model: 模型名称，目前仅支持 wan2.6-r2v
+    - size: 分辨率，格式为"宽*高"（如 1920*1080）
+    - duration: 视频时长，5 或 10 秒
+    - shot_type: 镜头类型，single 单镜头 / multi 多镜头叙事
+    - watermark: 水印标识（右下角"AI生成"），默认 False
+    - seed: 随机种子，范围 [0, 2147483647]
+    - audio: 是否生成音频，默认 True
+    """
+    model: str = "wan2.6-r2v"  # 目前仅支持此模型
+    size: str = "1920*1080"  # 分辨率（宽*高格式）
+    duration: int = 5  # 视频时长（秒）
+    shot_type: str = "single"  # 镜头类型：single单镜头/multi多镜头叙事
+    watermark: bool = False  # 水印，默认关闭
+    seed: Optional[int] = None  # 种子，None表示随机
+    audio: bool = True  # 是否生成音频，默认开启
 
 
 class OSSConfig(BaseModel):
@@ -256,6 +339,9 @@ class AppConfig(BaseModel):
     
     # 图生视频配置
     video: VideoConfig = VideoConfig()
+    
+    # 视频生视频配置
+    ref_video: RefVideoConfig = RefVideoConfig()
     
     # OSS 配置
     oss: OSSConfig = OSSConfig()
@@ -317,7 +403,7 @@ class ConfigManager:
         
         # 处理嵌套更新
         for key, value in kwargs.items():
-            if key in ['llm', 'image', 'image_edit', 'video', 'oss'] and isinstance(value, dict):
+            if key in ['llm', 'image', 'image_edit', 'video', 'ref_video', 'oss'] and isinstance(value, dict):
                 # 合并嵌套配置
                 if key in updated_data:
                     updated_data[key].update(value)

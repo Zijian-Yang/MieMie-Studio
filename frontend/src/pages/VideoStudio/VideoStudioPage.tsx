@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { Card, Button, List, Modal, Input, Select, InputNumber, Switch, message, Popconfirm, Space, Empty, Spin, Row, Col, Tabs, Tag, Form } from 'antd'
 import { PlusOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, VideoCameraOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons'
-import { videoStudioApi, galleryApi, audioApi, settingsApi, VideoStudioTask, GalleryImage, AudioItem, VideoModelInfo } from '../../services/api'
+import { videoStudioApi, galleryApi, audioApi, videoLibraryApi, settingsApi, VideoStudioTask, GalleryImage, AudioItem, VideoLibraryItem, VideoModelInfo, RefVideoModelInfo } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 
 const { TextArea } = Input
@@ -22,28 +22,34 @@ const VideoStudioPage = () => {
   const [saving, setSaving] = useState(false)
   const [regenerating, setRegenerating] = useState(false)
   
-  // 图库和音频库
+  // 图库、音频库和视频库
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([])
   const [audioItems, setAudioItems] = useState<AudioItem[]>([])
+  const [videoLibraryItems, setVideoLibraryItems] = useState<VideoLibraryItem[]>([])
   
   // 创建任务表单
+  const [taskType, setTaskType] = useState<'image_to_video' | 'reference_to_video'>('image_to_video')  // 任务类型
   const [taskName, setTaskName] = useState('')
   const [firstFrameUrl, setFirstFrameUrl] = useState('')
   const [audioUrl, setAudioUrl] = useState('')
+  const [referenceVideoUrls, setReferenceVideoUrls] = useState<string[]>([])  // 参考视频URL列表
   const [prompt, setPrompt] = useState('')
   const [negativePrompt, setNegativePrompt] = useState('')
   const [model, setModel] = useState('wan2.5-i2v-preview')
   const [resolution, setResolution] = useState('1080P')  // 默认1080P
+  const [size, setSize] = useState('1920*1080')  // 视频生视频分辨率
   const [duration, setDuration] = useState(5)
   const [promptExtend, setPromptExtend] = useState(true)  // 智能改写
   const [watermark, setWatermark] = useState(false)  // 水印
   const [seed, setSeed] = useState<number | undefined>(undefined)  // 随机种子
   const [autoAudio, setAutoAudio] = useState(true)  // 自动配音（默认开启）
+  const [shotType, setShotType] = useState('single')  // 镜头类型
   const [groupCount, setGroupCount] = useState(1)
   const [creating, setCreating] = useState(false)
   
   // 模型配置
   const [videoModels, setVideoModels] = useState<Record<string, VideoModelInfo>>({})
+  const [refVideoModels, setRefVideoModels] = useState<Record<string, RefVideoModelInfo>>({})
   
   // 轮询
   const pollingRef = useRef<Set<string>>(new Set())
@@ -64,16 +70,19 @@ const VideoStudioPage = () => {
     if (!projectId) return
     setLoading(true)
     try {
-      const [tasksRes, galleryRes, audioRes, settingsRes] = await Promise.all([
+      const [tasksRes, galleryRes, audioRes, videoLibRes, settingsRes] = await Promise.all([
         videoStudioApi.list(projectId),
         galleryApi.list(projectId),
         audioApi.list(projectId),
+        videoLibraryApi.list(projectId),
         settingsApi.getSettings()
       ])
       setTasks(tasksRes.tasks)
       setGalleryImages(galleryRes.images)
       setAudioItems(audioRes.audios)
+      setVideoLibraryItems(videoLibRes.videos)
       setVideoModels(settingsRes.available_video_models)
+      setRefVideoModels(settingsRes.available_ref_video_models || {})
       
       // 启动轮询
       tasksRes.tasks.forEach(task => {
@@ -128,8 +137,15 @@ const VideoStudioPage = () => {
   }
 
   const handleCreate = async () => {
-    if (!projectId || !firstFrameUrl) {
+    if (!projectId) return
+    
+    // 根据任务类型验证
+    if (taskType === 'image_to_video' && !firstFrameUrl) {
       message.warning('请选择首帧图')
+      return
+    }
+    if (taskType === 'reference_to_video' && referenceVideoUrls.length === 0) {
+      message.warning('请选择参考视频')
       return
     }
     
@@ -138,17 +154,26 @@ const VideoStudioPage = () => {
       const result = await videoStudioApi.create({
         project_id: projectId,
         name: taskName || undefined,
-        first_frame_url: firstFrameUrl,
-        audio_url: audioUrl || undefined,
+        task_type: taskType,
+        // 图生视频参数
+        first_frame_url: taskType === 'image_to_video' ? firstFrameUrl : undefined,
+        audio_url: taskType === 'image_to_video' ? (audioUrl || undefined) : undefined,
+        // 视频生视频参数
+        reference_video_urls: taskType === 'reference_to_video' ? referenceVideoUrls : undefined,
+        // 通用参数
         prompt,
         negative_prompt: negativePrompt,
-        model,
-        resolution,
+        model: taskType === 'reference_to_video' ? 'wan2.6-r2v' : model,
         duration,
-        prompt_extend: promptExtend,
         watermark,
         seed: seed || undefined,
         auto_audio: autoAudio,
+        shot_type: shotType,
+        // 图生视频专用
+        resolution: taskType === 'image_to_video' ? resolution : undefined,
+        prompt_extend: taskType === 'image_to_video' ? promptExtend : undefined,
+        // 视频生视频专用
+        size: taskType === 'reference_to_video' ? size : undefined,
         group_count: groupCount
       })
       
@@ -168,14 +193,18 @@ const VideoStudioPage = () => {
   }
 
   const resetForm = () => {
+    setTaskType('image_to_video')
     setTaskName('')
     setFirstFrameUrl('')
     setAudioUrl('')
+    setReferenceVideoUrls([])
     setPrompt('')
     setNegativePrompt('')
     setModel('wan2.5-i2v-preview')
     setResolution('1080P')  // 默认1080P
+    setSize('1920*1080')  // 默认视频生视频分辨率
     setDuration(5)
+    setShotType('single')
     setPromptExtend(true)
     setWatermark(false)
     setSeed(undefined)
@@ -238,6 +267,7 @@ const VideoStudioPage = () => {
       watermark: task.watermark,
       seed: task.seed,
       auto_audio: task.auto_audio,
+      shot_type: task.shot_type || 'single',
     })
     setEditModalVisible(true)
   }
@@ -319,7 +349,10 @@ const VideoStudioPage = () => {
     return modelInfo?.resolutions || []
   }
 
-  const isWan25 = model.includes('wan2.5')
+  const isWan25OrNewer = model.includes('wan2.5') || model.includes('wan2.6')
+  const isWan26 = model.includes('wan2.6')
+  const currentModelInfo = videoModels[model]
+  const currentRefVideoModelInfo = refVideoModels['wan2.6-r2v']  // 目前只有一个视频生视频模型
 
   return (
     <div style={{ padding: 24 }}>
@@ -437,7 +470,9 @@ const VideoStudioPage = () => {
         }}
         onOk={handleCreate}
         confirmLoading={creating}
-        okButtonProps={{ disabled: !firstFrameUrl }}
+        okButtonProps={{ 
+          disabled: taskType === 'image_to_video' ? !firstFrameUrl : referenceVideoUrls.length === 0 
+        }}
         width={700}
       >
         <Tabs
@@ -447,6 +482,40 @@ const VideoStudioPage = () => {
               label: '基本信息',
               children: (
                 <div>
+                  {/* 任务类型选择 */}
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ marginBottom: 8 }}>任务类型</div>
+                    <Select
+                      style={{ width: '100%' }}
+                      value={taskType}
+                      onChange={(v) => {
+                        setTaskType(v)
+                        // 切换类型时重置相关字段
+                        if (v === 'reference_to_video') {
+                          setModel('wan2.6-r2v')
+                          setFirstFrameUrl('')
+                          setAudioUrl('')
+                        } else {
+                          setModel('wan2.5-i2v-preview')
+                          setReferenceVideoUrls([])
+                        }
+                      }}
+                    >
+                      <Option value="image_to_video">
+                        <Space>
+                          <Tag color="blue">图生视频</Tag>
+                          基于首帧图生成视频
+                        </Space>
+                      </Option>
+                      <Option value="reference_to_video">
+                        <Space>
+                          <Tag color="green">视频生视频</Tag>
+                          参考视频角色和音色生成新视频
+                        </Space>
+                      </Option>
+                    </Select>
+                  </div>
+                  
                   <div style={{ marginBottom: 16 }}>
                     <div style={{ marginBottom: 8 }}>任务名称</div>
                     <Input
@@ -456,37 +525,72 @@ const VideoStudioPage = () => {
                     />
                   </div>
                   
-                  <div style={{ marginBottom: 16 }}>
-                    <div style={{ marginBottom: 8 }}>首帧图 *</div>
-                    <Select
-                      style={{ width: '100%' }}
-                      value={firstFrameUrl || undefined}
-                      onChange={setFirstFrameUrl}
-                      placeholder="从图库选择首帧图"
-                      optionLabelProp="label"
-                    >
-                      {galleryImages.map(img => (
-                        <Option key={img.id} value={img.url} label={img.name}>
-                          <Space>
-                            <img src={img.url} alt="" style={{ width: 40, height: 40, objectFit: 'cover' }} />
-                            {img.name}
-                          </Space>
-                        </Option>
-                      ))}
-                    </Select>
-                    {firstFrameUrl && (
-                      <div style={{ marginTop: 8 }}>
-                        <img src={firstFrameUrl} alt="预览" style={{ maxWidth: 200, maxHeight: 150 }} />
+                  {/* 图生视频：首帧图选择 */}
+                  {taskType === 'image_to_video' && (
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ marginBottom: 8 }}>首帧图 *</div>
+                      <Select
+                        style={{ width: '100%' }}
+                        value={firstFrameUrl || undefined}
+                        onChange={setFirstFrameUrl}
+                        placeholder="从图库选择首帧图"
+                        optionLabelProp="label"
+                      >
+                        {galleryImages.map(img => (
+                          <Option key={img.id} value={img.url} label={img.name}>
+                            <Space>
+                              <img src={img.url} alt="" style={{ width: 40, height: 40, objectFit: 'cover' }} />
+                              {img.name}
+                            </Space>
+                          </Option>
+                        ))}
+                      </Select>
+                      {firstFrameUrl && (
+                        <div style={{ marginTop: 8 }}>
+                          <img src={firstFrameUrl} alt="预览" style={{ maxWidth: 200, maxHeight: 150 }} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* 视频生视频：参考视频选择 */}
+                  {taskType === 'reference_to_video' && (
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ marginBottom: 8 }}>参考视频 * (最多2个)</div>
+                      <Select
+                        mode="multiple"
+                        style={{ width: '100%' }}
+                        value={referenceVideoUrls}
+                        onChange={(urls) => setReferenceVideoUrls(urls.slice(0, 2))}
+                        placeholder="从视频库选择参考视频"
+                        optionLabelProp="label"
+                        maxTagCount={2}
+                      >
+                        {videoLibraryItems.map(video => (
+                          <Option key={video.id} value={video.url} label={video.name}>
+                            <Space>
+                              <VideoCameraOutlined />
+                              {video.name}
+                              {video.duration && <span style={{ color: '#888' }}>({video.duration}s)</span>}
+                            </Space>
+                          </Option>
+                        ))}
+                      </Select>
+                      <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                        提示词中使用 character1 指代第1个视频的主体，character2 指代第2个视频的主体
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                   
                   <div style={{ marginBottom: 16 }}>
                     <div style={{ marginBottom: 8 }}>提示词</div>
                     <TextArea
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
-                      placeholder="描述视频内容"
+                      placeholder={taskType === 'reference_to_video' 
+                        ? "描述视频内容，使用 character1/character2 指代参考视频中的主体" 
+                        : "描述视频内容"
+                      }
                       rows={3}
                     />
                   </div>
@@ -508,189 +612,381 @@ const VideoStudioPage = () => {
               label: '生成参数',
               children: (
                 <div>
-                  <Row gutter={16}>
-                    <Col span={12}>
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ marginBottom: 8 }}>模型</div>
-                        <Select
-                          style={{ width: '100%' }}
-                          value={model}
-                          onChange={(v) => {
-                            setModel(v)
-                            const modelInfo = videoModels[v]
-                            if (modelInfo?.default_resolution) {
-                              setResolution(modelInfo.default_resolution)
-                            }
-                            // 重置音频设置（仅 wan2.5 支持）
-                            if (!v.includes('wan2.5')) {
-                              setAutoAudio(false)
-                              setAudioUrl('')
-                            }
-                          }}
-                        >
-                          {Object.entries(videoModels).map(([key, info]) => (
-                            <Option key={key} value={key}>{info.name}</Option>
-                          ))}
-                        </Select>
-                      </div>
-                    </Col>
-                    <Col span={12}>
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ marginBottom: 8 }}>分辨率</div>
-                        <Select
-                          style={{ width: '100%' }}
-                          value={resolution}
-                          onChange={setResolution}
-                        >
-                          {getCurrentModelResolutions().map(res => (
-                            <Option key={res.value} value={res.value}>{res.label}</Option>
-                          ))}
-                        </Select>
-                        <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                          分辨率直接影响费用：1080P {'>'} 720P {'>'} 480P
+                  {/* 图生视频参数 */}
+                  {taskType === 'image_to_video' && (
+                    <>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>模型</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={model}
+                              onChange={(v) => {
+                                setModel(v)
+                                const modelInfo = videoModels[v]
+                                if (modelInfo?.default_resolution) {
+                                  setResolution(modelInfo.default_resolution)
+                                }
+                                // 处理音频支持（wan2.5/2.6 支持）
+                                if (!modelInfo?.supports_audio) {
+                                  setAutoAudio(false)
+                                  setAudioUrl('')
+                                }
+                                // 处理镜头类型（仅 wan2.6 支持）
+                                if (modelInfo?.supports_shot_type) {
+                                  setShotType(modelInfo.default_shot_type || 'single')
+                                } else {
+                                  setShotType('single')
+                                }
+                              }}
+                            >
+                              {Object.entries(videoModels).map(([key, info]) => (
+                                <Option key={key} value={key}>{info.name}</Option>
+                              ))}
+                            </Select>
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>分辨率</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={resolution}
+                              onChange={setResolution}
+                            >
+                              {getCurrentModelResolutions().map(res => (
+                                <Option key={res.value} value={res.value}>{res.label}</Option>
+                              ))}
+                            </Select>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              分辨率直接影响费用：1080P {'>'} 720P {'>'} 480P
+                            </div>
+                          </div>
+                        </Col>
+                      </Row>
+                      
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>时长</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={duration}
+                              onChange={setDuration}
+                            >
+                              {isWan26 ? (
+                                <>
+                                  <Option value={5}>5 秒</Option>
+                                  <Option value={10}>10 秒</Option>
+                                  <Option value={15}>15 秒</Option>
+                                </>
+                              ) : isWan25OrNewer ? (
+                                <>
+                                  <Option value={5}>5 秒</Option>
+                                  <Option value={10}>10 秒</Option>
+                                </>
+                              ) : (
+                                <>
+                                  <Option value={3}>3 秒</Option>
+                                  <Option value={4}>4 秒</Option>
+                                  <Option value={5}>5 秒</Option>
+                                </>
+                              )}
+                            </Select>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              时长直接影响费用，按秒计费
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>生成组数</div>
+                            <InputNumber
+                              style={{ width: '100%' }}
+                              min={1}
+                              max={5}
+                              value={groupCount}
+                              onChange={(v) => setGroupCount(v || 1)}
+                            />
+                          </div>
+                        </Col>
+                      </Row>
+                      
+                      <Row gutter={16}>
+                        <Col span={8}>
+                          <div style={{ marginBottom: 16 }}>
+                            <Space>
+                              <Switch
+                                checked={promptExtend}
+                                onChange={setPromptExtend}
+                              />
+                              <span>智能改写</span>
+                            </Space>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              使用大模型优化提示词
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={8}>
+                          <div style={{ marginBottom: 16 }}>
+                            <Space>
+                              <Switch
+                                checked={watermark}
+                                onChange={setWatermark}
+                              />
+                              <span>添加水印</span>
+                            </Space>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              右下角"AI生成"标识
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={8}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>随机种子</div>
+                            <InputNumber
+                              style={{ width: '100%' }}
+                              min={0}
+                              max={2147483647}
+                              value={seed}
+                              onChange={(v) => setSeed(v || undefined)}
+                              placeholder="留空随机"
+                            />
+                          </div>
+                        </Col>
+                      </Row>
+                      
+                      {isWan25OrNewer && (
+                        <div style={{ 
+                          padding: 12, 
+                          background: '#1a1a1a', 
+                          borderRadius: 8, 
+                          marginTop: 8,
+                          border: '1px solid #333'
+                        }}>
+                          <div style={{ marginBottom: 12, fontWeight: 500 }}>🔊 音频设置（仅 wan2.5/2.6 支持）</div>
+                          
+                          <div style={{ marginBottom: 12 }}>
+                            <div style={{ marginBottom: 8 }}>自定义音频</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={audioUrl || undefined}
+                              onChange={(v) => {
+                                setAudioUrl(v || '')
+                                // 选择音频后，auto_audio 无效
+                                if (v) setAutoAudio(false)
+                              }}
+                              placeholder="从音频库选择（可选）"
+                              allowClear
+                            >
+                              {audioItems.map(audio => (
+                                <Option key={audio.id} value={audio.url}>
+                                  {audio.name}
+                                </Option>
+                              ))}
+                            </Select>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              传入音频后，视频将与音频内容对齐（如口型、节奏）
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <Space>
+                              <Switch
+                                checked={autoAudio}
+                                onChange={setAutoAudio}
+                                disabled={!!audioUrl}
+                              />
+                              <span>自动生成音频</span>
+                            </Space>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              {audioUrl 
+                                ? '已选择自定义音频，此选项无效'
+                                : autoAudio 
+                                  ? '模型将根据提示词和画面自动生成匹配的背景音'
+                                  : '关闭后生成无声视频'
+                              }
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </Col>
-                  </Row>
+                      )}
+                      
+                      {/* 镜头类型（仅 wan2.6-i2v 支持） */}
+                      {isWan26 && (
+                        <div style={{ 
+                          padding: 12, 
+                          background: '#1a1a1a', 
+                          borderRadius: 8, 
+                          marginTop: 8,
+                        }}>
+                          <div style={{ marginBottom: 8, fontWeight: 500, color: '#e5a84b' }}>
+                            镜头类型设置 (wan2.6 特有)
+                          </div>
+                          <div>
+                            <div style={{ marginBottom: 8 }}>镜头类型</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={shotType}
+                              onChange={setShotType}
+                            >
+                              <Option value="single">单镜头 - 一个连续镜头</Option>
+                              <Option value="multi">多镜头叙事 - 多个切换镜头</Option>
+                            </Select>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              {shotType === 'single' 
+                                ? '输出一个连续的镜头画面' 
+                                : '输出多个切换的镜头，适合故事叙述（需开启智能改写）'
+                              }
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                   
-                  <Row gutter={16}>
-                    <Col span={12}>
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ marginBottom: 8 }}>时长</div>
-                        <Select
-                          style={{ width: '100%' }}
-                          value={duration}
-                          onChange={setDuration}
-                        >
-                          {isWan25 ? (
-                            <>
+                  {/* 视频生视频参数 */}
+                  {taskType === 'reference_to_video' && (
+                    <>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>模型</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value="wan2.6-r2v"
+                              disabled
+                            >
+                              <Option value="wan2.6-r2v">{currentRefVideoModelInfo?.name || '万相2.6 视频生视频'}</Option>
+                            </Select>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              {currentRefVideoModelInfo?.description || '参考视频的角色和音色生成新视频'}
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>分辨率</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={size}
+                              onChange={setSize}
+                            >
+                              <Select.OptGroup label="1080P 档位">
+                                {currentRefVideoModelInfo?.resolutions_1080p?.map((res: any) => (
+                                  <Option key={res.value} value={res.value}>{res.label}</Option>
+                                ))}
+                              </Select.OptGroup>
+                              <Select.OptGroup label="720P 档位">
+                                {currentRefVideoModelInfo?.resolutions_720p?.map((res: any) => (
+                                  <Option key={res.value} value={res.value}>{res.label}</Option>
+                                ))}
+                              </Select.OptGroup>
+                            </Select>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              分辨率直接影响费用：1080P {'>'} 720P
+                            </div>
+                          </div>
+                        </Col>
+                      </Row>
+                      
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>时长</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={duration}
+                              onChange={setDuration}
+                            >
                               <Option value={5}>5 秒</Option>
                               <Option value={10}>10 秒</Option>
-                            </>
-                          ) : (
-                            <>
-                              <Option value={3}>3 秒</Option>
-                              <Option value={4}>4 秒</Option>
-                              <Option value={5}>5 秒</Option>
-                            </>
-                          )}
-                        </Select>
-                        <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                          时长直接影响费用，按秒计费
-                        </div>
-                      </div>
-                    </Col>
-                    <Col span={12}>
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ marginBottom: 8 }}>生成组数</div>
-                        <InputNumber
-                          style={{ width: '100%' }}
-                          min={1}
-                          max={5}
-                          value={groupCount}
-                          onChange={(v) => setGroupCount(v || 1)}
-                        />
-                      </div>
-                    </Col>
-                  </Row>
-                  
-                  <Row gutter={16}>
-                    <Col span={8}>
-                      <div style={{ marginBottom: 16 }}>
-                        <Space>
-                          <Switch
-                            checked={promptExtend}
-                            onChange={setPromptExtend}
-                          />
-                          <span>智能改写</span>
-                        </Space>
-                        <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                          使用大模型优化提示词
-                        </div>
-                      </div>
-                    </Col>
-                    <Col span={8}>
-                      <div style={{ marginBottom: 16 }}>
-                        <Space>
-                          <Switch
-                            checked={watermark}
-                            onChange={setWatermark}
-                          />
-                          <span>添加水印</span>
-                        </Space>
-                        <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                          右下角"AI生成"标识
-                        </div>
-                      </div>
-                    </Col>
-                    <Col span={8}>
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ marginBottom: 8 }}>随机种子</div>
-                        <InputNumber
-                          style={{ width: '100%' }}
-                          min={0}
-                          max={2147483647}
-                          value={seed}
-                          onChange={(v) => setSeed(v || undefined)}
-                          placeholder="留空随机"
-                        />
-                      </div>
-                    </Col>
-                  </Row>
-                  
-                  {isWan25 && (
-                    <div style={{ 
-                      padding: 12, 
-                      background: '#1a1a1a', 
-                      borderRadius: 8, 
-                      marginTop: 8,
-                      border: '1px solid #333'
-                    }}>
-                      <div style={{ marginBottom: 12, fontWeight: 500 }}>🔊 音频设置（仅 wan2.5 支持）</div>
+                            </Select>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              时长直接影响费用，按秒计费
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>生成组数</div>
+                            <InputNumber
+                              style={{ width: '100%' }}
+                              min={1}
+                              max={5}
+                              value={groupCount}
+                              onChange={(v) => setGroupCount(v || 1)}
+                            />
+                          </div>
+                        </Col>
+                      </Row>
                       
-                      <div style={{ marginBottom: 12 }}>
-                        <div style={{ marginBottom: 8 }}>自定义音频</div>
-                        <Select
-                          style={{ width: '100%' }}
-                          value={audioUrl || undefined}
-                          onChange={(v) => {
-                            setAudioUrl(v || '')
-                            // 选择音频后，auto_audio 无效
-                            if (v) setAutoAudio(false)
-                          }}
-                          placeholder="从音频库选择（可选）"
-                          allowClear
-                        >
-                          {audioItems.map(audio => (
-                            <Option key={audio.id} value={audio.url}>
-                              {audio.name}
-                            </Option>
-                          ))}
-                        </Select>
-                        <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                          传入音频后，视频将与音频内容对齐（如口型、节奏）
-                        </div>
-                      </div>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>镜头类型</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={shotType}
+                              onChange={setShotType}
+                            >
+                              <Option value="single">单镜头 - 一个连续镜头</Option>
+                              <Option value="multi">多镜头叙事 - 多个切换镜头</Option>
+                            </Select>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              {shotType === 'single' 
+                                ? '输出一个连续的镜头画面' 
+                                : '输出多个切换的镜头，保持角色一致性'
+                              }
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <Space>
+                              <Switch
+                                checked={autoAudio}
+                                onChange={setAutoAudio}
+                              />
+                              <span>自动生成音频</span>
+                            </Space>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              模型可参考输入视频的音色生成新音频
+                            </div>
+                          </div>
+                        </Col>
+                      </Row>
                       
-                      <div>
-                        <Space>
-                          <Switch
-                            checked={autoAudio}
-                            onChange={setAutoAudio}
-                            disabled={!!audioUrl}
-                          />
-                          <span>自动生成音频</span>
-                        </Space>
-                        <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                          {audioUrl 
-                            ? '已选择自定义音频，此选项无效'
-                            : autoAudio 
-                              ? '模型将根据提示词和画面自动生成匹配的背景音'
-                              : '关闭后生成无声视频'
-                          }
-                        </div>
-                      </div>
-                    </div>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <Space>
+                              <Switch
+                                checked={watermark}
+                                onChange={setWatermark}
+                              />
+                              <span>添加水印</span>
+                            </Space>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              右下角"AI生成"标识
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>随机种子</div>
+                            <InputNumber
+                              style={{ width: '100%' }}
+                              min={0}
+                              max={2147483647}
+                              value={seed}
+                              onChange={(v) => setSeed(v || undefined)}
+                              placeholder="留空随机"
+                            />
+                          </div>
+                        </Col>
+                      </Row>
+                    </>
                   )}
                 </div>
               )
@@ -928,8 +1224,8 @@ const VideoStudioPage = () => {
                     </Col>
                   </Row>
                   
-                  {/* 音频设置 - 仅 wan2.5 支持 */}
-                  {editForm.getFieldValue('model')?.includes('wan2.5') && (
+                  {/* 音频设置 - wan2.5/2.6 支持 */}
+                  {(editForm.getFieldValue('model')?.includes('wan2.5') || editForm.getFieldValue('model')?.includes('wan2.6')) && (
                     <div style={{ 
                       padding: 12, 
                       background: '#1a1a1a', 
@@ -973,6 +1269,28 @@ const VideoStudioPage = () => {
                           ? '已选择自定义音频，此选项无效'
                           : '开启后模型将自动生成匹配的背景音'
                         }
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* 镜头类型 - 仅 wan2.6 支持 */}
+                  {editForm.getFieldValue('model')?.includes('wan2.6') && (
+                    <div style={{ 
+                      padding: 12, 
+                      background: '#1a1a1a', 
+                      borderRadius: 8, 
+                      marginTop: 8,
+                      border: '1px solid #e5a84b'
+                    }}>
+                      <div style={{ marginBottom: 12, fontWeight: 500, color: '#e5a84b' }}>🎬 镜头类型设置（仅 wan2.6 支持）</div>
+                      <Form.Item name="shot_type" label="镜头类型" style={{ marginBottom: 0 }}>
+                        <Select>
+                          <Option value="single">单镜头 - 一个连续镜头</Option>
+                          <Option value="multi">多镜头叙事 - 多个切换镜头</Option>
+                        </Select>
+                      </Form.Item>
+                      <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                        单镜头输出连续画面，多镜头叙事输出多个切换镜头（需开启智能改写）
                       </div>
                     </div>
                   )}

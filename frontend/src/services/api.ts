@@ -75,6 +75,8 @@ export interface VideoModelInfo {
   supports_negative_prompt?: boolean
   supports_audio?: boolean  // 是否支持音频参数
   default_audio?: boolean  // 默认是否开启自动配音
+  supports_shot_type?: boolean  // 是否支持镜头类型（仅wan2.6）
+  default_shot_type?: string  // 默认镜头类型
   image_param?: string
 }
 
@@ -121,6 +123,38 @@ export interface VideoConfig {
   audio: boolean    // 是否自动生成音频（仅wan2.5支持）
 }
 
+// 视频生视频配置
+export interface RefVideoConfig {
+  model: string
+  size: string  // 分辨率（宽*高格式，如 1920*1080）
+  duration: number  // 视频时长（秒），5 或 10
+  shot_type: string  // 镜头类型，single/multi
+  watermark: boolean  // 水印
+  seed: number | null  // 随机种子
+  audio: boolean  // 是否生成音频
+}
+
+// 视频生视频模型信息
+export interface RefVideoModelInfo {
+  name: string
+  description?: string
+  resolutions_720p: VideoResolutionOption[]  // 720P档位的分辨率
+  resolutions_1080p: VideoResolutionOption[]  // 1080P档位的分辨率
+  default_size: string  // 默认分辨率（宽*高）
+  durations: number[]  // 支持的时长列表
+  default_duration: number
+  supports_shot_type: boolean
+  default_shot_type: string
+  supports_watermark: boolean
+  supports_seed: boolean
+  supports_negative_prompt: boolean
+  supports_audio: boolean
+  default_audio: boolean
+  max_reference_videos: number  // 最多支持的参考视频数量
+  reference_video_duration: string  // 参考视频时长要求
+  reference_video_max_size: string  // 单个视频最大大小
+}
+
 // OSS 配置
 export interface OSSConfig {
   enabled: boolean
@@ -150,12 +184,14 @@ export interface ConfigResponse {
   image: ImageConfig
   image_edit: ImageEditConfig
   video: VideoConfig
+  ref_video: RefVideoConfig  // 视频生视频配置
   oss: OSSConfigResponse
   available_regions: Record<string, RegionInfo>
   available_llm_models: Record<string, LLMModelInfo>
   available_image_models: Record<string, ImageModelInfo>
   available_image_edit_models: Record<string, ImageModelInfo>
   available_video_models: Record<string, VideoModelInfo>
+  available_ref_video_models: Record<string, RefVideoModelInfo>  // 视频生视频模型
 }
 
 export interface ConfigUpdateRequest {
@@ -165,6 +201,7 @@ export interface ConfigUpdateRequest {
   image?: Partial<ImageConfig>
   image_edit?: Partial<ImageEditConfig>
   video?: Partial<VideoConfig>
+  ref_video?: Partial<RefVideoConfig>  // 视频生视频配置
   oss?: Partial<OSSConfig>
 }
 
@@ -702,9 +739,11 @@ export const videosApi = {
     prompt_extend?: boolean
     watermark?: boolean
     seed?: number | null
-    // 音频参数（仅wan2.5支持）
+    // 音频参数（仅wan2.5/2.6支持）
     audio_url?: string
     audio?: boolean
+    // 镜头类型（仅wan2.6支持）
+    shot_type?: string  // single/multi
   }) => api.post<any, { video: Video; task_id: string }>('/videos/generate', data),
   generateBatch: (projectId: string, options?: {
     model?: string
@@ -713,6 +752,7 @@ export const videosApi = {
     watermark?: boolean
     seed?: number | null
     audio?: boolean
+    shot_type?: string
   }) => api.post<any, { videos: Video[]; errors: Array<{ shot_id: string; error: string }>; success_count: number; error_count: number }>('/videos/generate-batch', { project_id: projectId, ...options }),
   getStatus: (taskId: string) => api.get<any, { task_id: string; status: string; video_url?: string }>(`/videos/status/${taskId}`),
   delete: (id: string) => api.delete(`/videos/${id}`),
@@ -1091,19 +1131,36 @@ export interface VideoStudioTask {
   id: string
   project_id: string
   name: string
+  
+  // 任务类型
+  task_type: 'image_to_video' | 'reference_to_video'  // 图生视频或视频生视频
+  
+  // 图生视频参数
   mode: 'first_frame' | 'first_last_frame'
   first_frame_url?: string
   last_frame_url?: string
   audio_url?: string
+  
+  // 视频生视频参数
+  reference_video_urls?: string[]  // 参考视频URL列表（最多2个）
+  
+  // 通用参数
   prompt: string
   negative_prompt: string
   model: string
-  resolution: string
   duration: number
-  prompt_extend: boolean  // 智能改写
   watermark: boolean  // 水印
   seed?: number | null  // 随机种子
+  shot_type?: string  // 镜头类型 single/multi
   auto_audio: boolean  // 自动配音
+  
+  // 图生视频专用
+  resolution: string
+  prompt_extend: boolean  // 智能改写
+  
+  // 视频生视频专用
+  size?: string  // 分辨率（宽*高格式）
+  
   group_count: number
   video_urls: string[]
   selected_video_url?: string
@@ -1121,19 +1178,28 @@ export const videoStudioApi = {
   create: (data: {
     project_id: string
     name?: string
+    task_type?: 'image_to_video' | 'reference_to_video'  // 任务类型
+    // 图生视频参数
     mode?: string
-    first_frame_url: string
+    first_frame_url?: string  // 图生视频需要
     last_frame_url?: string
     audio_url?: string
+    // 视频生视频参数
+    reference_video_urls?: string[]  // 视频生视频需要
+    // 通用参数
     prompt?: string
     negative_prompt?: string
     model?: string
-    resolution?: string
     duration?: number
-    prompt_extend?: boolean  // 智能改写
     watermark?: boolean  // 水印
     seed?: number  // 随机种子
+    shot_type?: string  // 镜头类型
     auto_audio?: boolean  // 自动配音
+    // 图生视频专用
+    resolution?: string
+    prompt_extend?: boolean  // 智能改写
+    // 视频生视频专用
+    size?: string  // 分辨率（宽*高格式）
     group_count?: number
   }) => api.post<any, { task: VideoStudioTask }>('/video-studio', data),
   update: (id: string, data: { 
@@ -1148,8 +1214,11 @@ export const videoStudioApi = {
     watermark?: boolean
     seed?: number
     auto_audio?: boolean
+    shot_type?: string  // 镜头类型
     first_frame_url?: string
     audio_url?: string
+    reference_video_urls?: string[]  // 参考视频URL列表
+    size?: string  // 视频生视频分辨率
   }) => 
     api.put<any, VideoStudioTask>(`/video-studio/${id}`, data),
   regenerate: (id: string) => 

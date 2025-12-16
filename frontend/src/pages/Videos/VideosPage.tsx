@@ -37,6 +37,8 @@ const VideosPage = () => {
     setVideoSeed,
     videoAudio,
     setVideoAudio,
+    videoShotType,
+    setVideoShotType,
     resetVideoSettings,
   } = useGenerationStore()
   
@@ -219,14 +221,17 @@ const VideosPage = () => {
 
   // 获取当前有效的视频设置（页面设置优先于系统设置）
   const getEffectiveVideoSettings = () => {
+    const currentModel = videoModel || systemVideoConfig.model
+    const modelInfo = videoModels[currentModel]
     return {
-      model: videoModel || systemVideoConfig.model,
+      model: currentModel,
       resolution: videoResolution || systemVideoConfig.resolution,
       duration: videoDuration !== null ? videoDuration : systemVideoConfig.duration,
       prompt_extend: videoPromptExtend !== null ? videoPromptExtend : systemVideoConfig.prompt_extend,
       watermark: videoWatermark !== null ? videoWatermark : systemVideoConfig.watermark,
       seed: videoSeed,
       audio: videoAudio !== null ? videoAudio : systemVideoConfig.audio,
+      shot_type: modelInfo?.supports_shot_type ? (videoShotType || modelInfo?.default_shot_type || 'single') : undefined,
     }
   }
 
@@ -410,6 +415,7 @@ const VideosPage = () => {
           watermark: settings.watermark,
           seed: settings.seed ? settings.seed + i : undefined, // 不同组使用不同种子
           audio: settings.audio,
+          shot_type: settings.shot_type,  // 镜头类型（仅wan2.6支持）
         })
         
         newVideos.push(result.video)
@@ -912,9 +918,15 @@ const VideosPage = () => {
                         if (modelInfo?.default_resolution) {
                           setVideoResolution(modelInfo.default_resolution)
                         }
-                        // 非 wan2.5 不支持音频
-                        if (!value.includes('wan2.5')) {
+                        // 处理音频支持
+                        if (!modelInfo?.supports_audio) {
                           setVideoAudio(false)
+                        }
+                        // 处理镜头类型
+                        if (modelInfo?.supports_shot_type) {
+                          setVideoShotType(modelInfo.default_shot_type || 'single')
+                        } else {
+                          setVideoShotType(null)
                         }
                       }}
                     >
@@ -1120,6 +1132,16 @@ const VideosPage = () => {
                     if (modelInfo?.default_resolution) {
                       setVideoResolution(modelInfo.default_resolution)
                     }
+                    // 处理音频支持
+                    if (!modelInfo?.supports_audio) {
+                      setVideoAudio(false)
+                    }
+                    // 处理镜头类型
+                    if (modelInfo?.supports_shot_type) {
+                      setVideoShotType(modelInfo.default_shot_type || 'single')
+                    } else {
+                      setVideoShotType(null)
+                    }
                   }}
                 >
                   {Object.entries(videoModels).map(([key, info]) => (
@@ -1178,6 +1200,28 @@ const VideosPage = () => {
               </div>
             </Col>
           </Row>
+
+          {/* 镜头类型（仅 wan2.6 支持） */}
+          {getCurrentModelInfo()?.supports_shot_type && (
+            <Row gutter={16}>
+              <Col span={24}>
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ marginBottom: 8, color: '#e0e0e0' }}>镜头类型</div>
+                  <Select
+                    style={{ width: '100%' }}
+                    value={videoShotType || getCurrentModelInfo()?.default_shot_type || 'single'}
+                    onChange={setVideoShotType}
+                  >
+                    <Option value="single">单镜头 - 一个连续镜头</Option>
+                    <Option value="multi">多镜头叙事 - 多个切换镜头</Option>
+                  </Select>
+                  <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+                    单镜头输出连续画面，多镜头叙事输出多个切换镜头（需开启智能改写才生效）
+                  </div>
+                </div>
+              </Col>
+            </Row>
+          )}
 
           <Row gutter={16}>
             <Col span={12}>

@@ -20,16 +20,18 @@ class VideoGenerateRequest(BaseModel):
     shot_number: int = 0
     first_frame_url: Optional[str] = None  # 首帧图 URL（可从分镜中自动获取）
     prompt: Optional[str] = None  # 视频生成提示词（可自动生成）
-    duration: int = 5  # 目标时长（秒），wan2.5支持5-10秒
+    duration: int = 5  # 目标时长（秒），wan2.6支持5-15秒，wan2.5支持5-10秒
     # 视频生成参数（覆盖系统设置）
     model: Optional[str] = None
-    resolution: Optional[str] = None  # 分辨率（wan2.5用480P/720P/1080P，wanx2.1用宽*高）
+    resolution: Optional[str] = None  # 分辨率（wan2.5/2.6用480P/720P/1080P，wanx2.1用宽*高）
     prompt_extend: Optional[bool] = None
     watermark: Optional[bool] = None
     seed: Optional[int] = None
-    # 音频参数（仅wan2.5支持）
+    # 音频参数（仅wan2.5/2.6支持）
     audio_url: Optional[str] = None  # 自定义音频URL
     audio: Optional[bool] = None  # 是否自动生成音频
+    # 镜头类型（仅wan2.6支持）
+    shot_type: Optional[str] = None  # single/multi
 
 
 def generate_video_prompt(shot) -> str:
@@ -149,7 +151,8 @@ async def generate_video(request: VideoGenerateRequest):
             watermark=request.watermark,
             seed=request.seed,
             audio_url=request.audio_url,
-            audio=request.audio
+            audio=request.audio,
+            shot_type=request.shot_type
         )
         
         video.task = VideoTask(

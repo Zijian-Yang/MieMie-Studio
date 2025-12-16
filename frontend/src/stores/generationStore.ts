@@ -25,6 +25,7 @@ interface GenerationState {
   videoWatermark: boolean | null
   videoSeed: number | null
   videoAudio: boolean | null  // 是否自动生成音频
+  videoShotType: string | null  // 镜头类型（single/multi，仅wan2.6支持）
   
   // 风格参考设置 - 全局开关
   characterUseStyle: boolean
@@ -59,6 +60,7 @@ interface GenerationState {
   setVideoWatermark: (value: boolean | null) => void
   setVideoSeed: (seed: number | null) => void
   setVideoAudio: (audio: boolean | null) => void
+  setVideoShotType: (shotType: string | null) => void
   resetVideoSettings: () => void
   
   // 风格参考设置 actions
@@ -99,6 +101,7 @@ export const useGenerationStore = create<GenerationState>()(
       videoWatermark: null,
       videoSeed: null,
       videoAudio: null,
+      videoShotType: null,
       
       // 风格参考设置
       characterUseStyle: false,
@@ -130,6 +133,7 @@ export const useGenerationStore = create<GenerationState>()(
       setVideoWatermark: (value) => set({ videoWatermark: value }),
       setVideoSeed: (seed) => set({ videoSeed: seed }),
       setVideoAudio: (audio) => set({ videoAudio: audio }),
+      setVideoShotType: (shotType) => set({ videoShotType: shotType }),
       resetVideoSettings: () => set({
         videoModel: null,
         videoResolution: null,
@@ -138,6 +142,7 @@ export const useGenerationStore = create<GenerationState>()(
         videoWatermark: null,
         videoSeed: null,
         videoAudio: null,
+        videoShotType: null,
       }),
       
       setCharacterUseStyle: (use) => set({ characterUseStyle: use }),
@@ -203,6 +208,7 @@ export const useGenerationStore = create<GenerationState>()(
         videoWatermark: state.videoWatermark,
         videoSeed: state.videoSeed,
         videoAudio: state.videoAudio,
+        videoShotType: state.videoShotType,
         // 风格设置
         characterUseStyle: state.characterUseStyle,
         characterSelectedStyleId: state.characterSelectedStyleId,

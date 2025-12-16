@@ -62,6 +62,15 @@ const SettingsPage = () => {
         video_watermark: data.video.watermark,
         video_seed: data.video.seed,
         video_audio: data.video.audio,
+        video_shot_type: data.video.shot_type || 'single',
+        // 视频生视频配置
+        ref_video_model: data.ref_video?.model || 'wan2.6-r2v',
+        ref_video_size: data.ref_video?.size || '1920*1080',
+        ref_video_duration: data.ref_video?.duration || 5,
+        ref_video_shot_type: data.ref_video?.shot_type || 'single',
+        ref_video_audio: data.ref_video?.audio ?? true,
+        ref_video_watermark: data.ref_video?.watermark || false,
+        ref_video_seed: data.ref_video?.seed,
         // OSS 配置
         oss_enabled: data.oss.enabled,
         oss_bucket_name: data.oss.bucket_name,
@@ -135,6 +144,16 @@ const SettingsPage = () => {
           watermark: values.video_watermark,
           seed: values.video_seed || null,
           audio: values.video_audio,
+          shot_type: values.video_shot_type,
+        },
+        ref_video: {
+          model: values.ref_video_model,
+          size: values.ref_video_size,
+          duration: values.ref_video_duration,
+          shot_type: values.ref_video_shot_type,
+          audio: values.ref_video_audio,
+          watermark: values.ref_video_watermark,
+          seed: values.ref_video_seed || null,
         },
         oss: {
           enabled: values.oss_enabled,
@@ -253,6 +272,13 @@ const SettingsPage = () => {
     if (!config) return null
     const videoModel = form.getFieldValue('video_model') || config.video.model
     return config.available_video_models[videoModel]
+  }
+
+  // 获取当前视频生视频模型信息
+  const getCurrentRefVideoModelInfo = () => {
+    if (!config) return null
+    const refVideoModel = form.getFieldValue('ref_video_model') || config.ref_video?.model || 'wan2.6-r2v'
+    return config.available_ref_video_models?.[refVideoModel]
   }
 
   // 获取当前图像编辑模型的常用尺寸选项
@@ -946,9 +972,12 @@ const SettingsPage = () => {
               <Form.Item
                 name="video_duration"
                 label="默认时长"
-                extra={getCurrentVideoModelInfo()?.id?.includes('wan2.5') 
-                  ? 'wan2.5 支持 5 或 10 秒' 
-                  : 'wanx2.1 支持 3/4/5 秒'
+                extra={
+                  form.getFieldValue('video_model')?.includes('wan2.6')
+                    ? 'wan2.6 支持 5/10/15 秒'
+                    : form.getFieldValue('video_model')?.includes('wan2.5') 
+                      ? 'wan2.5 支持 5 或 10 秒' 
+                      : 'wanx2.1 支持 3/4/5 秒'
                 }
               >
                 <Select>
@@ -963,7 +992,7 @@ const SettingsPage = () => {
                 name="video_audio"
                 label="自动生成音频"
                 valuePropName="checked"
-                tooltip="仅 wan2.5 支持，模型根据提示词和画面自动生成匹配的背景音频"
+                tooltip="仅 wan2.5/2.6 支持，模型根据提示词和画面自动生成匹配的背景音频"
                 extra={getCurrentVideoModelInfo()?.supports_audio 
                   ? '开启后默认自动配音，可在工作室中覆盖' 
                   : '当前模型不支持音频'
@@ -973,6 +1002,25 @@ const SettingsPage = () => {
               </Form.Item>
             </Col>
           </Row>
+
+          {/* 镜头类型（仅 wan2.6 支持） */}
+          {getCurrentVideoModelInfo()?.supports_shot_type && (
+            <Row gutter={16}>
+              <Col span={24}>
+                <Form.Item
+                  name="video_shot_type"
+                  label="默认镜头类型"
+                  tooltip="仅 wan2.6 支持，且需要开启智能改写才生效"
+                  extra="单镜头输出连续画面，多镜头叙事输出多个切换镜头"
+                >
+                  <Select>
+                    <Select.Option value="single">单镜头 - 一个连续镜头</Select.Option>
+                    <Select.Option value="multi">多镜头叙事 - 多个切换镜头</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+          )}
 
           <Row gutter={16}>
             <Col span={12}>
@@ -999,6 +1047,123 @@ const SettingsPage = () => {
 
           <Form.Item
             name="video_seed"
+            label="随机种子"
+            extra="留空表示随机，固定种子可使结果相对稳定（但不保证完全一致）"
+          >
+            <InputNumber min={0} max={2147483647} style={{ width: '100%' }} placeholder="留空为随机" />
+          </Form.Item>
+        </Form>
+      </Card>
+
+      {/* 视频生视频模型配置 */}
+      <Card 
+        title="视频生视频模型配置" 
+        style={{ marginBottom: 24, background: '#242424', borderColor: '#333' }}
+      >
+        <Alert
+          message="视频生视频（wan2.6-r2v）"
+          description="参考输入视频的角色形象和音色，生成保持角色一致性的新视频。提示词中使用 character1/character2 指代参考视频中的主体。"
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+        <Form form={form} layout="vertical">
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="ref_video_model"
+                label="视频生视频模型"
+              >
+                <Select
+                  options={
+                    config ? Object.entries(config.available_ref_video_models || {}).map(([key, info]) => ({
+                      label: `${info.name}`,
+                      value: key
+                    })) : []
+                  }
+                />
+              </Form.Item>
+              {getCurrentRefVideoModelInfo()?.description && (
+                <div style={{ fontSize: 12, color: '#888', marginTop: -16, marginBottom: 16 }}>
+                  {getCurrentRefVideoModelInfo()?.description}
+                </div>
+              )}
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="ref_video_size"
+                label="默认分辨率"
+                extra="分辨率格式为 宽*高，720P 和 1080P 档位均可选"
+              >
+                <Select>
+                  <Select.OptGroup label="1080P 档位">
+                    {getCurrentRefVideoModelInfo()?.resolutions_1080p?.map((res: any) => (
+                      <Select.Option key={res.value} value={res.value}>{res.label}</Select.Option>
+                    ))}
+                  </Select.OptGroup>
+                  <Select.OptGroup label="720P 档位">
+                    {getCurrentRefVideoModelInfo()?.resolutions_720p?.map((res: any) => (
+                      <Select.Option key={res.value} value={res.value}>{res.label}</Select.Option>
+                    ))}
+                  </Select.OptGroup>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="ref_video_duration"
+                label="默认时长"
+                extra="视频生视频支持 5 或 10 秒"
+              >
+                <Select>
+                  {(getCurrentRefVideoModelInfo()?.durations || [5, 10]).map((d: number) => (
+                    <Select.Option key={d} value={d}>{d} 秒</Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="ref_video_shot_type"
+                label="默认镜头类型"
+                extra="单镜头输出连续画面，多镜头叙事输出多个切换镜头"
+              >
+                <Select>
+                  <Select.Option value="single">单镜头 - 一个连续镜头</Select.Option>
+                  <Select.Option value="multi">多镜头叙事 - 多个切换镜头</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="ref_video_audio"
+                label="自动生成音频"
+                valuePropName="checked"
+                tooltip="模型可参考输入视频的音色生成新音频"
+              >
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="ref_video_watermark"
+                label="添加水印"
+                valuePropName="checked"
+                tooltip="在视频右下角添加 'AI生成' 水印标识"
+              >
+                <Switch />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item
+            name="ref_video_seed"
             label="随机种子"
             extra="留空表示随机，固定种子可使结果相对稳定（但不保证完全一致）"
           >
