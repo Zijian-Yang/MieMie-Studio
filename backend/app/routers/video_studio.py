@@ -82,6 +82,7 @@ class VideoStudioTaskUpdateRequest(BaseModel):
     """更新任务请求"""
     name: Optional[str] = None
     selected_video_url: Optional[str] = None
+    task_type: Optional[str] = None  # 任务类型: image_to_video / reference_to_video
     # 支持编辑的字段
     prompt: Optional[str] = None
     negative_prompt: Optional[str] = None
@@ -97,6 +98,7 @@ class VideoStudioTaskUpdateRequest(BaseModel):
     audio_url: Optional[str] = None
     reference_video_urls: Optional[List[str]] = None  # 参考视频URL列表
     size: Optional[str] = None  # 视频生视频分辨率
+    group_count: Optional[int] = None  # 生成组数
 
 
 @router.get("")
@@ -123,6 +125,31 @@ async def create_task(request: VideoStudioTaskCreateRequest):
     1. image_to_video（图生视频）：需要 first_frame_url
     2. reference_to_video（视频生视频）：需要 reference_video_urls
     """
+    # 打印详细请求信息
+    print(f"\n{'#'*60}")
+    print(f"# 视频工作室 - 创建任务")
+    print(f"{'#'*60}")
+    print(f"[请求参数] task_type: {request.task_type}")
+    print(f"[请求参数] project_id: {request.project_id}")
+    print(f"[请求参数] name: {request.name}")
+    print(f"[请求参数] model: {request.model}")
+    print(f"[请求参数] mode: {request.mode}")
+    print(f"[请求参数] resolution: {request.resolution}")
+    print(f"[请求参数] size: {request.size}")
+    print(f"[请求参数] duration: {request.duration}")
+    print(f"[请求参数] prompt_extend: {request.prompt_extend}")
+    print(f"[请求参数] watermark: {request.watermark}")
+    print(f"[请求参数] seed: {request.seed}")
+    print(f"[请求参数] auto_audio: {request.auto_audio}")
+    print(f"[请求参数] shot_type: {request.shot_type}")
+    print(f"[请求参数] group_count: {request.group_count}")
+    if request.first_frame_url:
+        print(f"[请求参数] first_frame_url: {request.first_frame_url[:100]}...")
+    if request.reference_video_urls:
+        print(f"[请求参数] reference_video_urls: {request.reference_video_urls}")
+    print(f"[请求参数] prompt: {request.prompt[:200] if request.prompt else 'None'}...")
+    print(f"{'#'*60}\n")
+    
     # 根据任务类型验证参数
     if request.task_type == "image_to_video":
         if not request.first_frame_url:
@@ -220,11 +247,20 @@ async def create_task(request: VideoStudioTaskCreateRequest):
 @router.get("/{task_id}/status")
 async def get_task_status(task_id: str):
     """查询任务状态"""
+    print(f"\n[视频工作室状态查询] task_id: {task_id}")
+    
     task = storage_service.get_video_studio_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
     
+    print(f"[视频工作室状态查询] 任务名: {task.name}")
+    print(f"[视频工作室状态查询] 任务类型: {getattr(task, 'task_type', 'image_to_video')}")
+    print(f"[视频工作室状态查询] 模型: {task.model}")
+    print(f"[视频工作室状态查询] 当前状态: {task.status}")
+    print(f"[视频工作室状态查询] API任务IDs: {task.task_ids}")
+    
     if task.status != "processing":
+        print(f"[视频工作室状态查询] 任务已完成，无需轮询")
         return {"task": task}
     
     all_succeeded = True
@@ -235,9 +271,11 @@ async def get_task_status(task_id: str):
     task_type = getattr(task, 'task_type', 'image_to_video')
     
     for api_task_id in task.task_ids:
+        print(f"\n[视频工作室状态查询] 查询子任务: {api_task_id}")
         try:
             if task_type == "reference_to_video" or task.model == "wan2.6-r2v":
                 # 视频生视频任务使用 HTTP 查询
+                print(f"[视频工作室状态查询] 使用 视频生视频服务 (HTTP)")
                 r2v_service = ReferenceToVideoService()
                 status, video_url = await r2v_service.get_task_status(api_task_id, task.project_id)
             else:
@@ -245,18 +283,25 @@ async def get_task_status(task_id: str):
                 i2v_service = ImageToVideoService()
                 # wan2.6-i2v 模型也使用 HTTP 查询
                 use_http = 'wan2.6' in task.model
+                print(f"[视频工作室状态查询] 使用 图生视频服务 (HTTP={use_http})")
                 status, video_url = await i2v_service.get_task_status(api_task_id, task.project_id, use_http=use_http)
+            
+            print(f"[视频工作室状态查询] 子任务 {api_task_id} 状态: {status}")
             
             if status == "SUCCEEDED" and video_url:
                 video_urls.append(video_url)
+                print(f"[视频工作室状态查询] 子任务成功，视频URL已获取")
             elif status == "FAILED":
                 all_succeeded = False
+                print(f"[视频工作室状态查询] 子任务失败")
             elif status in ["PENDING", "RUNNING"]:
                 all_finished = False
+                print(f"[视频工作室状态查询] 子任务进行中")
                 
         except Exception as e:
             all_succeeded = False
             task.error_message = str(e)
+            print(f"[视频工作室状态查询] 查询子任务异常: {e}")
     
     # 更新任务状态
     task.video_urls = video_urls
@@ -264,10 +309,14 @@ async def get_task_status(task_id: str):
     if all_finished:
         if all_succeeded and len(video_urls) == len(task.task_ids):
             task.status = "succeeded"
+            print(f"[视频工作室状态查询] 所有任务成功完成！共 {len(video_urls)} 个视频")
         else:
             task.status = "failed"
             if not task.error_message:
                 task.error_message = "部分视频生成失败"
+            print(f"[视频工作室状态查询] 任务失败: {task.error_message}")
+    else:
+        print(f"[视频工作室状态查询] 任务进行中，已完成 {len(video_urls)}/{len(task.task_ids)}")
     
     task.updated_at = datetime.now()
     storage_service.save_video_studio_task(task)
@@ -315,6 +364,10 @@ async def update_task(task_id: str, request: VideoStudioTaskUpdateRequest):
         task.reference_video_urls = request.reference_video_urls
     if request.size is not None:
         task.size = request.size
+    if request.task_type is not None:
+        task.task_type = request.task_type
+    if request.group_count is not None:
+        task.group_count = request.group_count
     
     task.updated_at = datetime.now()
     storage_service.save_video_studio_task(task)

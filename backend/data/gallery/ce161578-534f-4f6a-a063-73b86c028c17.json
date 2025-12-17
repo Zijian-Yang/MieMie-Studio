@@ -1,0 +1,13 @@
+{
+  "id": "ce161578-534f-4f6a-a063-73b86c028c17",
+  "project_id": "ff69d622-c3d2-4806-b8fd-950cc7689db4",
+  "name": "分22 - 第2组",
+  "description": "",
+  "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251217/132201_1c6b607b.png",
+  "prompt_used": "将图2中的人加入到图1中左侧 ，紧张表情，看着图1中的人",
+  "source": "studio",
+  "task_id": "d654be29-9228-4d62-a735-411a5796ea85",
+  "tags": [],
+  "created_at": "2025-12-17T13:22:18.593317",
+  "updated_at": "2025-12-17T13:22:18.593346"
+}

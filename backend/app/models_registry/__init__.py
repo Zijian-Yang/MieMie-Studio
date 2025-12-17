@@ -59,7 +59,7 @@ from .base import (
 from .llm import qwen
 
 # 图像模型
-from .image import wan25_t2i, wan25_i2i
+from .image import wan25_t2i, wan25_i2i, qwen_image_edit
 
 # 视频模型
 from .video import wan25_i2v, wanx21_i2v

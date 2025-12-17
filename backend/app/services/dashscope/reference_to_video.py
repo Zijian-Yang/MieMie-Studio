@@ -120,8 +120,12 @@ class ReferenceToVideoService:
         if parameters:
             request_body["parameters"] = parameters
         
-        logger.info(f"[wan2.6-r2v HTTP请求] URL: {self.base_url}/services/aigc/video-generation/video-synthesis")
-        logger.info(f"[wan2.6-r2v HTTP请求] Body: {json.dumps(request_body, ensure_ascii=False)}")
+        # 打印详细请求信息
+        print(f"\n{'='*60}")
+        print(f"[HTTP 视频生视频请求] 模型: {model_name}")
+        print(f"[HTTP 视频生视频请求] URL: {self.base_url}/services/aigc/video-generation/video-synthesis")
+        print(f"[HTTP 视频生视频请求] Body: {json.dumps(request_body, ensure_ascii=False, indent=2)}")
+        print(f"{'='*60}\n")
         
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
@@ -135,7 +139,20 @@ class ReferenceToVideoService:
             )
             
             result = response.json()
-            logger.info(f"[wan2.6-r2v HTTP响应] Status: {response.status_code}, Body: {json.dumps(result, ensure_ascii=False)}")
+            
+            # 打印详细响应信息
+            print(f"\n{'='*60}")
+            print(f"[HTTP 视频生视频响应] status_code: {response.status_code}")
+            print(f"[HTTP 视频生视频响应] request_id: {result.get('request_id', 'N/A')}")
+            if response.status_code == 200:
+                output = result.get("output", {})
+                print(f"[HTTP 视频生视频响应] task_id: {output.get('task_id', 'N/A')}")
+                print(f"[HTTP 视频生视频响应] task_status: {output.get('task_status', 'N/A')}")
+            else:
+                print(f"[HTTP 视频生视频响应] code: {result.get('code', 'N/A')}")
+                print(f"[HTTP 视频生视频响应] message: {result.get('message', 'N/A')}")
+            print(f"[HTTP 视频生视频响应] 完整响应: {json.dumps(result, ensure_ascii=False, indent=2)}")
+            print(f"{'='*60}\n")
             
             if response.status_code != 200:
                 error_code = result.get("code", "Unknown")
@@ -159,7 +176,8 @@ class ReferenceToVideoService:
         Returns:
             (状态, 视频URL) 元组
         """
-        logger.info(f"[wan2.6-r2v 查询任务] task_id: {task_id}")
+        print(f"\n[HTTP 视频生视频状态查询] task_id: {task_id}")
+        print(f"[HTTP 视频生视频状态查询] URL: {self.base_url}/tasks/{task_id}")
         
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
@@ -170,15 +188,45 @@ class ReferenceToVideoService:
             )
             
             result = response.json()
-            logger.info(f"[wan2.6-r2v 查询响应] Status: {response.status_code}, Body: {json.dumps(result, ensure_ascii=False)}")
+            
+            # 打印详细状态信息
+            output = result.get("output", {})
+            status = output.get("task_status", "UNKNOWN")
+            
+            print(f"[HTTP 视频生视频状态查询] status_code: {response.status_code}")
+            print(f"[HTTP 视频生视频状态查询] request_id: {result.get('request_id', 'N/A')}")
+            print(f"[HTTP 视频生视频状态查询] task_status: {status}")
+            
+            # 如果任务失败，输出详细的失败信息
+            if status == "FAILED":
+                print(f"\n{'!'*60}")
+                print(f"[任务失败] 详细错误信息:")
+                print(json.dumps({
+                    "request_id": result.get('request_id', 'N/A'),
+                    "output": {
+                        "task_id": task_id,
+                        "task_status": status,
+                        "code": output.get('code', 'N/A'),
+                        "message": output.get('message', 'N/A')
+                    }
+                }, ensure_ascii=False, indent=4))
+                print(f"{'!'*60}\n")
+            
+            if output.get('video_url'):
+                print(f"[HTTP 视频生视频状态查询] video_url: {output.get('video_url')[:100]}...")
+            if output.get('submit_time'):
+                print(f"[HTTP 视频生视频状态查询] submit_time: {output.get('submit_time')}")
+            if output.get('end_time'):
+                print(f"[HTTP 视频生视频状态查询] end_time: {output.get('end_time')}")
+            if result.get('usage'):
+                print(f"[HTTP 视频生视频状态查询] usage: {json.dumps(result.get('usage'), ensure_ascii=False)}")
             
             if response.status_code != 200:
                 error_code = result.get("code", "Unknown")
                 error_message = result.get("message", "Unknown error")
+                print(f"[HTTP 视频生视频状态查询] 错误: {error_code} - {error_message}")
                 raise Exception(f"查询任务状态失败: {error_code} - {error_message}")
             
-            output = result.get("output", {})
-            status = output.get("task_status", "UNKNOWN")
             video_url = output.get("video_url") if status == "SUCCEEDED" else None
         
         # 如果启用了 OSS，上传视频并返回 OSS URL

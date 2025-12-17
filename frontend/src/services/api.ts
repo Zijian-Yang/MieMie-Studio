@@ -1205,6 +1205,7 @@ export const videoStudioApi = {
   update: (id: string, data: { 
     name?: string
     selected_video_url?: string
+    task_type?: 'image_to_video' | 'reference_to_video'  // 任务类型
     prompt?: string
     negative_prompt?: string
     model?: string
@@ -1219,6 +1220,7 @@ export const videoStudioApi = {
     audio_url?: string
     reference_video_urls?: string[]  // 参考视频URL列表
     size?: string  // 视频生视频分辨率
+    group_count?: number
   }) => 
     api.put<any, VideoStudioTask>(`/video-studio/${id}`, data),
   regenerate: (id: string) => 

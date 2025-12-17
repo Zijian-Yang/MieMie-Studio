@@ -119,8 +119,16 @@ async def generate_video(request: VideoGenerateRequest):
     if not prompt:
         prompt = "流畅的摄像机运动, 自然的场景变化"
     
-    # 确保时长在合理范围内（wan2.5支持5-10秒）
-    duration = max(5, min(request.duration, 10))
+    # 确保时长在合理范围内，根据模型决定最大时长
+    # wan2.6 支持 5/10/15秒，wan2.5 支持 5/10秒，wanx2.1 支持 3/4/5秒
+    model = request.model or config.video.model
+    if model and 'wan2.6' in model:
+        max_duration = 15
+    elif model and 'wanx2.1' in model:
+        max_duration = 5
+    else:
+        max_duration = 10
+    duration = max(3, min(request.duration, max_duration))
     
     i2v_service = ImageToVideoService()
     
@@ -135,10 +143,24 @@ async def generate_video(request: VideoGenerateRequest):
             duration=duration
         )
         
-        # 打印调试信息
-        print(f"[视频生成] 首帧URL: {first_frame_url[:100] if first_frame_url else 'None'}...")
-        print(f"[视频生成] 提示词: {prompt[:100] if prompt else 'None'}...")
-        print(f"[视频生成] 模型: {request.model}, 分辨率: {request.resolution}, 时长: {duration}")
+        # 打印详细调试信息
+        print(f"\n{'#'*60}")
+        print(f"# 视频生成请求")
+        print(f"{'#'*60}")
+        print(f"[请求参数] project_id: {request.project_id}")
+        print(f"[请求参数] shot_id: {request.shot_id}")
+        print(f"[请求参数] shot_number: {request.shot_number}")
+        print(f"[请求参数] model: {request.model}")
+        print(f"[请求参数] resolution: {request.resolution}")
+        print(f"[请求参数] duration: {duration}")
+        print(f"[请求参数] prompt_extend: {request.prompt_extend}")
+        print(f"[请求参数] watermark: {request.watermark}")
+        print(f"[请求参数] seed: {request.seed}")
+        print(f"[请求参数] audio: {request.audio}")
+        print(f"[请求参数] shot_type: {request.shot_type}")
+        print(f"[请求参数] first_frame_url: {first_frame_url[:100] if first_frame_url else 'None'}...")
+        print(f"[请求参数] prompt: {prompt[:200] if prompt else 'None'}...")
+        print(f"{'#'*60}\n")
         
         # 提交生成任务（传递可选参数）
         task_id = await i2v_service.create_task(
@@ -217,8 +239,16 @@ async def generate_videos_batch(request: VideoBatchGenerateRequest):
             # 根据分镜信息生成详细提示词
             prompt = generate_video_prompt(shot)
             
-            # 确保时长在合理范围内（wan2.5支持5-10秒）
-            duration = max(5, min(shot.duration, 10))
+            # 确保时长在合理范围内，根据模型决定最大时长
+            # wan2.6 支持 5/10/15秒，wan2.5 支持 5/10秒，wanx2.1 支持 3/4/5秒
+            model = request.model or config.video.model
+            if model and 'wan2.6' in model:
+                max_duration = 15
+            elif model and 'wanx2.1' in model:
+                max_duration = 5
+            else:
+                max_duration = 10
+            duration = max(3, min(shot.duration, max_duration))
             
             video = Video(
                 project_id=request.project_id,
@@ -267,10 +297,16 @@ async def generate_videos_batch(request: VideoBatchGenerateRequest):
 @router.get("/status/{task_id}")
 async def get_video_status(task_id: str):
     """查询视频生成状态"""
+    print(f"\n[状态查询API] task_id: {task_id}")
+    
     i2v_service = ImageToVideoService()
     
     try:
         status, video_url = await i2v_service.get_task_status(task_id)
+        
+        print(f"[状态查询API] 返回状态: {status}")
+        if video_url:
+            print(f"[状态查询API] 视频URL: {video_url[:100]}...")
         
         # 更新数据库中的视频记录
         video = storage_service.get_video_by_task(task_id)
@@ -278,6 +314,7 @@ async def get_video_status(task_id: str):
             if status == "SUCCEEDED":
                 video.task.status = TaskStatus.SUCCEEDED
                 video.video_url = video_url
+                print(f"[状态查询API] 视频生成成功！正在更新数据库...")
                 
                 # 更新分镜的视频URL
                 project = storage_service.get_project(video.project_id)
@@ -290,8 +327,10 @@ async def get_video_status(task_id: str):
                     
             elif status == "FAILED":
                 video.task.status = TaskStatus.FAILED
+                print(f"[状态查询API] 视频生成失败")
             elif status == "PROCESSING":
                 video.task.status = TaskStatus.PROCESSING
+                print(f"[状态查询API] 视频正在生成中...")
             
             storage_service.save_video(video)
         
@@ -301,6 +340,7 @@ async def get_video_status(task_id: str):
             "video_url": video_url
         }
     except Exception as e:
+        print(f"[状态查询API] 错误: {str(e)}")
         raise HTTPException(status_code=500, detail=f"查询状态失败: {str(e)}")
 
 

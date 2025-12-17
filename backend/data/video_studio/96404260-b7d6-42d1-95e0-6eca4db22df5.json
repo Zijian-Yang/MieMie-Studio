@@ -1,0 +1,38 @@
+{
+  "id": "96404260-b7d6-42d1-95e0-6eca4db22df5",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "视频任务 20251216_174843",
+  "task_type": "image_to_video",
+  "mode": "first_frame",
+  "first_frame_url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251216/174547_358a2d1c.png",
+  "last_frame_url": null,
+  "reference_video_urls": [],
+  "audio_url": null,
+  "prompt": "小女孩背后有烟花射到顶端，绽放出五颜六色的烟花，烟花每隔2秒发射一次，烟花炸开时发出响声，图中人物开心笑着，烟花必须在人物身后",
+  "negative_prompt": "",
+  "model": "wan2.5-i2v-preview",
+  "duration": 5,
+  "watermark": false,
+  "seed": null,
+  "shot_type": "single",
+  "auto_audio": true,
+  "resolution": "480P",
+  "prompt_extend": false,
+  "size": "1920*1080",
+  "group_count": 3,
+  "video_urls": [
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/f96d7434-4033-4345-b69d-0810ebeff76d/20251216/175013_0b83f6ec.mp4",
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/f96d7434-4033-4345-b69d-0810ebeff76d/20251216/175015_d4a49200.mp4",
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/f96d7434-4033-4345-b69d-0810ebeff76d/20251216/175017_16208fa9.mp4"
+  ],
+  "selected_video_url": null,
+  "task_ids": [
+    "b0b7e043-0f20-4bb7-b26f-fee391c2e677",
+    "c0cb220b-9480-492a-a981-0429c7051b43",
+    "f6ea0e33-7870-43dd-87e4-58925bf91392"
+  ],
+  "status": "succeeded",
+  "error_message": null,
+  "created_at": "2025-12-16T17:48:43.976019",
+  "updated_at": "2025-12-16T17:50:17.908239"
+}

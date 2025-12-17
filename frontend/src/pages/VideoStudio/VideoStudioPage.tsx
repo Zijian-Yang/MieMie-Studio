@@ -244,17 +244,32 @@ const VideoStudioPage = () => {
   }
 
   // 编辑表单的额外状态（不在 Form 中管理的值）
+  const [editTaskType, setEditTaskType] = useState<'image_to_video' | 'reference_to_video'>('image_to_video')
   const [editFirstFrameUrl, setEditFirstFrameUrl] = useState('')
   const [editAudioUrl, setEditAudioUrl] = useState('')
+  const [editReferenceVideoUrls, setEditReferenceVideoUrls] = useState<string[]>([])
   const [editGroupCount, setEditGroupCount] = useState(1)
+  const [editModel, setEditModel] = useState('wan2.5-i2v-preview')  // 编辑弹窗中的当前模型
+
+  // 获取编辑弹窗中当前模型的信息
+  const getEditModelInfo = () => {
+    if (editTaskType === 'reference_to_video') {
+      return refVideoModels[editModel] || Object.values(refVideoModels)[0]
+    }
+    return videoModels[editModel]
+  }
 
   // 打开编辑弹窗
   const openEditModal = (task: VideoStudioTask) => {
     setSelectedTask(task)
     // 设置非 Form 管理的值
+    const taskTypeValue = task.task_type || 'image_to_video'
+    setEditTaskType(taskTypeValue)
     setEditFirstFrameUrl(task.first_frame_url || '')
     setEditAudioUrl(task.audio_url || '')
+    setEditReferenceVideoUrls(task.reference_video_urls || [])
     setEditGroupCount(task.group_count || 1)
+    setEditModel(task.model || 'wan2.5-i2v-preview')
     
     editForm.setFieldsValue({
       name: task.name,
@@ -262,6 +277,7 @@ const VideoStudioPage = () => {
       negative_prompt: task.negative_prompt,
       model: task.model,
       resolution: task.resolution,
+      size: task.size,
       duration: task.duration,
       prompt_extend: task.prompt_extend,
       watermark: task.watermark,
@@ -276,20 +292,36 @@ const VideoStudioPage = () => {
   const handleSaveEdit = async () => {
     if (!selectedTask) return
     
-    if (!editFirstFrameUrl) {
+    // 根据任务类型验证
+    if (editTaskType === 'image_to_video' && !editFirstFrameUrl) {
       message.warning('请选择首帧图')
+      return
+    }
+    if (editTaskType === 'reference_to_video' && editReferenceVideoUrls.length === 0) {
+      message.warning('请选择参考视频')
       return
     }
     
     try {
       setSaving(true)
       const values = editForm.getFieldsValue()
-      const updatedTask = await videoStudioApi.update(selectedTask.id, {
+      
+      // 构建更新数据
+      const updateData: any = {
         ...values,
-        first_frame_url: editFirstFrameUrl,
-        audio_url: editAudioUrl || undefined,
+        task_type: editTaskType,
         group_count: editGroupCount,
-      })
+      }
+      
+      if (editTaskType === 'image_to_video') {
+        updateData.first_frame_url = editFirstFrameUrl
+        updateData.audio_url = editAudioUrl || undefined
+      } else {
+        updateData.reference_video_urls = editReferenceVideoUrls
+        updateData.size = values.size
+      }
+      
+      const updatedTask = await videoStudioApi.update(selectedTask.id, updateData)
       setTasks(prev => prev.map(t => t.id === selectedTask.id ? updatedTask : t))
       setSelectedTask(updatedTask)
       setEditModalVisible(false)
@@ -1102,7 +1134,11 @@ const VideoStudioPage = () => {
         cancelText="取消"
         confirmLoading={saving}
         width={700}
-        okButtonProps={{ disabled: !editFirstFrameUrl }}
+        okButtonProps={{ 
+          disabled: editTaskType === 'image_to_video' 
+            ? !editFirstFrameUrl 
+            : editReferenceVideoUrls.length === 0 
+        }}
       >
         <Tabs
           items={[
@@ -1115,30 +1151,80 @@ const VideoStudioPage = () => {
                     <Input placeholder="任务名称" />
                   </Form.Item>
                   
-                  <div style={{ marginBottom: 16 }}>
-                    <div style={{ marginBottom: 8 }}>首帧图 *</div>
-                    <Select
-                      style={{ width: '100%' }}
-                      value={editFirstFrameUrl || undefined}
-                      onChange={setEditFirstFrameUrl}
-                      placeholder="从图库选择首帧图"
-                      optionLabelProp="label"
-                    >
-                      {galleryImages.map(img => (
-                        <Option key={img.id} value={img.url} label={img.name}>
-                          <Space>
-                            <img src={img.url} alt="" style={{ width: 40, height: 40, objectFit: 'cover' }} />
-                            {img.name}
-                          </Space>
-                        </Option>
-                      ))}
-                    </Select>
-                    {editFirstFrameUrl && (
-                      <div style={{ marginTop: 8 }}>
-                        <img src={editFirstFrameUrl} alt="预览" style={{ maxWidth: 200, maxHeight: 150, borderRadius: 4 }} />
-                      </div>
-                    )}
+                  {/* 任务类型标识（只读） */}
+                  <div style={{ marginBottom: 16, padding: '8px 12px', background: '#1f1f1f', borderRadius: 4 }}>
+                    <Tag color={editTaskType === 'image_to_video' ? 'blue' : 'purple'}>
+                      {editTaskType === 'image_to_video' ? '图生视频' : '视频生视频'}
+                    </Tag>
                   </div>
+                  
+                  {/* 图生视频：首帧图选择 */}
+                  {editTaskType === 'image_to_video' && (
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ marginBottom: 8 }}>首帧图 *</div>
+                      <Select
+                        style={{ width: '100%' }}
+                        value={editFirstFrameUrl || undefined}
+                        onChange={setEditFirstFrameUrl}
+                        placeholder="从图库选择首帧图"
+                        optionLabelProp="label"
+                      >
+                        {galleryImages.map(img => (
+                          <Option key={img.id} value={img.url} label={img.name}>
+                            <Space>
+                              <img src={img.url} alt="" style={{ width: 40, height: 40, objectFit: 'cover' }} />
+                              {img.name}
+                            </Space>
+                          </Option>
+                        ))}
+                      </Select>
+                      {editFirstFrameUrl && (
+                        <div style={{ marginTop: 8 }}>
+                          <img src={editFirstFrameUrl} alt="预览" style={{ maxWidth: 200, maxHeight: 150, borderRadius: 4 }} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* 视频生视频：参考视频选择 */}
+                  {editTaskType === 'reference_to_video' && (
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ marginBottom: 8 }}>参考视频 * (最多2个)</div>
+                      <Select
+                        mode="multiple"
+                        style={{ width: '100%' }}
+                        value={editReferenceVideoUrls}
+                        onChange={(urls) => setEditReferenceVideoUrls(urls.slice(0, 2))}
+                        placeholder="从视频库选择参考视频"
+                        optionLabelProp="label"
+                        maxTagCount={2}
+                      >
+                        {videoLibraryItems.map(video => (
+                          <Option key={video.id} value={video.url} label={video.name}>
+                            <Space>
+                              <VideoCameraOutlined />
+                              {video.name}
+                            </Space>
+                          </Option>
+                        ))}
+                      </Select>
+                      <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                        提示词中使用 character1 指代第1个视频的主体，character2 指代第2个视频的主体
+                      </div>
+                      {editReferenceVideoUrls.length > 0 && (
+                        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                          {editReferenceVideoUrls.map((url, idx) => (
+                            <video 
+                              key={idx} 
+                              src={url} 
+                              style={{ width: 100, height: 60, objectFit: 'cover', borderRadius: 4 }}
+                              muted
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   
                   <Form.Item name="prompt" label="提示词">
                     <TextArea rows={3} placeholder="描述想要生成的视频内容" />
@@ -1158,28 +1244,66 @@ const VideoStudioPage = () => {
                   <Row gutter={16}>
                     <Col span={12}>
                       <Form.Item name="model" label="模型">
-                        <Select
-                          onChange={(v) => {
-                            const modelInfo = videoModels[v]
-                            if (modelInfo?.default_resolution) {
-                              editForm.setFieldValue('resolution', modelInfo.default_resolution)
-                            }
-                          }}
-                        >
-                          {Object.entries(videoModels).map(([key, info]) => (
-                            <Option key={key} value={key}>{info.name}</Option>
-                          ))}
-                        </Select>
+                        {editTaskType === 'image_to_video' ? (
+                          <Select
+                            onChange={(v) => {
+                              setEditModel(v)
+                              const modelInfo = videoModels[v]
+                              if (modelInfo?.default_resolution) {
+                                editForm.setFieldValue('resolution', modelInfo.default_resolution)
+                              }
+                              if (modelInfo?.default_duration) {
+                                editForm.setFieldValue('duration', modelInfo.default_duration)
+                              }
+                              // 处理镜头类型
+                              if (modelInfo?.supports_shot_type) {
+                                editForm.setFieldValue('shot_type', modelInfo.default_shot_type || 'single')
+                              }
+                            }}
+                          >
+                            {Object.entries(videoModels).map(([key, info]) => (
+                              <Option key={key} value={key}>{info.name}</Option>
+                            ))}
+                          </Select>
+                        ) : (
+                          <Select
+                            onChange={(v) => {
+                              setEditModel(v)
+                              const modelInfo = refVideoModels[v]
+                              if (modelInfo?.default_resolution) {
+                                editForm.setFieldValue('size', modelInfo.default_resolution)
+                              }
+                            }}
+                          >
+                            {Object.entries(refVideoModels).map(([key, info]) => (
+                              <Option key={key} value={key}>{info.name}</Option>
+                            ))}
+                          </Select>
+                        )}
                       </Form.Item>
                     </Col>
                     <Col span={12}>
-                      <Form.Item name="resolution" label="分辨率">
-                        <Select>
-                          <Option value="480P">480P (标清)</Option>
-                          <Option value="720P">720P (高清)</Option>
-                          <Option value="1080P">1080P (全高清)</Option>
-                        </Select>
-                      </Form.Item>
+                      {editTaskType === 'image_to_video' ? (
+                        <Form.Item name="resolution" label="分辨率">
+                          <Select>
+                            {(getEditModelInfo()?.resolutions || [
+                              { value: '480P', label: '480P (标清)' },
+                              { value: '720P', label: '720P (高清)' },
+                              { value: '1080P', label: '1080P (全高清)' }
+                            ]).map((res: any) => (
+                              <Option key={res.value} value={res.value}>{res.label}</Option>
+                            ))}
+                          </Select>
+                        </Form.Item>
+                      ) : (
+                        <Form.Item name="size" label="分辨率">
+                          <Select>
+                            {(getEditModelInfo()?.resolutions || []).map((res: any) => (
+                              <Option key={res.value} value={res.value}>{res.label}</Option>
+                            ))}
+                          </Select>
+                        </Form.Item>
+                      )}
                     </Col>
                   </Row>
                   
@@ -1187,8 +1311,9 @@ const VideoStudioPage = () => {
                     <Col span={12}>
                       <Form.Item name="duration" label="视频时长">
                         <Select>
-                          <Option value={5}>5 秒</Option>
-                          <Option value={10}>10 秒</Option>
+                          {(getEditModelInfo()?.durations || [5, 10]).map((d: number) => (
+                            <Option key={d} value={d}>{d} 秒</Option>
+                          ))}
                         </Select>
                       </Form.Item>
                     </Col>
@@ -1225,7 +1350,7 @@ const VideoStudioPage = () => {
                   </Row>
                   
                   {/* 音频设置 - wan2.5/2.6 支持 */}
-                  {(editForm.getFieldValue('model')?.includes('wan2.5') || editForm.getFieldValue('model')?.includes('wan2.6')) && (
+                  {(getEditModelInfo()?.supports_audio || editModel?.includes('wan2.5') || editModel?.includes('wan2.6')) && (
                     <div style={{ 
                       padding: 12, 
                       background: '#1a1a1a', 
@@ -1274,7 +1399,7 @@ const VideoStudioPage = () => {
                   )}
                   
                   {/* 镜头类型 - 仅 wan2.6 支持 */}
-                  {editForm.getFieldValue('model')?.includes('wan2.6') && (
+                  {(getEditModelInfo()?.supports_shot_type || editModel?.includes('wan2.6')) && (
                     <div style={{ 
                       padding: 12, 
                       background: '#1a1a1a', 

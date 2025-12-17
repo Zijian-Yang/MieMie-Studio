@@ -1,0 +1,13 @@
+{
+  "id": "3d72ff79-9bd1-4675-a061-725cc95c127f",
+  "project_id": "ff69d622-c3d2-4806-b8fd-950cc7689db4",
+  "name": "分17 拉远 - 第2组",
+  "description": "",
+  "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251217/113419_e47e3bc6.png",
+  "prompt_used": "镜头向后拉远10米，45度角俯瞰",
+  "source": "studio",
+  "task_id": "7e903ce8-60dc-471e-a313-e75648f3bda4",
+  "tags": [],
+  "created_at": "2025-12-17T11:34:52.649998",
+  "updated_at": "2025-12-17T11:34:52.650002"
+}

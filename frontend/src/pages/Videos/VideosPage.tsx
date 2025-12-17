@@ -598,7 +598,7 @@ const VideosPage = () => {
                       {getStatusTag(video)}
                     </div>
                     <div style={{ color: '#888', fontSize: 11 }}>
-                      {Math.min(shot.duration || 5, 10)}秒
+                      {shot.duration || 5}秒
                     </div>
                   </div>
                 </div>
@@ -899,7 +899,7 @@ const VideosPage = () => {
                   <p><strong>角色：</strong>{selectedShot.characters?.join(', ') || '无'}</p>
                   <p><strong>动作：</strong>{selectedShot.character_action || '未设置'}</p>
                   <p><strong>情绪：</strong>{selectedShot.mood || '未设置'}</p>
-                  <p style={{ marginBottom: 0 }}><strong>时长：</strong>{Math.min(selectedShot.duration || 5, 10)}秒</p>
+                  <p style={{ marginBottom: 0 }}><strong>时长：</strong>{selectedShot.duration || 5}秒</p>
                 </div>
               </Card>
               
@@ -1197,7 +1197,7 @@ const VideosPage = () => {
                   value={videoDuration !== null ? videoDuration : systemVideoConfig.duration}
                   onChange={setVideoDuration}
                 >
-                  {[5, 6, 7, 8, 9, 10].map(d => (
+                  {(getCurrentModelInfo()?.durations || [5, 10]).map((d: number) => (
                     <Option key={d} value={d}>{d} 秒</Option>
                   ))}
                 </Select>
