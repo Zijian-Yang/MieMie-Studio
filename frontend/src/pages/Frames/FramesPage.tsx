@@ -179,6 +179,32 @@ const FramesPage = () => {
   // 多选保存到图库
   const [selectedGroupsForGallery, setSelectedGroupsForGallery] = useState<Set<number>>(new Set())
   
+  // 首帧生成模型和参数设置
+  const [frameModel, setFrameModel] = useState<string>('wan2.5-i2i-preview')
+  const [frameN, setFrameN] = useState<number>(1)  // 每次请求生成图片数量
+  const [framePromptExtend, setFramePromptExtend] = useState<boolean>(true)
+  const [frameWatermark, setFrameWatermark] = useState<boolean>(false)
+  const [frameSeed, setFrameSeed] = useState<number | null>(null)
+  const [frameSize, setFrameSize] = useState<string | null>(null)
+  
+  // 可用的图生图模型
+  const availableImageModels = {
+    'wan2.5-i2i-preview': {
+      id: 'wan2.5-i2i-preview',
+      name: '万相2.5 图生图',
+      description: '风格迁移和多图融合，最多4张参考图',
+      maxN: 4,
+      supportsSize: false,
+    },
+    'qwen-image-edit-plus': {
+      id: 'qwen-image-edit-plus',
+      name: '通义千问 图像编辑',
+      description: '支持单图编辑和多图融合，最多3张参考图',
+      maxN: 6,
+      supportsSize: true,
+    }
+  }
+  
   const shouldStopRef = useRef(false)
   const isMountedRef = useRef(true)
 
@@ -732,7 +758,14 @@ const FramesPage = () => {
         negative_prompt: '',
         group_index: groupIndex,
         use_shot_references: useReferences && referenceUrls.length > 0,
-        reference_urls: referenceUrls
+        reference_urls: referenceUrls,
+        // 模型和参数设置
+        model: referenceUrls.length > 0 ? frameModel : undefined,  // 有参考图时才传模型
+        n: frameN,
+        prompt_extend: framePromptExtend,
+        watermark: frameWatermark,
+        seed: frameSeed,
+        size: frameModel === 'qwen-image-edit-plus' && frameN === 1 ? frameSize : undefined,
       })
       
       safeSetState(setFrames, (prev: Frame[]) => {
@@ -1500,9 +1533,117 @@ const FramesPage = () => {
                           rules={[{ required: true, message: '请输入提示词' }]}
                           extra="提示词根据分镜信息和选择的素材自动生成，使用角色/场景/道具名称引用，你可以手动调整"
                         >
-                          <TextArea rows={8} />
+                          <TextArea rows={6} />
                         </Form.Item>
                       </Form>
+                      
+                      {/* 生成模型和参数设置 */}
+                      <Card 
+                        size="small" 
+                        title="生成设置" 
+                        style={{ background: '#1a1a1a', marginBottom: 12 }}
+                        extra={
+                          <span style={{ fontSize: 11, color: '#666' }}>
+                            {useReferences && selectedReferences.length > 0 ? '图生图模式' : '文生图模式'}
+                          </span>
+                        }
+                      >
+                        {useReferences && selectedReferences.length > 0 && (
+                          <>
+                            <div style={{ marginBottom: 12 }}>
+                              <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>生成模型</div>
+                              <Select
+                                style={{ width: '100%' }}
+                                size="small"
+                                value={frameModel}
+                                onChange={setFrameModel}
+                              >
+                                {Object.values(availableImageModels).map(m => (
+                                  <Option key={m.id} value={m.id}>{m.name}</Option>
+                                ))}
+                              </Select>
+                              <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+                                {availableImageModels[frameModel as keyof typeof availableImageModels]?.description}
+                              </div>
+                            </div>
+                            
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                              <div>
+                                <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>生图数量</div>
+                                <InputNumber
+                                  style={{ width: '100%' }}
+                                  size="small"
+                                  min={1}
+                                  max={availableImageModels[frameModel as keyof typeof availableImageModels]?.maxN || 4}
+                                  value={frameN}
+                                  onChange={(v) => setFrameN(v || 1)}
+                                />
+                                <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+                                  最多 {availableImageModels[frameModel as keyof typeof availableImageModels]?.maxN || 4} 张
+                                </div>
+                              </div>
+                              
+                              {frameModel === 'qwen-image-edit-plus' && frameN === 1 && (
+                                <div>
+                                  <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>输出尺寸</div>
+                                  <Select
+                                    style={{ width: '100%' }}
+                                    size="small"
+                                    value={frameSize}
+                                    onChange={setFrameSize}
+                                    allowClear
+                                    placeholder="默认"
+                                  >
+                                    <Option value="1024*1024">1024×1024 (1:1)</Option>
+                                    <Option value="1280*720">1280×720 (16:9)</Option>
+                                    <Option value="720*1280">720×1280 (9:16)</Option>
+                                    <Option value="1024*768">1024×768 (4:3)</Option>
+                                    <Option value="768*1024">768×1024 (3:4)</Option>
+                                  </Select>
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div style={{ display: 'flex', gap: 16 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Switch
+                                  size="small"
+                                  checked={framePromptExtend}
+                                  onChange={setFramePromptExtend}
+                                />
+                                <span style={{ fontSize: 12, color: '#888' }}>智能改写</span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Switch
+                                  size="small"
+                                  checked={frameWatermark}
+                                  onChange={setFrameWatermark}
+                                />
+                                <span style={{ fontSize: 12, color: '#888' }}>水印</span>
+                              </div>
+                            </div>
+                            
+                            <div style={{ marginTop: 12 }}>
+                              <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>随机种子（可选）</div>
+                              <InputNumber
+                                style={{ width: '100%' }}
+                                size="small"
+                                min={0}
+                                max={2147483647}
+                                value={frameSeed}
+                                onChange={(v) => setFrameSeed(v)}
+                                placeholder="留空则随机"
+                              />
+                            </div>
+                          </>
+                        )}
+                        
+                        {(!useReferences || selectedReferences.length === 0) && (
+                          <div style={{ color: '#888', fontSize: 12, textAlign: 'center', padding: '8px 0' }}>
+                            文生图模式：未选择参考素材时使用默认文生图模型
+                          </div>
+                        )}
+                      </Card>
                       
                       <Card size="small" title="分镜信息参考" style={{ background: '#1a1a1a' }}>
                         <div style={{ fontSize: 12, color: '#888' }}>

@@ -681,7 +681,15 @@ export const framesApi = {
     group_index?: number
     use_shot_references?: boolean
     reference_urls?: string[]
-  }) => api.post<any, { frame: Frame }>('/frames/generate', data),
+    // 模型和参数设置（和图片工作室一样）
+    model?: string  // 模型选择，如 wan2.5-i2i-preview, qwen-image-edit-plus
+    n?: number  // 每次请求生成的图片数量
+    // qwen-image-edit-plus 专用参数
+    size?: string  // 输出尺寸
+    prompt_extend?: boolean  // 智能改写
+    watermark?: boolean  // 水印
+    seed?: number | null  // 随机种子
+  }) => api.post<any, { frame: Frame; generated_count?: number }>('/frames/generate', data),
   generateBatch: (projectId: string) => api.post('/frames/generate-batch', { project_id: projectId }),
   update: (id: string, data: { prompt?: string; selected_group_index?: number }) => api.put(`/frames/${id}`, data),
   delete: (id: string) => api.delete(`/frames/${id}`),

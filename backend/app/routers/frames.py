@@ -11,12 +11,20 @@ from app.models.gallery import GalleryImage
 from app.services.storage import storage_service
 from app.services.dashscope.text_to_image import TextToImageService
 from app.services.dashscope.image_to_image import ImageToImageService
+from app.services.oss import oss_service
+from app.config import get_config
 
 router = APIRouter()
 
 
 class FrameGenerateRequest(BaseModel):
-    """首帧生成请求"""
+    """首帧生成请求
+    
+    支持的模型：
+    - wan2.5-i2i-preview: 万相图生图（有参考图时使用）
+    - qwen-image-edit-plus: 通义千问图像编辑（有参考图时使用）
+    - flux-schnell/flux-dev/flux-merged: 文生图模型（无参考图时使用）
+    """
     project_id: str
     shot_id: str
     shot_number: int = 0
@@ -26,6 +34,14 @@ class FrameGenerateRequest(BaseModel):
     # 使用分镜关联的素材进行多图生图
     use_shot_references: bool = True  # 是否使用素材参照
     reference_urls: Optional[List[str]] = None  # 前端直接传入的参考图片URL列表（按用户选择顺序）
+    # 模型和参数设置（和图片工作室一样）
+    model: Optional[str] = None  # 模型选择，如 wan2.5-i2i-preview, qwen-image-edit-plus
+    n: int = 1  # 每次请求生成的图片数量
+    # qwen-image-edit-plus 专用参数
+    size: Optional[str] = None  # 输出尺寸（仅 qwen-image-edit-plus 且 n=1 时有效）
+    prompt_extend: bool = True  # 智能改写
+    watermark: bool = False  # 水印
+    seed: Optional[int] = None  # 随机种子
 
 
 class FrameBatchGenerateRequest(BaseModel):
@@ -135,7 +151,12 @@ def generate_shot_prompt(shot) -> str:
 
 @router.post("/generate")
 async def generate_frame(request: FrameGenerateRequest):
-    """生成单个分镜首帧"""
+    """生成单个分镜首帧
+    
+    支持模型选择和参数设置（和图片工作室一样）：
+    - 有参考图时：使用图生图模型（wan2.5-i2i-preview 或 qwen-image-edit-plus）
+    - 无参考图时：使用文生图模型
+    """
     project = storage_service.get_project(request.project_id)
     if not project:
         raise HTTPException(status_code=404, detail="项目不存在")
@@ -157,25 +178,75 @@ async def generate_frame(request: FrameGenerateRequest):
         elif shot:
             ref_urls = get_shot_reference_urls(request.project_id, shot)
     
+    config = get_config()
+    
     try:
+        urls = []
+        
         if ref_urls:
-            # 使用多图生图
-            i2i_service = ImageToImageService()
-            # 提示词已经包含了对各图片的引用说明
-            url = await i2i_service.generate_with_multi_images(
-                prompt=request.prompt,
-                image_urls=ref_urls,
-                negative_prompt=request.negative_prompt,
-                project_id=request.project_id
-            )
+            # 有参考图时使用图生图模型
+            model = request.model or "wan2.5-i2i-preview"
+            
+            if model == "qwen-image-edit-plus":
+                # 使用 qwen-image-edit-plus 模型
+                from app.models_registry.image.qwen_image_edit import QwenImageEditService, QWEN_IMAGE_EDIT_PLUS_MODEL_INFO
+                
+                service = QwenImageEditService(QWEN_IMAGE_EDIT_PLUS_MODEL_INFO)
+                service.configure(config.dashscope_api_key, "")
+                
+                urls = await service.generate(
+                    prompt=request.prompt,
+                    images=ref_urls[:3],  # qwen 最多3张参考图
+                    negative_prompt=request.negative_prompt,
+                    n=request.n,
+                    size=request.size if request.n == 1 else None,
+                    prompt_extend=request.prompt_extend,
+                    watermark=request.watermark,
+                    seed=request.seed
+                )
+            else:
+                # 使用 wan2.5-i2i-preview 或其他图生图模型
+                i2i_service = ImageToImageService()
+                result = await i2i_service.generate_with_multi_images(
+                    prompt=request.prompt,
+                    image_urls=ref_urls,
+                    negative_prompt=request.negative_prompt,
+                    n=request.n,
+                    project_id=request.project_id
+                )
+                # 确保返回列表
+                if isinstance(result, str):
+                    urls = [result]
+                else:
+                    urls = result
         else:
-            # 使用纯文生图
+            # 无参考图时使用文生图模型
             t2i_service = TextToImageService()
-            url = await t2i_service.generate(
+            result = await t2i_service.generate(
                 request.prompt, 
                 negative_prompt=request.negative_prompt,
+                n=request.n,
                 project_id=request.project_id
             )
+            # 确保返回列表
+            if isinstance(result, str):
+                urls = [result]
+            else:
+                urls = result
+        
+        # 上传图片到 OSS
+        final_urls = []
+        for url in urls:
+            if url and oss_service.is_enabled():
+                oss_url = oss_service.upload_image(url, request.project_id)
+                if oss_url != url:
+                    print(f"[首帧生成] 图片已上传到 OSS: {oss_url[:60]}...")
+                final_urls.append(oss_url)
+            else:
+                final_urls.append(url)
+        
+        # 使用第一张图片作为主要结果
+        main_url = final_urls[0] if final_urls else None
         
         # 查找或创建 Frame
         frame = storage_service.get_frame_by_shot(request.project_id, request.shot_id)
@@ -187,27 +258,33 @@ async def generate_frame(request: FrameGenerateRequest):
                 prompt=request.prompt
             )
         
-        image = FrameImage(
-            group_index=request.group_index,
-            url=url,
-            prompt_used=request.prompt
-        )
+        # 保存所有生成的图片到对应的 group
+        for i, url in enumerate(final_urls):
+            image = FrameImage(
+                group_index=request.group_index + i,
+                url=url,
+                prompt_used=request.prompt
+            )
+            
+            target_index = request.group_index + i
+            while len(frame.image_groups) <= target_index:
+                frame.image_groups.append(FrameImage(group_index=len(frame.image_groups)))
+            
+            frame.image_groups[target_index] = image
         
-        while len(frame.image_groups) <= request.group_index:
-            frame.image_groups.append(FrameImage(group_index=len(frame.image_groups)))
-        
-        frame.image_groups[request.group_index] = image
         frame.prompt = request.prompt
         
         storage_service.save_frame(frame)
         
         # 更新分镜的首帧URL
         if shot and request.group_index == frame.selected_group_index:
-            shot.first_frame_url = url
+            shot.first_frame_url = main_url
             storage_service.save_project(project)
         
-        return {"frame": frame}
+        return {"frame": frame, "generated_count": len(final_urls)}
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"首帧生成失败: {str(e)}")
 
 
