@@ -312,13 +312,24 @@ async def get_video_status(task_id: str):
         
         print(f"[状态查询API] 返回状态: {status}")
         if video_url:
-            print(f"[状态查询API] 视频URL: {video_url[:100]}...")
+            print(f"[状态查询API] 原始视频URL: {video_url[:100]}...")
         
         # 更新数据库中的视频记录
         video = storage_service.get_video_by_task(task_id)
         if video and video.task:
             if status == "SUCCEEDED":
                 video.task.status = TaskStatus.SUCCEEDED
+                
+                # 上传视频到 OSS
+                if video_url and oss_service.is_enabled():
+                    print(f"[状态查询API] 正在上传视频到 OSS...")
+                    oss_url = oss_service.upload_video(video_url, video.project_id)
+                    if oss_url != video_url:
+                        print(f"[状态查询API] OSS上传成功: {oss_url[:100]}...")
+                        video_url = oss_url
+                    else:
+                        print(f"[状态查询API] OSS上传失败，使用原始URL")
+                
                 video.video_url = video_url
                 print(f"[状态查询API] 视频生成成功！正在更新数据库...")
                 

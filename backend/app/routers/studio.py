@@ -15,6 +15,7 @@ from app.models.studio import StudioTask, StudioTaskImage, ReferenceItem
 from app.models.gallery import GalleryImage
 from app.services.storage import storage_service
 from app.services.dashscope.image_to_image import ImageToImageService
+from app.services.oss import oss_service
 from app.config import get_config
 from app.models_registry import registry
 
@@ -286,9 +287,17 @@ async def generate_with_wanx_i2i(
             
             images = []
             for i, url in enumerate(urls):
+                # 上传图片到 OSS
+                final_url = url
+                if url and oss_service.is_enabled():
+                    oss_url = oss_service.upload_image(url, task.project_id)
+                    if oss_url != url:
+                        final_url = oss_url
+                        print(f"[图片工作室] 图片已上传到 OSS: {oss_url[:60]}...")
+                
                 images.append(StudioTaskImage(
                     group_index=group_index * n + i,  # 全局索引
-                    url=url,
+                    url=final_url,
                     prompt_used=task.prompt
                 ))
             return images
@@ -374,9 +383,17 @@ async def generate_with_qwen_image_edit(
             
             images = []
             for i, url in enumerate(urls):
+                # 上传图片到 OSS
+                final_url = url
+                if url and oss_service.is_enabled():
+                    oss_url = oss_service.upload_image(url, task.project_id)
+                    if oss_url != url:
+                        final_url = oss_url
+                        print(f"[图片工作室] 图片已上传到 OSS: {oss_url[:60]}...")
+                
                 images.append(StudioTaskImage(
                     group_index=group_index * n + i,
-                    url=url,
+                    url=final_url,
                     prompt_used=task.prompt
                 ))
             return images

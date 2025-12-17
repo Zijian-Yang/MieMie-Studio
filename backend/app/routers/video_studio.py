@@ -14,6 +14,7 @@ from app.models.media import VideoStudioTask
 from app.services.storage import storage_service
 from app.services.dashscope.image_to_video import ImageToVideoService
 from app.services.dashscope.reference_to_video import ReferenceToVideoService
+from app.services.oss import oss_service
 
 router = APIRouter()
 
@@ -289,6 +290,16 @@ async def get_task_status(task_id: str):
             print(f"[视频工作室状态查询] 子任务 {api_task_id} 状态: {status}")
             
             if status == "SUCCEEDED" and video_url:
+                # 上传视频到 OSS
+                if oss_service.is_enabled():
+                    print(f"[视频工作室状态查询] 正在上传视频到 OSS...")
+                    oss_url = oss_service.upload_video(video_url, task.project_id)
+                    if oss_url != video_url:
+                        print(f"[视频工作室状态查询] OSS上传成功: {oss_url[:80]}...")
+                        video_url = oss_url
+                    else:
+                        print(f"[视频工作室状态查询] OSS上传失败，使用原始URL")
+                
                 video_urls.append(video_url)
                 print(f"[视频工作室状态查询] 子任务成功，视频URL已获取")
             elif status == "FAILED":
