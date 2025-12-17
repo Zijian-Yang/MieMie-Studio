@@ -8,7 +8,8 @@ import {
 import { 
   PlayCircleOutlined, ReloadOutlined, VideoCameraOutlined,
   LoadingOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  SoundOutlined, UploadOutlined, SettingOutlined, SaveOutlined
+  SoundOutlined, UploadOutlined, SettingOutlined, SaveOutlined,
+  ExportOutlined
 } from '@ant-design/icons'
 import { videosApi, framesApi, settingsApi, scriptsApi, Video, Shot, Frame, VideoModelInfo } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
@@ -52,6 +53,7 @@ const VideosPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [settingsModalVisible, setSettingsModalVisible] = useState(false)
   const [singleGenerating, setSingleGenerating] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [form] = Form.useForm()
   
   // 视频模型配置
@@ -332,6 +334,72 @@ const VideosPage = () => {
     }
   }
 
+  // 导出拼接视频
+  const exportVideo = async () => {
+    if (!projectId) return
+    
+    // 检查是否有已保存的视频
+    const shotsWithVideo = shots.filter(s => s.video_url)
+    if (shotsWithVideo.length === 0) {
+      message.warning('没有可导出的视频。请先为每个分镜生成并保存视频。')
+      return
+    }
+    
+    // 确认导出
+    Modal.confirm({
+      title: '导出视频',
+      content: (
+        <div>
+          <p>将把所有分镜已保存的视频按顺序拼接成一个完整视频，并保存到视频库。</p>
+          <p style={{ color: '#888' }}>
+            共 {shots.length} 个分镜，其中 {shotsWithVideo.length} 个已保存视频
+          </p>
+          {shotsWithVideo.length < shots.length && (
+            <p style={{ color: '#faad14' }}>
+              注意：{shots.length - shotsWithVideo.length} 个分镜尚未保存视频，将被跳过
+            </p>
+          )}
+        </div>
+      ),
+      okText: '开始导出',
+      cancelText: '取消',
+      onOk: async () => {
+        setExporting(true)
+        try {
+          const result = await videosApi.export({
+            project_id: projectId,
+            name: `${currentProject?.name || '项目'}_完整视频`
+          })
+          
+          if (result.warning) {
+            message.warning(result.warning)
+          }
+          
+          message.success(`视频导出成功！共拼接 ${result.shot_count} 个分镜视频`)
+          
+          // 提示用户去视频库查看
+          Modal.success({
+            title: '导出成功',
+            content: (
+              <div>
+                <p>视频已成功导出并保存到视频库</p>
+                <p style={{ color: '#888' }}>
+                  共拼接 {result.shot_count} 个分镜视频
+                </p>
+              </div>
+            ),
+            okText: '知道了'
+          })
+        } catch (error: any) {
+          console.error('导出失败:', error)
+          message.error(error.response?.data?.detail || '视频导出失败')
+        } finally {
+          setExporting(false)
+        }
+      }
+    })
+  }
+
   // 打开单个视频编辑
   const openVideoModal = (shot: Shot) => {
     setSelectedShot(shot)
@@ -493,6 +561,19 @@ const VideosPage = () => {
             disabled={shots.length === 0}
           >
             批量生成视频
+          </Button>
+          <Button
+            icon={<ExportOutlined />}
+            onClick={exportVideo}
+            loading={exporting}
+            disabled={shots.filter(s => s.video_url).length === 0}
+            style={{ 
+              background: shots.filter(s => s.video_url).length > 0 ? '#52c41a' : undefined,
+              borderColor: shots.filter(s => s.video_url).length > 0 ? '#52c41a' : undefined,
+              color: shots.filter(s => s.video_url).length > 0 ? '#fff' : undefined
+            }}
+          >
+            导出完整视频
           </Button>
         </Space>
       </div>

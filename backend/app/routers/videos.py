@@ -7,8 +7,14 @@ from pydantic import BaseModel
 from typing import Optional, List
 
 from app.models.video import Video, VideoTask, TaskStatus
+from app.models.media import VideoItem
 from app.services.storage import storage_service
 from app.services.dashscope.image_to_video import ImageToVideoService
+from app.services.video_concat import video_concat_service
+from app.services.oss import oss_service
+from datetime import datetime
+import uuid
+import os
 
 router = APIRouter()
 
@@ -416,3 +422,135 @@ async def delete_video(video_id: str):
     
     storage_service.delete_video(video_id)
     return {"message": "视频已删除"}
+
+
+class VideoExportRequest(BaseModel):
+    """视频导出请求"""
+    project_id: str
+    name: Optional[str] = None  # 导出视频名称
+
+
+@router.post("/export")
+async def export_video(request: VideoExportRequest):
+    """
+    导出拼接视频
+    
+    将所有分镜中已选择的最终视频按分镜顺序拼接成一个完整视频，
+    并保存到视频库。
+    """
+    # 检查 FFmpeg 是否可用
+    if not video_concat_service.check_ffmpeg():
+        raise HTTPException(
+            status_code=500, 
+            detail="FFmpeg 未安装，无法导出视频。请在服务器上安装 FFmpeg。"
+        )
+    
+    # 检查 OSS 是否可用
+    if not oss_service.is_enabled():
+        raise HTTPException(
+            status_code=500,
+            detail="OSS 未配置，无法保存导出的视频。请先配置 OSS。"
+        )
+    
+    # 获取项目
+    project = storage_service.get_project(request.project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    
+    if not project.script or not project.script.shots:
+        raise HTTPException(status_code=400, detail="项目没有分镜")
+    
+    # 收集所有已选择视频的分镜（按顺序）
+    video_urls = []
+    missing_shots = []
+    
+    sorted_shots = sorted(project.script.shots, key=lambda s: s.shot_number)
+    
+    for shot in sorted_shots:
+        if shot.video_url:
+            video_urls.append(shot.video_url)
+        else:
+            missing_shots.append(shot.shot_number)
+    
+    if not video_urls:
+        raise HTTPException(
+            status_code=400, 
+            detail="没有可导出的视频。请先为每个分镜生成并选择视频。"
+        )
+    
+    # 如果有部分分镜缺少视频，提示警告但继续导出
+    warning = None
+    if missing_shots:
+        warning = f"以下分镜缺少视频，将被跳过: {missing_shots}"
+        print(f"[视频导出] 警告: {warning}")
+    
+    print(f"\n{'='*60}")
+    print(f"开始导出视频")
+    print(f"{'='*60}")
+    print(f"项目: {project.name}")
+    print(f"总分镜数: {len(sorted_shots)}")
+    print(f"有视频的分镜数: {len(video_urls)}")
+    print(f"{'='*60}\n")
+    
+    # 拼接视频
+    success, result = await video_concat_service.concat_videos(video_urls)
+    
+    if not success:
+        raise HTTPException(status_code=500, detail=f"视频拼接失败: {result}")
+    
+    output_path = result
+    
+    try:
+        # 读取拼接后的视频文件
+        with open(output_path, 'rb') as f:
+            video_content = f.read()
+        
+        # 上传到 OSS
+        timestamp = datetime.now().strftime('%Y%m%d/%H%M%S')
+        filename = f"export/{request.project_id}/{timestamp}_{uuid.uuid4().hex[:8]}.mp4"
+        oss_url = oss_service.upload_bytes(video_content, filename)
+        
+        if not oss_url:
+            raise HTTPException(status_code=500, detail="上传到 OSS 失败")
+        
+        # 保存到视频库
+        video_name = request.name or f"{project.name}_导出_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        video_item = VideoItem(
+            project_id=request.project_id,
+            name=video_name,
+            url=oss_url,
+            file_type="mp4",
+            file_size=len(video_content),
+            description=f"由 {len(video_urls)} 个分镜视频拼接导出"
+        )
+        
+        storage_service.save_video_item(video_item)
+        
+        print(f"\n{'='*60}")
+        print(f"视频导出成功!")
+        print(f"{'='*60}")
+        print(f"视频名称: {video_name}")
+        print(f"视频大小: {len(video_content) / 1024 / 1024:.2f} MB")
+        print(f"OSS URL: {oss_url[:80]}...")
+        print(f"{'='*60}\n")
+        
+        return {
+            "message": "视频导出成功",
+            "video": video_item,
+            "url": oss_url,
+            "shot_count": len(video_urls),
+            "warning": warning
+        }
+        
+    finally:
+        # 清理临时文件
+        try:
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            # 清理工作目录
+            work_dir = os.path.dirname(output_path)
+            if os.path.exists(work_dir) and 'concat_' in work_dir:
+                import shutil
+                shutil.rmtree(work_dir, ignore_errors=True)
+        except:
+            pass

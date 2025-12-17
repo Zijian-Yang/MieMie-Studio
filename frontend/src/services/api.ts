@@ -758,6 +758,8 @@ export const videosApi = {
   delete: (id: string) => api.delete(`/videos/${id}`),
   select: (data: { project_id: string; shot_id: string; video_id: string }) => 
     api.post<any, { message: string; shot_id: string; video_url: string }>('/videos/select', data),
+  export: (data: { project_id: string; name?: string }) =>
+    api.post<any, { message: string; video: any; url: string; shot_count: number; warning?: string }>('/videos/export', data),
 }
 
 // ============ 风格 API ============
