@@ -189,7 +189,7 @@ const MainLayout = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <VideoCameraOutlined style={{ fontSize: 24, color: '#e5a84b' }} />
               <span style={{ fontSize: 16, fontWeight: 600, color: '#e0e0e0' }}>
-                AI 视频工作室
+                淸水Studio
               </span>
             </div>
           )}

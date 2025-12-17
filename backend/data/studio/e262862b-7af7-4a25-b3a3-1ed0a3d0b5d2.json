@@ -9,9 +9,50 @@
   "n": 1,
   "group_count": 1,
   "references": [],
-  "images": [],
-  "status": "generating",
+  "images": [
+    {
+      "id": "726f057a-a435-4481-8eef-9eded5117816",
+      "group_index": 0,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/ff69d622-c3d2-4806-b8fd-950cc7689db4/20251217/235855_18ac7039.png",
+      "prompt_used": "我想创作一个关于“友谊”的绘本，主角是一只小狐狸和一只小熊。故事讲的是他们在冬天来临前闹了别扭。请你为我生成一个分段叙述、图文交错的故事版本，每一段文字都搭配一张详细的插画描述，描绘他们友谊的小插曲和冬日前的和解。\n",
+      "is_selected": true,
+      "created_at": "2025-12-17T23:59:00.074410"
+    },
+    {
+      "id": "61aaa9b1-333d-40bc-9f74-356cb6800e41",
+      "group_index": 1,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/ff69d622-c3d2-4806-b8fd-950cc7689db4/20251217/235856_899eaabf.png",
+      "prompt_used": "我想创作一个关于“友谊”的绘本，主角是一只小狐狸和一只小熊。故事讲的是他们在冬天来临前闹了别扭。请你为我生成一个分段叙述、图文交错的故事版本，每一段文字都搭配一张详细的插画描述，描绘他们友谊的小插曲和冬日前的和解。\n",
+      "is_selected": true,
+      "created_at": "2025-12-17T23:59:00.074464"
+    },
+    {
+      "id": "2357a5aa-3279-45b1-bb7a-eab002ec8b97",
+      "group_index": 2,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/ff69d622-c3d2-4806-b8fd-950cc7689db4/20251217/235857_db6ce719.png",
+      "prompt_used": "我想创作一个关于“友谊”的绘本，主角是一只小狐狸和一只小熊。故事讲的是他们在冬天来临前闹了别扭。请你为我生成一个分段叙述、图文交错的故事版本，每一段文字都搭配一张详细的插画描述，描绘他们友谊的小插曲和冬日前的和解。\n",
+      "is_selected": true,
+      "created_at": "2025-12-17T23:59:00.074480"
+    },
+    {
+      "id": "485da927-3d08-4bca-b18b-bfb15103f83a",
+      "group_index": 3,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/ff69d622-c3d2-4806-b8fd-950cc7689db4/20251217/235858_4dc358f0.png",
+      "prompt_used": "我想创作一个关于“友谊”的绘本，主角是一只小狐狸和一只小熊。故事讲的是他们在冬天来临前闹了别扭。请你为我生成一个分段叙述、图文交错的故事版本，每一段文字都搭配一张详细的插画描述，描绘他们友谊的小插曲和冬日前的和解。\n",
+      "is_selected": true,
+      "created_at": "2025-12-17T23:59:00.074489"
+    },
+    {
+      "id": "4f90394f-7b4c-4e6f-aab5-27b1ef39497c",
+      "group_index": 4,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/ff69d622-c3d2-4806-b8fd-950cc7689db4/20251217/235859_7a80fca6.png",
+      "prompt_used": "我想创作一个关于“友谊”的绘本，主角是一只小狐狸和一只小熊。故事讲的是他们在冬天来临前闹了别扭。请你为我生成一个分段叙述、图文交错的故事版本，每一段文字都搭配一张详细的插画描述，描绘他们友谊的小插曲和冬日前的和解。\n",
+      "is_selected": true,
+      "created_at": "2025-12-17T23:59:00.074497"
+    }
+  ],
+  "status": "completed",
   "error_message": null,
   "created_at": "2025-12-17T23:54:20.857410",
-  "updated_at": "2025-12-17T23:55:12.374498"
+  "updated_at": "2025-12-17T23:59:50.551578"
 }

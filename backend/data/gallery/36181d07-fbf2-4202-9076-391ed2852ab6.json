@@ -1,0 +1,13 @@
+{
+  "id": "36181d07-fbf2-4202-9076-391ed2852ab6",
+  "project_id": "ff69d622-c3d2-4806-b8fd-950cc7689db4",
+  "name": "图文混跑2 - 第2组",
+  "description": "",
+  "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/ff69d622-c3d2-4806-b8fd-950cc7689db4/20251217/235856_899eaabf.png",
+  "prompt_used": "我想创作一个关于“友谊”的绘本，主角是一只小狐狸和一只小熊。故事讲的是他们在冬天来临前闹了别扭。请你为我生成一个分段叙述、图文交错的故事版本，每一段文字都搭配一张详细的插画描述，描绘他们友谊的小插曲和冬日前的和解。\n",
+  "source": "studio",
+  "task_id": "e262862b-7af7-4a25-b3a3-1ed0a3d0b5d2",
+  "tags": [],
+  "created_at": "2025-12-17T23:59:50.550106",
+  "updated_at": "2025-12-17T23:59:50.550126"
+}
