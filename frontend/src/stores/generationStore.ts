@@ -17,6 +17,14 @@ interface GenerationState {
   frameGroupCount: number
   videoGroupCount: number
   
+  // 文生图模型设置（用于角色、场景、道具生成）
+  t2iModel: string | null  // null 表示使用系统默认 (wan2.6-t2i)
+  t2iWidth: number | null  // 图片宽度，null 表示使用系统默认
+  t2iHeight: number | null  // 图片高度，null 表示使用系统默认
+  t2iPromptExtend: boolean | null
+  t2iWatermark: boolean | null
+  t2iSeed: number | null
+  
   // 视频生成设置（页面级覆盖，优先于系统设置）
   videoModel: string | null  // null 表示使用系统默认
   videoResolution: string | null  // 分辨率
@@ -51,6 +59,15 @@ interface GenerationState {
   setStyleGroupCount: (count: number) => void
   setFrameGroupCount: (count: number) => void
   setVideoGroupCount: (count: number) => void
+  
+  // 文生图模型设置 actions
+  setT2iModel: (model: string | null) => void
+  setT2iWidth: (width: number | null) => void
+  setT2iHeight: (height: number | null) => void
+  setT2iPromptExtend: (value: boolean | null) => void
+  setT2iWatermark: (value: boolean | null) => void
+  setT2iSeed: (seed: number | null) => void
+  resetT2iSettings: () => void
   
   // 视频生成设置 actions
   setVideoModel: (model: string | null) => void
@@ -93,6 +110,14 @@ export const useGenerationStore = create<GenerationState>()(
       frameGroupCount: 3,
       videoGroupCount: 1,
       
+      // 文生图模型设置（默认使用系统设置）
+      t2iModel: null,
+      t2iWidth: null,
+      t2iHeight: null,
+      t2iPromptExtend: null,
+      t2iWatermark: null,
+      t2iSeed: null,
+      
       // 视频生成设置（页面级覆盖）
       videoModel: null,
       videoResolution: null,
@@ -124,6 +149,22 @@ export const useGenerationStore = create<GenerationState>()(
       setStyleGroupCount: (count) => set({ styleGroupCount: count }),
       setFrameGroupCount: (count) => set({ frameGroupCount: count }),
       setVideoGroupCount: (count) => set({ videoGroupCount: count }),
+      
+      // 文生图模型设置 actions
+      setT2iModel: (model) => set({ t2iModel: model }),
+      setT2iWidth: (width) => set({ t2iWidth: width }),
+      setT2iHeight: (height) => set({ t2iHeight: height }),
+      setT2iPromptExtend: (value) => set({ t2iPromptExtend: value }),
+      setT2iWatermark: (value) => set({ t2iWatermark: value }),
+      setT2iSeed: (seed) => set({ t2iSeed: seed }),
+      resetT2iSettings: () => set({
+        t2iModel: null,
+        t2iWidth: null,
+        t2iHeight: null,
+        t2iPromptExtend: null,
+        t2iWatermark: null,
+        t2iSeed: null,
+      }),
       
       // 视频生成设置 actions
       setVideoModel: (model) => set({ videoModel: model }),
@@ -200,6 +241,13 @@ export const useGenerationStore = create<GenerationState>()(
         styleGroupCount: state.styleGroupCount,
         frameGroupCount: state.frameGroupCount,
         videoGroupCount: state.videoGroupCount,
+        // 文生图模型设置
+        t2iModel: state.t2iModel,
+        t2iWidth: state.t2iWidth,
+        t2iHeight: state.t2iHeight,
+        t2iPromptExtend: state.t2iPromptExtend,
+        t2iWatermark: state.t2iWatermark,
+        t2iSeed: state.t2iSeed,
         // 视频生成设置
         videoModel: state.videoModel,
         videoResolution: state.videoResolution,

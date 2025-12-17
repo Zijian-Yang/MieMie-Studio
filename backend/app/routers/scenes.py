@@ -54,6 +54,13 @@ class SceneGenerateRequest(BaseModel):
     # 风格参考
     use_style: bool = False
     style_id: Optional[str] = None
+    # 文生图模型参数
+    model: Optional[str] = None  # 文生图模型 (wan2.6-t2i / wan2.5-t2i-preview)
+    width: Optional[int] = None  # 图片宽度
+    height: Optional[int] = None  # 图片高度
+    prompt_extend: Optional[bool] = None  # 智能改写
+    watermark: Optional[bool] = None  # 水印
+    seed: Optional[int] = None  # 随机种子
 
 
 class SceneGenerateAllRequest(BaseModel):
@@ -65,6 +72,13 @@ class SceneGenerateAllRequest(BaseModel):
     # 风格参考
     use_style: bool = False
     style_id: Optional[str] = None
+    # 文生图模型参数
+    model: Optional[str] = None  # 文生图模型 (wan2.6-t2i / wan2.5-t2i-preview)
+    width: Optional[int] = None  # 图片宽度
+    height: Optional[int] = None  # 图片高度
+    prompt_extend: Optional[bool] = None  # 智能改写
+    watermark: Optional[bool] = None  # 水印
+    seed: Optional[int] = None  # 随机种子
 
 
 class SceneUpdateRequest(BaseModel):
@@ -307,7 +321,17 @@ async def generate_scene_images(scene_id: str, request: SceneGenerateRequest):
             )
         else:
             t2i_service = TextToImageService()
-            url = await t2i_service.generate(final_prompt, negative_prompt=negative_prompt)
+            url = await t2i_service.generate(
+                final_prompt, 
+                negative_prompt=negative_prompt,
+                model=request.model,
+                width=request.width,
+                height=request.height,
+                prompt_extend=request.prompt_extend,
+                watermark=request.watermark,
+                seed=request.seed,
+                project_id=scene.project_id
+            )
         
         image = SceneImage(
             group_index=request.group_index,
@@ -364,7 +388,17 @@ async def generate_all_scene_images(scene_id: str, request: SceneGenerateAllRequ
             )
         else:
             t2i_service = TextToImageService()
-            url = await t2i_service.generate(final_prompt, negative_prompt=negative_prompt)
+            url = await t2i_service.generate(
+                final_prompt, 
+                negative_prompt=negative_prompt,
+                model=request.model,
+                width=request.width,
+                height=request.height,
+                prompt_extend=request.prompt_extend,
+                watermark=request.watermark,
+                seed=request.seed,
+                project_id=scene.project_id
+            )
         return SceneImage(
             group_index=group_index,
             url=url,

@@ -31,6 +31,13 @@ class CharacterGenerateRequest(BaseModel):
     # 风格参考
     use_style: bool = False  # 是否使用风格参考
     style_id: Optional[str] = None  # 风格ID
+    # 文生图模型参数
+    model: Optional[str] = None  # 文生图模型 (wan2.6-t2i / wan2.5-t2i-preview)
+    width: Optional[int] = None  # 图片宽度
+    height: Optional[int] = None  # 图片高度
+    prompt_extend: Optional[bool] = None  # 智能改写
+    watermark: Optional[bool] = None  # 水印
+    seed: Optional[int] = None  # 随机种子
 
 
 class CharacterGenerateAllRequest(BaseModel):
@@ -42,6 +49,13 @@ class CharacterGenerateAllRequest(BaseModel):
     # 风格参考
     use_style: bool = False  # 是否使用风格参考
     style_id: Optional[str] = None  # 风格ID
+    # 文生图模型参数
+    model: Optional[str] = None  # 文生图模型 (wan2.6-t2i / wan2.5-t2i-preview)
+    width: Optional[int] = None  # 图片宽度
+    height: Optional[int] = None  # 图片高度
+    prompt_extend: Optional[bool] = None  # 智能改写
+    watermark: Optional[bool] = None  # 水印
+    seed: Optional[int] = None  # 随机种子
 
 
 class CharacterUpdateRequest(BaseModel):
@@ -335,7 +349,17 @@ async def generate_character_images(character_id: str, request: CharacterGenerat
         else:
             # 使用文生图服务
             t2i_service = TextToImageService()
-            url = await t2i_service.generate(final_prompt, negative_prompt=negative_prompt)
+            url = await t2i_service.generate(
+                final_prompt, 
+                negative_prompt=negative_prompt,
+                model=request.model,
+                width=request.width,
+                height=request.height,
+                prompt_extend=request.prompt_extend,
+                watermark=request.watermark,
+                seed=request.seed,
+                project_id=character.project_id
+            )
         
         # 将三视图合成图存储在 front_url 字段中
         image_group.front_url = url
@@ -398,7 +422,17 @@ async def generate_all_character_images(character_id: str, request: CharacterGen
             )
         else:
             t2i_service = TextToImageService()
-            url = await t2i_service.generate(final_prompt, negative_prompt=negative_prompt)
+            url = await t2i_service.generate(
+                final_prompt, 
+                negative_prompt=negative_prompt,
+                model=request.model,
+                width=request.width,
+                height=request.height,
+                prompt_extend=request.prompt_extend,
+                watermark=request.watermark,
+                seed=request.seed,
+                project_id=character.project_id
+            )
         
         # 将三视图合成图存储在 front_url 字段中
         image_group.front_url = url

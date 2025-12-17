@@ -1,0 +1,50 @@
+{
+  "id": "3f01ef44-4161-4179-adbe-f6d4c86095fe",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "测试文生图",
+  "description": "",
+  "model": "wan2.6-t2i",
+  "prompt": "aussie teenager girl at circular quay。风格要求：{\n  \"style_definition\": {\n    \"art_style\": \"photorealistic, hyperrealistic\",\n    \"rendering\": \"detailed skin textures, subsurface scattering, fine details\",\n    \"color_palette\": [\"natural skin tones\", \"realistic lighting colors\"],\n    \"lighting\": \"professional portrait lighting, three-point setup\"\n  },\n  \"subject_treatment\": {\n    \"character_style\": \"realistic human proportions, natural features\",\n    \"pose_preference\": \"natural, professional portrait poses\",\n    \"expression\": \"subtle, natural emotions\"\n  },\n  \"composition\": {\n    \"background\": \"studio backdrop or environmental portrait\",\n    \"framing\": \"portrait framing, rule of thirds\",\n    \"style\": \"professional photography aesthetic\"\n  },\n  \"tags\": [\"realistic\", \"portrait\", \"photography\", \"professional\", \"detailed\"]\n}",
+  "negative_prompt": "",
+  "n": 4,
+  "group_count": 1,
+  "references": [],
+  "images": [
+    {
+      "id": "39a42d81-7506-460f-a568-b0a014376160",
+      "group_index": 0,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/f96d7434-4033-4345-b69d-0810ebeff76d/20251217/212225_e6b60f4f.png",
+      "prompt_used": "aussie teenager girl at circular quay。风格要求：{\n  \"style_definition\": {\n    \"art_style\": \"photorealistic, hyperrealistic\",\n    \"rendering\": \"detailed skin textures, subsurface scattering, fine details\",\n    \"color_palette\": [\"natural skin tones\", \"realistic lighting colors\"],\n    \"lighting\": \"professional portrait lighting, three-point setup\"\n  },\n  \"subject_treatment\": {\n    \"character_style\": \"realistic human proportions, natural features\",\n    \"pose_preference\": \"natural, professional portrait poses\",\n    \"expression\": \"subtle, natural emotions\"\n  },\n  \"composition\": {\n    \"background\": \"studio backdrop or environmental portrait\",\n    \"framing\": \"portrait framing, rule of thirds\",\n    \"style\": \"professional photography aesthetic\"\n  },\n  \"tags\": [\"realistic\", \"portrait\", \"photography\", \"professional\", \"detailed\"]\n}",
+      "is_selected": true,
+      "created_at": "2025-12-17T21:22:28.075558"
+    },
+    {
+      "id": "14878134-5f51-451f-b517-9bce159a752d",
+      "group_index": 1,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/f96d7434-4033-4345-b69d-0810ebeff76d/20251217/212226_2869eeeb.png",
+      "prompt_used": "aussie teenager girl at circular quay。风格要求：{\n  \"style_definition\": {\n    \"art_style\": \"photorealistic, hyperrealistic\",\n    \"rendering\": \"detailed skin textures, subsurface scattering, fine details\",\n    \"color_palette\": [\"natural skin tones\", \"realistic lighting colors\"],\n    \"lighting\": \"professional portrait lighting, three-point setup\"\n  },\n  \"subject_treatment\": {\n    \"character_style\": \"realistic human proportions, natural features\",\n    \"pose_preference\": \"natural, professional portrait poses\",\n    \"expression\": \"subtle, natural emotions\"\n  },\n  \"composition\": {\n    \"background\": \"studio backdrop or environmental portrait\",\n    \"framing\": \"portrait framing, rule of thirds\",\n    \"style\": \"professional photography aesthetic\"\n  },\n  \"tags\": [\"realistic\", \"portrait\", \"photography\", \"professional\", \"detailed\"]\n}",
+      "is_selected": false,
+      "created_at": "2025-12-17T21:22:28.075586"
+    },
+    {
+      "id": "555cea46-3d37-43ef-af88-491f0d8d60b1",
+      "group_index": 2,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/f96d7434-4033-4345-b69d-0810ebeff76d/20251217/212227_6c8932d9.png",
+      "prompt_used": "aussie teenager girl at circular quay。风格要求：{\n  \"style_definition\": {\n    \"art_style\": \"photorealistic, hyperrealistic\",\n    \"rendering\": \"detailed skin textures, subsurface scattering, fine details\",\n    \"color_palette\": [\"natural skin tones\", \"realistic lighting colors\"],\n    \"lighting\": \"professional portrait lighting, three-point setup\"\n  },\n  \"subject_treatment\": {\n    \"character_style\": \"realistic human proportions, natural features\",\n    \"pose_preference\": \"natural, professional portrait poses\",\n    \"expression\": \"subtle, natural emotions\"\n  },\n  \"composition\": {\n    \"background\": \"studio backdrop or environmental portrait\",\n    \"framing\": \"portrait framing, rule of thirds\",\n    \"style\": \"professional photography aesthetic\"\n  },\n  \"tags\": [\"realistic\", \"portrait\", \"photography\", \"professional\", \"detailed\"]\n}",
+      "is_selected": false,
+      "created_at": "2025-12-17T21:22:28.075596"
+    },
+    {
+      "id": "ab3b4548-f947-4cef-8cab-a2affa6e92e4",
+      "group_index": 3,
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/f96d7434-4033-4345-b69d-0810ebeff76d/20251217/212227_33060e98.png",
+      "prompt_used": "aussie teenager girl at circular quay。风格要求：{\n  \"style_definition\": {\n    \"art_style\": \"photorealistic, hyperrealistic\",\n    \"rendering\": \"detailed skin textures, subsurface scattering, fine details\",\n    \"color_palette\": [\"natural skin tones\", \"realistic lighting colors\"],\n    \"lighting\": \"professional portrait lighting, three-point setup\"\n  },\n  \"subject_treatment\": {\n    \"character_style\": \"realistic human proportions, natural features\",\n    \"pose_preference\": \"natural, professional portrait poses\",\n    \"expression\": \"subtle, natural emotions\"\n  },\n  \"composition\": {\n    \"background\": \"studio backdrop or environmental portrait\",\n    \"framing\": \"portrait framing, rule of thirds\",\n    \"style\": \"professional photography aesthetic\"\n  },\n  \"tags\": [\"realistic\", \"portrait\", \"photography\", \"professional\", \"detailed\"]\n}",
+      "is_selected": false,
+      "created_at": "2025-12-17T21:22:28.075604"
+    }
+  ],
+  "status": "completed",
+  "error_message": null,
+  "created_at": "2025-12-17T21:16:47.070586",
+  "updated_at": "2025-12-17T21:23:29.802113"
+}

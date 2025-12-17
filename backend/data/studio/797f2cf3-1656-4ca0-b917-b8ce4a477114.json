@@ -1,0 +1,24 @@
+{
+  "id": "797f2cf3-1656-4ca0-b917-b8ce4a477114",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "的",
+  "description": "",
+  "model": "wan2.6-image",
+  "prompt": "d d",
+  "negative_prompt": "",
+  "n": 2,
+  "group_count": 3,
+  "references": [
+    {
+      "type": "character",
+      "id": "5d6cf2a8-1b42-4c67-a9ca-3e4d493fd772",
+      "name": "小明",
+      "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251209/133137_79dc6d8e.png"
+    }
+  ],
+  "images": [],
+  "status": "pending",
+  "error_message": null,
+  "created_at": "2025-12-17T22:43:41.040101",
+  "updated_at": "2025-12-17T22:43:41.040151"
+}

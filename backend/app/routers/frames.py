@@ -21,9 +21,10 @@ class FrameGenerateRequest(BaseModel):
     """首帧生成请求
     
     支持的模型：
+    - wan2.6-image: 万相2.6图像生成（支持参考图、图文混合、纯文生图）
     - wan2.5-i2i-preview: 万相图生图（有参考图时使用）
     - qwen-image-edit-plus: 通义千问图像编辑（有参考图时使用）
-    - flux-schnell/flux-dev/flux-merged: 文生图模型（无参考图时使用）
+    - wan2.6-t2i / wan2.5-t2i-preview: 文生图模型（无参考图时使用）
     """
     project_id: str
     shot_id: str
@@ -35,13 +36,15 @@ class FrameGenerateRequest(BaseModel):
     use_shot_references: bool = True  # 是否使用素材参照
     reference_urls: Optional[List[str]] = None  # 前端直接传入的参考图片URL列表（按用户选择顺序）
     # 模型和参数设置（和图片工作室一样）
-    model: Optional[str] = None  # 模型选择，如 wan2.5-i2i-preview, qwen-image-edit-plus
+    model: Optional[str] = None  # 模型选择，如 wan2.6-image, wan2.5-i2i-preview, qwen-image-edit-plus
     n: int = 1  # 每次请求生成的图片数量
-    # qwen-image-edit-plus 专用参数
-    size: Optional[str] = None  # 输出尺寸（仅 qwen-image-edit-plus 且 n=1 时有效）
+    # 通用参数
+    size: Optional[str] = None  # 输出尺寸
     prompt_extend: bool = True  # 智能改写
     watermark: bool = False  # 水印
     seed: Optional[int] = None  # 随机种子
+    # wan2.6-image 专用参数
+    enable_interleave: bool = False  # 是否启用图文混合模式
 
 
 class FrameBatchGenerateRequest(BaseModel):
@@ -182,11 +185,25 @@ async def generate_frame(request: FrameGenerateRequest):
     
     try:
         urls = []
+        model = request.model or "wan2.5-i2i-preview"
         
-        if ref_urls:
+        # wan2.6-image 多功能模型：支持有/无参考图
+        if model == "wan2.6-image":
+            t2i_service = TextToImageService()
+            urls = await t2i_service.generate_with_wan26_image(
+                prompt=request.prompt,
+                image_urls=ref_urls if ref_urls else None,
+                negative_prompt=request.negative_prompt,
+                n=request.n,
+                size=request.size or "1280*1280",
+                prompt_extend=request.prompt_extend,
+                watermark=request.watermark,
+                seed=request.seed,
+                enable_interleave=request.enable_interleave,
+                project_id=request.project_id
+            )
+        elif ref_urls:
             # 有参考图时使用图生图模型
-            model = request.model or "wan2.5-i2i-preview"
-            
             if model == "qwen-image-edit-plus":
                 # 使用 qwen-image-edit-plus 模型
                 from app.models_registry.image.qwen_image_edit import QwenImageEditService, QWEN_IMAGE_EDIT_PLUS_MODEL_INFO
@@ -222,10 +239,18 @@ async def generate_frame(request: FrameGenerateRequest):
         else:
             # 无参考图时使用文生图模型
             t2i_service = TextToImageService()
-            result = await t2i_service.generate(
-                request.prompt, 
+            
+            # 确定文生图模型
+            t2i_model = model if model in ['wan2.6-t2i', 'wan2.5-t2i-preview'] else None
+            
+            result = await t2i_service.generate_batch(
+                prompt=request.prompt, 
                 negative_prompt=request.negative_prompt,
                 n=request.n,
+                model=t2i_model,
+                prompt_extend=request.prompt_extend,
+                watermark=request.watermark,
+                seed=request.seed,
                 project_id=request.project_id
             )
             # 确保返回列表

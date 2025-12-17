@@ -46,6 +46,7 @@ const SettingsPage = () => {
         image_width: data.image.width,
         image_height: data.image.height,
         image_prompt_extend: data.image.prompt_extend,
+        image_watermark: data.image.watermark,
         image_seed: data.image.seed,
         // 图像编辑配置
         image_edit_model: data.image_edit.model,
@@ -126,6 +127,7 @@ const SettingsPage = () => {
           width: values.image_width,
           height: values.image_height,
           prompt_extend: values.image_prompt_extend,
+          watermark: values.image_watermark,
           seed: values.image_seed || null,
         },
         image_edit: {
@@ -748,21 +750,8 @@ const SettingsPage = () => {
             </Col>
           </Row>
 
-          <Alert
-            message="尺寸限制说明"
-            description={
-              <span>
-                wan2.5-t2i-preview 模型要求：总像素在 <strong>768×768</strong> 到 <strong>1440×1440</strong> 之间，
-                宽高比在 <strong>1:4</strong> 到 <strong>4:1</strong> 之间。
-              </span>
-            }
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-
           <Row gutter={16}>
-            <Col span={12}>
+            <Col span={8}>
               <Form.Item
                 name="image_prompt_extend"
                 label="智能改写"
@@ -772,13 +761,25 @@ const SettingsPage = () => {
                 <Switch />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            {getImageModelInfo()?.supports_watermark && (
+              <Col span={8}>
+                <Form.Item
+                  name="image_watermark"
+                  label="添加水印"
+                  valuePropName="checked"
+                  tooltip="在图片右下角添加 'AI生成' 水印标识"
+                >
+                  <Switch />
+                </Form.Item>
+              </Col>
+            )}
+            <Col span={getImageModelInfo()?.supports_watermark ? 8 : 12}>
               <Form.Item
                 name="image_seed"
                 label="随机种子"
                 extra="留空表示随机，设置固定值可复现结果"
               >
-                <InputNumber min={0} style={{ width: '100%' }} placeholder="留空为随机" />
+                <InputNumber min={0} max={2147483647} style={{ width: '100%' }} placeholder="留空为随机" />
               </Form.Item>
             </Col>
           </Row>

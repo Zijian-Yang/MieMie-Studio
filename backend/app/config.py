@@ -45,15 +45,88 @@ LLM_MODELS = {
 
 # 文生图模型配置
 # wan2.5-t2i-preview：总像素在[768*768, 1440*1440]之间，宽高比[1:4, 4:1]
+# wan2.6-t2i：总像素在[768*768, 1440*1440]之间，宽高比[1:4, 4:1]，仅支持同步HTTP调用
+# wan2.6-image：支持参考图生图和图文混合输出，HTTP异步调用
 # 参考: https://help.aliyun.com/zh/model-studio/text-to-image-v2-api-reference
 IMAGE_MODELS = {
-    "wan2.5-t2i-preview": {
-        "name": "万相2.5 Preview",
-        "description": "取消单边限制，在总像素面积与宽高比约束内自由选尺寸",
+    "wan2.6-image": {
+        "name": "图生图 wan2.6-image",
+        "description": "最强模型，支持参考图生图、图文混合，HTTP异步调用",
+        "min_pixels": 768 * 768,  # 最小总像素 [768*768, 1280*1280]
+        "max_pixels": 1280 * 1280,  # 最大总像素
+        "min_ratio": 0.25,  # 最小宽高比 1:4
+        "max_ratio": 4.0,  # 最大宽高比 4:1
+        "use_http": True,  # 使用 HTTP 异步调用
+        "is_async": True,  # 异步调用，需要轮询
+        "max_n": 4,  # enable_interleave=false 时最多生成 4 张，enable_interleave=true 时固定为 1
+        "default_n": 4,  # 默认生成数量（enable_interleave=false 时）
+        "supports_prompt_extend": True,  # 仅在 enable_interleave=false 时生效
+        "supports_watermark": True,
+        "supports_seed": True,
+        "supports_negative_prompt": True,
+        "supports_reference_images": True,  # 支持参考图
+        "supports_interleave": True,  # 支持图文混合输出模式
+        "max_reference_images": 3,  # enable_interleave=false 时最多3张参考图
+        "max_reference_images_interleave": 1,  # enable_interleave=true 时最多1张参考图
+        "min_reference_images": 0,  # 最少参考图数量（纯文生图时可以为0）
+        "supports_max_images": True,  # enable_interleave=true 时可设置最大生成图数
+        "max_images_range": [1, 5],  # max_images 参数范围
+        "default_max_images": 5,  # max_images 默认值
+        "common_sizes": [
+            {"width": 1280, "height": 1280, "label": "1:1 方形 (默认)"},
+            {"width": 1024, "height": 1024, "label": "1:1 方形 (小)"},
+            {"width": 1280, "height": 720, "label": "16:9 横屏"},
+            {"width": 720, "height": 1280, "label": "9:16 竖屏"},
+            {"width": 1280, "height": 960, "label": "4:3 横屏"},
+            {"width": 960, "height": 1280, "label": "3:4 竖屏"},
+            {"width": 800, "height": 1200, "label": "2:3 竖屏"},
+            {"width": 1200, "height": 800, "label": "3:2 横屏"},
+            {"width": 1344, "height": 576, "label": "21:9 超宽横屏"},
+        ],
+        # 图像尺寸限制
+        "image_min_dimension": 384,  # 参考图最小边长
+        "image_max_dimension": 5000,  # 参考图最大边长
+        "image_max_size_mb": 10,  # 参考图最大文件大小
+        "supported_formats": ["JPEG", "JPG", "PNG", "BMP", "WEBP"],  # 支持的图片格式（PNG不支持透明通道）
+    },
+    "wan2.6-t2i": {
+        "name": "文生图 wan2.6-t2i",
+        "description": "HTTP同步调用，快速生成高质量图像",
         "min_pixels": 768 * 768,  # 最小总像素
         "max_pixels": 1440 * 1440,  # 最大总像素
         "min_ratio": 0.25,  # 最小宽高比 1:4
         "max_ratio": 4.0,  # 最大宽高比 4:1
+        "use_http": True,  # 使用 HTTP 同步调用（不是 SDK）
+        "max_n": 4,  # 最多生成 4 张图片
+        "supports_prompt_extend": True,
+        "supports_watermark": True,
+        "supports_seed": True,
+        "supports_negative_prompt": True,
+        "common_sizes": [
+            {"width": 1280, "height": 1280, "label": "1:1 方形 (默认)"},
+            {"width": 1024, "height": 1024, "label": "1:1 方形 (小)"},
+            {"width": 1280, "height": 720, "label": "16:9 横屏"},
+            {"width": 720, "height": 1280, "label": "9:16 竖屏"},
+            {"width": 1280, "height": 960, "label": "4:3 横屏"},
+            {"width": 960, "height": 1280, "label": "3:4 竖屏"},
+            {"width": 800, "height": 1200, "label": "2:3 竖屏"},
+            {"width": 1200, "height": 800, "label": "3:2 横屏"},
+            {"width": 1344, "height": 576, "label": "21:9 超宽横屏"},
+        ]
+    },
+    "wan2.5-t2i-preview": {
+        "name": "文生图 wan2.5-t2i-preview",
+        "description": "SDK异步调用，在总像素面积与宽高比约束内自由选尺寸",
+        "min_pixels": 768 * 768,  # 最小总像素
+        "max_pixels": 1440 * 1440,  # 最大总像素
+        "min_ratio": 0.25,  # 最小宽高比 1:4
+        "max_ratio": 4.0,  # 最大宽高比 4:1
+        "use_http": False,  # 使用 SDK 异步调用
+        "max_n": 4,
+        "supports_prompt_extend": True,
+        "supports_watermark": True,  # wan2.5 支持水印参数
+        "supports_seed": True,
+        "supports_negative_prompt": True,
         "common_sizes": [
             {"width": 1024, "height": 1024, "label": "1:1 方形"},
             {"width": 1280, "height": 720, "label": "16:9 横屏"},
@@ -71,7 +144,7 @@ IMAGE_MODELS = {
 # 参考: https://www.alibabacloud.com/help/zh/model-studio/qwen-image-edit-api
 IMAGE_EDIT_MODELS = {
     "wan2.5-i2i-preview": {
-        "name": "万相2.5 图像编辑 Preview",
+        "name": "图生图 wan2.5-i2i-preview",
         "description": "支持风格迁移、局部编辑等图像编辑功能",
         "min_pixels": 768 * 768,  # 最小总像素
         "max_pixels": 1440 * 1440,  # 最大总像素
@@ -88,7 +161,7 @@ IMAGE_EDIT_MODELS = {
         "supports_seed": True,
     },
     "qwen-image-edit-plus": {
-        "name": "通义千问 图像编辑 Plus",
+        "name": "图生图 qwen-image-edit-plus",
         "description": "支持单图编辑和多图融合，可修改文字、增删物体、改变动作、风格迁移等",
         "max_images": 3,  # 最多输入3张图片
         "max_output": 6,  # 最多输出6张图片
@@ -116,7 +189,7 @@ IMAGE_EDIT_MODELS = {
 # 参考: https://help.aliyun.com/zh/model-studio/reference-to-video-api
 REF_VIDEO_MODELS = {
     "wan2.6-r2v": {
-        "name": "万相2.6 视频生视频",
+        "name": "视频生视频 wan2.6-r2v",
         "description": "参考输入视频的角色形象和音色，生成保持角色一致性的新视频，支持多镜头叙事",
         # 720P档位的所有分辨率
         "resolutions_720p": [
@@ -154,7 +227,7 @@ REF_VIDEO_MODELS = {
 # 参考: https://www.alibabacloud.com/help/zh/model-studio/image-to-video-api-reference
 VIDEO_MODELS = {
     "wan2.6-i2v": {
-        "name": "万相2.6 图生视频",
+        "name": "图生视频 wan2.6-i2v",
         "description": "最新模型，支持多镜头叙事、自动配音，分辨率由输入图像决定",
         "resolutions": [
             {"value": "720P", "label": "720P (高清)"},
@@ -174,7 +247,7 @@ VIDEO_MODELS = {
         "image_param": "img_url",  # API 中图片参数名
     },
     "wan2.5-i2v-preview": {
-        "name": "万相2.5 图生视频 Preview",
+        "name": "图生视频 wan2.5-i2v-preview",
         "description": "图生视频模型，支持音频/自动配音，分辨率由输入图像决定",
         # wan2.5 使用 resolution 参数（分辨率档位），不是具体宽高
         "resolutions": [
@@ -195,7 +268,7 @@ VIDEO_MODELS = {
         "image_param": "img_url",  # API 中图片参数名
     },
     "wanx2.1-i2v-turbo": {
-        "name": "万相2.1 图生视频 Turbo",
+        "name": "图生视频 wanx2.1-i2v-turbo",
         "description": "快速生成模型，适合快速预览",
         # wanx2.1 使用 size 参数（具体分辨率）
         "resolutions": [
@@ -231,10 +304,11 @@ class LLMConfig(BaseModel):
 
 class ImageConfig(BaseModel):
     """文生图配置"""
-    model: str = "wan2.5-t2i-preview"
-    width: int = 1024  # 图片宽度
-    height: int = 1024  # 图片高度
+    model: str = "wan2.6-t2i"  # 默认使用最新的 wan2.6
+    width: int = 1280  # 图片宽度（wan2.6默认1280）
+    height: int = 1280  # 图片高度（wan2.6默认1280）
     prompt_extend: bool = True  # 智能改写
+    watermark: bool = False  # 水印（仅 wan2.6 支持）
     seed: Optional[int] = None  # 种子，None表示随机
     
     @property

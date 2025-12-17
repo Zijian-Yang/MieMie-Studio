@@ -1,0 +1,34 @@
+{
+  "id": "d15379bc-0d43-4073-8d5a-984a0ec3d6cd",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "三人说话",
+  "task_type": "image_to_video",
+  "mode": "first_frame",
+  "first_frame_url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/20251212/134825_4d13b6ec.png",
+  "last_frame_url": null,
+  "reference_video_urls": [],
+  "audio_url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/audio/f96d7434-4033-4345-b69d-0810ebeff76d/20251215/113240_d2f9799f.mp3",
+  "prompt": "左边的人先说话，然后中间的人说话，最后右边的人说话。",
+  "negative_prompt": "",
+  "model": "wan2.6-i2v",
+  "duration": 10,
+  "watermark": false,
+  "seed": null,
+  "shot_type": "single",
+  "auto_audio": false,
+  "resolution": "720P",
+  "prompt_extend": false,
+  "size": "1920*1080",
+  "group_count": 1,
+  "video_urls": [
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/f96d7434-4033-4345-b69d-0810ebeff76d/20251217/224121_2696cbf4.mp4"
+  ],
+  "selected_video_url": null,
+  "task_ids": [
+    "ee018063-2019-4078-b445-9548cfb30a2c"
+  ],
+  "status": "succeeded",
+  "error_message": null,
+  "created_at": "2025-12-17T22:33:58.852224",
+  "updated_at": "2025-12-17T22:41:21.941009"
+}

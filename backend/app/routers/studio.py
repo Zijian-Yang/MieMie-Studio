@@ -59,11 +59,14 @@ class TaskGenerateRequest(BaseModel):
     negative_prompt: Optional[str] = None
     n: Optional[int] = None  # 每次请求生成的图片数量
     group_count: Optional[int] = None  # 并发请求数（总图片数 = n * group_count）
-    # qwen-image-edit-plus 专用参数
-    size: Optional[str] = None  # 输出尺寸，仅当 n=1 时可用
+    # 通用参数
+    size: Optional[str] = None  # 输出尺寸
     prompt_extend: Optional[bool] = True  # 智能改写
     watermark: Optional[bool] = False  # 水印
     seed: Optional[int] = None  # 随机种子
+    # wan2.6-image 专用参数
+    enable_interleave: Optional[bool] = False  # 是否启用图文混合模式
+    max_images: Optional[int] = 5  # 图文混合模式下最大生成图片数（1-5）
 
 
 class SaveToGalleryRequest(BaseModel):
@@ -178,11 +181,11 @@ async def update_studio_task(task_id: str, request: TaskUpdateRequest):
 
 @router.post("/{task_id}/generate")
 async def generate_task_images(task_id: str, request: TaskGenerateRequest):
-    """生成任务图片（多图生图）
+    """生成任务图片
     
     支持的模型：
-    - wan2.5-i2i-preview: 万相图生图（风格迁移）
-    - qwen-image-edit-plus: 通义千问图像编辑（单图编辑/多图融合）
+    - 图生图模型：wan2.5-i2i-preview, qwen-image-edit-plus
+    - 文生图模型：wan2.6-t2i, wan2.5-t2i-preview
     
     多图生图说明：
     - 参考图片按用户选择的顺序传递给 API
@@ -193,7 +196,12 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
     - 1张图片：单图编辑模式
     - 2-3张图片：多图融合模式
     - 支持一次输出1-6张图片
+    
+    文生图特点：
+    - 不需要参考图片，只需要提示词
     """
+    from app.config import IMAGE_MODELS
+    
     task = storage_service.get_studio_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -208,17 +216,20 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
     if request.group_count is not None:
         task.group_count = request.group_count
     
-    # 收集参考图片URL（保持用户选择的顺序！）
+    config = get_config()
+    model_name = task.model or "wan2.5-i2i-preview"
+    
+    # 检查是否是文生图模型
+    is_text_to_image = model_name in IMAGE_MODELS
+    
+    # 收集参考图片URL（图生图模型需要）
     ref_urls = [ref.url for ref in task.references if ref.url]
-    if not ref_urls:
+    if not is_text_to_image and not ref_urls:
         raise HTTPException(status_code=400, detail="没有有效的参考素材图片")
     
     task.status = "generating"
     task.images = []
     storage_service.save_studio_task(task)
-    
-    config = get_config()
-    model_name = task.model or "wan2.5-i2i-preview"
     
     # 获取额外参数
     size = request.size
@@ -228,7 +239,30 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
     
     try:
         # 根据模型选择不同的生成方式
-        if model_name == "qwen-image-edit-plus":
+        if model_name == "wan2.6-image":
+            # 使用 wan2.6-image 模型（支持参考图和纯文生图）
+            enable_interleave = request.enable_interleave if hasattr(request, 'enable_interleave') else False
+            max_images = request.max_images if hasattr(request, 'max_images') else 5
+            images = await generate_with_wan26_image(
+                task=task,
+                ref_urls=ref_urls if ref_urls else None,
+                size=size,
+                prompt_extend=prompt_extend,
+                watermark=watermark,
+                seed=seed,
+                enable_interleave=enable_interleave,
+                max_images=max_images
+            )
+        elif is_text_to_image:
+            # 使用文生图模型
+            images = await generate_with_text_to_image(
+                task=task,
+                model_name=model_name,
+                prompt_extend=prompt_extend,
+                watermark=watermark,
+                seed=seed
+            )
+        elif model_name == "qwen-image-edit-plus":
             # 使用通义千问图像编辑模型
             images = await generate_with_qwen_image_edit(
                 task=task,
@@ -257,6 +291,147 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
         task.error_message = str(e)
         storage_service.save_studio_task(task)
         raise HTTPException(status_code=500, detail=f"图片生成失败: {str(e)}")
+
+
+async def generate_with_text_to_image(
+    task: StudioTask,
+    model_name: str,
+    prompt_extend: bool = True,
+    watermark: bool = False,
+    seed: Optional[int] = None
+) -> List[StudioTaskImage]:
+    """使用文生图模型生成
+    
+    支持模型：wan2.6-t2i, wan2.5-t2i-preview
+    """
+    from app.services.dashscope.text_to_image import TextToImageService
+    
+    t2i_service = TextToImageService()
+    n = task.n or 1  # 每次请求生成的图片数量
+    
+    async def generate_single_group(group_index: int) -> List[StudioTaskImage]:
+        """生成单组图片（一次请求生成 n 张）"""
+        try:
+            urls = await t2i_service.generate_batch(
+                prompt=task.prompt,
+                negative_prompt=task.negative_prompt or "",
+                n=n,
+                model=model_name,
+                prompt_extend=prompt_extend,
+                watermark=watermark,
+                seed=seed,
+                project_id=task.project_id
+            )
+            
+            images = []
+            for i, url in enumerate(urls):
+                images.append(StudioTaskImage(
+                    group_index=group_index * n + i,
+                    url=url,
+                    prompt_used=task.prompt
+                ))
+            return images
+        except Exception as e:
+            import traceback
+            print(f"文生图生成失败: {e}")
+            traceback.print_exc()
+            # 返回 n 个失败的图片
+            return [StudioTaskImage(
+                group_index=group_index * n + i,
+                url=None,
+                prompt_used=task.prompt
+            ) for i in range(n)]
+    
+    # 并发生成 group_count 组
+    group_tasks = [generate_single_group(i) for i in range(task.group_count)]
+    results = await asyncio.gather(*group_tasks)
+    
+    # 展平结果列表
+    all_images = []
+    for group_images in results:
+        all_images.extend(group_images)
+    return all_images
+
+
+async def generate_with_wan26_image(
+    task: StudioTask,
+    ref_urls: Optional[List[str]] = None,
+    size: Optional[str] = None,
+    prompt_extend: bool = True,
+    watermark: bool = False,
+    seed: Optional[int] = None,
+    enable_interleave: bool = False,
+    max_images: int = 5
+) -> List[StudioTaskImage]:
+    """使用 wan2.6-image 模型生成
+    
+    支持：
+    - 参考图生图 (ref_urls 不为空, enable_interleave=False)
+    - 纯文生图 (ref_urls 为空)
+    - 图文混合输出 (enable_interleave=True)
+    
+    参数说明：
+    - enable_interleave=False: 参考图模式，n 可选 1-4，默认4
+    - enable_interleave=True: 图文混合模式，n 固定为1，max_images 控制最大生成图数(1-5)
+    """
+    from app.services.dashscope.text_to_image import TextToImageService
+    
+    t2i_service = TextToImageService()
+    n = task.n or 4  # 参考图模式默认4张
+    
+    # wan2.6-image 限制
+    if enable_interleave:
+        n = 1  # 图文混合模式固定为1
+        # prompt_extend 在图文混合模式下不生效
+        prompt_extend = False
+    else:
+        n = min(n, 4)  # 参考图模式最多4张
+    
+    async def generate_single_group(group_index: int) -> List[StudioTaskImage]:
+        """生成单组图片"""
+        try:
+            urls = await t2i_service.generate_with_wan26_image(
+                prompt=task.prompt,
+                image_urls=ref_urls,
+                negative_prompt=task.negative_prompt or "",
+                n=n,
+                size=size or "1280*1280",
+                prompt_extend=prompt_extend,
+                watermark=watermark,
+                seed=seed,
+                enable_interleave=enable_interleave,
+                max_images=max_images,
+                project_id=task.project_id
+            )
+            
+            images = []
+            for i, url in enumerate(urls):
+                images.append(StudioTaskImage(
+                    group_index=group_index * n + i,
+                    url=url,
+                    prompt_used=task.prompt
+                ))
+            return images
+        except Exception as e:
+            import traceback
+            print(f"wan2.6-image 生成失败: {e}")
+            traceback.print_exc()
+            # 返回失败的图片
+            return [StudioTaskImage(
+                group_index=group_index * n + i,
+                url=None,
+                prompt_used=task.prompt
+            ) for i in range(n)]
+    
+    # 并发生成 group_count 组
+    group_tasks = [generate_single_group(i) for i in range(task.group_count)]
+    results = await asyncio.gather(*group_tasks)
+    
+    # 展平结果列表
+    all_images = []
+    for group_images in results:
+        all_images.extend(group_images)
+    return all_images
 
 
 async def generate_with_wanx_i2i(
@@ -469,23 +644,52 @@ async def delete_all_studio_tasks(project_id: str):
 async def get_available_models():
     """获取可用的图片工作室模型列表
     
-    返回支持多图生图的模型：
-    - wan2.5-i2i-preview: 万相图生图
-    - qwen-image-edit-plus: 通义千问图像编辑
+    返回支持的模型：
+    - 图生图模型：wan2.5-i2i-preview, qwen-image-edit-plus
+    - 文生图模型：wan2.6-t2i, wan2.5-t2i-preview
     """
     from app.models_registry import registry, ModelType
-    
-    # 获取所有图生图模型
-    models = registry.list_models(ModelType.IMAGE_TO_IMAGE)
+    from app.config import IMAGE_MODELS
     
     result = {}
-    for model in models:
+    
+    # 获取所有图生图模型（从 registry）
+    i2i_models = registry.list_models(ModelType.IMAGE_TO_IMAGE)
+    for model in i2i_models:
         result[model.id] = {
             "id": model.id,
             "name": model.name,
             "description": model.description,
+            "model_type": "image_to_image",
             "capabilities": model.capabilities.model_dump() if model.capabilities else {},
             "parameters": [p.model_dump() for p in model.parameters] if model.parameters else [],
+        }
+    
+    # 添加文生图模型（从 IMAGE_MODELS 配置）
+    for model_id, model_info in IMAGE_MODELS.items():
+        # 判断模型类型
+        if model_info.get("supports_reference_images"):
+            model_type = "image_generation"  # wan2.6-image 支持参考图和文生图
+        else:
+            model_type = "text_to_image"
+        
+        result[model_id] = {
+            "id": model_id,
+            "name": model_info.get("name", model_id),
+            "description": model_info.get("description", ""),
+            "model_type": model_type,
+            "capabilities": {
+                "supports_prompt_extend": model_info.get("supports_prompt_extend", True),
+                "supports_watermark": model_info.get("supports_watermark", True),
+                "supports_seed": model_info.get("supports_seed", True),
+                "supports_negative_prompt": model_info.get("supports_negative_prompt", True),
+                "max_n": model_info.get("max_n", 4),
+                "supports_reference_images": model_info.get("supports_reference_images", False),
+                "supports_interleave": model_info.get("supports_interleave", False),
+                "max_reference_images": model_info.get("max_reference_images", 0),
+            },
+            "parameters": [],
+            "common_sizes": model_info.get("common_sizes", []),
         }
     
     return {"models": result}

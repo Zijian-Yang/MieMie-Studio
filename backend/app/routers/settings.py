@@ -44,6 +44,7 @@ class ImageConfigRequest(BaseModel):
     width: Optional[int] = None
     height: Optional[int] = None
     prompt_extend: Optional[bool] = None
+    watermark: Optional[bool] = None  # 水印（仅 wan2.6-t2i 支持）
     seed: Optional[int] = None
 
 

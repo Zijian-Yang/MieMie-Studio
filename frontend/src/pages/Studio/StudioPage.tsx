@@ -81,7 +81,7 @@ const StudioPage = () => {
             models: {
               'wan2.5-i2i-preview': {
                 id: 'wan2.5-i2i-preview',
-                name: '万相2.5 图生图',
+                name: '图生图 wan2.5-i2i-preview',
                 description: '风格迁移和多图融合'
               }
             }
@@ -224,13 +224,37 @@ const StudioPage = () => {
   const generateImages = async () => {
     if (!selectedTask) return
     
-    if (selectedTask.references.length === 0) {
+    const values = form.getFieldsValue()
+    const modelInfo = availableModels[values.model]
+    const isTextToImage = modelInfo?.model_type === 'text_to_image'
+    const isWan26Image = values.model === 'wan2.6-image'
+    const isQwenModel = values.model === 'qwen-image-edit-plus'
+    
+    // 图生图模型需要参考素材（wan2.6-image 支持无参考图模式）
+    const needsReferences = !isTextToImage && !isWan26Image
+    if (needsReferences && selectedTask.references.length === 0) {
       message.warning('请先添加参考素材')
       return
     }
     
-    const values = form.getFieldsValue()
-    const isQwenModel = values.model === 'qwen-image-edit-plus'
+    // 验证 wan2.6-image 的参考图数量
+    if (isWan26Image) {
+      const refCount = selectedTask.references.length
+      const enableInterleave = values.enable_interleave || false
+      if (enableInterleave) {
+        // 图文混合模式：最多1张参考图
+        if (refCount > 1) {
+          message.warning('图文混合模式下最多只能添加1张参考图')
+          return
+        }
+      } else {
+        // 参考图模式：0-3张参考图
+        if (refCount > 3) {
+          message.warning('参考图模式下最多只能添加3张参考图')
+          return
+        }
+      }
+    }
     
     // 验证 qwen-image-edit-plus 的参数
     if (isQwenModel) {
@@ -249,8 +273,31 @@ const StudioPage = () => {
       const generateParams: any = {
         prompt: values.prompt,
         negative_prompt: values.negative_prompt,
-        n: values.n || 1,
+        n: values.n || (isWan26Image ? 4 : 1),  // wan2.6-image 默认4张
         group_count: values.group_count
+      }
+      
+      // 文生图模型参数
+      if (isTextToImage) {
+        generateParams.prompt_extend = values.prompt_extend !== false  // 默认 true
+        generateParams.watermark = values.watermark || false
+        if (values.seed) generateParams.seed = values.seed
+      }
+      
+      // wan2.6-image 模型参数
+      if (isWan26Image) {
+        const enableInterleave = values.enable_interleave || false
+        generateParams.prompt_extend = enableInterleave ? false : (values.prompt_extend !== false)  // 图文混合模式下不生效
+        generateParams.watermark = values.watermark || false
+        if (values.seed) generateParams.seed = values.seed
+        if (values.size) generateParams.size = values.size
+        generateParams.enable_interleave = enableInterleave
+        
+        // 图文混合模式下固定n=1，并传递max_images
+        if (enableInterleave) {
+          generateParams.n = 1
+          generateParams.max_images = values.max_images || 5
+        }
       }
       
       // qwen-image-edit-plus 专用参数
@@ -703,17 +750,19 @@ const StudioPage = () => {
               tooltip="每次请求生成的图片数量"
               extra={(() => {
                 const model = createForm.getFieldValue('model')
+                const modelInfo = availableModels[model]
                 if (model === 'qwen-image-edit-plus') return '最多6张'
-                if (model === 'wan2.5-i2i-preview') return '最多4张'
-                return ''
+                if (modelInfo?.capabilities?.max_n) return `最多${modelInfo.capabilities.max_n}张`
+                return '最多4张'
               })()}
             >
               <InputNumber 
                 min={1} 
                 max={(() => {
                   const model = createForm.getFieldValue('model')
+                  const modelInfo = availableModels[model]
                   if (model === 'qwen-image-edit-plus') return 6
-                  if (model === 'wan2.5-i2i-preview') return 4
+                  if (modelInfo?.capabilities?.max_n) return modelInfo.capabilities.max_n
                   return 4
                 })()}
                 style={{ width: '100%' }} 
@@ -733,6 +782,200 @@ const StudioPage = () => {
           <Form.Item name="negative_prompt" label="负向提示词">
             <TextArea rows={2} placeholder="描述不希望出现的内容" />
           </Form.Item>
+
+          {/* 文生图模型参数 */}
+          {availableModels[createForm.getFieldValue('model')]?.model_type === 'text_to_image' && (
+            <div style={{ 
+              padding: '12px', 
+              background: '#1a1a1a', 
+              borderRadius: 8, 
+              marginTop: 16,
+              border: '1px solid #333'
+            }}>
+              <div style={{ marginBottom: 8, color: '#888', fontSize: 12 }}>
+                文生图模型参数
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <Form.Item 
+                  name="prompt_extend" 
+                  label="智能改写"
+                  valuePropName="checked"
+                  initialValue={true}
+                  style={{ marginBottom: 0 }}
+                >
+                  <Switch checkedChildren="开" unCheckedChildren="关" />
+                </Form.Item>
+                <Form.Item 
+                  name="watermark" 
+                  label="水印"
+                  valuePropName="checked"
+                  initialValue={false}
+                  style={{ marginBottom: 0 }}
+                >
+                  <Switch checkedChildren="开" unCheckedChildren="关" />
+                </Form.Item>
+                <Form.Item 
+                  name="seed" 
+                  label="随机种子"
+                  style={{ marginBottom: 0 }}
+                >
+                  <InputNumber 
+                    min={0} 
+                    max={2147483647} 
+                    style={{ width: '100%' }} 
+                    placeholder="随机"
+                  />
+                </Form.Item>
+              </div>
+              <div style={{ marginTop: 8, color: '#666', fontSize: 11 }}>
+                提示：文生图模型不需要参考图片，只需要输入提示词
+              </div>
+            </div>
+          )}
+
+          {/* wan2.6-image 模型参数 */}
+          {createForm.getFieldValue('model') === 'wan2.6-image' && (
+            <div style={{ 
+              padding: '12px', 
+              background: '#1a1a1a', 
+              borderRadius: 8, 
+              marginTop: 16,
+              border: '1px solid #333'
+            }}>
+              <div style={{ marginBottom: 8, color: '#888', fontSize: 12 }}>
+                Wan2.6 图像生成参数
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <Form.Item 
+                  name="size" 
+                  label="输出尺寸"
+                  style={{ marginBottom: 0 }}
+                >
+                  <Select
+                    placeholder="默认 1280×1280"
+                    allowClear
+                    options={[
+                      { value: '1280*1280', label: '1280×1280 (1:1)' },
+                      { value: '1024*1024', label: '1024×1024 (1:1)' },
+                      { value: '1280*720', label: '1280×720 (16:9)' },
+                      { value: '720*1280', label: '720×1280 (9:16)' },
+                      { value: '1280*960', label: '1280×960 (4:3)' },
+                      { value: '960*1280', label: '960×1280 (3:4)' },
+                      { value: '1200*800', label: '1200×800 (3:2)' },
+                      { value: '800*1200', label: '800×1200 (2:3)' },
+                      { value: '1344*576', label: '1344×576 (21:9 超宽)' },
+                    ]}
+                  />
+                </Form.Item>
+                <Form.Item 
+                  name="enable_interleave" 
+                  label="图文混合模式"
+                  valuePropName="checked"
+                  initialValue={false}
+                  style={{ marginBottom: 0 }}
+                  tooltip="启用后生成图文并茂内容。限制：参考图最多1张，生图数量固定为1"
+                >
+                  <Switch 
+                    checkedChildren="开" 
+                    unCheckedChildren="关"
+                    onChange={(checked) => {
+                      if (checked) {
+                        // 图文混合模式：n 固定为 1
+                        createForm.setFieldValue('n', 1)
+                      }
+                    }}
+                  />
+                </Form.Item>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <Form.Item 
+                  name="n" 
+                  label="生图数量"
+                  style={{ marginBottom: 0 }}
+                  initialValue={4}
+                  tooltip={createForm.getFieldValue('enable_interleave') 
+                    ? "图文混合模式下固定为1" 
+                    : "参考图模式下可选1-4张"}
+                >
+                  <InputNumber 
+                    min={1} 
+                    max={createForm.getFieldValue('enable_interleave') ? 1 : 4}
+                    disabled={createForm.getFieldValue('enable_interleave')}
+                    style={{ width: '100%' }} 
+                    placeholder="默认4张"
+                  />
+                </Form.Item>
+                {createForm.getFieldValue('enable_interleave') && (
+                  <Form.Item 
+                    name="max_images" 
+                    label="最大图片数"
+                    style={{ marginBottom: 0 }}
+                    initialValue={5}
+                    tooltip="图文混合模式下，模型最多生成的图片数量(1-5)，实际生成数量可能更少"
+                  >
+                    <InputNumber 
+                      min={1} 
+                      max={5}
+                      style={{ width: '100%' }} 
+                      placeholder="默认5张"
+                    />
+                  </Form.Item>
+                )}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <Form.Item 
+                  name="prompt_extend" 
+                  label="智能改写"
+                  valuePropName="checked"
+                  initialValue={true}
+                  style={{ marginBottom: 0 }}
+                  tooltip="仅非图文混合模式生效，自动优化提示词"
+                >
+                  <Switch 
+                    checkedChildren="开" 
+                    unCheckedChildren="关"
+                    disabled={createForm.getFieldValue('enable_interleave')}
+                  />
+                </Form.Item>
+                <Form.Item 
+                  name="watermark" 
+                  label="水印"
+                  valuePropName="checked"
+                  initialValue={false}
+                  style={{ marginBottom: 0 }}
+                  tooltip="在图片右下角添加'AI生成'水印"
+                >
+                  <Switch checkedChildren="开" unCheckedChildren="关" />
+                </Form.Item>
+                <Form.Item 
+                  name="seed" 
+                  label="随机种子"
+                  style={{ marginBottom: 0 }}
+                  tooltip="相同种子可获得相对稳定的生成结果"
+                >
+                  <InputNumber 
+                    min={0} 
+                    max={2147483647} 
+                    style={{ width: '100%' }} 
+                    placeholder="随机"
+                  />
+                </Form.Item>
+              </div>
+              <div style={{ marginTop: 8, padding: '8px', background: '#252525', borderRadius: 4, fontSize: 11 }}>
+                <div style={{ color: '#888', marginBottom: 4 }}>📝 模式说明：</div>
+                <div style={{ color: '#666' }}>
+                  {createForm.getFieldValue('enable_interleave') ? (
+                    <>• <strong>图文混合模式</strong>：根据提示词生成图文并茂的内容，支持0-1张参考图</>
+                  ) : (
+                    <>• <strong>参考图模式</strong>：基于1-3张参考图进行风格迁移、主体一致性生成，支持0张时为纯文生图</>
+                  )}
+                </div>
+                <div style={{ color: '#555', marginTop: 4 }}>
+                  参考图要求：宽高 384-5000px，格式 JPEG/PNG/BMP/WEBP，≤10MB
+                </div>
+              </div>
+            </div>
+          )}
         </Form>
       </Modal>
 
@@ -934,6 +1177,198 @@ const StudioPage = () => {
                   <TextArea rows={2} />
                 </Form.Item>
                 
+                {/* 文生图模型参数 */}
+                {availableModels[form.getFieldValue('model') || selectedTask?.model || '']?.model_type === 'text_to_image' && (
+                  <div style={{ 
+                    padding: '12px', 
+                    background: '#1a1a1a', 
+                    borderRadius: 8, 
+                    marginBottom: 16,
+                    border: '1px solid #333'
+                  }}>
+                    <div style={{ marginBottom: 8, color: '#888', fontSize: 12 }}>
+                      文生图模型参数
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                      <Form.Item 
+                        name="prompt_extend" 
+                        label="智能改写"
+                        valuePropName="checked"
+                        initialValue={true}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Switch checkedChildren="开" unCheckedChildren="关" />
+                      </Form.Item>
+                      <Form.Item 
+                        name="watermark" 
+                        label="水印"
+                        valuePropName="checked"
+                        initialValue={false}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Switch checkedChildren="开" unCheckedChildren="关" />
+                      </Form.Item>
+                      <Form.Item 
+                        name="seed" 
+                        label="随机种子"
+                        style={{ marginBottom: 0 }}
+                      >
+                        <InputNumber 
+                          min={0} 
+                          max={2147483647} 
+                          style={{ width: '100%' }} 
+                          placeholder="随机"
+                        />
+                      </Form.Item>
+                    </div>
+                    <div style={{ marginTop: 8, color: '#666', fontSize: 11 }}>
+                      提示：文生图模型不需要参考图片，只需要输入提示词
+                    </div>
+                  </div>
+                )}
+
+                {/* wan2.6-image 模型参数 */}
+                {(form.getFieldValue('model') || selectedTask?.model) === 'wan2.6-image' && (
+                  <div style={{ 
+                    padding: '12px', 
+                    background: '#1a1a1a', 
+                    borderRadius: 8, 
+                    marginBottom: 16,
+                    border: '1px solid #333'
+                  }}>
+                    <div style={{ marginBottom: 8, color: '#888', fontSize: 12 }}>
+                      Wan2.6 图像生成参数
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                      <Form.Item 
+                        name="size" 
+                        label="输出尺寸"
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Select
+                          placeholder="默认 1280×1280"
+                          allowClear
+                          options={[
+                            { value: '1280*1280', label: '1280×1280 (1:1)' },
+                            { value: '1024*1024', label: '1024×1024 (1:1)' },
+                            { value: '1280*720', label: '1280×720 (16:9)' },
+                            { value: '720*1280', label: '720×1280 (9:16)' },
+                            { value: '1280*960', label: '1280×960 (4:3)' },
+                            { value: '960*1280', label: '960×1280 (3:4)' },
+                            { value: '1200*800', label: '1200×800 (3:2)' },
+                            { value: '800*1200', label: '800×1200 (2:3)' },
+                            { value: '1344*576', label: '1344×576 (21:9 超宽)' },
+                          ]}
+                        />
+                      </Form.Item>
+                      <Form.Item 
+                        name="enable_interleave" 
+                        label="图文混合模式"
+                        valuePropName="checked"
+                        initialValue={false}
+                        style={{ marginBottom: 0 }}
+                        tooltip="启用后生成图文并茂内容。限制：参考图最多1张，生图数量固定为1"
+                      >
+                        <Switch 
+                          checkedChildren="开" 
+                          unCheckedChildren="关"
+                          onChange={(checked) => {
+                            if (checked) {
+                              form.setFieldValue('n', 1)
+                            }
+                          }}
+                        />
+                      </Form.Item>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                      <Form.Item 
+                        name="n" 
+                        label="生图数量"
+                        style={{ marginBottom: 0 }}
+                        tooltip={form.getFieldValue('enable_interleave') 
+                          ? "图文混合模式下固定为1" 
+                          : "参考图模式下可选1-4张"}
+                      >
+                        <InputNumber 
+                          min={1} 
+                          max={form.getFieldValue('enable_interleave') ? 1 : 4}
+                          disabled={form.getFieldValue('enable_interleave')}
+                          style={{ width: '100%' }} 
+                          placeholder="默认4张"
+                        />
+                      </Form.Item>
+                      {form.getFieldValue('enable_interleave') && (
+                        <Form.Item 
+                          name="max_images" 
+                          label="最大图片数"
+                          style={{ marginBottom: 0 }}
+                          initialValue={5}
+                          tooltip="图文混合模式下，模型最多生成的图片数量(1-5)，实际生成数量可能更少"
+                        >
+                          <InputNumber 
+                            min={1} 
+                            max={5}
+                            style={{ width: '100%' }} 
+                            placeholder="默认5张"
+                          />
+                        </Form.Item>
+                      )}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                      <Form.Item 
+                        name="prompt_extend" 
+                        label="智能改写"
+                        valuePropName="checked"
+                        initialValue={true}
+                        style={{ marginBottom: 0 }}
+                        tooltip="仅非图文混合模式生效，自动优化提示词"
+                      >
+                        <Switch 
+                          checkedChildren="开" 
+                          unCheckedChildren="关"
+                          disabled={form.getFieldValue('enable_interleave')}
+                        />
+                      </Form.Item>
+                      <Form.Item 
+                        name="watermark" 
+                        label="水印"
+                        valuePropName="checked"
+                        initialValue={false}
+                        style={{ marginBottom: 0 }}
+                        tooltip="在图片右下角添加'AI生成'水印"
+                      >
+                        <Switch checkedChildren="开" unCheckedChildren="关" />
+                      </Form.Item>
+                      <Form.Item 
+                        name="seed" 
+                        label="随机种子"
+                        style={{ marginBottom: 0 }}
+                        tooltip="相同种子可获得相对稳定的生成结果"
+                      >
+                        <InputNumber 
+                          min={0} 
+                          max={2147483647} 
+                          style={{ width: '100%' }} 
+                          placeholder="随机"
+                        />
+                      </Form.Item>
+                    </div>
+                    <div style={{ marginTop: 8, padding: '8px', background: '#252525', borderRadius: 4, fontSize: 11 }}>
+                      <div style={{ color: '#888', marginBottom: 4 }}>📝 模式说明：</div>
+                      <div style={{ color: '#666' }}>
+                        {form.getFieldValue('enable_interleave') ? (
+                          <>• <strong>图文混合模式</strong>：根据提示词生成图文并茂的内容，支持0-1张参考图</>
+                        ) : (
+                          <>• <strong>参考图模式</strong>：基于1-3张参考图进行风格迁移、主体一致性生成，支持0张时为纯文生图</>
+                        )}
+                      </div>
+                      <div style={{ color: '#555', marginTop: 4 }}>
+                        参考图要求：宽高 384-5000px，格式 JPEG/PNG/BMP/WEBP，≤10MB
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* qwen-image-edit-plus 专用参数 */}
                 {(form.getFieldValue('model') || selectedTask?.model) === 'qwen-image-edit-plus' && (
                   <>

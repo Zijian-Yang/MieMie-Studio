@@ -10,7 +10,7 @@ import {
   PictureOutlined, ThunderboltOutlined, SettingOutlined,
   ExclamationCircleOutlined, StopOutlined, BgColorsOutlined
 } from '@ant-design/icons'
-import { scenesApi, Scene, stylesApi, Style, galleryApi, GalleryImage } from '../../services/api'
+import { scenesApi, Scene, stylesApi, Style, galleryApi, GalleryImage, settingsApi, ImageModelInfo } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 import { useGenerationStore } from '../../stores/generationStore'
 
@@ -26,6 +26,19 @@ const ScenesPage = () => {
     setSceneUseStyle,
     sceneSelectedStyleId,
     setSceneSelectedStyleId,
+    // 文生图模型设置
+    t2iModel,
+    setT2iModel,
+    t2iWidth,
+    setT2iWidth,
+    t2iHeight,
+    setT2iHeight,
+    t2iPromptExtend,
+    setT2iPromptExtend,
+    t2iWatermark,
+    setT2iWatermark,
+    t2iSeed,
+    setT2iSeed,
     addGeneratingItem,
     removeGeneratingItem,
     isItemGenerating,
@@ -59,6 +72,9 @@ const ScenesPage = () => {
   const [selectedGalleryImage, setSelectedGalleryImage] = useState<string>('')
   const [selectingGroupIndex, setSelectingGroupIndex] = useState(0)
   
+  // 文生图模型配置
+  const [availableImageModels, setAvailableImageModels] = useState<Record<string, ImageModelInfo>>({})
+  
   const selectedSceneIdRef = useRef<string | null>(null)
   const shouldStopRef = useRef(false)
   const isMountedRef = useRef(true)
@@ -80,14 +96,16 @@ const ScenesPage = () => {
       safeSetState(setLoading, true)
       try {
         fetchProject(projectId).catch(() => {})
-        const [scenesRes, stylesRes, galleryRes] = await Promise.all([
+        const [scenesRes, stylesRes, galleryRes, settingsRes] = await Promise.all([
           scenesApi.list(projectId),
           stylesApi.list(projectId),
-          galleryApi.list(projectId)
+          galleryApi.list(projectId),
+          settingsApi.getSettings()
         ])
         safeSetState(setScenes, scenesRes.scenes)
         safeSetState(setStyles, stylesRes.styles)
         safeSetState(setGalleryImages, galleryRes.images)
+        safeSetState(setAvailableImageModels, settingsRes.available_image_models || {})
       } catch (error) {
         message.error('加载失败')
       } finally {
@@ -199,6 +217,13 @@ const ScenesPage = () => {
         negative_prompt: formValues.negative_prompt || scene.negative_prompt,
         use_style: useStyle,
         style_id: styleId || undefined,
+        // 文生图模型参数
+        model: t2iModel || undefined,
+        width: t2iWidth ?? undefined,
+        height: t2iHeight ?? undefined,
+        prompt_extend: t2iPromptExtend ?? undefined,
+        watermark: t2iWatermark ?? undefined,
+        seed: t2iSeed ?? undefined,
       })
       const updated = await scenesApi.get(sceneId)
       safeSetState(setScenes, (prev: Scene[]) => prev.map(s => s.id === updated.id ? updated : s))
@@ -235,6 +260,13 @@ const ScenesPage = () => {
         group_count: sceneGroupCount,
         use_style: useStyle,
         style_id: styleId || undefined,
+        // 文生图模型参数
+        model: t2iModel || undefined,
+        width: t2iWidth ?? undefined,
+        height: t2iHeight ?? undefined,
+        prompt_extend: t2iPromptExtend ?? undefined,
+        watermark: t2iWatermark ?? undefined,
+        seed: t2iSeed ?? undefined,
       })
       const updated = await scenesApi.get(sceneId)
       safeSetState(setScenes, (prev: Scene[]) => prev.map(s => s.id === updated.id ? updated : s))
@@ -266,6 +298,13 @@ const ScenesPage = () => {
           group_count: sceneGroupCount,
           use_style: sceneUseStyle,
           style_id: sceneSelectedStyleId || undefined,
+          // 文生图模型参数
+          model: t2iModel || undefined,
+          width: t2iWidth ?? undefined,
+          height: t2iHeight ?? undefined,
+          prompt_extend: t2iPromptExtend ?? undefined,
+          watermark: t2iWatermark ?? undefined,
+          seed: t2iSeed ?? undefined,
         })
         const updated = await scenesApi.get(scene.id)
         safeSetState(setScenes, (prev: Scene[]) => prev.map(s => s.id === updated.id ? updated : s))
@@ -522,11 +561,97 @@ const ScenesPage = () => {
         )}
       </Modal>
 
-      <Modal title="生成设置" open={settingsModalVisible} onCancel={() => setSettingsModalVisible(false)} onOk={() => setSettingsModalVisible(false)} okText="确定" cancelText="取消">
+      <Modal title="生成设置" open={settingsModalVisible} onCancel={() => setSettingsModalVisible(false)} onOk={() => setSettingsModalVisible(false)} okText="确定" cancelText="取消" width={600}>
         <Form layout="vertical">
           <Form.Item label="每个场景生成组数" extra="生成图片时，每个场景将生成指定组数的图片">
             <InputNumber min={1} max={10} value={sceneGroupCount} onChange={(v) => setSceneGroupCount(v || 3)} style={{ width: '100%' }} />
           </Form.Item>
+
+          {/* 文生图模型设置 */}
+          <Card size="small" title="文生图模型设置" style={{ marginBottom: 16 }}>
+            <Form.Item label="生成模型" style={{ marginBottom: 12 }}>
+              <Select
+                value={t2iModel || undefined}
+                onChange={(v) => {
+                  setT2iModel(v || null)
+                  setT2iWidth(null)
+                  setT2iHeight(null)
+                }}
+                placeholder="使用系统默认模型"
+                allowClear
+                style={{ width: '100%' }}
+                options={Object.entries(availableImageModels).map(([key, info]) => ({
+                  label: `${info.name}${info.description ? ` (${info.description})` : ''}`,
+                  value: key,
+                }))}
+              />
+            </Form.Item>
+            
+            {/* 尺寸设置 */}
+            {availableImageModels[t2iModel || '']?.common_sizes && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>常用比例</div>
+                <Space wrap size={4}>
+                  {availableImageModels[t2iModel || '']?.common_sizes?.map((size: any, idx: number) => (
+                    <Button
+                      key={idx}
+                      size="small"
+                      type={(t2iWidth === size.width && t2iHeight === size.height) ? 'primary' : 'default'}
+                      onClick={() => {
+                        setT2iWidth(size.width)
+                        setT2iHeight(size.height)
+                      }}
+                    >
+                      {size.label}
+                    </Button>
+                  ))}
+                  <Button
+                    size="small"
+                    type={(!t2iWidth && !t2iHeight) ? 'primary' : 'default'}
+                    onClick={() => {
+                      setT2iWidth(null)
+                      setT2iHeight(null)
+                    }}
+                  >
+                    默认
+                  </Button>
+                </Space>
+              </div>
+            )}
+            
+            <Space style={{ width: '100%' }} direction="vertical" size={8}>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <Form.Item label="智能改写" style={{ marginBottom: 0, flex: 1 }}>
+                  <Switch 
+                    checked={t2iPromptExtend ?? true}
+                    onChange={(v) => setT2iPromptExtend(v)}
+                    checkedChildren="开"
+                    unCheckedChildren="关"
+                  />
+                </Form.Item>
+                {availableImageModels[t2iModel || '']?.supports_watermark !== false && (
+                  <Form.Item label="水印" style={{ marginBottom: 0, flex: 1 }}>
+                    <Switch 
+                      checked={t2iWatermark ?? false}
+                      onChange={(v) => setT2iWatermark(v)}
+                      checkedChildren="开"
+                      unCheckedChildren="关"
+                    />
+                  </Form.Item>
+                )}
+              </div>
+              <Form.Item label="随机种子" extra="留空为随机" style={{ marginBottom: 0 }}>
+                <InputNumber
+                  value={t2iSeed}
+                  onChange={(v) => setT2iSeed(v)}
+                  placeholder="留空为随机"
+                  style={{ width: '100%' }}
+                  min={0}
+                  max={2147483647}
+                />
+              </Form.Item>
+            </Space>
+          </Card>
           
           <Form.Item 
             label={

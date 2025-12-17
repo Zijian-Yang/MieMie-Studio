@@ -186,23 +186,66 @@ const FramesPage = () => {
   const [frameWatermark, setFrameWatermark] = useState<boolean>(false)
   const [frameSeed, setFrameSeed] = useState<number | null>(null)
   const [frameSize, setFrameSize] = useState<string | null>(null)
+  const [frameEnableInterleave, setFrameEnableInterleave] = useState<boolean>(false)  // wan2.6-image 图文混合模式
   
-  // 可用的图生图模型
-  const availableImageModels = {
+  // 可用的模型（图生图 + 文生图 + wan2.6-image）
+  const availableImageModels: Record<string, {
+    id: string
+    name: string
+    description: string
+    maxN: number
+    supportsSize: boolean
+    modelType: 'i2i' | 't2i' | 'multi'  // 图生图 / 文生图 / 多功能
+    supportsInterleave?: boolean
+    supportsReferences?: boolean
+    maxReferences?: number
+  }> = {
+    // 多功能模型 (图生图，支持文生图模式)
+    'wan2.6-image': {
+      id: 'wan2.6-image',
+      name: '图生图 wan2.6-image',
+      description: '最强模型，支持参考图生图、图文混合、纯文生图',
+      maxN: 4,
+      supportsSize: true,
+      modelType: 'multi',
+      supportsInterleave: true,  // 支持图文混合模式
+      supportsReferences: true,  // 支持参考图
+      maxReferences: 3,
+    },
+    // 图生图模型
     'wan2.5-i2i-preview': {
       id: 'wan2.5-i2i-preview',
-      name: '万相2.5 图生图',
+      name: '图生图 wan2.5-i2i-preview',
       description: '风格迁移和多图融合，最多4张参考图',
       maxN: 4,
       supportsSize: false,
+      modelType: 'i2i',
     },
     'qwen-image-edit-plus': {
       id: 'qwen-image-edit-plus',
-      name: '通义千问 图像编辑',
+      name: '图生图 qwen-image-edit-plus',
       description: '支持单图编辑和多图融合，最多3张参考图',
       maxN: 6,
       supportsSize: true,
-    }
+      modelType: 'i2i',
+    },
+    // 文生图模型
+    'wan2.6-t2i': {
+      id: 'wan2.6-t2i',
+      name: '文生图 wan2.6-t2i',
+      description: 'HTTP同步调用，快速生成高质量图像',
+      maxN: 4,
+      supportsSize: true,
+      modelType: 't2i',
+    },
+    'wan2.5-t2i-preview': {
+      id: 'wan2.5-t2i-preview',
+      name: '文生图 wan2.5-t2i-preview',
+      description: 'SDK异步调用，自由选尺寸',
+      maxN: 4,
+      supportsSize: true,
+      modelType: 't2i',
+    },
   }
   
   const shouldStopRef = useRef(false)
@@ -750,23 +793,51 @@ const FramesPage = () => {
         }
       }
       
-      const result = await framesApi.generate({
+      // 判断模型类型
+      const modelInfo = availableImageModels[frameModel]
+      const isTextToImage = modelInfo?.modelType === 't2i'
+      const isMultiModel = modelInfo?.modelType === 'multi'
+      
+      // 构建请求参数
+      const generateParams: any = {
         project_id: projectId,
         shot_id: selectedShot.id,
         shot_number: selectedShot.shot_number,
         prompt: values.prompt,
         negative_prompt: '',
         group_index: groupIndex,
-        use_shot_references: useReferences && referenceUrls.length > 0,
-        reference_urls: referenceUrls,
-        // 模型和参数设置
-        model: referenceUrls.length > 0 ? frameModel : undefined,  // 有参考图时才传模型
         n: frameN,
         prompt_extend: framePromptExtend,
         watermark: frameWatermark,
         seed: frameSeed,
-        size: frameModel === 'qwen-image-edit-plus' && frameN === 1 ? frameSize : undefined,
-      })
+      }
+      
+      // 设置参考图和模型
+      if (isTextToImage) {
+        // 纯文生图模型
+        generateParams.use_shot_references = false
+        generateParams.reference_urls = []
+        generateParams.model = frameModel
+      } else if (isMultiModel) {
+        // wan2.6-image 多功能模型
+        generateParams.model = frameModel
+        generateParams.use_shot_references = referenceUrls.length > 0
+        generateParams.reference_urls = referenceUrls
+        generateParams.enable_interleave = frameEnableInterleave
+        if (frameN === 1 && frameSize) {
+          generateParams.size = frameSize
+        }
+      } else {
+        // 图生图模型
+        generateParams.use_shot_references = referenceUrls.length > 0
+        generateParams.reference_urls = referenceUrls
+        generateParams.model = referenceUrls.length > 0 ? frameModel : undefined
+        if (frameModel === 'qwen-image-edit-plus' && frameN === 1 && frameSize) {
+          generateParams.size = frameSize
+        }
+      }
+      
+      const result = await framesApi.generate(generateParams)
       
       safeSetState(setFrames, (prev: Frame[]) => {
         const exists = prev.find(f => f.shot_id === selectedShot.id)
@@ -1544,51 +1615,59 @@ const FramesPage = () => {
                         style={{ background: '#1a1a1a', marginBottom: 12 }}
                         extra={
                           <span style={{ fontSize: 11, color: '#666' }}>
-                            {useReferences && selectedReferences.length > 0 ? '图生图模式' : '文生图模式'}
+                            {(() => {
+                              const modelInfo = availableImageModels[frameModel]
+                              if (modelInfo?.modelType === 'multi') return 'wan2.6-image 多功能'
+                              if (useReferences && selectedReferences.length > 0) return '图生图模式'
+                              return '文生图模式'
+                            })()}
                           </span>
                         }
                       >
-                        {useReferences && selectedReferences.length > 0 && (
-                          <>
-                            <div style={{ marginBottom: 12 }}>
-                              <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>生成模型</div>
-                              <Select
+                        <>
+                          <div style={{ marginBottom: 12 }}>
+                            <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>生成模型</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              size="small"
+                              value={frameModel}
+                              onChange={setFrameModel}
+                            >
+                              {Object.values(availableImageModels).map(m => (
+                                <Option key={m.id} value={m.id}>
+                                  {m.name}
+                                  {m.modelType === 'multi' && <Tag color="gold" style={{ marginLeft: 8 }}>多功能</Tag>}
+                                  {m.modelType === 't2i' && <Tag color="blue" style={{ marginLeft: 8 }}>文生图</Tag>}
+                                </Option>
+                              ))}
+                            </Select>
+                            <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+                              {availableImageModels[frameModel]?.description}
+                            </div>
+                          </div>
+                          
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                            <div>
+                              <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>生图数量</div>
+                              <InputNumber
                                 style={{ width: '100%' }}
                                 size="small"
-                                value={frameModel}
-                                onChange={setFrameModel}
-                              >
-                                {Object.values(availableImageModels).map(m => (
-                                  <Option key={m.id} value={m.id}>{m.name}</Option>
-                                ))}
-                              </Select>
-                              <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
-                                {availableImageModels[frameModel as keyof typeof availableImageModels]?.description}
+                                min={1}
+                                max={availableImageModels[frameModel]?.maxN || 4}
+                                value={frameN}
+                                onChange={(v) => setFrameN(v || 1)}
+                              />
+                              <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+                                最多 {availableImageModels[frameModel]?.maxN || 4} 张
                               </div>
                             </div>
-                            
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                              
+                            {availableImageModels[frameModel]?.supportsSize && frameN === 1 && (
                               <div>
-                                <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>生图数量</div>
-                                <InputNumber
+                                <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>输出尺寸</div>
+                                <Select
                                   style={{ width: '100%' }}
                                   size="small"
-                                  min={1}
-                                  max={availableImageModels[frameModel as keyof typeof availableImageModels]?.maxN || 4}
-                                  value={frameN}
-                                  onChange={(v) => setFrameN(v || 1)}
-                                />
-                                <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
-                                  最多 {availableImageModels[frameModel as keyof typeof availableImageModels]?.maxN || 4} 张
-                                </div>
-                              </div>
-                              
-                              {frameModel === 'qwen-image-edit-plus' && frameN === 1 && (
-                                <div>
-                                  <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>输出尺寸</div>
-                                  <Select
-                                    style={{ width: '100%' }}
-                                    size="small"
                                     value={frameSize}
                                     onChange={setFrameSize}
                                     allowClear
@@ -1604,7 +1683,7 @@ const FramesPage = () => {
                               )}
                             </div>
                             
-                            <div style={{ display: 'flex', gap: 16 }}>
+                            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <Switch
                                   size="small"
@@ -1621,6 +1700,19 @@ const FramesPage = () => {
                                 />
                                 <span style={{ fontSize: 12, color: '#888' }}>水印</span>
                               </div>
+                              {/* wan2.6-image 专用：图文混合模式 */}
+                              {availableImageModels[frameModel]?.supportsInterleave && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <Switch
+                                    size="small"
+                                    checked={frameEnableInterleave}
+                                    onChange={setFrameEnableInterleave}
+                                  />
+                                  <Tooltip title="开启后会生成图文混合内容，n固定为1">
+                                    <span style={{ fontSize: 12, color: '#888' }}>图文混合</span>
+                                  </Tooltip>
+                                </div>
+                              )}
                             </div>
                             
                             <div style={{ marginTop: 12 }}>
@@ -1635,14 +1727,23 @@ const FramesPage = () => {
                                 placeholder="留空则随机"
                               />
                             </div>
-                          </>
-                        )}
-                        
-                        {(!useReferences || selectedReferences.length === 0) && (
-                          <div style={{ color: '#888', fontSize: 12, textAlign: 'center', padding: '8px 0' }}>
-                            文生图模式：未选择参考素材时使用默认文生图模型
-                          </div>
-                        )}
+                          {/* 提示信息 */}
+                          {availableImageModels[frameModel]?.modelType === 'i2i' && (!useReferences || selectedReferences.length === 0) && (
+                            <div style={{ color: '#ff9800', fontSize: 11, marginTop: 8, padding: 8, background: 'rgba(255,152,0,0.1)', borderRadius: 4 }}>
+                              ⚠️ 当前选择的是图生图模型，请添加参考素材
+                            </div>
+                          )}
+                          {availableImageModels[frameModel]?.modelType === 'multi' && (
+                            <div style={{ color: '#666', fontSize: 11, marginTop: 8 }}>
+                              💡 wan2.6-image 支持无参考图（文生图）或 1-3 张参考图
+                              {frameEnableInterleave && (
+                                <div style={{ color: '#52c41a', marginTop: 4 }}>
+                                  ✨ 图文混合模式：生成图文并茂的内容，生图数量固定为 1
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </>
                       </Card>
                       
                       <Card size="small" title="分镜信息参考" style={{ background: '#1a1a1a' }}>

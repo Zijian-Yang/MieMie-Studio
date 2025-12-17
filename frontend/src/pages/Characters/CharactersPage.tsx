@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { 
   Card, Button, Modal, Form, Input, Empty, Spin, message, 
   Radio, Tooltip, Space, Popconfirm, Image, Alert, Progress,
-  InputNumber, Switch, Select, Tag
+  InputNumber, Switch, Select, Tag, Divider
 } from 'antd'
 import { 
   PlusOutlined, ReloadOutlined, DeleteOutlined, 
@@ -11,7 +11,7 @@ import {
   SettingOutlined, ExclamationCircleOutlined, StopOutlined,
   BgColorsOutlined
 } from '@ant-design/icons'
-import { charactersApi, Character, stylesApi, Style, galleryApi, GalleryImage } from '../../services/api'
+import { charactersApi, Character, stylesApi, Style, galleryApi, GalleryImage, settingsApi, ImageModelInfo } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 import { useGenerationStore } from '../../stores/generationStore'
 
@@ -27,6 +27,19 @@ const CharactersPage = () => {
     setCharacterUseStyle,
     characterSelectedStyleId,
     setCharacterSelectedStyleId,
+    // 文生图模型设置
+    t2iModel,
+    setT2iModel,
+    t2iWidth,
+    setT2iWidth,
+    t2iHeight,
+    setT2iHeight,
+    t2iPromptExtend,
+    setT2iPromptExtend,
+    t2iWatermark,
+    setT2iWatermark,
+    t2iSeed,
+    setT2iSeed,
     isGenerating: globalIsGenerating,
     shouldStop,
     startBatchGeneration,
@@ -73,6 +86,9 @@ const CharactersPage = () => {
   const [selectedGalleryImage, setSelectedGalleryImage] = useState<string>('')
   const [selectingGroupIndex, setSelectingGroupIndex] = useState(0)
   
+  // 文生图模型配置
+  const [availableImageModels, setAvailableImageModels] = useState<Record<string, ImageModelInfo>>({})
+  
   const selectedCharacterIdRef = useRef<string | null>(null)
   const shouldStopRef = useRef(false)
   const isMountedRef = useRef(true)
@@ -99,14 +115,16 @@ const CharactersPage = () => {
       try {
         // 不等待 fetchProject 完成再加载角色列表
         fetchProject(projectId).catch(() => {})
-        const [charsRes, stylesRes, galleryRes] = await Promise.all([
+        const [charsRes, stylesRes, galleryRes, settingsRes] = await Promise.all([
           charactersApi.list(projectId),
           stylesApi.list(projectId),
-          galleryApi.list(projectId)
+          galleryApi.list(projectId),
+          settingsApi.getSettings()
         ])
         safeSetState(setCharacters, charsRes.characters)
         safeSetState(setStyles, stylesRes.styles)
         safeSetState(setGalleryImages, galleryRes.images)
+        safeSetState(setAvailableImageModels, settingsRes.available_image_models || {})
       } catch (error) {
         message.error('加载失败')
       } finally {
@@ -233,6 +251,13 @@ const CharactersPage = () => {
         negative_prompt: formValues.negative_prompt || character.negative_prompt,
         use_style: useStyle,
         style_id: styleId || undefined,
+        // 文生图模型参数
+        model: t2iModel || undefined,
+        width: t2iWidth ?? undefined,
+        height: t2iHeight ?? undefined,
+        prompt_extend: t2iPromptExtend ?? undefined,
+        watermark: t2iWatermark ?? undefined,
+        seed: t2iSeed ?? undefined,
       })
       const updated = await charactersApi.get(characterId)
       safeSetState(setCharacters, (prev: Character[]) => prev.map(c => c.id === updated.id ? updated : c))
@@ -283,6 +308,13 @@ const CharactersPage = () => {
         group_count: characterGroupCount,
         use_style: useStyle,
         style_id: styleId || undefined,
+        // 文生图模型参数
+        model: t2iModel || undefined,
+        width: t2iWidth ?? undefined,
+        height: t2iHeight ?? undefined,
+        prompt_extend: t2iPromptExtend ?? undefined,
+        watermark: t2iWatermark ?? undefined,
+        seed: t2iSeed ?? undefined,
       })
       const updated = await charactersApi.get(characterId)
       safeSetState(setCharacters, (prev: Character[]) => prev.map(c => c.id === updated.id ? updated : c))
@@ -332,6 +364,13 @@ const CharactersPage = () => {
           group_count: characterGroupCount,
           use_style: characterUseStyle,
           style_id: characterSelectedStyleId || undefined,
+          // 文生图模型参数
+          model: t2iModel || undefined,
+          width: t2iWidth ?? undefined,
+          height: t2iHeight ?? undefined,
+          prompt_extend: t2iPromptExtend ?? undefined,
+          watermark: t2iWatermark ?? undefined,
+          seed: t2iSeed ?? undefined,
         })
         const updated = await charactersApi.get(character.id)
         safeSetState(setCharacters, (prev: Character[]) => prev.map(c => c.id === updated.id ? updated : c))
@@ -877,6 +916,7 @@ const CharactersPage = () => {
         onOk={() => setSettingsModalVisible(false)}
         okText="确定"
         cancelText="取消"
+        width={600}
       >
         <Form layout="vertical">
           <Form.Item 
@@ -891,6 +931,93 @@ const CharactersPage = () => {
               style={{ width: '100%' }}
             />
           </Form.Item>
+
+          {/* 文生图模型设置 */}
+          <Card size="small" title="文生图模型设置" style={{ marginBottom: 16 }}>
+            <Form.Item label="生成模型" style={{ marginBottom: 12 }}>
+              <Select
+                value={t2iModel || undefined}
+                onChange={(v) => {
+                  setT2iModel(v || null)
+                  // 模型变更时重置尺寸
+                  setT2iWidth(null)
+                  setT2iHeight(null)
+                }}
+                placeholder="使用系统默认模型"
+                allowClear
+                style={{ width: '100%' }}
+                options={Object.entries(availableImageModels).map(([key, info]) => ({
+                  label: `${info.name}${info.description ? ` (${info.description})` : ''}`,
+                  value: key,
+                }))}
+              />
+            </Form.Item>
+            
+            {/* 尺寸设置 */}
+            {availableImageModels[t2iModel || '']?.common_sizes && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>常用比例</div>
+                <Space wrap size={4}>
+                  {availableImageModels[t2iModel || '']?.common_sizes?.map((size: any, idx: number) => (
+                    <Button
+                      key={idx}
+                      size="small"
+                      type={(t2iWidth === size.width && t2iHeight === size.height) ? 'primary' : 'default'}
+                      onClick={() => {
+                        setT2iWidth(size.width)
+                        setT2iHeight(size.height)
+                      }}
+                    >
+                      {size.label}
+                    </Button>
+                  ))}
+                  <Button
+                    size="small"
+                    type={(!t2iWidth && !t2iHeight) ? 'primary' : 'default'}
+                    onClick={() => {
+                      setT2iWidth(null)
+                      setT2iHeight(null)
+                    }}
+                  >
+                    默认
+                  </Button>
+                </Space>
+              </div>
+            )}
+            
+            <Space style={{ width: '100%' }} direction="vertical" size={8}>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <Form.Item label="智能改写" style={{ marginBottom: 0, flex: 1 }}>
+                  <Switch 
+                    checked={t2iPromptExtend ?? true}
+                    onChange={(v) => setT2iPromptExtend(v)}
+                    checkedChildren="开"
+                    unCheckedChildren="关"
+                  />
+                </Form.Item>
+                {availableImageModels[t2iModel || '']?.supports_watermark !== false && (
+                  <Form.Item label="水印" style={{ marginBottom: 0, flex: 1 }}>
+                    <Switch 
+                      checked={t2iWatermark ?? false}
+                      onChange={(v) => setT2iWatermark(v)}
+                      checkedChildren="开"
+                      unCheckedChildren="关"
+                    />
+                  </Form.Item>
+                )}
+              </div>
+              <Form.Item label="随机种子" extra="留空为随机" style={{ marginBottom: 0 }}>
+                <InputNumber
+                  value={t2iSeed}
+                  onChange={(v) => setT2iSeed(v)}
+                  placeholder="留空为随机"
+                  style={{ width: '100%' }}
+                  min={0}
+                  max={2147483647}
+                />
+              </Form.Item>
+            </Space>
+          </Card>
           
           <Form.Item 
             label={

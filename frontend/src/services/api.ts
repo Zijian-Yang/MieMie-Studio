@@ -53,7 +53,29 @@ export interface ImageModelInfo {
   max_pixels: number
   min_ratio: number
   max_ratio: number
+  use_http?: boolean  // 是否使用 HTTP 同步调用
+  is_async?: boolean  // 是否异步调用（需要轮询）
+  max_n?: number  // 最多生成图片数量
+  default_n?: number  // 默认生成数量
+  supports_prompt_extend?: boolean
+  supports_watermark?: boolean  // 是否支持水印
+  supports_seed?: boolean
+  supports_negative_prompt?: boolean
+  supports_reference_images?: boolean  // wan2.6-image：支持参考图
+  supports_interleave?: boolean  // wan2.6-image：支持图文混合输出
+  max_reference_images?: number  // wan2.6-image：最大参考图数量 (enable_interleave=false)
+  max_reference_images_interleave?: number  // wan2.6-image：图文混合模式最大参考图数量
+  min_reference_images?: number  // 最少参考图数量
+  supports_max_images?: boolean  // wan2.6-image：支持 max_images 参数
+  max_images_range?: [number, number]  // max_images 参数范围
+  default_max_images?: number  // max_images 默认值
   common_sizes: ImageModelSizeOption[]
+  model_type?: string  // 模型类型：text_to_image / image_to_image
+  // 图像尺寸限制
+  image_min_dimension?: number  // 参考图最小边长
+  image_max_dimension?: number  // 参考图最大边长
+  image_max_size_mb?: number  // 参考图最大文件大小(MB)
+  supported_formats?: string[]  // 支持的图片格式
 }
 
 export interface VideoResolutionOption {
@@ -101,6 +123,7 @@ export interface ImageConfig {
   width: number
   height: number
   prompt_extend: boolean
+  watermark: boolean  // 水印（仅 wan2.6-t2i 支持）
   seed: number | null
 }
 
@@ -512,6 +535,11 @@ export const charactersApi = {
     negative_prompt?: string
     use_style?: boolean
     style_id?: string
+    // 文生图模型参数
+    model?: string
+    prompt_extend?: boolean
+    watermark?: boolean
+    seed?: number
   }) => api.post(`/characters/${id}/generate`, data),
   generateAll: (id: string, data: {
     common_prompt?: string
@@ -520,6 +548,11 @@ export const charactersApi = {
     group_count?: number
     use_style?: boolean
     style_id?: string
+    // 文生图模型参数
+    model?: string
+    prompt_extend?: boolean
+    watermark?: boolean
+    seed?: number
   }) => api.post<any, { image_groups: CharacterImage[] }>(`/characters/${id}/generate-all`, data),
   delete: (id: string) => api.delete(`/characters/${id}`),
   deleteAll: (projectId: string) => api.delete(`/characters/project/${projectId}/all`),
@@ -573,6 +606,11 @@ export const scenesApi = {
     negative_prompt?: string
     use_style?: boolean
     style_id?: string
+    // 文生图模型参数
+    model?: string
+    prompt_extend?: boolean
+    watermark?: boolean
+    seed?: number
   }) => api.post(`/scenes/${id}/generate`, data),
   generateAll: (id: string, data: {
     common_prompt?: string
@@ -581,6 +619,11 @@ export const scenesApi = {
     group_count?: number
     use_style?: boolean
     style_id?: string
+    // 文生图模型参数
+    model?: string
+    prompt_extend?: boolean
+    watermark?: boolean
+    seed?: number
   }) => api.post<any, { image_groups: SceneImage[] }>(`/scenes/${id}/generate-all`, data),
   delete: (id: string) => api.delete(`/scenes/${id}`),
   deleteAll: (projectId: string) => api.delete(`/scenes/project/${projectId}/all`),
@@ -634,6 +677,11 @@ export const propsApi = {
     negative_prompt?: string
     use_style?: boolean
     style_id?: string
+    // 文生图模型参数
+    model?: string
+    prompt_extend?: boolean
+    watermark?: boolean
+    seed?: number
   }) => api.post(`/props/${id}/generate`, data),
   generateAll: (id: string, data: {
     common_prompt?: string
@@ -642,6 +690,11 @@ export const propsApi = {
     group_count?: number
     use_style?: boolean
     style_id?: string
+    // 文生图模型参数
+    model?: string
+    prompt_extend?: boolean
+    watermark?: boolean
+    seed?: number
   }) => api.post<any, { image_groups: PropImage[] }>(`/props/${id}/generate-all`, data),
   delete: (id: string) => api.delete(`/props/${id}`),
   deleteAll: (projectId: string) => api.delete(`/props/project/${projectId}/all`),
@@ -682,13 +735,15 @@ export const framesApi = {
     use_shot_references?: boolean
     reference_urls?: string[]
     // 模型和参数设置（和图片工作室一样）
-    model?: string  // 模型选择，如 wan2.5-i2i-preview, qwen-image-edit-plus
+    model?: string  // 模型选择，如 wan2.6-image, wan2.5-i2i-preview, qwen-image-edit-plus
     n?: number  // 每次请求生成的图片数量
-    // qwen-image-edit-plus 专用参数
+    // 通用参数
     size?: string  // 输出尺寸
     prompt_extend?: boolean  // 智能改写
     watermark?: boolean  // 水印
     seed?: number | null  // 随机种子
+    // wan2.6-image 专用参数
+    enable_interleave?: boolean  // 图文混合模式
   }) => api.post<any, { frame: Frame; generated_count?: number }>('/frames/generate', data),
   generateBatch: (projectId: string) => api.post('/frames/generate-batch', { project_id: projectId }),
   update: (id: string, data: { prompt?: string; selected_group_index?: number }) => api.put(`/frames/${id}`, data),
@@ -983,11 +1038,14 @@ export const studioApi = {
     negative_prompt?: string
     n?: number  // 每次请求生成的图片数量
     group_count?: number  // 并发请求数（总图片数 = n * group_count）
-    // qwen-image-edit-plus 专用参数
-    size?: string  // 输出尺寸，仅当 n=1 时可用
+    // 通用参数
+    size?: string  // 输出尺寸
     prompt_extend?: boolean  // 智能改写
     watermark?: boolean  // 水印
     seed?: number | null  // 随机种子
+    // wan2.6-image 专用参数
+    enable_interleave?: boolean  // 图文混合模式
+    max_images?: number  // 图文混合模式下最大图片数 (1-5)
   }) => api.post<any, { task: StudioTask }>(`/studio/${id}/generate`, data || {}),
   saveToGallery: (id: string, imageIds: string[]) => api.post<any, { saved_images: GalleryImage[] }>(`/studio/${id}/save-to-gallery`, { image_ids: imageIds }),
   delete: (id: string) => api.delete(`/studio/${id}`),

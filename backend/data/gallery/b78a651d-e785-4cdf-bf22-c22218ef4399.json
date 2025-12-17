@@ -1,0 +1,13 @@
+{
+  "id": "b78a651d-e785-4cdf-bf22-c22218ef4399",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "测试文生图 - 第1组",
+  "description": "",
+  "url": "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/image/f96d7434-4033-4345-b69d-0810ebeff76d/20251217/212225_e6b60f4f.png",
+  "prompt_used": "aussie teenager girl at circular quay。风格要求：{\n  \"style_definition\": {\n    \"art_style\": \"photorealistic, hyperrealistic\",\n    \"rendering\": \"detailed skin textures, subsurface scattering, fine details\",\n    \"color_palette\": [\"natural skin tones\", \"realistic lighting colors\"],\n    \"lighting\": \"professional portrait lighting, three-point setup\"\n  },\n  \"subject_treatment\": {\n    \"character_style\": \"realistic human proportions, natural features\",\n    \"pose_preference\": \"natural, professional portrait poses\",\n    \"expression\": \"subtle, natural emotions\"\n  },\n  \"composition\": {\n    \"background\": \"studio backdrop or environmental portrait\",\n    \"framing\": \"portrait framing, rule of thirds\",\n    \"style\": \"professional photography aesthetic\"\n  },\n  \"tags\": [\"realistic\", \"portrait\", \"photography\", \"professional\", \"detailed\"]\n}",
+  "source": "studio",
+  "task_id": "3f01ef44-4161-4179-adbe-f6d4c86095fe",
+  "tags": [],
+  "created_at": "2025-12-17T21:23:29.800284",
+  "updated_at": "2025-12-17T21:23:29.800315"
+}
