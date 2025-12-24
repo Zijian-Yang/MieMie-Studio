@@ -145,7 +145,6 @@ const FramesPage = () => {
     addGeneratingItem,
     removeGeneratingItem,
     isItemGenerating,
-    stopGeneration,
     setStopGeneration,
   } = useGenerationStore()
   
@@ -400,24 +399,37 @@ const FramesPage = () => {
 
   // 批量生成首帧
   const generateAllFrames = async () => {
-    if (!projectId) return
+    console.log('[批量生成首帧] 函数被调用，projectId:', projectId, 'shots.length:', shots.length)
+    
+    if (!projectId) {
+      console.log('[批量生成首帧] projectId 为空，退出')
+      return
+    }
     if (shots.length === 0) {
+      console.log('[批量生成首帧] shots 为空，退出')
       message.warning('请先解析分镜脚本')
       return
     }
     
+    // 重置停止标志（只使用 ref，避免闭包问题）
     shouldStopRef.current = false
     setStopGeneration(false)
     safeSetState(setGenerating, true)
     safeSetState(setBatchProgress, { current: 0, total: shots.length })
+    console.log('[批量生成首帧] 开始生成', shots.length, '个首帧')
     
     let successCount = 0
     let errorCount = 0
     
     for (let i = 0; i < shots.length; i++) {
-      if (shouldStopRef.current || stopGeneration) break
+      // 只使用 ref 检查，避免闭包中旧值问题
+      if (shouldStopRef.current) {
+        console.log('[批量生成首帧] 用户停止生成')
+        break
+      }
       
       const shot = shots[i]
+      console.log(`[批量生成首帧] 正在生成 ${i + 1}/${shots.length}，shot.id:`, shot.id)
       addGeneratingItem(shot.id)
       safeSetState(setBatchProgress, { current: i + 1, total: shots.length })
       
@@ -426,6 +438,8 @@ const FramesPage = () => {
         const autoRefs = autoSelectReferences(shot)
         // 构建首帧提示词（包含全局风格）
         const prompt = buildFramePrompt(shot, autoRefs, globalStyleId)
+        console.log(`[批量生成首帧] 镜头${shot.shot_number} prompt:`, prompt.slice(0, 100) + '...')
+        
         // 收集参考图片URL
         let referenceUrls = useReferences ? autoRefs
           .map(ref => getReferenceImageUrl(ref))
@@ -442,6 +456,8 @@ const FramesPage = () => {
           }
         }
         
+        console.log(`[批量生成首帧] 镜头${shot.shot_number} 参考图数量:`, referenceUrls.length)
+        
         const result = await framesApi.generate({
           project_id: projectId,
           shot_id: shot.id,
@@ -453,6 +469,8 @@ const FramesPage = () => {
           reference_urls: referenceUrls
         })
         
+        console.log(`[批量生成首帧] 镜头${shot.shot_number} 生成成功`)
+        
         safeSetState(setFrames, (prev: Frame[]) => {
           const exists = prev.find(f => f.shot_id === shot.id)
           if (exists) {
@@ -461,7 +479,8 @@ const FramesPage = () => {
           return [...prev, result.frame]
         })
         successCount++
-      } catch (error) {
+      } catch (error: any) {
+        console.error(`[批量生成首帧] 镜头${shot.shot_number} 生成失败:`, error?.message || error)
         errorCount++
       } finally {
         removeGeneratingItem(shot.id)
@@ -471,7 +490,7 @@ const FramesPage = () => {
     safeSetState(setGenerating, false)
     safeSetState(setBatchProgress, { current: 0, total: 0 })
     
-    if (shouldStopRef.current || stopGeneration) {
+    if (shouldStopRef.current) {
       message.info(`已停止生成，完成 ${successCount}/${shots.length} 个首帧`)
     } else if (errorCount === 0) {
       message.success(`成功生成 ${successCount} 个首帧`)

@@ -433,6 +433,25 @@ export const scriptsApi = {
     api.put(`/scripts/${projectId}/custom-prompt`, { custom_prompt: customPrompt }),
 }
 
+// 获取认证头（用于 fetch 请求）
+const getAuthHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json'
+  }
+  const authStorage = localStorage.getItem('auth-storage')
+  if (authStorage) {
+    try {
+      const { state } = JSON.parse(authStorage)
+      if (state?.token) {
+        headers['Authorization'] = `Bearer ${state.token}`
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+  return headers
+}
+
 // SSE 流式生成
 export const generateScriptStream = (
   projectId: string,
@@ -447,11 +466,23 @@ export const generateScriptStream = (
   
   fetch('/api/scripts/generate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
     body: JSON.stringify({ project_id: projectId, content, model, prompt }),
     signal: controller.signal,
   })
     .then(async (response) => {
+      // 检查认证错误
+      if (response.status === 401) {
+        onError('未登录或登录已过期，请重新登录')
+        return
+      }
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        onError(`请求失败: ${response.status} - ${errorText}`)
+        return
+      }
+      
       const reader = response.body?.getReader()
       const decoder = new TextDecoder()
       

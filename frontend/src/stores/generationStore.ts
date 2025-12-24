@@ -92,6 +92,7 @@ interface GenerationState {
   updateTaskStatus: (taskId: string, status: GenerationTask['status']) => void
   setCurrentTaskIndex: (index: number) => void
   stopGeneration: () => void
+  setStopGeneration: (stop: boolean) => void
   resetGeneration: () => void
   
   addGeneratingItem: (itemId: string) => void
@@ -209,6 +210,8 @@ export const useGenerationStore = create<GenerationState>()(
       setCurrentTaskIndex: (index) => set({ currentTaskIndex: index }),
       
       stopGeneration: () => set({ shouldStop: true }),
+      
+      setStopGeneration: (stop) => set({ shouldStop: stop }),
       
       resetGeneration: () => set({
         isGenerating: false,
