@@ -14,8 +14,9 @@ init_logging()
 from app.routers import (
     settings, scripts, characters, scenes, props, frames, videos, projects, 
     styles, gallery, studio, audio, video_library, text_library, video_studio,
-    models
+    models, auth
 )
+from app.middleware.auth import AuthMiddleware
 
 # 创建 FastAPI 应用
 app = FastAPI(
@@ -24,7 +25,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# 配置 CORS
+# 配置 CORS（必须在 AuthMiddleware 之前）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # 开发环境允许所有来源
@@ -33,6 +34,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 添加认证中间件
+app.add_middleware(AuthMiddleware)
+
 # 静态文件服务 - 用于提供生成的素材
 data_dir = Path(__file__).parent.parent / "data"
 assets_dir = data_dir / "assets"
@@ -40,6 +44,7 @@ assets_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
 
 # 注册路由
+app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
 app.include_router(settings.router, prefix="/api/settings", tags=["设置"])
 app.include_router(projects.router, prefix="/api/projects", tags=["项目"])
 app.include_router(scripts.router, prefix="/api/scripts", tags=["分镜脚本"])

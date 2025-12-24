@@ -17,12 +17,34 @@ import VideoLibraryPage from './pages/VideoLibrary/VideoLibraryPage'
 import TextLibraryPage from './pages/TextLibrary/TextLibraryPage'
 import VideoStudioPage from './pages/VideoStudio/VideoStudioPage'
 import AudioStudioPage from './pages/AudioStudio/AudioStudioPage'
+// 登录页
+import LoginPage from './pages/Login/LoginPage'
+import { useAuthStore } from './stores/authStore'
+
+// 路由保护组件
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated } = useAuthStore()
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+  
+  return <>{children}</>
+}
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<MainLayout />}>
+        {/* 登录页 - 不需要认证 */}
+        <Route path="/login" element={<LoginPage />} />
+        
+        {/* 需要认证的路由 */}
+        <Route path="/" element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }>
           <Route index element={<Navigate to="/projects" replace />} />
           <Route path="projects" element={<ProjectsPage />} />
           <Route path="settings" element={<SettingsPage />} />

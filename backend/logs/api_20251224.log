@@ -2915,3 +2915,79 @@
 2025-12-24 18:08:49 | INFO     | print:160 | [视频工作室状态查询] OSS上传成功: https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/7cede488-6df...
 2025-12-24 18:08:49 | INFO     | print:160 | [视频工作室状态查询] 子任务成功，视频URL已获取
 2025-12-24 18:08:49 | INFO     | print:160 | [视频工作室状态查询] 所有任务成功完成！共 3 个视频
+2025-12-24 18:41:30 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 18:41:30 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 18:41:54 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 18:41:54 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 18:42:16 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 18:42:16 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 18:42:40 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 18:42:40 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 18:43:19 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 18:43:19 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 18:43:20 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 18:43:20 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 18:44:06 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 18:44:06 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 18:44:51 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 18:44:51 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 18:45:24 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 18:45:24 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 18:46:05 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 18:46:05 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 18:46:47 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 18:46:47 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 18:46:48 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 18:46:48 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 18:55:31 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 18:55:31 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 18:56:10 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 18:56:10 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 18:56:48 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 18:56:48 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 18:57:41 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 18:57:41 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 18:58:25 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 18:58:25 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 18:59:14 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 18:59:14 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 18:59:56 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 18:59:56 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 19:17:57 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 19:17:57 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 19:18:26 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 19:18:26 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 19:18:26 | INFO     | print:160 | Backend imports OK
+2025-12-24 19:34:29 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 19:34:29 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 19:35:04 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 19:35:04 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 19:35:45 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 19:35:45 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 19:36:32 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 19:36:32 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 19:37:14 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 19:37:14 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 19:37:33 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 19:37:33 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 19:38:09 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 19:38:09 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 19:39:00 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 19:39:00 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 19:39:23 | INFO     | app:185 | 日志系统已初始化
+2025-12-24 19:39:23 | INFO     | app:186 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 19:40:10 | INFO     |  app:219 | 日志系统已初始化
+2025-12-24 19:40:10 | INFO     |  app:220 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 19:40:34 | INFO     |  app:219 | 日志系统已初始化
+2025-12-24 19:40:34 | INFO     |  app:220 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 19:40:51 | INFO     |  app:219 | 日志系统已初始化
+2025-12-24 19:40:51 | INFO     |  app:220 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 19:41:19 | INFO     |  app:219 | 日志系统已初始化
+2025-12-24 19:41:19 | INFO     |  app:220 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 19:41:20 | INFO     |  print:194 | Backend imports OK
+2025-12-24 19:41:50 | INFO     |  app:219 | 日志系统已初始化
+2025-12-24 19:41:50 | INFO     |  app:220 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 19:42:09 | INFO     |  app:219 | 日志系统已初始化
+2025-12-24 19:42:09 | INFO     |  app:220 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log
+2025-12-24 19:43:16 | INFO     |  app:219 | 日志系统已初始化
+2025-12-24 19:43:16 | INFO     |  app:220 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251224.log

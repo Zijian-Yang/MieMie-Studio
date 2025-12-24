@@ -1,5 +1,9 @@
 """
 日志配置模块 - 将日志输出到文件和终端
+
+支持多用户环境：
+- 日志记录包含用户上下文
+- 每个用户可以有独立的日志文件（可选）
 """
 
 import logging
@@ -7,6 +11,8 @@ import sys
 from pathlib import Path
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
+from contextvars import ContextVar
+from typing import Optional
 
 # 日志目录
 LOG_DIR = Path(__file__).parent.parent / "logs"
@@ -15,12 +21,35 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 # 日志文件路径（按日期命名）
 LOG_FILE = LOG_DIR / f"api_{datetime.now().strftime('%Y%m%d')}.log"
 
-# 创建日志格式
-LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+# 当前用户的上下文变量（用于日志记录）
+_log_user_context: ContextVar[Optional[str]] = ContextVar('log_user_context', default=None)
+
+
+def set_log_user_context(username: Optional[str]):
+    """设置日志的用户上下文"""
+    _log_user_context.set(username)
+
+
+def get_log_user_context() -> Optional[str]:
+    """获取日志的用户上下文"""
+    return _log_user_context.get()
+
+
+class UserContextFilter(logging.Filter):
+    """日志过滤器：添加用户上下文到日志记录"""
+    
+    def filter(self, record):
+        username = get_log_user_context()
+        record.user = f"[{username}]" if username else ""
+        return True
+
+
+# 创建日志格式（包含用户上下文）
+LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(user)s %(name)s | %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
-# 详细格式（用于文件）
-DETAILED_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s:%(lineno)d | %(message)s"
+# 详细格式（用于文件，包含用户上下文）
+DETAILED_FORMAT = "%(asctime)s | %(levelname)-8s | %(user)s %(name)s:%(lineno)d | %(message)s"
 
 
 def setup_logging(level: int = logging.INFO) -> logging.Logger:
@@ -40,10 +69,14 @@ def setup_logging(level: int = logging.INFO) -> logging.Logger:
     # 清除已有的处理器（避免重复添加）
     root_logger.handlers.clear()
     
+    # 创建用户上下文过滤器
+    user_filter = UserContextFilter()
+    
     # 创建终端处理器
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(level)
     console_handler.setFormatter(logging.Formatter(LOG_FORMAT, DATE_FORMAT))
+    console_handler.addFilter(user_filter)
     root_logger.addHandler(console_handler)
     
     # 创建文件处理器（轮转日志，最大10MB，保留10个备份）
@@ -55,6 +88,7 @@ def setup_logging(level: int = logging.INFO) -> logging.Logger:
     )
     file_handler.setLevel(level)
     file_handler.setFormatter(logging.Formatter(DETAILED_FORMAT, DATE_FORMAT))
+    file_handler.addFilter(user_filter)
     root_logger.addHandler(file_handler)
     
     # 设置第三方库日志级别（减少噪音）

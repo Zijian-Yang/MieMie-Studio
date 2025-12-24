@@ -1,13 +1,14 @@
 """
 阿里云 OSS 存储服务
 用于将生成的图片和视频持久化存储到 OSS
+支持多用户独立 OSS 配置
 """
-# OSS 服务已启用
 
 import os
 import uuid
 import hashlib
 import requests
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple
@@ -29,34 +30,40 @@ class OSSService:
         self._auth = None
         self._bucket = None
         self._config: Optional[OSSConfig] = None
+        self._lock = threading.Lock()  # 线程安全锁
     
     def _get_config(self) -> OSSConfig:
-        """获取 OSS 配置"""
+        """获取 OSS 配置（每次都从用户配置中获取，确保用户隔离）"""
         return get_config().oss
     
-    def _init_client(self) -> bool:
-        """初始化 OSS 客户端"""
+    def _init_client(self) -> Tuple[bool, Optional['oss2.Bucket']]:
+        """
+        初始化 OSS 客户端
+        每次调用都重新创建，确保使用当前用户的配置
+        
+        Returns:
+            (success, bucket): 成功时返回 bucket 对象
+        """
         if not OSS_AVAILABLE:
             print("警告: oss2 库未安装，OSS 功能不可用。请运行: pip install oss2")
-            return False
+            return False, None
         
         config = self._get_config()
         
         if not config.enabled:
-            return False
+            return False, None
         
         if not all([config.access_key_id, config.access_key_secret, config.bucket_name, config.endpoint]):
             print("警告: OSS 配置不完整")
-            return False
+            return False, None
         
         try:
-            self._auth = oss2.Auth(config.access_key_id, config.access_key_secret)
-            self._bucket = oss2.Bucket(self._auth, config.endpoint_url, config.bucket_name)
-            self._config = config
-            return True
+            auth = oss2.Auth(config.access_key_id, config.access_key_secret)
+            bucket = oss2.Bucket(auth, config.endpoint_url, config.bucket_name)
+            return True, bucket
         except Exception as e:
             print(f"OSS 客户端初始化失败: {e}")
-            return False
+            return False, None
     
     def is_enabled(self) -> bool:
         """检查 OSS 是否启用且配置正确"""
@@ -115,7 +122,8 @@ class OSSService:
             # OSS 未启用，返回原始 URL
             return True, url
         
-        if not self._init_client():
+        success, bucket = self._init_client()
+        if not success or bucket is None:
             return False, "OSS 初始化失败"
         
         try:
@@ -141,7 +149,7 @@ class OSSService:
             object_key = self._generate_object_key(file_type, extension, project_id)
             
             # 上传到 OSS
-            result = self._bucket.put_object(object_key, response.content)
+            result = bucket.put_object(object_key, response.content)
             
             if result.status == 200:
                 # 构建公开访问 URL
@@ -180,12 +188,13 @@ class OSSService:
         if not self.is_enabled():
             return False, "OSS 未启用"
         
-        if not self._init_client():
+        success, bucket = self._init_client()
+        if not success or bucket is None:
             return False, "OSS 初始化失败"
         
         try:
             object_key = self._generate_object_key(file_type, extension, project_id)
-            result = self._bucket.put_object(object_key, data)
+            result = bucket.put_object(object_key, data)
             
             if result.status == 200:
                 config = self._get_config()
@@ -211,7 +220,8 @@ class OSSService:
         if not self.is_enabled():
             raise Exception("OSS 未启用")
         
-        if not self._init_client():
+        success, bucket = self._init_client()
+        if not success or bucket is None:
             raise Exception("OSS 初始化失败")
         
         try:
@@ -219,7 +229,7 @@ class OSSService:
             prefix = config.prefix.rstrip('/')
             full_path = f"{prefix}/{object_path}"
             
-            result = self._bucket.put_object(full_path, data)
+            result = bucket.put_object(full_path, data)
             
             if result.status == 200:
                 oss_url = f"https://{config.bucket_name}.{config.endpoint_host}/{full_path}"

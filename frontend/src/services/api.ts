@@ -9,9 +9,21 @@ const api = axios.create({
   },
 })
 
-// 请求拦截器
+// 请求拦截器 - 自动添加认证 token
 api.interceptors.request.use(
   (config) => {
+    // 从 localStorage 获取 token
+    const authStorage = localStorage.getItem('auth-storage')
+    if (authStorage) {
+      try {
+        const { state } = JSON.parse(authStorage)
+        if (state?.token) {
+          config.headers.Authorization = `Bearer ${state.token}`
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
     return config
   },
   (error) => {
@@ -25,6 +37,14 @@ api.interceptors.response.use(
     return response.data
   },
   (error) => {
+    // 401 未授权，清除本地认证状态
+    if (error.response?.status === 401) {
+      localStorage.removeItem('auth-storage')
+      // 如果不在登录页，跳转到登录页
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
+    }
     const message = error.response?.data?.detail || error.message || '请求失败'
     return Promise.reject(new Error(message))
   }
@@ -1414,6 +1434,37 @@ export const modelsApi = {
   // 获取可用的模型类型
   listTypes: () => 
     api.get<any, { types: ModelTypeInfo[] }>('/models/types/available'),
+}
+
+// ============ 认证 API ============
+
+export interface UserInfo {
+  id: string
+  username: string
+  display_name: string
+  created_at: string
+  last_login?: string
+}
+
+export interface LoginResponse {
+  token: string
+  user: UserInfo
+}
+
+export const authApi = {
+  // 登录
+  login: (username: string, password: string) => 
+    api.post<any, LoginResponse>('/auth/login', { username, password }),
+  
+  // 注册
+  register: (username: string, password: string, display_name?: string) => 
+    api.post<any, LoginResponse>('/auth/register', { username, password, display_name }),
+  
+  // 登出
+  logout: () => api.post<any, { success: boolean }>('/auth/logout'),
+  
+  // 获取当前用户
+  me: () => api.get<any, UserInfo>('/auth/me'),
 }
 
 export default api

@@ -426,8 +426,26 @@ class AppConfig(BaseModel):
         return API_REGIONS.get(self.api_region, API_REGIONS["beijing"])["base_url"]
 
 
+import threading
+import fcntl
+from contextvars import ContextVar
+
+# 当前用户配置的上下文变量
+_current_user_config_dir: ContextVar[Optional[str]] = ContextVar('current_user_config_dir', default=None)
+
+
+def set_user_config_dir(config_dir: Optional[str]):
+    """设置当前请求的用户配置目录"""
+    _current_user_config_dir.set(config_dir)
+
+
+def get_user_config_dir() -> Optional[str]:
+    """获取当前请求的用户配置目录"""
+    return _current_user_config_dir.get()
+
+
 class ConfigManager:
-    """配置管理器"""
+    """配置管理器 - 支持多用户独立配置"""
     
     def __init__(self, config_dir: Optional[str] = None):
         """
@@ -443,56 +461,76 @@ class ConfigManager:
         
         self.config_file = self.config_dir / "config.json"
         self._ensure_config_dir()
-        self._config: Optional[AppConfig] = None
+        self._lock = threading.RLock()  # 可重入锁，支持并发访问
     
     def _ensure_config_dir(self):
         """确保配置目录存在"""
         self.config_dir.mkdir(parents=True, exist_ok=True)
     
+    def _read_with_lock(self) -> dict:
+        """带文件锁的读取操作"""
+        if not self.config_file.exists():
+            return {}
+        with open(self.config_file, 'r', encoding='utf-8') as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_SH)  # 共享锁
+            try:
+                return json.load(f)
+            finally:
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+    
+    def _write_with_lock(self, data: dict):
+        """带文件锁的写入操作"""
+        with open(self.config_file, 'w', encoding='utf-8') as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # 排他锁
+            try:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            finally:
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+    
     def load(self) -> AppConfig:
-        """加载配置"""
-        if self._config is not None:
-            return self._config
-        
-        if self.config_file.exists():
-            with open(self.config_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                self._config = AppConfig(**data)
-        else:
-            self._config = AppConfig()
-            self.save(self._config)
-        
-        return self._config
+        """加载配置（每次都从文件读取，确保最新）"""
+        with self._lock:
+            data = self._read_with_lock()
+            # 如果文件为空或内容为空字典，则使用默认配置
+            if data and len(data) > 0:
+                try:
+                    return AppConfig(**data)
+                except Exception:
+                    # 如果数据格式错误，使用默认配置
+                    pass
+            # 创建并保存默认配置
+            config = AppConfig()
+            self.save(config)
+            return config
     
     def save(self, config: AppConfig) -> None:
         """保存配置"""
-        with open(self.config_file, 'w', encoding='utf-8') as f:
-            json.dump(config.model_dump(), f, ensure_ascii=False, indent=2)
-        self._config = config
+        with self._lock:
+            self._write_with_lock(config.model_dump())
     
     def update(self, **kwargs) -> AppConfig:
         """更新配置"""
-        config = self.load()
-        updated_data = config.model_dump()
-        
-        # 处理嵌套更新
-        for key, value in kwargs.items():
-            if key in ['llm', 'image', 'image_edit', 'video', 'ref_video', 'oss'] and isinstance(value, dict):
-                # 合并嵌套配置
-                if key in updated_data:
-                    updated_data[key].update(value)
+        with self._lock:
+            config = self.load()
+            updated_data = config.model_dump()
+            
+            # 处理嵌套更新
+            for key, value in kwargs.items():
+                if key in ['llm', 'image', 'image_edit', 'video', 'ref_video', 'oss'] and isinstance(value, dict):
+                    # 合并嵌套配置
+                    if key in updated_data:
+                        updated_data[key].update(value)
+                    else:
+                        updated_data[key] = value
                 else:
                     updated_data[key] = value
-            else:
-                updated_data[key] = value
-        
-        new_config = AppConfig(**updated_data)
-        self.save(new_config)
-        return new_config
+            
+            new_config = AppConfig(**updated_data)
+            self.save(new_config)
+            return new_config
     
     def reload(self) -> AppConfig:
         """强制重新加载配置"""
-        self._config = None
         return self.load()
     
     def get_api_key(self) -> str:
@@ -504,17 +542,60 @@ class ConfigManager:
         self.update(dashscope_api_key=api_key)
 
 
-# 全局配置管理器实例
-config_manager = ConfigManager()
+# 用户配置管理器缓存
+_user_config_managers: dict = {}
+_config_managers_lock = threading.Lock()
+
+# 全局默认配置管理器（向后兼容，不推荐使用）
+_default_config_manager: Optional[ConfigManager] = None
+
+
+def get_user_config_manager(user_config_dir: str) -> ConfigManager:
+    """获取用户专属的配置管理器"""
+    with _config_managers_lock:
+        if user_config_dir not in _user_config_managers:
+            _user_config_managers[user_config_dir] = ConfigManager(user_config_dir)
+        return _user_config_managers[user_config_dir]
+
+
+def get_default_config_manager() -> ConfigManager:
+    """获取默认配置管理器（向后兼容）"""
+    global _default_config_manager
+    if _default_config_manager is None:
+        _default_config_manager = ConfigManager()
+    return _default_config_manager
+
+
+class ConfigManagerProxy:
+    """
+    配置管理器代理
+    
+    自动根据当前用户上下文选择正确的配置管理器
+    """
+    
+    def _get_manager(self) -> ConfigManager:
+        """获取当前应使用的配置管理器"""
+        user_config_dir = get_user_config_dir()
+        if user_config_dir:
+            return get_user_config_manager(user_config_dir)
+        return get_default_config_manager()
+    
+    def __getattr__(self, name):
+        """代理所有属性访问到实际的配置管理器"""
+        return getattr(self._get_manager(), name)
+
+
+# 全局配置管理器代理（自动路由到正确的用户配置）
+config_manager = ConfigManagerProxy()
 
 
 def get_config() -> AppConfig:
-    """获取当前配置"""
+    """获取当前用户的配置"""
     return config_manager.load()
 
 
 def get_api_key() -> str:
-    """获取 API Key"""
+    """获取当前用户的 API Key"""
     return config_manager.get_api_key()
 
 

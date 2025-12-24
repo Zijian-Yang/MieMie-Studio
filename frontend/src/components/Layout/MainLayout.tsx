@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Outlet, useNavigate, useLocation, useParams } from 'react-router-dom'
-import { Layout, Menu, Button, Tooltip } from 'antd'
+import { Layout, Menu, Button, Tooltip, Avatar, Dropdown, message } from 'antd'
 // Note: We use a plain div instead of Layout.Content for better scrolling behavior
 import {
   FolderOutlined,
@@ -19,8 +19,11 @@ import {
   SoundOutlined,
   PlayCircleOutlined,
   AudioOutlined,
+  LogoutOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
+import { useAuthStore } from '../../stores/authStore'
+import { authApi } from '../../services/api'
 
 // Using plain div instead of Content for proper scrolling
 
@@ -29,6 +32,40 @@ const MainLayout = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { projectId } = useParams()
+  const { user, logout } = useAuthStore()
+
+  // 处理登出
+  const handleLogout = async () => {
+    try {
+      await authApi.logout()
+    } catch (e) {
+      // 忽略错误
+    }
+    logout()
+    message.success('已退出登录')
+    navigate('/login')
+  }
+
+  // 用户下拉菜单
+  const userMenuItems: MenuProps['items'] = [
+    {
+      key: 'user-info',
+      label: (
+        <div style={{ padding: '4px 0' }}>
+          <div style={{ fontWeight: 500 }}>{user?.display_name}</div>
+          <div style={{ fontSize: 12, color: '#888' }}>@{user?.username}</div>
+        </div>
+      ),
+      disabled: true,
+    },
+    { type: 'divider' },
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: '退出登录',
+      onClick: handleLogout,
+    },
+  ]
 
   // 工作流程菜单项
   const workflowItems: MenuProps['items'] = projectId ? [
@@ -232,6 +269,64 @@ const MainLayout = () => {
               background: 'transparent',
             }}
           />
+        </div>
+
+        {/* 用户信息区域 */}
+        <div 
+          style={{ 
+            flexShrink: 0,
+            borderTop: '1px solid #333',
+            padding: collapsed ? '12px 8px' : '12px 16px',
+          }}
+        >
+          <Dropdown menu={{ items: userMenuItems }} placement="topRight" trigger={['click']}>
+            <div 
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 10,
+                cursor: 'pointer',
+                padding: '8px',
+                borderRadius: 8,
+                transition: 'background 0.2s',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            >
+              <Avatar 
+                size={collapsed ? 32 : 36} 
+                style={{ 
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  flexShrink: 0,
+                }}
+              >
+                {user?.display_name?.[0]?.toUpperCase() || 'U'}
+              </Avatar>
+              {!collapsed && (
+                <div style={{ overflow: 'hidden' }}>
+                  <div style={{ 
+                    color: '#e0e0e0', 
+                    fontWeight: 500, 
+                    fontSize: 14,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}>
+                    {user?.display_name}
+                  </div>
+                  <div style={{ 
+                    color: '#888', 
+                    fontSize: 12,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}>
+                    @{user?.username}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Dropdown>
         </div>
       </div>
 

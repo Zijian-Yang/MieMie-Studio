@@ -1,11 +1,20 @@
 """
 JSON 文件存储服务
+
+支持多用户数据隔离和并发安全：
+- 通过 set_current_user() 设置当前用户
+- storage_service 会自动使用当前用户的数据目录
+- 使用文件锁确保并发安全
+- 如果未设置用户，使用全局默认目录（向后兼容）
 """
 
 import json
+import fcntl
+import threading
 from pathlib import Path
 from typing import Optional, List
 from datetime import datetime
+from contextvars import ContextVar
 
 from app.models.project import Project
 from app.models.character import Character
@@ -18,9 +27,22 @@ from app.models.gallery import GalleryImage
 from app.models.studio import StudioTask
 from app.models.media import AudioItem, VideoItem, TextItem, VideoStudioTask
 
+# 当前用户 ID 的上下文变量
+_current_user_id: ContextVar[Optional[str]] = ContextVar('current_user_id', default=None)
+
+
+def set_current_user(user_id: Optional[str]):
+    """设置当前请求的用户 ID"""
+    _current_user_id.set(user_id)
+
+
+def get_current_user_id() -> Optional[str]:
+    """获取当前请求的用户 ID"""
+    return _current_user_id.get()
+
 
 class StorageService:
-    """JSON 文件存储服务"""
+    """JSON 文件存储服务 - 支持并发安全"""
     
     def __init__(self, data_dir: Optional[str] = None):
         if data_dir is None:
@@ -43,6 +65,7 @@ class StorageService:
         self.text_library_dir = self.data_dir / "text_library"
         self.video_studio_dir = self.data_dir / "video_studio"
         
+        self._lock = threading.RLock()  # 可重入锁，支持并发访问
         self._ensure_dirs()
     
     def _ensure_dirs(self):
@@ -61,38 +84,65 @@ class StorageService:
             return obj.isoformat()
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
     
+    def _read_json_with_lock(self, file_path: Path) -> Optional[dict]:
+        """带文件锁的 JSON 读取"""
+        if not file_path.exists():
+            return None
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                fcntl.flock(f.fileno(), fcntl.LOCK_SH)  # 共享锁
+                try:
+                    return json.load(f)
+                finally:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+        except (json.JSONDecodeError, IOError):
+            return None
+    
+    def _write_json_with_lock(self, file_path: Path, data: dict):
+        """带文件锁的 JSON 写入"""
+        with open(file_path, 'w', encoding='utf-8') as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # 排他锁
+            try:
+                json.dump(data, f, ensure_ascii=False, indent=2, default=self._serialize_datetime)
+            finally:
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+    
     # ============ Project ============
     
     def save_project(self, project: Project) -> None:
-        """保存项目"""
-        project.updated_at = datetime.now()
-        file_path = self.projects_dir / f"{project.id}.json"
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(project.model_dump(), f, ensure_ascii=False, indent=2, default=self._serialize_datetime)
+        """保存项目（线程安全）"""
+        with self._lock:
+            project.updated_at = datetime.now()
+            file_path = self.projects_dir / f"{project.id}.json"
+            self._write_json_with_lock(file_path, project.model_dump())
     
     def get_project(self, project_id: str) -> Optional[Project]:
-        """获取项目"""
+        """获取项目（线程安全）"""
         file_path = self.projects_dir / f"{project_id}.json"
-        if not file_path.exists():
-            return None
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        return Project(**data)
+        data = self._read_json_with_lock(file_path)
+        if data:
+            return Project(**data)
+        return None
     
     def list_projects(self) -> List[Project]:
-        """列出所有项目"""
+        """列出所有项目（线程安全）"""
         projects = []
-        for file_path in self.projects_dir.glob("*.json"):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            projects.append(Project(**data))
+        with self._lock:
+            for file_path in self.projects_dir.glob("*.json"):
+                data = self._read_json_with_lock(file_path)
+                if data:
+                    try:
+                        projects.append(Project(**data))
+                    except Exception:
+                        pass  # 跳过格式错误的文件
         return sorted(projects, key=lambda p: p.updated_at, reverse=True)
     
     def delete_project(self, project_id: str) -> None:
-        """删除项目"""
-        file_path = self.projects_dir / f"{project_id}.json"
-        if file_path.exists():
-            file_path.unlink()
+        """删除项目（线程安全）"""
+        with self._lock:
+            file_path = self.projects_dir / f"{project_id}.json"
+            if file_path.exists():
+                file_path.unlink()
     
     # ============ Character ============
     
@@ -491,5 +541,57 @@ class StorageService:
             file_path.unlink()
 
 
-# 全局存储服务实例
-storage_service = StorageService()
+# 存储服务缓存
+_storage_cache: dict = {}
+_default_storage: Optional[StorageService] = None
+
+
+def get_user_storage(user_id: str) -> StorageService:
+    """
+    获取用户专属的存储服务
+    
+    Args:
+        user_id: 用户 ID
+        
+    Returns:
+        用户专属的 StorageService 实例
+    """
+    if user_id not in _storage_cache:
+        from app.services.user_service import get_user_service
+        user_service = get_user_service()
+        user_data_path = user_service.get_user_data_path(user_id)
+        _storage_cache[user_id] = StorageService(str(user_data_path))
+    return _storage_cache[user_id]
+
+
+def get_default_storage() -> StorageService:
+    """获取默认存储服务（向后兼容）"""
+    global _default_storage
+    if _default_storage is None:
+        _default_storage = StorageService()
+    return _default_storage
+
+
+class StorageServiceProxy:
+    """
+    存储服务代理
+    
+    自动根据当前用户上下文选择正确的存储服务：
+    - 如果有当前用户，使用用户专属存储
+    - 否则使用默认存储（向后兼容）
+    """
+    
+    def _get_service(self) -> StorageService:
+        """获取当前应使用的存储服务"""
+        user_id = get_current_user_id()
+        if user_id:
+            return get_user_storage(user_id)
+        return get_default_storage()
+    
+    def __getattr__(self, name):
+        """代理所有属性访问到实际的存储服务"""
+        return getattr(self._get_service(), name)
+
+
+# 全局存储服务代理（自动路由到正确的用户存储）
+storage_service = StorageServiceProxy()
