@@ -588,15 +588,15 @@ const VideoStudioPage = () => {
                   {/* 视频生视频：参考视频选择 */}
                   {taskType === 'reference_to_video' && (
                     <div style={{ marginBottom: 16 }}>
-                      <div style={{ marginBottom: 8 }}>参考视频 * (最多2个)</div>
+                      <div style={{ marginBottom: 8 }}>参考视频 * (最多3个)</div>
                       <Select
                         mode="multiple"
                         style={{ width: '100%' }}
                         value={referenceVideoUrls}
-                        onChange={(urls) => setReferenceVideoUrls(urls.slice(0, 2))}
+                        onChange={(urls) => setReferenceVideoUrls(urls.slice(0, 3))}
                         placeholder="从视频库选择参考视频"
                         optionLabelProp="label"
-                        maxTagCount={2}
+                        maxTagCount={3}
                       >
                         {videoLibraryItems.map(video => (
                           <Option key={video.id} value={video.url} label={video.name}>
@@ -609,7 +609,7 @@ const VideoStudioPage = () => {
                         ))}
                       </Select>
                       <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                        提示词中使用 character1 指代第1个视频的主体，character2 指代第2个视频的主体
+                        提示词中使用 character1/character2/character3 指代对应视频的主体
                       </div>
                     </div>
                   )}
@@ -1189,15 +1189,15 @@ const VideoStudioPage = () => {
                   {/* 视频生视频：参考视频选择 */}
                   {editTaskType === 'reference_to_video' && (
                     <div style={{ marginBottom: 16 }}>
-                      <div style={{ marginBottom: 8 }}>参考视频 * (最多2个)</div>
+                      <div style={{ marginBottom: 8 }}>参考视频 * (最多3个)</div>
                       <Select
                         mode="multiple"
                         style={{ width: '100%' }}
                         value={editReferenceVideoUrls}
-                        onChange={(urls) => setEditReferenceVideoUrls(urls.slice(0, 2))}
+                        onChange={(urls) => setEditReferenceVideoUrls(urls.slice(0, 3))}
                         placeholder="从视频库选择参考视频"
                         optionLabelProp="label"
-                        maxTagCount={2}
+                        maxTagCount={3}
                       >
                         {videoLibraryItems.map(video => (
                           <Option key={video.id} value={video.url} label={video.name}>
@@ -1209,7 +1209,7 @@ const VideoStudioPage = () => {
                         ))}
                       </Select>
                       <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                        提示词中使用 character1 指代第1个视频的主体，character2 指代第2个视频的主体
+                        提示词中使用 character1/character2/character3 指代对应视频的主体
                       </div>
                       {editReferenceVideoUrls.length > 0 && (
                         <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>

@@ -57,7 +57,7 @@ class VideoStudioTaskCreateRequest(BaseModel):
     audio_url: Optional[str] = None  # 自定义音频URL
     
     # 视频生视频参数
-    reference_video_urls: List[str] = []  # 参考视频URL列表（最多2个）
+    reference_video_urls: List[str] = []  # 参考视频URL列表（最多3个）
     
     # 通用参数
     prompt: str = ""
@@ -160,8 +160,8 @@ async def create_task(request: VideoStudioTaskCreateRequest):
     elif request.task_type == "reference_to_video":
         if not request.reference_video_urls:
             raise HTTPException(status_code=400, detail="视频生视频任务需要选择参考视频")
-        if len(request.reference_video_urls) > 2:
-            raise HTTPException(status_code=400, detail="参考视频最多2个")
+        if len(request.reference_video_urls) > 3:
+            raise HTTPException(status_code=400, detail="参考视频最多3个")
     else:
         raise HTTPException(status_code=400, detail="不支持的任务类型")
     

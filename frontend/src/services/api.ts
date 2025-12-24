@@ -1210,7 +1210,7 @@ export interface VideoStudioTask {
   audio_url?: string
   
   // 视频生视频参数
-  reference_video_urls?: string[]  // 参考视频URL列表（最多2个）
+  reference_video_urls?: string[]  // 参考视频URL列表（最多3个）
   
   // 通用参数
   prompt: string

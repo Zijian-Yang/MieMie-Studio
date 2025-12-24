@@ -44,7 +44,7 @@ class ReferenceToVideoService:
         创建视频生视频任务
         
         Args:
-            reference_video_urls: 参考视频URL列表（最多2个）
+            reference_video_urls: 参考视频URL列表（最多3个）
             prompt: 文本提示词，使用 character1/character2 指代参考视频中的主体
             model: 模型名称，默认 wan2.6-r2v
             size: 分辨率（宽*高格式，如 1920*1080）
@@ -66,8 +66,8 @@ class ReferenceToVideoService:
         }
         
         if reference_video_urls:
-            # 限制最多2个参考视频
-            input_data["reference_video_urls"] = reference_video_urls[:2]
+            # 限制最多3个参考视频
+            input_data["reference_video_urls"] = reference_video_urls[:3]
         
         if negative_prompt:
             input_data["negative_prompt"] = negative_prompt

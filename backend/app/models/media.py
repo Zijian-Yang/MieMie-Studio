@@ -96,7 +96,7 @@ class VideoStudioTask(BaseModel):
     last_frame_url: Optional[str] = None  # 尾帧图URL（首尾帧模式）
     
     # 输入参数 - 视频生视频
-    reference_video_urls: List[str] = []  # 参考视频URL列表（最多2个）
+    reference_video_urls: List[str] = []  # 参考视频URL列表（最多3个）
     
     # 通用输入参数
     audio_url: Optional[str] = None  # 自定义音频URL（从音频库选择，仅图生视频支持）

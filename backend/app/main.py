@@ -7,6 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
+# 初始化日志系统（必须在导入其他模块之前）
+from app.logger import init_logging
+init_logging()
+
 from app.routers import (
     settings, scripts, characters, scenes, props, frames, videos, projects, 
     styles, gallery, studio, audio, video_library, text_library, video_studio,

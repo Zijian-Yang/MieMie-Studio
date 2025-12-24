@@ -217,7 +217,7 @@ REF_VIDEO_MODELS = {
         "supports_negative_prompt": True,
         "supports_audio": True,  # 默认自动配音
         "default_audio": True,
-        "max_reference_videos": 2,  # 最多2个参考视频
+        "max_reference_videos": 3,  # 最多3个参考视频
         "reference_video_duration": "2-30s",  # 参考视频时长要求
         "reference_video_max_size": "100MB",  # 单个视频最大100MB
     }
