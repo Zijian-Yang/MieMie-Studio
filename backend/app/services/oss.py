@@ -292,6 +292,9 @@ class OSSService:
         """
         测试 OSS 连接
         
+        通过上传并删除一个小测试文件来验证连接，
+        这与实际使用场景（上传图片/视频）一致。
+        
         Returns:
             (success, message): 连接是否成功及消息
         """
@@ -310,13 +313,28 @@ class OSSService:
             auth = oss2.Auth(config.access_key_id, config.access_key_secret)
             bucket = oss2.Bucket(auth, config.endpoint_url, config.bucket_name)
             
-            # 尝试获取 bucket 信息来测试连接
-            bucket.get_bucket_info()
-            return True, "连接成功"
+            # 尝试上传一个小测试文件
+            prefix = config.prefix.rstrip('/')
+            test_key = f"{prefix}/.connection_test"
+            test_content = b"connection_test"
+            
+            # 上传测试文件
+            result = bucket.put_object(test_key, test_content)
+            
+            if result.status == 200:
+                # 上传成功，尝试删除测试文件（可选，失败不影响结果）
+                try:
+                    bucket.delete_object(test_key)
+                except:
+                    pass  # 删除失败不影响测试结果
+                return True, "连接成功"
+            else:
+                return False, f"上传测试失败: HTTP {result.status}"
+                
         except oss2.exceptions.NoSuchBucket:
             return False, f"Bucket '{config.bucket_name}' 不存在"
         except oss2.exceptions.AccessDenied:
-            return False, "访问被拒绝，请检查 AccessKey 权限"
+            return False, "访问被拒绝，请检查 AccessKey 是否有写入权限"
         except oss2.exceptions.ServerError as e:
             return False, f"服务器错误: {str(e)}"
         except Exception as e:
