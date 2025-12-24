@@ -1,0 +1,1368 @@
+2025-12-25 01:44:46 | INFO     |  app:219 | 日志系统已初始化
+2025-12-25 01:44:46 | INFO     |  app:220 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251225.log
+2025-12-25 01:46:23 | INFO     |  app:219 | 日志系统已初始化
+2025-12-25 01:46:23 | INFO     |  app:220 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251225.log
+2025-12-25 01:47:04 | INFO     |  app:219 | 日志系统已初始化
+2025-12-25 01:47:04 | INFO     |  app:220 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251225.log
+2025-12-25 01:47:35 | INFO     | [zj] oss2.api:1410 | Start to delete object, bucket: qingshui-siemens, key: aistudio/.connection_test
+2025-12-25 02:01:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:01:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:01:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 角色三视图，同一画面内从左到右依次展示：正面视角（面向镜头）、侧面视角（面向右侧）、背面视角（背对镜头），三个视角的角色服装和外观完全一致，白色纯净背景，专业角色设计参考图, 全身人物立绘，纯白色背景...
+2025-12-25 02:01:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:01:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:01:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 角色三视图，同一画面内从左到右依次展示：正面视角（面向镜头）、侧面视角（面向右侧）、背面视角（背对镜头），三个视角的角色服装和外观完全一致，白色纯净背景，专业角色设计参考图, 全身人物立绘，纯白色背景...
+2025-12-25 02:01:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:01:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:01:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 角色三视图，同一画面内从左到右依次展示：正面视角（面向镜头）、侧面视角（面向右侧）、背面视角（背对镜头），三个视角的角色服装和外观完全一致，白色纯净背景，专业角色设计参考图, 全身人物立绘，纯白色背景...
+2025-12-25 02:02:08 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:02:08 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=0aff2c12-f0b6-408d-806d-21fc757e922a
+2025-12-25 02:02:08 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:02:09 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:02:09 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=ec037f17-f4ee-4eb9-aa12-11ba50148d09
+2025-12-25 02:02:09 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:02:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:02:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=475f46a4-706b-4e60-9f2e-bf2189bc3c18
+2025-12-25 02:02:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外郊野山坡，开阔草地覆盖地面，远处为起伏的连绵山丘，数棵盛开粉色花朵的樱花树点缀其间，自然地形略有起伏，阳光充足，整...
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外郊野山坡，开阔草地覆盖地面，远处为起伏的连绵山丘，数棵盛开粉色花朵的樱花树点缀其间，自然地形略有起伏，阳光充足，整...
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外郊野山坡，开阔草地覆盖地面，远处为起伏的连绵山丘，数棵盛开粉色花朵的樱花树点缀其间，自然地形略有起伏，阳光充足，整...
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外山坡草地，近处散布白色、黄色等小型野花，草叶细长茂密，背景一条土色蜿蜒小径穿过绿地延伸至远方，地面略有坡度，植被层...
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外山坡草地，近处散布白色、黄色等小型野花，草叶细长茂密，背景一条土色蜿蜒小径穿过绿地延伸至远方，地面略有坡度，植被层...
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外山坡草地，近处散布白色、黄色等小型野花，草叶细长茂密，背景一条土色蜿蜒小径穿过绿地延伸至远方，地面略有坡度，植被层...
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外草地微距场景，一株白色雏菊居中，花瓣洁白层叠，花茎纤细带细毛，周围绿草密集且高低错落，背景完全虚化为柔和绿色光斑，...
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外草地微距场景，一株白色雏菊居中，花瓣洁白层叠，花茎纤细带细毛，周围绿草密集且高低错落，背景完全虚化为柔和绿色光斑，...
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外草地微距场景，一株白色雏菊居中，花瓣洁白层叠，花茎纤细带细毛，周围绿草密集且高低错落，背景完全虚化为柔和绿色光斑，...
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林间小径，中央为一条窄窄的土路，两侧排列高大挺拔的松树，树干粗糙呈灰褐色，下层为常绿灌木丛，枝叶浓密，地面覆盖枯叶...
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林间小径，中央为一条窄窄的土路，两侧排列高大挺拔的松树，树干粗糙呈灰褐色，下层为常绿灌木丛，枝叶浓密，地面覆盖枯叶...
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林间小径，中央为一条窄窄的土路，两侧排列高大挺拔的松树，树干粗糙呈灰褐色，下层为常绿灌木丛，枝叶浓密，地面覆盖枯叶...
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林缘空地，地面为短草与裸露浅色土壤混合，边缘处松树与灌木逐渐密集，形成由开阔到封闭的空间过渡，地面散落少量枯枝与落...
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林缘空地，地面为短草与裸露浅色土壤混合，边缘处松树与灌木逐渐密集，形成由开阔到封闭的空间过渡，地面散落少量枯枝与落...
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林缘空地，地面为短草与裸露浅色土壤混合，边缘处松树与灌木逐渐密集，形成由开阔到封闭的空间过渡，地面散落少量枯枝与落...
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外山坡草地，近处散布白色、黄色等小型野花，草叶细长茂密，背景一条土色蜿蜒小径穿过绿地延伸至远方，地面略有坡度，植被层...
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外山坡草地，近处散布白色、黄色等小型野花，草叶细长茂密，背景一条土色蜿蜒小径穿过绿地延伸至远方，地面略有坡度，植被层...
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外山坡草地，近处散布白色、黄色等小型野花，草叶细长茂密，背景一条土色蜿蜒小径穿过绿地延伸至远方，地面略有坡度，植被层...
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外郊野山坡，开阔草地覆盖地面，远处为起伏的连绵山丘，数棵盛开粉色花朵的樱花树点缀其间，自然地形略有起伏，阳光充足，整...
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外郊野山坡，开阔草地覆盖地面，远处为起伏的连绵山丘，数棵盛开粉色花朵的樱花树点缀其间，自然地形略有起伏，阳光充足，整...
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外郊野山坡，开阔草地覆盖地面，远处为起伏的连绵山丘，数棵盛开粉色花朵的樱花树点缀其间，自然地形略有起伏，阳光充足，整...
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外草地微距场景，一株白色雏菊居中，花瓣洁白层叠，花茎纤细带细毛，周围绿草密集且高低错落，背景完全虚化为柔和绿色光斑，...
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外草地微距场景，一株白色雏菊居中，花瓣洁白层叠，花茎纤细带细毛，周围绿草密集且高低错落，背景完全虚化为柔和绿色光斑，...
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外草地微距场景，一株白色雏菊居中，花瓣洁白层叠，花茎纤细带细毛，周围绿草密集且高低错落，背景完全虚化为柔和绿色光斑，...
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:49 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:02:51 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:02:51 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=cc15e292-bf65-4ef4-86c4-78c05c892f31
+2025-12-25 02:02:51 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:02:51 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:02:51 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=16ef25f0-2c50-4e49-b7f7-5f548e2fbada
+2025-12-25 02:02:51 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:02:52 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:02:52 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=96233589-9238-4443-8b5b-4e2b2c9798ad
+2025-12-25 02:02:52 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:02:52 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:02:52 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=9c52737f-01b4-4497-967b-c1f44f8697a7
+2025-12-25 02:02:52 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:02:53 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:02:53 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=00c10cc6-7fbc-4f20-bac9-29fd305a33bd
+2025-12-25 02:02:53 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外郊野山坡，开阔草地覆盖地面，远处为起伏的连绵山丘，数棵盛开粉色花朵的樱花树点缀其间，自然地形略有起伏，阳光充足，整...
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外郊野山坡，开阔草地覆盖地面，远处为起伏的连绵山丘，数棵盛开粉色花朵的樱花树点缀其间，自然地形略有起伏，阳光充足，整...
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外郊野山坡，开阔草地覆盖地面，远处为起伏的连绵山丘，数棵盛开粉色花朵的樱花树点缀其间，自然地形略有起伏，阳光充足，整...
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外山坡草地，近处散布白色、黄色等小型野花，草叶细长茂密，背景一条土色蜿蜒小径穿过绿地延伸至远方，地面略有坡度，植被层...
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外山坡草地，近处散布白色、黄色等小型野花，草叶细长茂密，背景一条土色蜿蜒小径穿过绿地延伸至远方，地面略有坡度，植被层...
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外山坡草地，近处散布白色、黄色等小型野花，草叶细长茂密，背景一条土色蜿蜒小径穿过绿地延伸至远方，地面略有坡度，植被层...
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:03 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外草地微距场景，一株白色雏菊居中，花瓣洁白层叠，花茎纤细带细毛，周围绿草密集且高低错落，背景完全虚化为柔和绿色光斑，...
+2025-12-25 02:03:04 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:04 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:04 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外草地微距场景，一株白色雏菊居中，花瓣洁白层叠，花茎纤细带细毛，周围绿草密集且高低错落，背景完全虚化为柔和绿色光斑，...
+2025-12-25 02:03:04 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:04 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:04 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外草地微距场景，一株白色雏菊居中，花瓣洁白层叠，花茎纤细带细毛，周围绿草密集且高低错落，背景完全虚化为柔和绿色光斑，...
+2025-12-25 02:03:04 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:03:04 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:03:04 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:03:04 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:03:04 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:03:04 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:03:04 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:03:04 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:03:04 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:03:04 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:03:04 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:03:04 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:03:05 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:05 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=7bc3f4d8-34a0-48e2-ab4c-f2db9ab2015f
+2025-12-25 02:03:05 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:06 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:06 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=577c8f17-214f-4a56-9bec-50485b4c2a8a
+2025-12-25 02:03:06 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:09 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:09 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=6de8d0a9-e6df-4222-8cda-77e1db0c90dd
+2025-12-25 02:03:09 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=46e561ba-7179-4fa0-a603-7fd51240223a
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林间小径，中央为一条窄窄的土路，两侧排列高大挺拔的松树，树干粗糙呈灰褐色，下层为常绿灌木丛，枝叶浓密，地面覆盖枯叶...
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林间小径，中央为一条窄窄的土路，两侧排列高大挺拔的松树，树干粗糙呈灰褐色，下层为常绿灌木丛，枝叶浓密，地面覆盖枯叶...
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林间小径，中央为一条窄窄的土路，两侧排列高大挺拔的松树，树干粗糙呈灰褐色，下层为常绿灌木丛，枝叶浓密，地面覆盖枯叶...
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林缘空地，地面为短草与裸露浅色土壤混合，边缘处松树与灌木逐渐密集，形成由开阔到封闭的空间过渡，地面散落少量枯枝与落...
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林缘空地，地面为短草与裸露浅色土壤混合，边缘处松树与灌木逐渐密集，形成由开阔到封闭的空间过渡，地面散落少量枯枝与落...
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林缘空地，地面为短草与裸露浅色土壤混合，边缘处松树与灌木逐渐密集，形成由开阔到封闭的空间过渡，地面散落少量枯枝与落...
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:03:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:03:13 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:13 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=09435f27-cb7a-4b2d-807f-b9c0f01dda9e
+2025-12-25 02:03:13 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:22 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:22 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=bbc7a652-2070-4873-a68c-7318f60e7ffe
+2025-12-25 02:03:22 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:22 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:22 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=750592a5-972a-42f2-9605-abb460533f51
+2025-12-25 02:03:22 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:23 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:23 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=3e16f608-3ca0-4390-838b-d88f3e202b3a
+2025-12-25 02:03:23 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:24 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:24 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=baeba659-f8d8-44ba-ac52-d6e0f917dbf3
+2025-12-25 02:03:24 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:24 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:24 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=50b4194a-39f3-4271-a81b-e7db4da5cb7b
+2025-12-25 02:03:24 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林间小径，中央为一条窄窄的土路，两侧排列高大挺拔的松树，树干粗糙呈灰褐色，下层为常绿灌木丛，枝叶浓密，地面覆盖枯叶...
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林间小径，中央为一条窄窄的土路，两侧排列高大挺拔的松树，树干粗糙呈灰褐色，下层为常绿灌木丛，枝叶浓密，地面覆盖枯叶...
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林间小径，中央为一条窄窄的土路，两侧排列高大挺拔的松树，树干粗糙呈灰褐色，下层为常绿灌木丛，枝叶浓密，地面覆盖枯叶...
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林缘空地，地面为短草与裸露浅色土壤混合，边缘处松树与灌木逐渐密集，形成由开阔到封闭的空间过渡，地面散落少量枯枝与落...
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林缘空地，地面为短草与裸露浅色土壤混合，边缘处松树与灌木逐渐密集，形成由开阔到封闭的空间过渡，地面散落少量枯枝与落...
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林缘空地，地面为短草与裸露浅色土壤混合，边缘处松树与灌木逐渐密集，形成由开阔到封闭的空间过渡，地面散落少量枯枝与落...
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 429
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:03:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 异常: 文生图请求失败: Throttling.RateQuota - Requests rate limit exceeded, please try again later. For details, see: https://help.aliyun.com/zh/model-studio/error-code#rate-limit
+2025-12-25 02:03:27 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:27 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=197e5827-34ba-4a34-a6c2-1e279ba5127e
+2025-12-25 02:03:27 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:30 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:30 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=7a194c09-1c25-458d-8a4c-d9ae97389dc2
+2025-12-25 02:03:30 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:30 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:30 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=fdcddf21-7cd4-46f5-8b5d-b76157bbd8a6
+2025-12-25 02:03:30 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=1462bb61-407f-44e1-802f-8ad05cde162b
+2025-12-25 02:03:36 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:37 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:37 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=d3ba29e9-2125-4ad0-955e-4b0034a4074a
+2025-12-25 02:03:37 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:40 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:40 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=1c2654c1-ff3d-4394-aa42-f9bfc0483eb6
+2025-12-25 02:03:40 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:41 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:41 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=99f7a743-9a42-4010-a544-76a5e2cf2323
+2025-12-25 02:03:41 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:41 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:41 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=5b685972-d724-49aa-be3d-b824e85f1f8a
+2025-12-25 02:03:41 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:42 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:42 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=170f9a71-711c-441c-bf82-c183f38dd93f
+2025-12-25 02:03:42 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:43 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:03:43 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=184ff1f4-732c-48d7-ad1d-ff1b7f2147ab
+2025-12-25 02:03:43 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:03:58 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:58 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:58 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外郊野山坡，开阔草地覆盖地面，远处为起伏的连绵山丘，数棵盛开粉色花朵的樱花树点缀其间，自然地形略有起伏，阳光充足，整...
+2025-12-25 02:03:58 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:58 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:58 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外郊野山坡，开阔草地覆盖地面，远处为起伏的连绵山丘，数棵盛开粉色花朵的樱花树点缀其间，自然地形略有起伏，阳光充足，整...
+2025-12-25 02:03:58 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:03:58 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:03:58 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外郊野山坡，开阔草地覆盖地面，远处为起伏的连绵山丘，数棵盛开粉色花朵的樱花树点缀其间，自然地形略有起伏，阳光充足，整...
+2025-12-25 02:04:13 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:04:13 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=660f9f1f-f38a-46cb-828c-8fb0959d6bb3
+2025-12-25 02:04:13 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:04:14 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:04:14 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=612e7ae2-bc74-43cb-bb99-7cf6576b54d0
+2025-12-25 02:04:14 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:04:14 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:04:14 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=019034e4-2cf6-4c03-b277-748b90c8d933
+2025-12-25 02:04:14 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:04:16 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:04:16 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:04:16 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 单一物品特写，纯白色背景，居中构图，高清细节，产品摄影风格，均匀柔和光线，无阴影, 红色双肩包，简约休闲款式，带有两个主仓和前置小口袋，肩带可调节，材质为耐磨尼龙布料，表面有轻微褶皱和使用痕迹，颜色为...
+2025-12-25 02:04:16 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:04:16 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:04:16 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 单一物品特写，纯白色背景，居中构图，高清细节，产品摄影风格，均匀柔和光线，无阴影, 红色双肩包，简约休闲款式，带有两个主仓和前置小口袋，肩带可调节，材质为耐磨尼龙布料，表面有轻微褶皱和使用痕迹，颜色为...
+2025-12-25 02:04:16 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:04:16 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:04:16 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 单一物品特写，纯白色背景，居中构图，高清细节，产品摄影风格，均匀柔和光线，无阴影, 红色双肩包，简约休闲款式，带有两个主仓和前置小口袋，肩带可调节，材质为耐磨尼龙布料，表面有轻微褶皱和使用痕迹，颜色为...
+2025-12-25 02:04:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:04:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:04:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林间小径，中央为一条窄窄的土路，两侧排列高大挺拔的松树，树干粗糙呈灰褐色，下层为常绿灌木丛，枝叶浓密，地面覆盖枯叶...
+2025-12-25 02:04:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:04:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:04:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林间小径，中央为一条窄窄的土路，两侧排列高大挺拔的松树，树干粗糙呈灰褐色，下层为常绿灌木丛，枝叶浓密，地面覆盖枯叶...
+2025-12-25 02:04:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:04:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 1
+2025-12-25 02:04:25 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 空镜头场景，无人物，无道具，环境概念设计，高清画质，电影感，专业摄影，宽屏构图, 室外林间小径，中央为一条窄窄的土路，两侧排列高大挺拔的松树，树干粗糙呈灰褐色，下层为常绿灌木丛，枝叶浓密，地面覆盖枯叶...
+2025-12-25 02:04:31 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:04:31 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=a3f7719b-8c6b-432b-a895-26c077ce0ccf
+2025-12-25 02:04:31 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:04:32 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:04:32 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=585e187a-46f5-4d0b-9dae-015044098a49
+2025-12-25 02:04:32 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:04:32 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:04:32 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=ae4a8b67-a903-48af-aec2-0dfa77b82292
+2025-12-25 02:04:32 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:04:40 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:04:40 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=2d4add19-b11d-4a0b-8f17-ce8eeec08db5
+2025-12-25 02:04:40 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:04:41 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:04:41 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=11d0dc6c-85d3-4125-ae21-33a4ad210a8a
+2025-12-25 02:04:41 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:04:42 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:04:42 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=643a62f1-00b4-40b0-80e3-c81df4db434d
+2025-12-25 02:04:42 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 1 张图片
+2025-12-25 02:16:44 | INFO     | [qingshui] print:194 | 图片上传到 OSS 失败: 下载失败: HTTPSConnectionPool(host='dashscope-result-sh.oss-cn-shanghai.aliyuncs.com', port=443): Max retries exceeded with url: /1d/c1/20251225/e67b8045/8ae1d8e5-f131-453c-bf5c-f7c7b0285812.png?Expires=1766686601&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=ZbRl9HUY%2Fc5da1H07t8bDDs%2BvH8%3D (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x11f195190>: Failed to establish a new connection: [Errno 9] Bad file descriptor'))，使用原始 URL
+2025-12-25 02:16:44 | INFO     | [qingshui] print:194 | 图片上传到 OSS 失败: 下载失败: HTTPSConnectionPool(host='dashscope-result-sh.oss-cn-shanghai.aliyuncs.com', port=443): Max retries exceeded with url: /1d/c1/20251225/e67b8045/8ae1d8e5-f131-453c-bf5c-f7c7b0285812.png?Expires=1766686601&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=ZbRl9HUY%2Fc5da1H07t8bDDs%2BvH8%3D (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x11f103200>: Failed to establish a new connection: [Errno 9] Bad file descriptor'))，使用原始 URL
+2025-12-25 02:17:29 | INFO     | [qingshui] print:194 | [首帧生成] 图片已上传到 OSS: https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudi...
+2025-12-25 02:18:10 | INFO     | [qingshui] print:194 | [首帧生成] 图片已上传到 OSS: https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudi...
+2025-12-25 02:18:55 | INFO     | [qingshui] print:194 | [首帧生成] 图片已上传到 OSS: https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudi...
+2025-12-25 02:19:37 | INFO     | [qingshui] print:194 | [首帧生成] 图片已上传到 OSS: https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudi...
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | ############################################################
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | # 视频工作室 - 创建任务
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | ############################################################
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [请求参数] task_type: reference_to_video
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [请求参数] project_id: 7cede488-6df4-4ed4-a00c-bfe83e453f51
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [请求参数] name: 猫狗纳米
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [请求参数] model: wan2.6-r2v
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [请求参数] mode: first_frame
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [请求参数] resolution: 1080P
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [请求参数] size: 1632*1248
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [请求参数] duration: 10
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [请求参数] prompt_extend: True
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [请求参数] watermark: False
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [请求参数] seed: None
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [请求参数] auto_audio: True
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [请求参数] shot_type: multi
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [请求参数] group_count: 3
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [请求参数] reference_video_urls: ['https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video_library/7cede488-6df4-4ed4-a00c-bfe83e453f51/20251224/161331_2293b6b3.mp4', 'https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video_library/7cede488-6df4-4ed4-a00c-bfe83e453f51/20251224/161334_a52f9a94.mp4', 'https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video_library/7cede488-6df4-4ed4-a00c-bfe83e453f51/20251224/161336_cb327f36.mp4']
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [请求参数] prompt: 在月球表面，character1 和 character2 都穿着太空服，走在 character3 巨大的招牌下。character1 敲了敲生锈的栏杆，说道：“这玩意看着也有年头了”。character2 点头表示赞同...
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | ############################################################
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | ============================================================
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频请求] 模型: wan2.6-r2v
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频请求] URL: https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频请求] Body: {
+  "model": "wan2.6-r2v",
+  "input": {
+    "prompt": "在月球表面，character1 和 character2 都穿着太空服，走在 character3 巨大的招牌下。character1 敲了敲生锈的栏杆，说道：“这玩意看着也有年头了”。character2 点头表示赞同",
+    "reference_video_urls": [
+      "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video_library/7cede488-6df4-4ed4-a00c-bfe83e453f51/20251224/161331_2293b6b3.mp4",
+      "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video_library/7cede488-6df4-4ed4-a00c-bfe83e453f51/20251224/161334_a52f9a94.mp4",
+      "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video_library/7cede488-6df4-4ed4-a00c-bfe83e453f51/20251224/161336_cb327f36.mp4"
+    ]
+  },
+  "parameters": {
+    "size": "1632*1248",
+    "duration": 10,
+    "shot_type": "multi",
+    "watermark": false,
+    "audio": true
+  }
+}
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | ============================================================
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | ============================================================
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频响应] status_code: 200
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频响应] request_id: 32c828f7-812c-44eb-ab6f-d1c159a10acf
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频响应] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频响应] task_status: PENDING
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频响应] 完整响应: {
+  "request_id": "32c828f7-812c-44eb-ab6f-d1c159a10acf",
+  "output": {
+    "task_id": "119eac3b-fdd9-4894-82f7-58d8240ad818",
+    "task_status": "PENDING"
+  }
+}
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | ============================================================
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | ============================================================
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频请求] 模型: wan2.6-r2v
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频请求] URL: https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频请求] Body: {
+  "model": "wan2.6-r2v",
+  "input": {
+    "prompt": "在月球表面，character1 和 character2 都穿着太空服，走在 character3 巨大的招牌下。character1 敲了敲生锈的栏杆，说道：“这玩意看着也有年头了”。character2 点头表示赞同",
+    "reference_video_urls": [
+      "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video_library/7cede488-6df4-4ed4-a00c-bfe83e453f51/20251224/161331_2293b6b3.mp4",
+      "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video_library/7cede488-6df4-4ed4-a00c-bfe83e453f51/20251224/161334_a52f9a94.mp4",
+      "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video_library/7cede488-6df4-4ed4-a00c-bfe83e453f51/20251224/161336_cb327f36.mp4"
+    ]
+  },
+  "parameters": {
+    "size": "1632*1248",
+    "duration": 10,
+    "shot_type": "multi",
+    "watermark": false,
+    "audio": true
+  }
+}
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | ============================================================
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | ============================================================
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频响应] status_code: 200
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频响应] request_id: 3dac24bf-9c4f-4e47-8612-098a9be25384
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频响应] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频响应] task_status: PENDING
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频响应] 完整响应: {
+  "request_id": "3dac24bf-9c4f-4e47-8612-098a9be25384",
+  "output": {
+    "task_id": "e27634c2-d499-4004-9e91-03e3a54ba4f9",
+    "task_status": "PENDING"
+  }
+}
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | ============================================================
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | ============================================================
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频请求] 模型: wan2.6-r2v
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频请求] URL: https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频请求] Body: {
+  "model": "wan2.6-r2v",
+  "input": {
+    "prompt": "在月球表面，character1 和 character2 都穿着太空服，走在 character3 巨大的招牌下。character1 敲了敲生锈的栏杆，说道：“这玩意看着也有年头了”。character2 点头表示赞同",
+    "reference_video_urls": [
+      "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video_library/7cede488-6df4-4ed4-a00c-bfe83e453f51/20251224/161331_2293b6b3.mp4",
+      "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video_library/7cede488-6df4-4ed4-a00c-bfe83e453f51/20251224/161334_a52f9a94.mp4",
+      "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video_library/7cede488-6df4-4ed4-a00c-bfe83e453f51/20251224/161336_cb327f36.mp4"
+    ]
+  },
+  "parameters": {
+    "size": "1632*1248",
+    "duration": 10,
+    "shot_type": "multi",
+    "watermark": false,
+    "audio": true
+  }
+}
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | ============================================================
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | ============================================================
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频响应] status_code: 200
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频响应] request_id: a9f18ff1-be81-45e6-8fd7-97a84fed01eb
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频响应] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频响应] task_status: PENDING
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频响应] 完整响应: {
+  "request_id": "a9f18ff1-be81-45e6-8fd7-97a84fed01eb",
+  "output": {
+    "task_id": "33ac7a71-8f27-49a1-8697-5360ef55381e",
+    "task_status": "PENDING"
+  }
+}
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | ============================================================
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:24:41 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: a437d8cc-4f6f-4bbb-a1c2-5d8f3fdfa0b4
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 03691970-2f93-4eb1-88ab-e0c8a9c63981
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: d97b013d-a3df-4052-a7b3-c329b654d5b6
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:24:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: b87545f4-885f-4d90-8e37-fdfb86f2dc66
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: f49d4d06-4a42-4dc1-af87-e120c65bd7fd
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 8e92fca1-6937-497c-b093-50f3cbfcf01e
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:24:47 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 258c0b34-4549-41c3-b4f0-b15a3bc8dd4a
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 8fe5eb9e-f21b-4ee0-a901-704094c91d5e
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 62c49b33-e40f-4b61-9fa3-84839dbe04ca
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:24:52 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 4b9f4a21-85d2-417d-af87-ae4cc20236f8
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:24:57 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:24:58 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:24:58 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 35c4497d-e656-41b1-9647-1904994b7669
+2025-12-25 02:24:58 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:24:58 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:24:58 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:24:58 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:24:58 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:24:58 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:24:58 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:24:58 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:24:58 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:24:58 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 405b268c-ebdd-442f-930f-621565dbab31
+2025-12-25 02:24:58 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:24:58 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:24:58 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:24:58 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:24:58 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:26:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:26:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 3
+2025-12-25 02:26:10 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 真实照片，一只带墨镜的考拉...
+2025-12-25 02:26:27 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:26:27 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=99bec0a1-0e11-420d-96f6-aa3bf6035959
+2025-12-25 02:26:27 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 3 张图片
+2025-12-25 02:26:28 | INFO     | [qingshui] print:194 | 图片上传到 OSS 失败: 下载失败: HTTPSConnectionPool(host='dashscope-result-bj.oss-cn-beijing.aliyuncs.com', port=443): Max retries exceeded with url: /1d/eb/20251225/c1af1163/76823666-69b0ba90-32af-41c3-b4b4-d579720358ca.png?Expires=1766687186&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=eOq5qkVRuRylGWBnwiInq0L2TOM%3D (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x11f1b2510>: Failed to establish a new connection: [Errno 9] Bad file descriptor'))，使用原始 URL
+2025-12-25 02:26:28 | INFO     | [qingshui] print:194 | 图片上传到 OSS 失败: 下载失败: HTTPSConnectionPool(host='dashscope-result-bj.oss-cn-beijing.aliyuncs.com', port=443): Max retries exceeded with url: /1d/16/20251225/c1af1163/16184083-04344dd4-54c6-4f4b-87cc-5a74f7e6775a.png?Expires=1766687187&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=Pix2N8vE4D1FxO3aMkRIcQpgHsE%3D (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x106ccb0b0>: Failed to establish a new connection: [Errno 9] Bad file descriptor'))，使用原始 URL
+2025-12-25 02:26:28 | INFO     | [qingshui] print:194 | 图片上传到 OSS 失败: 下载失败: HTTPSConnectionPool(host='dashscope-result-bj.oss-cn-beijing.aliyuncs.com', port=443): Max retries exceeded with url: /1d/17/20251225/c1af1163/31887337-a8d36461-ea1d-435f-98ba-530f559fa65c.png?Expires=1766687187&OSSAccessKeyId=LTAI5tKPD3TMqf2Lna1fASuh&Signature=cvo3uvbnM4X0omcFpCLFFBTSM84%3D (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x11f1978c0>: Failed to establish a new connection: [Errno 9] Bad file descriptor'))，使用原始 URL
+2025-12-25 02:26:52 | INFO     | [qingshui] print:194 | [文生图HTTP] 发送请求到: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+2025-12-25 02:26:52 | INFO     | [qingshui] print:194 | [文生图HTTP] 模型: wan2.6-t2i, 尺寸: 1440*810, 数量: 3
+2025-12-25 02:26:52 | INFO     | [qingshui] print:194 | [文生图HTTP] 提示词: 真实照片，一只带墨镜的考拉全身照...
+2025-12-25 02:27:12 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:27:12 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:27:12 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:27:12 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:27:12 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:27:12 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:27:12 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:27:12 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:27:12 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:27:12 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:27:12 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应状态码: 200
+2025-12-25 02:27:12 | INFO     | [qingshui] print:194 | [文生图HTTP] 响应: request_id=dec9acb7-e881-4467-8bd9-cb9e2b332ed8
+2025-12-25 02:27:12 | INFO     | [qingshui] print:194 | [文生图HTTP] 成功生成 3 张图片
+2025-12-25 02:27:13 | INFO     | [qingshui] print:194 | 图片上传到 OSS 失败: 上传失败: {'status': -2, 'x-oss-request-id': '', 'details': "RequestError: HTTPSConnectionPool(host='qingshui-siemens.oss-cn-beijing.aliyuncs.com', port=443): Max retries exceeded with url: /aistudio%2Fimage%2F7cede488-6df4-4ed4-a00c-bfe83e453f51%2F20251225%2F022712_400f7bf4.png (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x11f1cb2c0>: Failed to establish a new connection: [Errno 9] Bad file descriptor'))"}，使用原始 URL
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: ec425c7c-c384-46ed-9b31-dc6a2e76cae6
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 367febe4-893e-4145-86b2-f0dce774bb90
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 1d41f013-96dd-4f9d-9fe4-28e69eea874c
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:27:14 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: ca43d58b-2e4f-46da-be73-97f9353bc468
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:27:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:27:32 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:27:32 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 478b552d-f90a-48d1-8442-62f3482cc900
+2025-12-25 02:27:32 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:27:32 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:27:32 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:27:32 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:27:32 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:27:32 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:27:32 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:27:32 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:27:32 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:27:32 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 787812ce-c055-4efa-af1e-91bc1015267a
+2025-12-25 02:27:32 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:27:32 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:27:32 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:27:32 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:27:32 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: a4f8c076-aa2f-4455-bd5c-86251cff9e29
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 5ffd59a7-5dd7-4ca2-afec-06d603deebc4
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 25641935-33fb-42a5-837b-e39b198458e6
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:27:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:27:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:27:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:27:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:27:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:27:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:27:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:27:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:27:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:27:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:27:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 71713686-fed8-4ec8-a3b2-796f63ae2cd7
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: cf2784a6-f47f-4c33-9200-88fd81177b00
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: ba477c01-a183-4df6-b980-e3285440fa80
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:27:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:27:48 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:27:48 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:27:48 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:27:48 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:27:48 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:27:48 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:27:48 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:27:48 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:27:48 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:27:48 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 158ce09e-be0c-4753-b592-a584404d9d3e
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: f95c1f38-f949-4271-bcbd-e9c4c568fcee
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 4564b107-2cd6-4cbc-ba16-578695461b8a
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:27:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:27:54 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:27:54 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:27:54 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:27:54 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:27:54 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:27:54 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:27:54 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:27:54 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:27:54 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:27:54 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: e9495415-9469-4353-9a7c-69082d960392
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 9189ac43-6486-44cf-928c-d5420baed1cd
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 08f0c4ad-f07a-4318-b0c5-e9392e3cd1dd
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:27:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:28:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:28:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:28:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:28:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:28:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:28:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:28:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: eb5c811d-431c-41a0-871e-0e7c651f4165
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: a01a3709-7722-475e-b238-432abfcf53d5
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 7f4570cb-79b2-444f-8fb8-7fe144351f42
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:01 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:28:06 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:28:06 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:28:06 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:28:06 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:28:06 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:28:06 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:28:06 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:06 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:06 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:06 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 1e37507a-f8a8-4d8a-ac51-1b2c1b5fe061
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 099b8ffd-64c3-4d7b-87f6-09e9f4e7a92a
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 6072ab42-dfec-4bca-a00a-008d8fce9936
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:07 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:28:12 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:28:12 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:28:12 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:28:12 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:28:12 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:28:12 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:28:12 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:12 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:12 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:12 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 304ba822-8657-412b-9044-632a9f0db3dc
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 6357e922-03b6-4bbc-924a-53c98191a861
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 880178b6-24ad-4dcf-8f3f-7aa36cf2be4f
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:13 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:28:18 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:28:18 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:28:18 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:28:18 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:28:18 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:28:18 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:28:18 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:18 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:18 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:18 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 13c4f5e6-8988-4dbe-b6af-20724420e388
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 6afddf69-46f4-48c8-a990-3b823e9104c3
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 68504f08-a3d5-4047-84d5-366c3d2bcf60
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:19 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:28:24 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:28:24 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:28:24 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:28:24 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:28:24 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:28:24 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:28:24 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:24 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:24 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:24 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 9c8bb6a4-10bd-4cd3-9a1a-0d6aa3616bee
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: c0f6d32d-1c7e-4416-bb9b-529566e0adba
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 0913931c-cbf3-4bc9-80e9-dbfc737c1c68
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:25 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:28:30 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:28:30 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:28:30 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:28:30 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:28:30 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:28:30 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:28:30 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:30 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:30 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:30 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: e6fbd76a-315a-45b6-bae8-9d6a4f3ae2b2
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 50a3ea43-bac2-4171-bbc4-c06e9f19ebf4
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: f093ddb1-1568-49e9-b713-8f0c182c71b8
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:31 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:28:36 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:28:36 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:28:36 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:28:36 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:28:36 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:28:36 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:28:36 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:36 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:36 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:36 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 1f96be80-db50-4c65-b42d-c44e9fd29980
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 19bd9e79-43c9-45a7-a081-2ffbfb67ee26
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: ad12115e-556f-41e1-8943-22b559f0c321
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:28:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:28:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:28:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:28:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:28:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:28:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:28:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:42 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: b5564c11-0bfd-4ecb-abe1-0f0978059148
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 41053547-05bf-4ad1-9910-141a0460e4a6
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 90e5786f-1f02-4537-aeb2-365bd57a68d8
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:43 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:28:48 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:28:48 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:28:48 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:28:48 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:28:48 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:28:48 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:28:48 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:48 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:48 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:48 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: f39e60e5-65f1-48d5-aab3-729cace6ccd6
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 2589e149-2aab-49e9-927e-8a4dc0f291b1
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: d4719b23-d62d-4137-bbf8-089618c21f1d
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:49 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:28:54 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:28:54 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:28:54 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:28:54 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:28:54 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:28:54 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:28:54 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:54 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:54 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:54 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 58d9a210-897e-490e-805e-8462dc383377
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 83dd994b-835f-468f-9b9a-e1b50e68a74d
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 04ff520a-8ab9-4066-b1d1-e4ab151b1bc0
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:28:55 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: a8815377-d7cc-44cf-a195-f4dc534d4b0c
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 59f466d3-135b-4b7c-9ab2-817ba08f6fde
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 491287f7-4f35-49ad-8ee8-09de516b8f57
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:29:00 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 33882bd2-fc86-466f-86d0-68ea415331a9
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: RUNNING
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 758f79b0-b6ce-4164-b732-f0d7af036118
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: RUNNING
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: f130a497-6c78-4641-bbd7-db7cf180c299
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: RUNNING
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: RUNNING
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务进行中
+2025-12-25 02:29:05 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务进行中，已完成 0/3
+2025-12-25 02:32:27 | INFO     | [qingshui] print:194 | [视频工作室状态查询] task_id: b84e6f27-c6a4-4064-ae9b-9a920bcfa415
+2025-12-25 02:32:27 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务名: 猫狗纳米
+2025-12-25 02:32:27 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 任务类型: reference_to_video
+2025-12-25 02:32:27 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 模型: wan2.6-r2v
+2025-12-25 02:32:27 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 当前状态: processing
+2025-12-25 02:32:27 | INFO     | [qingshui] print:194 | [视频工作室状态查询] API任务IDs: ['119eac3b-fdd9-4894-82f7-58d8240ad818', 'e27634c2-d499-4004-9e91-03e3a54ba4f9', '33ac7a71-8f27-49a1-8697-5360ef55381e']
+2025-12-25 02:32:27 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:32:27 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:32:27 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:32:27 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/119eac3b-fdd9-4894-82f7-58d8240ad818
+2025-12-25 02:32:27 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:32:27 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 23bf7e4b-ec55-4172-a12d-e40f3f218232
+2025-12-25 02:32:27 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: SUCCEEDED
+2025-12-25 02:32:27 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] video_url: https://dashscope-result-sh.oss-accelerate.aliyuncs.com/1d/08/20251225/d3c4fbb1/119eac3b-fdd9-4894-8...
+2025-12-25 02:32:27 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.171
+2025-12-25 02:32:27 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] end_time: 2025-12-25 02:32:19.250
+2025-12-25 02:32:27 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] usage: {"duration": 15, "size": "1632*1248", "input_video_duration": 5, "output_video_duration": 10, "video_count": 1, "SR": 1080}
+2025-12-25 02:32:30 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 119eac3b-fdd9-4894-82f7-58d8240ad818 状态: SUCCEEDED
+2025-12-25 02:32:30 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 正在上传视频到 OSS...
+2025-12-25 02:32:32 | INFO     | [qingshui] print:194 | [视频工作室状态查询] OSS上传成功: https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/7cede488-6df...
+2025-12-25 02:32:32 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务成功，视频URL已获取
+2025-12-25 02:32:32 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:32:32 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:32:32 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:32:32 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/e27634c2-d499-4004-9e91-03e3a54ba4f9
+2025-12-25 02:32:32 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:32:32 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: b5658731-d253-4aba-9e1d-8bd8ad4f3f89
+2025-12-25 02:32:32 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: SUCCEEDED
+2025-12-25 02:32:32 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] video_url: https://dashscope-result-sh.oss-accelerate.aliyuncs.com/1d/7f/20251225/d3c4fbb1/e27634c2-d499-4004-9...
+2025-12-25 02:32:32 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.294
+2025-12-25 02:32:32 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] end_time: 2025-12-25 02:32:27.465
+2025-12-25 02:32:32 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] usage: {"duration": 15, "size": "1632*1248", "input_video_duration": 5, "output_video_duration": 10, "video_count": 1, "SR": 1080}
+2025-12-25 02:32:34 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 e27634c2-d499-4004-9e91-03e3a54ba4f9 状态: SUCCEEDED
+2025-12-25 02:32:34 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 正在上传视频到 OSS...
+2025-12-25 02:32:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] OSS上传成功: https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/7cede488-6df...
+2025-12-25 02:32:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务成功，视频URL已获取
+2025-12-25 02:32:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 查询子任务: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:32:37 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 使用 视频生视频服务 (HTTP)
+2025-12-25 02:32:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_id: 33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:32:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] URL: https://dashscope.aliyuncs.com/api/v1/tasks/33ac7a71-8f27-49a1-8697-5360ef55381e
+2025-12-25 02:32:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] status_code: 200
+2025-12-25 02:32:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] request_id: 24b22267-7f08-4d53-a521-03e3904ca9ab
+2025-12-25 02:32:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] task_status: SUCCEEDED
+2025-12-25 02:32:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] video_url: https://dashscope-result-sh.oss-accelerate.aliyuncs.com/1d/99/20251225/d3c4fbb1/33ac7a71-8f27-49a1-8...
+2025-12-25 02:32:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] submit_time: 2025-12-25 02:24:42.406
+2025-12-25 02:32:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] end_time: 2025-12-25 02:32:14.318
+2025-12-25 02:32:37 | INFO     | [qingshui] print:194 | [HTTP 视频生视频状态查询] usage: {"duration": 15, "size": "1632*1248", "input_video_duration": 5, "output_video_duration": 10, "video_count": 1, "SR": 1080}
+2025-12-25 02:32:40 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务 33ac7a71-8f27-49a1-8697-5360ef55381e 状态: SUCCEEDED
+2025-12-25 02:32:40 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 正在上传视频到 OSS...
+2025-12-25 02:32:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] OSS上传成功: https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/7cede488-6df...
+2025-12-25 02:32:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 子任务成功，视频URL已获取
+2025-12-25 02:32:42 | INFO     | [qingshui] print:194 | [视频工作室状态查询] 所有任务成功完成！共 3 个视频
+2025-12-25 02:35:47 | INFO     |  app:219 | 日志系统已初始化
+2025-12-25 02:35:47 | INFO     |  app:220 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251225.log
+2025-12-25 02:36:01 | INFO     |  app:219 | 日志系统已初始化
+2025-12-25 02:36:01 | INFO     |  app:220 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251225.log
+2025-12-25 02:40:30 | INFO     |  app:219 | 日志系统已初始化
+2025-12-25 02:40:30 | INFO     |  app:220 | 日志文件: /Users/zane/Project/360/万相/backend/logs/api_20251225.log

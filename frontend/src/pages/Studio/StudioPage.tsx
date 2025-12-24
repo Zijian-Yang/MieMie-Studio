@@ -42,12 +42,21 @@ const StudioPage = () => {
     id: string
     name: string
     description?: string
+    model_type?: 'text_to_image' | 'image_to_image' | 'image_generation'
     capabilities?: {
       supports_batch?: boolean
       supports_async?: boolean
       supports_negative_prompt?: boolean
+      supports_prompt_extend?: boolean
+      supports_watermark?: boolean
+      supports_seed?: boolean
+      max_n?: number
+      supports_reference_images?: boolean
+      supports_interleave?: boolean
+      max_reference_images?: number
     }
     parameters?: any[]
+    common_sizes?: string[]
   }>>({})
   
   const isMountedRef = useRef(true)
@@ -282,6 +291,7 @@ const StudioPage = () => {
         generateParams.prompt_extend = values.prompt_extend !== false  // 默认 true
         generateParams.watermark = values.watermark || false
         if (values.seed) generateParams.seed = values.seed
+        if (values.size) generateParams.size = values.size
       }
       
       // wan2.6-image 模型参数
@@ -795,7 +805,42 @@ const StudioPage = () => {
               <div style={{ marginBottom: 8, color: '#888', fontSize: 12 }}>
                 文生图模型参数
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <Form.Item 
+                  name="size" 
+                  label="输出尺寸"
+                  style={{ marginBottom: 0 }}
+                >
+                  <Select
+                    placeholder="默认 1280×1280"
+                    allowClear
+                    options={[
+                      { value: '1280*1280', label: '1280×1280 (1:1)' },
+                      { value: '1024*1024', label: '1024×1024 (1:1)' },
+                      { value: '1280*720', label: '1280×720 (16:9)' },
+                      { value: '720*1280', label: '720×1280 (9:16)' },
+                      { value: '1280*960', label: '1280×960 (4:3)' },
+                      { value: '960*1280', label: '960×1280 (3:4)' },
+                      { value: '1200*800', label: '1200×800 (3:2)' },
+                      { value: '800*1200', label: '800×1200 (2:3)' },
+                      { value: '1344*576', label: '1344×576 (21:9)' },
+                    ]}
+                  />
+                </Form.Item>
+                <Form.Item 
+                  name="seed" 
+                  label="随机种子"
+                  style={{ marginBottom: 0 }}
+                >
+                  <InputNumber 
+                    min={0} 
+                    max={2147483647} 
+                    style={{ width: '100%' }} 
+                    placeholder="随机"
+                  />
+                </Form.Item>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <Form.Item 
                   name="prompt_extend" 
                   label="智能改写"
@@ -813,18 +858,6 @@ const StudioPage = () => {
                   style={{ marginBottom: 0 }}
                 >
                   <Switch checkedChildren="开" unCheckedChildren="关" />
-                </Form.Item>
-                <Form.Item 
-                  name="seed" 
-                  label="随机种子"
-                  style={{ marginBottom: 0 }}
-                >
-                  <InputNumber 
-                    min={0} 
-                    max={2147483647} 
-                    style={{ width: '100%' }} 
-                    placeholder="随机"
-                  />
                 </Form.Item>
               </div>
               <div style={{ marginTop: 8, color: '#666', fontSize: 11 }}>
@@ -1189,7 +1222,42 @@ const StudioPage = () => {
                     <div style={{ marginBottom: 8, color: '#888', fontSize: 12 }}>
                       文生图模型参数
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                      <Form.Item 
+                        name="size" 
+                        label="输出尺寸"
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Select
+                          placeholder="默认 1280×1280"
+                          allowClear
+                          options={[
+                            { value: '1280*1280', label: '1280×1280 (1:1)' },
+                            { value: '1024*1024', label: '1024×1024 (1:1)' },
+                            { value: '1280*720', label: '1280×720 (16:9)' },
+                            { value: '720*1280', label: '720×1280 (9:16)' },
+                            { value: '1280*960', label: '1280×960 (4:3)' },
+                            { value: '960*1280', label: '960×1280 (3:4)' },
+                            { value: '1200*800', label: '1200×800 (3:2)' },
+                            { value: '800*1200', label: '800×1200 (2:3)' },
+                            { value: '1344*576', label: '1344×576 (21:9)' },
+                          ]}
+                        />
+                      </Form.Item>
+                      <Form.Item 
+                        name="seed" 
+                        label="随机种子"
+                        style={{ marginBottom: 0 }}
+                      >
+                        <InputNumber 
+                          min={0} 
+                          max={2147483647} 
+                          style={{ width: '100%' }} 
+                          placeholder="随机"
+                        />
+                      </Form.Item>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                       <Form.Item 
                         name="prompt_extend" 
                         label="智能改写"
@@ -1207,18 +1275,6 @@ const StudioPage = () => {
                         style={{ marginBottom: 0 }}
                       >
                         <Switch checkedChildren="开" unCheckedChildren="关" />
-                      </Form.Item>
-                      <Form.Item 
-                        name="seed" 
-                        label="随机种子"
-                        style={{ marginBottom: 0 }}
-                      >
-                        <InputNumber 
-                          min={0} 
-                          max={2147483647} 
-                          style={{ width: '100%' }} 
-                          placeholder="随机"
-                        />
                       </Form.Item>
                     </div>
                     <div style={{ marginTop: 8, color: '#666', fontSize: 11 }}>

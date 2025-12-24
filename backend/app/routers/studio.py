@@ -260,7 +260,8 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
                 model_name=model_name,
                 prompt_extend=prompt_extend,
                 watermark=watermark,
-                seed=seed
+                seed=seed,
+                size=request.size
             )
         elif model_name == "qwen-image-edit-plus":
             # 使用通义千问图像编辑模型
@@ -298,16 +299,32 @@ async def generate_with_text_to_image(
     model_name: str,
     prompt_extend: bool = True,
     watermark: bool = False,
-    seed: Optional[int] = None
+    seed: Optional[int] = None,
+    size: Optional[str] = None
 ) -> List[StudioTaskImage]:
     """使用文生图模型生成
     
     支持模型：wan2.6-t2i, wan2.5-t2i-preview
+    
+    Args:
+        size: 输出尺寸，格式为"宽*高"，如"1280*1280"
     """
     from app.services.dashscope.text_to_image import TextToImageService
     
     t2i_service = TextToImageService()
     n = task.n or 1  # 每次请求生成的图片数量
+    
+    # 解析 size 参数
+    width = None
+    height = None
+    if size:
+        try:
+            parts = size.split('*')
+            if len(parts) == 2:
+                width = int(parts[0])
+                height = int(parts[1])
+        except ValueError:
+            pass
     
     async def generate_single_group(group_index: int) -> List[StudioTaskImage]:
         """生成单组图片（一次请求生成 n 张）"""
@@ -315,6 +332,8 @@ async def generate_with_text_to_image(
             urls = await t2i_service.generate_batch(
                 prompt=task.prompt,
                 negative_prompt=task.negative_prompt or "",
+                width=width,
+                height=height,
                 n=n,
                 model=model_name,
                 prompt_extend=prompt_extend,
