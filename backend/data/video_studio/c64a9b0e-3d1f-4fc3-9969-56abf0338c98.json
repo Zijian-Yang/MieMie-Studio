@@ -1,0 +1,40 @@
+{
+  "id": "c64a9b0e-3d1f-4fc3-9969-56abf0338c98",
+  "project_id": "f96d7434-4033-4345-b69d-0810ebeff76d",
+  "name": "视频任务 20251223_151424",
+  "task_type": "reference_to_video",
+  "mode": "first_frame",
+  "first_frame_url": null,
+  "last_frame_url": null,
+  "reference_video_urls": [
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/f96d7434-4033-4345-b69d-0810ebeff76d/20251211/180158_7e706c43.mp4"
+  ],
+  "audio_url": null,
+  "prompt": "character1 和李小龙在激烈的拳击格斗。character1 踢出高鞭腿踢中李小龙头部，动态效果打击感十足。两人在破旧的房屋里。用仲景展现俩人都在镜头里。镜头快速以character1 为中心环绕。拳拳到肉打斗激烈。",
+  "negative_prompt": "",
+  "model": "wan2.6-r2v",
+  "duration": 10,
+  "watermark": false,
+  "seed": null,
+  "shot_type": "multi",
+  "auto_audio": true,
+  "resolution": "1080P",
+  "prompt_extend": true,
+  "size": "1248*1632",
+  "group_count": 3,
+  "video_urls": [
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/f96d7434-4033-4345-b69d-0810ebeff76d/20251223/152205_9dad7457.mp4",
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/f96d7434-4033-4345-b69d-0810ebeff76d/20251223/152255_fabd7f20.mp4",
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/f96d7434-4033-4345-b69d-0810ebeff76d/20251223/152452_80d633cb.mp4"
+  ],
+  "selected_video_url": null,
+  "task_ids": [
+    "ef78ae73-99c5-4798-94a8-332ccd01d7c7",
+    "a6de5f26-6573-49a3-8c00-4eb984589c1f",
+    "798ef1ce-8814-4525-814d-3ce32c3065a6"
+  ],
+  "status": "succeeded",
+  "error_message": null,
+  "created_at": "2025-12-23T15:14:24.957267",
+  "updated_at": "2025-12-23T15:26:12.976368"
+}

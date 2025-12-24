@@ -1,0 +1,41 @@
+{
+  "id": "06c3a1eb-e631-4045-8459-101064097fff",
+  "project_id": "7cede488-6df4-4ed4-a00c-bfe83e453f51",
+  "name": "狗出门",
+  "task_type": "reference_to_video",
+  "mode": "first_frame",
+  "first_frame_url": null,
+  "last_frame_url": null,
+  "reference_video_urls": [
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video_library/7cede488-6df4-4ed4-a00c-bfe83e453f51/20251224/161334_a52f9a94.mp4",
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video_library/7cede488-6df4-4ed4-a00c-bfe83e453f51/20251224/161256_e20de72c.mp4"
+  ],
+  "audio_url": null,
+  "prompt": "character1 从 character2 的门里一蹦而出，跳下台阶，走近镜头。眯着眼看向镜头，character1 说道：\"Hey yo！what‘s up 家人们！你们还好吗！\"",
+  "negative_prompt": "",
+  "model": "wan2.6-r2v",
+  "duration": 10,
+  "watermark": false,
+  "seed": null,
+  "shot_type": "multi",
+  "auto_audio": true,
+  "resolution": "1080P",
+  "prompt_extend": true,
+  "size": "1280*720",
+  "group_count": 3,
+  "video_urls": [
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/7cede488-6df4-4ed4-a00c-bfe83e453f51/20251224/180813_161bade0.mp4",
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/7cede488-6df4-4ed4-a00c-bfe83e453f51/20251224/180828_9409ee94.mp4",
+    "https://qingshui-siemens.oss-cn-beijing.aliyuncs.com/aistudio/video/7cede488-6df4-4ed4-a00c-bfe83e453f51/20251224/180844_38f45a21.mp4"
+  ],
+  "selected_video_url": null,
+  "task_ids": [
+    "22d819c6-5e97-4c97-866c-1d050b1bc10d",
+    "263de82a-6e84-49d2-bc5e-41d889b8b129",
+    "ce0a2c9d-ed99-4c9f-90c7-e9261d888cce"
+  ],
+  "status": "succeeded",
+  "error_message": null,
+  "created_at": "2025-12-24T18:00:51.132685",
+  "updated_at": "2025-12-24T18:08:49.377380"
+}
