@@ -80,6 +80,7 @@ class VideoStudioTask(BaseModel):
     - watermark: 是否添加水印
     - seed: 随机种子
     - audio: 是否生成音频
+    - r2v_prompt_extend: 提示词改写，默认 True
     """
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     project_id: str
@@ -117,6 +118,7 @@ class VideoStudioTask(BaseModel):
     
     # 生成参数 - 视频生视频专用
     size: str = "1920*1080"  # 分辨率（宽*高格式）
+    r2v_prompt_extend: bool = True  # 视频生视频的提示词改写，默认开启
     
     # 生成结果
     group_count: int = 1  # 生成组数

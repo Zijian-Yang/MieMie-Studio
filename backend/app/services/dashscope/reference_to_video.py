@@ -39,6 +39,7 @@ class ReferenceToVideoService:
         seed: Optional[int] = None,
         audio: Optional[bool] = None,
         negative_prompt: Optional[str] = None,
+        prompt_extend: Optional[bool] = None,
     ) -> str:
         """
         创建视频生视频任务
@@ -54,6 +55,7 @@ class ReferenceToVideoService:
             seed: 随机种子
             audio: 是否生成音频
             negative_prompt: 反向提示词
+            prompt_extend: 提示词改写，默认 True
             
         Returns:
             任务 ID
@@ -110,6 +112,14 @@ class ReferenceToVideoService:
             parameters["audio"] = audio
         elif self.ref_video_config.audio is not None:
             parameters["audio"] = self.ref_video_config.audio
+        
+        # 提示词改写
+        if prompt_extend is not None:
+            parameters["prompt_extend"] = prompt_extend
+        elif self.ref_video_config.prompt_extend is not None:
+            parameters["prompt_extend"] = self.ref_video_config.prompt_extend
+        else:
+            parameters["prompt_extend"] = True  # 默认开启
         
         # 构建请求体
         request_body = {

@@ -69,6 +69,7 @@ const SettingsPage = () => {
         ref_video_size: data.ref_video?.size || '1920*1080',
         ref_video_duration: data.ref_video?.duration || 5,
         ref_video_shot_type: data.ref_video?.shot_type || 'single',
+        ref_video_prompt_extend: data.ref_video?.prompt_extend ?? true,
         ref_video_audio: data.ref_video?.audio ?? true,
         ref_video_watermark: data.ref_video?.watermark || false,
         ref_video_seed: data.ref_video?.seed,
@@ -153,6 +154,7 @@ const SettingsPage = () => {
           size: values.ref_video_size,
           duration: values.ref_video_duration,
           shot_type: values.ref_video_shot_type,
+          prompt_extend: values.ref_video_prompt_extend,
           audio: values.ref_video_audio,
           watermark: values.ref_video_watermark,
           seed: values.ref_video_seed || null,
@@ -1141,7 +1143,17 @@ const SettingsPage = () => {
           </Row>
 
           <Row gutter={16}>
-            <Col span={12}>
+            <Col span={8}>
+              <Form.Item
+                name="ref_video_prompt_extend"
+                label="提示词改写"
+                valuePropName="checked"
+                tooltip="使用大模型优化提示词，提升生成效果"
+              >
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
               <Form.Item
                 name="ref_video_audio"
                 label="自动生成音频"
@@ -1151,7 +1163,7 @@ const SettingsPage = () => {
                 <Switch />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col span={8}>
               <Form.Item
                 name="ref_video_watermark"
                 label="添加水印"

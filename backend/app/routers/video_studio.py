@@ -43,6 +43,7 @@ class VideoStudioTaskCreateRequest(BaseModel):
     - watermark: 是否添加水印
     - seed: 随机种子
     - audio: 是否生成音频
+    - r2v_prompt_extend: 提示词改写，默认 True
     """
     project_id: str
     name: str = ""
@@ -75,6 +76,7 @@ class VideoStudioTaskCreateRequest(BaseModel):
     
     # 视频生视频专用
     size: str = "1920*1080"  # 分辨率（宽*高格式）
+    r2v_prompt_extend: bool = True  # 视频生视频的提示词改写，默认开启
     
     group_count: int = 1
 
@@ -99,6 +101,7 @@ class VideoStudioTaskUpdateRequest(BaseModel):
     audio_url: Optional[str] = None
     reference_video_urls: Optional[List[str]] = None  # 参考视频URL列表
     size: Optional[str] = None  # 视频生视频分辨率
+    r2v_prompt_extend: Optional[bool] = None  # 视频生视频的提示词改写
     group_count: Optional[int] = None  # 生成组数
 
 
@@ -143,6 +146,7 @@ async def create_task(request: VideoStudioTaskCreateRequest):
     print(f"[请求参数] seed: {request.seed}")
     print(f"[请求参数] auto_audio: {request.auto_audio}")
     print(f"[请求参数] shot_type: {request.shot_type}")
+    print(f"[请求参数] r2v_prompt_extend: {request.r2v_prompt_extend}")
     print(f"[请求参数] group_count: {request.group_count}")
     if request.first_frame_url:
         print(f"[请求参数] first_frame_url: {request.first_frame_url[:100]}...")
@@ -186,6 +190,7 @@ async def create_task(request: VideoStudioTaskCreateRequest):
         auto_audio=request.auto_audio,
         shot_type=request.shot_type,
         size=request.size,
+        r2v_prompt_extend=request.r2v_prompt_extend,
         group_count=request.group_count,
         status="processing"
     )
@@ -231,6 +236,7 @@ async def create_task(request: VideoStudioTaskCreateRequest):
                     seed=request.seed + i if request.seed else None,
                     audio=request.auto_audio,
                     negative_prompt=request.negative_prompt if request.negative_prompt else None,
+                    prompt_extend=request.r2v_prompt_extend,
                 )
                 task.task_ids.append(api_task_id)
         
@@ -375,6 +381,8 @@ async def update_task(task_id: str, request: VideoStudioTaskUpdateRequest):
         task.reference_video_urls = request.reference_video_urls
     if request.size is not None:
         task.size = request.size
+    if request.r2v_prompt_extend is not None:
+        task.r2v_prompt_extend = request.r2v_prompt_extend
     if request.task_type is not None:
         task.task_type = request.task_type
     if request.group_count is not None:
@@ -418,6 +426,8 @@ async def regenerate_task(task_id: str):
         
         async def generate_one_r2v(idx: int):
             current_seed = task.seed + idx if task.seed is not None else None
+            # 获取r2v_prompt_extend，如果没有则默认True
+            r2v_prompt_extend = getattr(task, 'r2v_prompt_extend', True)
             return await r2v_service.create_task(
                 reference_video_urls=task.reference_video_urls,
                 prompt=task.prompt,
@@ -429,6 +439,7 @@ async def regenerate_task(task_id: str):
                 seed=current_seed,
                 audio=task.auto_audio,
                 negative_prompt=task.negative_prompt,
+                prompt_extend=r2v_prompt_extend,
             )
         
         try:

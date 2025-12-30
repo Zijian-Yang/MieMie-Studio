@@ -362,6 +362,7 @@ class RefVideoConfig(BaseModel):
     - size: 分辨率，格式为"宽*高"（如 1920*1080）
     - duration: 视频时长，5 或 10 秒
     - shot_type: 镜头类型，single 单镜头 / multi 多镜头叙事
+    - prompt_extend: 提示词改写，默认 True
     - watermark: 水印标识（右下角"AI生成"），默认 False
     - seed: 随机种子，范围 [0, 2147483647]
     - audio: 是否生成音频，默认 True
@@ -370,6 +371,7 @@ class RefVideoConfig(BaseModel):
     size: str = "1920*1080"  # 分辨率（宽*高格式）
     duration: int = 5  # 视频时长（秒）
     shot_type: str = "single"  # 镜头类型：single单镜头/multi多镜头叙事
+    prompt_extend: bool = True  # 提示词改写，默认开启
     watermark: bool = False  # 水印，默认关闭
     seed: Optional[int] = None  # 种子，None表示随机
     audio: bool = True  # 是否生成音频，默认开启

@@ -75,6 +75,7 @@ class RefVideoConfigRequest(BaseModel):
     size: Optional[str] = None  # 分辨率（宽*高格式，如 1920*1080）
     duration: Optional[int] = None  # 视频时长（秒），5 或 10
     shot_type: Optional[str] = None  # 镜头类型，single/multi
+    prompt_extend: Optional[bool] = None  # 提示词改写
     watermark: Optional[bool] = None  # 水印
     seed: Optional[int] = None  # 随机种子
     audio: Optional[bool] = None  # 是否生成音频

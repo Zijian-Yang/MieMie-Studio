@@ -44,6 +44,7 @@ const VideoStudioPage = () => {
   const [seed, setSeed] = useState<number | undefined>(undefined)  // 随机种子
   const [autoAudio, setAutoAudio] = useState(true)  // 自动配音（默认开启）
   const [shotType, setShotType] = useState('single')  // 镜头类型
+  const [r2vPromptExtend, setR2vPromptExtend] = useState(true)  // 视频生视频提示词改写
   const [groupCount, setGroupCount] = useState(1)
   const [creating, setCreating] = useState(false)
   
@@ -174,6 +175,7 @@ const VideoStudioPage = () => {
         prompt_extend: taskType === 'image_to_video' ? promptExtend : undefined,
         // 视频生视频专用
         size: taskType === 'reference_to_video' ? size : undefined,
+        r2v_prompt_extend: taskType === 'reference_to_video' ? r2vPromptExtend : undefined,
         group_count: groupCount
       })
       
@@ -206,6 +208,7 @@ const VideoStudioPage = () => {
     setDuration(5)
     setShotType('single')
     setPromptExtend(true)
+    setR2vPromptExtend(true)  // 重置视频生视频提示词改写
     setWatermark(false)
     setSeed(undefined)
     setAutoAudio(true)  // 默认开启
@@ -250,6 +253,7 @@ const VideoStudioPage = () => {
   const [editReferenceVideoUrls, setEditReferenceVideoUrls] = useState<string[]>([])
   const [editGroupCount, setEditGroupCount] = useState(1)
   const [editModel, setEditModel] = useState('wan2.5-i2v-preview')  // 编辑弹窗中的当前模型
+  const [editR2vPromptExtend, setEditR2vPromptExtend] = useState(true)  // 编辑弹窗中的r2v提示词改写
 
   // 获取编辑弹窗中当前模型的信息
   const getEditModelInfo = () => {
@@ -270,6 +274,7 @@ const VideoStudioPage = () => {
     setEditReferenceVideoUrls(task.reference_video_urls || [])
     setEditGroupCount(task.group_count || 1)
     setEditModel(task.model || 'wan2.5-i2v-preview')
+    setEditR2vPromptExtend(task.r2v_prompt_extend !== false)  // 默认true
     
     editForm.setFieldsValue({
       name: task.name,
@@ -319,6 +324,7 @@ const VideoStudioPage = () => {
       } else {
         updateData.reference_video_urls = editReferenceVideoUrls
         updateData.size = values.size
+        updateData.r2v_prompt_extend = editR2vPromptExtend
       }
       
       const updatedTask = await videoStudioApi.update(selectedTask.id, updateData)
@@ -990,7 +996,21 @@ const VideoStudioPage = () => {
                       </Row>
                       
                       <Row gutter={16}>
-                        <Col span={12}>
+                        <Col span={8}>
+                          <div style={{ marginBottom: 16 }}>
+                            <Space>
+                              <Switch
+                                checked={r2vPromptExtend}
+                                onChange={setR2vPromptExtend}
+                              />
+                              <span>提示词改写</span>
+                            </Space>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              使用大模型优化提示词
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={8}>
                           <div style={{ marginBottom: 16 }}>
                             <Space>
                               <Switch
@@ -1004,7 +1024,7 @@ const VideoStudioPage = () => {
                             </div>
                           </div>
                         </Col>
-                        <Col span={12}>
+                        <Col span={8}>
                           <div style={{ marginBottom: 16 }}>
                             <div style={{ marginBottom: 8 }}>随机种子</div>
                             <InputNumber
@@ -1333,9 +1353,22 @@ const VideoStudioPage = () => {
                   
                   <Row gutter={16}>
                     <Col span={8}>
-                      <Form.Item name="prompt_extend" label="智能改写" valuePropName="checked">
-                        <Switch />
-                      </Form.Item>
+                      {editTaskType === 'image_to_video' ? (
+                        <Form.Item name="prompt_extend" label="智能改写" valuePropName="checked">
+                          <Switch />
+                        </Form.Item>
+                      ) : (
+                        <div style={{ marginBottom: 24 }}>
+                          <div style={{ marginBottom: 8 }}>提示词改写</div>
+                          <Space>
+                            <Switch 
+                              checked={editR2vPromptExtend} 
+                              onChange={setEditR2vPromptExtend}
+                            />
+                            <span style={{ color: '#888', fontSize: 12 }}>使用大模型优化提示词</span>
+                          </Space>
+                        </div>
+                      )}
                     </Col>
                     <Col span={8}>
                       <Form.Item name="watermark" label="添加水印" valuePropName="checked">

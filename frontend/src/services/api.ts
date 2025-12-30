@@ -172,6 +172,7 @@ export interface RefVideoConfig {
   size: string  // 分辨率（宽*高格式，如 1920*1080）
   duration: number  // 视频时长（秒），5 或 10
   shot_type: string  // 镜头类型，single/multi
+  prompt_extend: boolean  // 提示词改写
   watermark: boolean  // 水印
   seed: number | null  // 随机种子
   audio: boolean  // 是否生成音频
@@ -1279,6 +1280,7 @@ export interface VideoStudioTask {
   
   // 视频生视频专用
   size?: string  // 分辨率（宽*高格式）
+  r2v_prompt_extend?: boolean  // 视频生视频提示词改写
   
   group_count: number
   video_urls: string[]
@@ -1319,6 +1321,7 @@ export const videoStudioApi = {
     prompt_extend?: boolean  // 智能改写
     // 视频生视频专用
     size?: string  // 分辨率（宽*高格式）
+    r2v_prompt_extend?: boolean  // 视频生视频提示词改写
     group_count?: number
   }) => api.post<any, { task: VideoStudioTask }>('/video-studio', data),
   update: (id: string, data: { 
@@ -1339,6 +1342,7 @@ export const videoStudioApi = {
     audio_url?: string
     reference_video_urls?: string[]  // 参考视频URL列表
     size?: string  // 视频生视频分辨率
+    r2v_prompt_extend?: boolean  // 视频生视频提示词改写
     group_count?: number
   }) => 
     api.put<any, VideoStudioTask>(`/video-studio/${id}`, data),
