@@ -147,11 +147,11 @@ class StorageService:
     # ============ Character ============
     
     def save_character(self, character: Character) -> None:
-        """保存角色"""
-        character.updated_at = datetime.now()
-        file_path = self.characters_dir / f"{character.id}.json"
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(character.model_dump(), f, ensure_ascii=False, indent=2, default=self._serialize_datetime)
+        """保存角色（线程安全）"""
+        with self._lock:
+            character.updated_at = datetime.now()
+            file_path = self.characters_dir / f"{character.id}.json"
+            self._write_json_with_lock(file_path, character.model_dump())
     
     def get_character(self, character_id: str) -> Optional[Character]:
         """获取角色"""
@@ -171,11 +171,11 @@ class StorageService:
     # ============ Scene ============
     
     def save_scene(self, scene: Scene) -> None:
-        """保存场景"""
-        scene.updated_at = datetime.now()
-        file_path = self.scenes_dir / f"{scene.id}.json"
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(scene.model_dump(), f, ensure_ascii=False, indent=2, default=self._serialize_datetime)
+        """保存场景（线程安全）"""
+        with self._lock:
+            scene.updated_at = datetime.now()
+            file_path = self.scenes_dir / f"{scene.id}.json"
+            self._write_json_with_lock(file_path, scene.model_dump())
     
     def get_scene(self, scene_id: str) -> Optional[Scene]:
         """获取场景"""
@@ -195,11 +195,11 @@ class StorageService:
     # ============ Prop ============
     
     def save_prop(self, prop: Prop) -> None:
-        """保存道具"""
-        prop.updated_at = datetime.now()
-        file_path = self.props_dir / f"{prop.id}.json"
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(prop.model_dump(), f, ensure_ascii=False, indent=2, default=self._serialize_datetime)
+        """保存道具（线程安全）"""
+        with self._lock:
+            prop.updated_at = datetime.now()
+            file_path = self.props_dir / f"{prop.id}.json"
+            self._write_json_with_lock(file_path, prop.model_dump())
     
     def get_prop(self, prop_id: str) -> Optional[Prop]:
         """获取道具"""
@@ -219,11 +219,11 @@ class StorageService:
     # ============ Frame ============
     
     def save_frame(self, frame: Frame) -> None:
-        """保存首帧"""
-        frame.updated_at = datetime.now()
-        file_path = self.frames_dir / f"{frame.id}.json"
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(frame.model_dump(), f, ensure_ascii=False, indent=2, default=self._serialize_datetime)
+        """保存首帧（线程安全）"""
+        with self._lock:
+            frame.updated_at = datetime.now()
+            file_path = self.frames_dir / f"{frame.id}.json"
+            self._write_json_with_lock(file_path, frame.model_dump())
     
     def get_frame(self, frame_id: str) -> Optional[Frame]:
         """获取首帧"""
@@ -262,11 +262,11 @@ class StorageService:
     # ============ Video ============
     
     def save_video(self, video: Video) -> None:
-        """保存视频"""
-        video.updated_at = datetime.now()
-        file_path = self.videos_dir / f"{video.id}.json"
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(video.model_dump(), f, ensure_ascii=False, indent=2, default=self._serialize_datetime)
+        """保存视频（线程安全）"""
+        with self._lock:
+            video.updated_at = datetime.now()
+            file_path = self.videos_dir / f"{video.id}.json"
+            self._write_json_with_lock(file_path, video.model_dump())
     
     def get_video(self, video_id: str) -> Optional[Video]:
         """获取视频"""
@@ -315,11 +315,11 @@ class StorageService:
     # ============ Style ============
     
     def save_style(self, style: Style) -> None:
-        """保存风格"""
-        style.updated_at = datetime.now()
-        file_path = self.styles_dir / f"{style.id}.json"
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(style.model_dump(), f, ensure_ascii=False, indent=2, default=self._serialize_datetime)
+        """保存风格（线程安全）"""
+        with self._lock:
+            style.updated_at = datetime.now()
+            file_path = self.styles_dir / f"{style.id}.json"
+            self._write_json_with_lock(file_path, style.model_dump())
     
     def get_style(self, style_id: str) -> Optional[Style]:
         """获取风格"""
@@ -339,11 +339,11 @@ class StorageService:
     # ============ Gallery ============
     
     def save_gallery_image(self, image: GalleryImage) -> None:
-        """保存图库图片"""
-        image.updated_at = datetime.now()
-        file_path = self.gallery_dir / f"{image.id}.json"
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(image.model_dump(), f, ensure_ascii=False, indent=2, default=self._serialize_datetime)
+        """保存图库图片（线程安全）"""
+        with self._lock:
+            image.updated_at = datetime.now()
+            file_path = self.gallery_dir / f"{image.id}.json"
+            self._write_json_with_lock(file_path, image.model_dump())
     
     def get_gallery_image(self, image_id: str) -> Optional[GalleryImage]:
         """获取图库图片"""
@@ -373,11 +373,11 @@ class StorageService:
     # ============ Studio Task ============
     
     def save_studio_task(self, task: StudioTask) -> None:
-        """保存图片工作室任务"""
-        task.updated_at = datetime.now()
-        file_path = self.studio_dir / f"{task.id}.json"
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(task.model_dump(), f, ensure_ascii=False, indent=2, default=self._serialize_datetime)
+        """保存图片工作室任务（线程安全）"""
+        with self._lock:
+            task.updated_at = datetime.now()
+            file_path = self.studio_dir / f"{task.id}.json"
+            self._write_json_with_lock(file_path, task.model_dump())
     
     def get_studio_task(self, task_id: str) -> Optional[StudioTask]:
         """获取图片工作室任务"""
@@ -407,11 +407,11 @@ class StorageService:
     # ============ Audio Library ============
     
     def save_audio_item(self, audio: AudioItem) -> None:
-        """保存音频项"""
-        audio.updated_at = datetime.now()
-        file_path = self.audio_dir / f"{audio.id}.json"
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(audio.model_dump(), f, ensure_ascii=False, indent=2, default=self._serialize_datetime)
+        """保存音频项（线程安全）"""
+        with self._lock:
+            audio.updated_at = datetime.now()
+            file_path = self.audio_dir / f"{audio.id}.json"
+            self._write_json_with_lock(file_path, audio.model_dump())
     
     def get_audio_item(self, audio_id: str) -> Optional[AudioItem]:
         """获取音频项"""
@@ -441,11 +441,11 @@ class StorageService:
     # ============ Video Library ============
     
     def save_video_item(self, video: VideoItem) -> None:
-        """保存视频项"""
-        video.updated_at = datetime.now()
-        file_path = self.video_library_dir / f"{video.id}.json"
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(video.model_dump(), f, ensure_ascii=False, indent=2, default=self._serialize_datetime)
+        """保存视频项（线程安全）"""
+        with self._lock:
+            video.updated_at = datetime.now()
+            file_path = self.video_library_dir / f"{video.id}.json"
+            self._write_json_with_lock(file_path, video.model_dump())
     
     def get_video_item(self, video_id: str) -> Optional[VideoItem]:
         """获取视频项"""
@@ -475,11 +475,11 @@ class StorageService:
     # ============ Text Library ============
     
     def save_text_item(self, text: TextItem) -> None:
-        """保存文本项"""
-        text.updated_at = datetime.now()
-        file_path = self.text_library_dir / f"{text.id}.json"
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(text.model_dump(), f, ensure_ascii=False, indent=2, default=self._serialize_datetime)
+        """保存文本项（线程安全）"""
+        with self._lock:
+            text.updated_at = datetime.now()
+            file_path = self.text_library_dir / f"{text.id}.json"
+            self._write_json_with_lock(file_path, text.model_dump())
     
     def get_text_item(self, text_id: str) -> Optional[TextItem]:
         """获取文本项"""
@@ -509,11 +509,11 @@ class StorageService:
     # ============ Video Studio ============
     
     def save_video_studio_task(self, task: VideoStudioTask) -> None:
-        """保存视频工作室任务"""
-        task.updated_at = datetime.now()
-        file_path = self.video_studio_dir / f"{task.id}.json"
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(task.model_dump(), f, ensure_ascii=False, indent=2, default=self._serialize_datetime)
+        """保存视频工作室任务（线程安全）"""
+        with self._lock:
+            task.updated_at = datetime.now()
+            file_path = self.video_studio_dir / f"{task.id}.json"
+            self._write_json_with_lock(file_path, task.model_dump())
     
     def get_video_studio_task(self, task_id: str) -> Optional[VideoStudioTask]:
         """获取视频工作室任务"""
