@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { Card, Button, List, Modal, Input, Upload, Tabs, message, Popconfirm, Space, Empty } from 'antd'
-import { PlusOutlined, DeleteOutlined, UploadOutlined, LinkOutlined, PlayCircleOutlined } from '@ant-design/icons'
+import { PlusOutlined, DeleteOutlined, UploadOutlined, LinkOutlined, PlayCircleOutlined, PictureOutlined } from '@ant-design/icons'
 import type { UploadFile } from 'antd/es/upload/interface'
 import { videoLibraryApi, settingsApi, VideoLibraryItem } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
@@ -25,6 +25,7 @@ const VideoLibraryPage = () => {
   const [uploading, setUploading] = useState(false)
   const [fileList, setFileList] = useState<UploadFile[]>([])
   const [ossEnabled, setOssEnabled] = useState(false)
+  const [extractingFrame, setExtractingFrame] = useState(false)
 
   useEffect(() => {
     if (projectId) {
@@ -148,6 +149,20 @@ const VideoLibraryPage = () => {
       message.success('全部删除成功')
     } catch (error: any) {
       message.error(error.message || '删除失败')
+    }
+  }
+
+  const handleExtractLastFrame = async () => {
+    if (!selectedVideo) return
+    
+    setExtractingFrame(true)
+    try {
+      const result = await videoLibraryApi.extractLastFrame(selectedVideo.id)
+      message.success('尾帧已保存到图库')
+    } catch (error: any) {
+      message.error(error.message || '提取尾帧失败')
+    } finally {
+      setExtractingFrame(false)
     }
   }
 
@@ -361,7 +376,22 @@ const VideoLibraryPage = () => {
         title={selectedVideo?.name || '视频预览'}
         open={previewModalVisible}
         onCancel={() => setPreviewModalVisible(false)}
-        footer={null}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Button
+              type="primary"
+              icon={<PictureOutlined />}
+              onClick={handleExtractLastFrame}
+              loading={extractingFrame}
+              disabled={!ossEnabled}
+            >
+              保存尾帧到图库
+            </Button>
+            <Button onClick={() => setPreviewModalVisible(false)}>
+              关闭
+            </Button>
+          </div>
+        }
         width={800}
       >
         {selectedVideo && (

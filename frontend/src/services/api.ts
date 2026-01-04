@@ -1206,6 +1206,8 @@ export const videoLibraryApi = {
   update: (id: string, data: { name?: string; description?: string }) => api.put<any, VideoLibraryItem>(`/video-library/${id}`, data),
   delete: (id: string) => api.delete(`/video-library/${id}`),
   deleteAll: (projectId: string) => api.delete(`/video-library?project_id=${projectId}`),
+  extractLastFrame: (id: string, name?: string) => 
+    api.post<any, { message: string; image: GalleryImage }>(`/video-library/${id}/extract-last-frame`, null, { params: { name } }),
 }
 
 // ============ 文本库 API ============

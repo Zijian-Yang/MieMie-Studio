@@ -21,6 +21,7 @@ oss2>=2.18.0
 
 # 图像处理
 Pillow>=10.0.0
+opencv-python-headless>=4.8.0  # 视频帧提取
 
 # 工具库
 python-dotenv>=1.0.0
