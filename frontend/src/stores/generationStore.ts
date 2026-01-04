@@ -218,6 +218,7 @@ export const useGenerationStore = create<GenerationState>()(
         batchTasks: [],
         currentTaskIndex: 0,
         shouldStop: false,
+        generatingItems: new Set(),  // 同时清空正在生成的项目
       }),
       
       addGeneratingItem: (itemId) => set((state) => {
