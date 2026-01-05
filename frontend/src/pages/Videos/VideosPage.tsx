@@ -9,9 +9,9 @@ import {
   PlayCircleOutlined, ReloadOutlined, VideoCameraOutlined,
   LoadingOutlined, CheckCircleOutlined, CloseCircleOutlined,
   SoundOutlined, UploadOutlined, SettingOutlined, SaveOutlined,
-  ExportOutlined
+  ExportOutlined, FolderOpenOutlined
 } from '@ant-design/icons'
-import { videosApi, framesApi, settingsApi, scriptsApi, Video, Shot, Frame, VideoModelInfo } from '../../services/api'
+import { videosApi, framesApi, settingsApi, scriptsApi, videoLibraryApi, Video, Shot, Frame, VideoModelInfo, VideoLibraryItem } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 import { useGenerationStore } from '../../stores/generationStore'
 
@@ -55,6 +55,12 @@ const VideosPage = () => {
   const [singleGenerating, setSingleGenerating] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [form] = Form.useForm()
+  
+  // 视频库相关状态
+  const [libraryModalVisible, setLibraryModalVisible] = useState(false)
+  const [libraryVideos, setLibraryVideos] = useState<VideoLibraryItem[]>([])
+  const [libraryLoading, setLibraryLoading] = useState(false)
+  const [selectingFromLibrary, setSelectingFromLibrary] = useState(false)
   
   // 视频模型配置
   const [videoModels, setVideoModels] = useState<Record<string, VideoModelInfo>>({})
@@ -444,6 +450,54 @@ const VideosPage = () => {
       fetchProject(projectId).catch(() => {})
     } catch (error) {
       message.error('保存失败')
+    }
+  }
+
+  // 打开视频库选择弹窗
+  const openLibraryModal = async () => {
+    if (!projectId) return
+    setLibraryLoading(true)
+    setLibraryModalVisible(true)
+    try {
+      const res = await videoLibraryApi.list(projectId)
+      setLibraryVideos(res.videos)
+    } catch (error) {
+      message.error('加载视频库失败')
+    } finally {
+      setLibraryLoading(false)
+    }
+  }
+
+  // 从视频库选择视频
+  const handleSelectFromLibrary = async (libraryVideo: VideoLibraryItem) => {
+    if (!projectId || !selectedShot) return
+    
+    setSelectingFromLibrary(true)
+    try {
+      const result = await videosApi.selectFromLibrary({
+        project_id: projectId,
+        shot_id: selectedShot.id,
+        video_library_id: libraryVideo.id
+      })
+      
+      // 更新本地分镜数据
+      const updatedShot = { 
+        ...selectedShot, 
+        video_url: result.video_url,
+        selected_video_id: `library_${libraryVideo.id}`
+      }
+      setSelectedShot(updatedShot)
+      setShots(prev => prev.map(s => 
+        s.id === selectedShot.id ? updatedShot : s
+      ))
+      
+      fetchProject(projectId).catch(() => {})
+      setLibraryModalVisible(false)
+      message.success(`已选择视频：${libraryVideo.name}`)
+    } catch (error: any) {
+      message.error(error.message || '选择失败')
+    } finally {
+      setSelectingFromLibrary(false)
     }
   }
 
@@ -1152,6 +1206,14 @@ const VideosPage = () => {
                   {selectedVideo?.video_url ? '重新生成视频' : '生成视频'}
                 </Button>
                 
+                <Button
+                  icon={<FolderOpenOutlined />}
+                  onClick={openLibraryModal}
+                  block
+                >
+                  从视频库选择
+                </Button>
+                
                 {selectedVideo?.video_url && (
                   <Button
                     type="default"
@@ -1375,6 +1437,97 @@ const VideosPage = () => {
             </Col>
           </Row>
         </div>
+      </Modal>
+
+      {/* 视频库选择弹窗 */}
+      <Modal
+        title="从视频库选择视频"
+        open={libraryModalVisible}
+        onCancel={() => setLibraryModalVisible(false)}
+        footer={null}
+        width={800}
+      >
+        {libraryLoading ? (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <Spin size="large" />
+          </div>
+        ) : libraryVideos.length === 0 ? (
+          <Empty description="视频库为空，请先上传视频" />
+        ) : (
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(3, 1fr)', 
+            gap: 16,
+            maxHeight: 400,
+            overflowY: 'auto',
+            padding: '8px 0'
+          }}>
+            {libraryVideos.map(video => (
+              <div
+                key={video.id}
+                style={{
+                  background: '#1a1a1a',
+                  borderRadius: 8,
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  border: '2px solid transparent',
+                  transition: 'border-color 0.2s'
+                }}
+                onClick={() => handleSelectFromLibrary(video)}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.borderColor = '#1890ff'
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.borderColor = 'transparent'
+                }}
+              >
+                <div style={{ 
+                  aspectRatio: '16/9', 
+                  background: '#000',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <video
+                    src={video.url}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    muted
+                    preload="metadata"
+                  />
+                </div>
+                <div style={{ padding: '8px 12px' }}>
+                  <div style={{ 
+                    fontWeight: 500, 
+                    fontSize: 13,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {video.name}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
+                    {video.duration ? `${video.duration}秒` : ''}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {selectingFromLibrary && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Spin size="large" />
+          </div>
+        )}
       </Modal>
     </div>
   )

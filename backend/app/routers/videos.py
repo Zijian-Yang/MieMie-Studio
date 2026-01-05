@@ -12,6 +12,7 @@ from app.services.storage import storage_service
 from app.services.dashscope.image_to_video import ImageToVideoService
 from app.services.video_concat import video_concat_service
 from app.services.oss import oss_service
+from app.config import get_config
 from datetime import datetime
 import uuid
 import os
@@ -127,7 +128,7 @@ async def generate_video(request: VideoGenerateRequest):
     
     # 确保时长在合理范围内，根据模型决定最大时长
     # wan2.6 支持 5/10/15秒，wan2.5 支持 5/10秒，wanx2.1 支持 3/4/5秒
-    model = request.model or config.video.model
+    model = request.model or get_config().video.model
     if model and 'wan2.6' in model:
         max_duration = 15
     elif model and 'wanx2.1' in model:
@@ -247,7 +248,7 @@ async def generate_videos_batch(request: VideoBatchGenerateRequest):
             
             # 确保时长在合理范围内，根据模型决定最大时长
             # wan2.6 支持 5/10/15秒，wan2.5 支持 5/10秒，wanx2.1 支持 3/4/5秒
-            model = request.model or config.video.model
+            model = request.model or get_config().video.model
             if model and 'wan2.6' in model:
                 max_duration = 15
             elif model and 'wanx2.1' in model:
@@ -382,6 +383,54 @@ class SelectVideoRequest(BaseModel):
     project_id: str
     shot_id: str
     video_id: str
+
+
+class SelectFromLibraryRequest(BaseModel):
+    """从视频库选择视频请求"""
+    project_id: str
+    shot_id: str
+    video_library_id: str  # 视频库中的视频ID
+
+
+@router.post("/select-from-library")
+async def select_video_from_library(request: SelectFromLibraryRequest):
+    """从视频库选择视频作为该分镜的视频"""
+    project = storage_service.get_project(request.project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    
+    if not project.script or not project.script.shots:
+        raise HTTPException(status_code=404, detail="分镜脚本不存在")
+    
+    # 获取视频库中的视频
+    video_item = storage_service.get_video_item(request.video_library_id)
+    if not video_item:
+        raise HTTPException(status_code=404, detail="视频库中的视频不存在")
+    
+    if not video_item.url:
+        raise HTTPException(status_code=400, detail="视频URL无效")
+    
+    # 找到对应的分镜并更新
+    shot_found = False
+    for shot in project.script.shots:
+        if shot.id == request.shot_id:
+            shot.video_url = video_item.url
+            shot.selected_video_id = f"library_{request.video_library_id}"  # 标记来源为视频库
+            shot_found = True
+            break
+    
+    if not shot_found:
+        raise HTTPException(status_code=404, detail="分镜不存在")
+    
+    # 保存项目
+    storage_service.save_project(project)
+    
+    return {
+        "message": "视频已从视频库设置",
+        "shot_id": request.shot_id,
+        "video_url": video_item.url,
+        "video_name": video_item.name
+    }
 
 
 @router.post("/select")

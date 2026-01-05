@@ -873,6 +873,8 @@ export const videosApi = {
   delete: (id: string) => api.delete(`/videos/${id}`),
   select: (data: { project_id: string; shot_id: string; video_id: string }) => 
     api.post<any, { message: string; shot_id: string; video_url: string }>('/videos/select', data),
+  selectFromLibrary: (data: { project_id: string; shot_id: string; video_library_id: string }) =>
+    api.post<any, { message: string; shot_id: string; video_url: string; video_name: string }>('/videos/select-from-library', data),
   export: (data: { project_id: string; name?: string }) =>
     api.post<any, { message: string; video: any; url: string; shot_count: number; warning?: string }>('/videos/export', data),
 }
