@@ -7,8 +7,8 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 
 from app.config import (
-    config_manager, AppConfig, LLMConfig, ImageConfig, ImageEditConfig, VideoConfig, RefVideoConfig, OSSConfig,
-    API_REGIONS, LLM_MODELS, IMAGE_MODELS, IMAGE_EDIT_MODELS, VIDEO_MODELS, REF_VIDEO_MODELS
+    config_manager, AppConfig, LLMConfig, ImageConfig, ImageEditConfig, VideoConfig, TextToVideoConfig, RefVideoConfig, OSSConfig,
+    API_REGIONS, LLM_MODELS, IMAGE_MODELS, IMAGE_EDIT_MODELS, VIDEO_MODELS, TEXT_TO_VIDEO_MODELS, REF_VIDEO_MODELS
 )
 from app.services.oss import oss_service
 
@@ -69,6 +69,18 @@ class VideoConfigRequest(BaseModel):
     audio: Optional[bool] = None  # 自动生成音频（仅wan2.5支持）
 
 
+class TextToVideoConfigRequest(BaseModel):
+    """文生视频配置请求（wan2.6-t2v等）"""
+    model: Optional[str] = None
+    size: Optional[str] = None  # 分辨率（宽*高格式，如 1920*1080）
+    duration: Optional[int] = None  # 视频时长（秒）
+    prompt_extend: Optional[bool] = None  # 智能改写
+    shot_type: Optional[str] = None  # 镜头类型，single/multi（仅wan2.6支持）
+    watermark: Optional[bool] = None  # 水印
+    seed: Optional[int] = None  # 随机种子
+    audio: Optional[bool] = None  # 是否自动配音
+
+
 class RefVideoConfigRequest(BaseModel):
     """视频生视频配置请求（wan2.6-r2v）"""
     model: Optional[str] = None
@@ -99,6 +111,7 @@ class ConfigUpdateRequest(BaseModel):
     image: Optional[ImageConfigRequest] = None
     image_edit: Optional[ImageEditConfigRequest] = None
     video: Optional[VideoConfigRequest] = None
+    text_to_video: Optional[TextToVideoConfigRequest] = None  # 文生视频配置
     ref_video: Optional[RefVideoConfigRequest] = None  # 视频生视频配置
     oss: Optional[OSSConfigRequest] = None
 
@@ -133,6 +146,9 @@ class ConfigResponse(BaseModel):
     # 图生视频配置
     video: Dict[str, Any]
     
+    # 文生视频配置
+    text_to_video: Dict[str, Any]
+    
     # 视频生视频配置
     ref_video: Dict[str, Any]
     
@@ -145,6 +161,7 @@ class ConfigResponse(BaseModel):
     available_image_models: Dict[str, Dict[str, Any]]
     available_image_edit_models: Dict[str, Dict[str, Any]]
     available_video_models: Dict[str, Dict[str, Any]]
+    available_text_to_video_models: Dict[str, Dict[str, Any]]  # 文生视频模型
     available_ref_video_models: Dict[str, Dict[str, Any]]  # 视频生视频模型
 
 
@@ -190,6 +207,7 @@ async def get_settings():
         image=config.image.model_dump(),
         image_edit=config.image_edit.model_dump(),
         video=config.video.model_dump(),
+        text_to_video=config.text_to_video.model_dump(),
         ref_video=config.ref_video.model_dump(),
         oss=oss_response,
         available_regions=API_REGIONS,
@@ -197,6 +215,7 @@ async def get_settings():
         available_image_models=IMAGE_MODELS,
         available_image_edit_models=IMAGE_EDIT_MODELS,
         available_video_models=VIDEO_MODELS,
+        available_text_to_video_models=TEXT_TO_VIDEO_MODELS,
         available_ref_video_models=REF_VIDEO_MODELS
     )
 
@@ -250,6 +269,13 @@ async def update_settings(request: ConfigUpdateRequest):
             if "model" in video_update and video_update["model"] not in VIDEO_MODELS:
                 raise HTTPException(status_code=400, detail=f"无效的视频模型: {video_update['model']}")
             update_data["video"] = video_update
+    
+    if request.text_to_video is not None:
+        text_to_video_update = {k: v for k, v in request.text_to_video.model_dump().items() if v is not None}
+        if text_to_video_update:
+            if "model" in text_to_video_update and text_to_video_update["model"] not in TEXT_TO_VIDEO_MODELS:
+                raise HTTPException(status_code=400, detail=f"无效的文生视频模型: {text_to_video_update['model']}")
+            update_data["text_to_video"] = text_to_video_update
     
     if request.ref_video is not None:
         ref_video_update = {k: v for k, v in request.ref_video.model_dump().items() if v is not None}
@@ -326,6 +352,12 @@ async def get_image_edit_models():
 async def get_video_models():
     """获取可用的图生视频模型列表"""
     return {"models": VIDEO_MODELS}
+
+
+@router.get("/models/text-to-video")
+async def get_text_to_video_models():
+    """获取可用的文生视频模型列表"""
+    return {"models": TEXT_TO_VIDEO_MODELS}
 
 
 @router.get("/models/ref-video")

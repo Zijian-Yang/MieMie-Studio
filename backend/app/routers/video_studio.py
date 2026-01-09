@@ -1,8 +1,9 @@
 """
 视频工作室 API 路由
-支持两种任务类型：
+支持三种任务类型：
 1. 图生视频（image_to_video）：基于首帧图生成视频
 2. 视频生视频（reference_to_video）：基于参考视频生成新视频
+3. 文生视频（text_to_video）：基于文本提示词生成视频
 """
 
 from fastapi import APIRouter, HTTPException
@@ -14,6 +15,7 @@ from app.models.media import VideoStudioTask
 from app.services.storage import storage_service
 from app.services.dashscope.image_to_video import ImageToVideoService
 from app.services.dashscope.reference_to_video import ReferenceToVideoService
+from app.services.dashscope.text_to_video import TextToVideoService
 from app.services.oss import oss_service
 
 router = APIRouter()
@@ -22,9 +24,10 @@ router = APIRouter()
 class VideoStudioTaskCreateRequest(BaseModel):
     """创建视频生成任务请求
     
-    支持两种任务类型：
+    支持三种任务类型：
     1. image_to_video（图生视频）：使用 first_frame_url
     2. reference_to_video（视频生视频）：使用 reference_video_urls
+    3. text_to_video（文生视频）：使用 prompt 生成视频
     
     图生视频参数说明（根据官方文档）：
     - resolution: 分辨率档位，wan2.5/2.6 支持 480P/720P/1080P（默认1080P）
@@ -44,12 +47,22 @@ class VideoStudioTaskCreateRequest(BaseModel):
     - seed: 随机种子
     - audio: 是否生成音频
     - r2v_prompt_extend: 提示词改写，默认 True
+    
+    文生视频参数说明（wan2.6-t2v）：
+    - size: 分辨率（宽*高格式，如 1920*1080），720P/1080P档位
+    - duration: 视频时长，wan2.6支持5/10/15秒，wan2.5支持5/10秒，其他固定5秒
+    - t2v_prompt_extend: 智能改写，默认 True
+    - shot_type: 镜头类型（仅wan2.6支持），single/multi
+    - watermark: 是否添加水印
+    - seed: 随机种子
+    - auto_audio: 是否自动配音（仅wan2.5及以上支持），默认True
+    - audio_url: 自定义音频URL
     """
     project_id: str
     name: str = ""
     
-    # 任务类型
-    task_type: str = "image_to_video"  # image_to_video 或 reference_to_video
+    # 任务类型: image_to_video, reference_to_video, text_to_video
+    task_type: str = "image_to_video"
     
     # 图生视频参数
     mode: str = "first_frame"  # first_frame 或 first_last_frame
@@ -78,6 +91,9 @@ class VideoStudioTaskCreateRequest(BaseModel):
     size: str = "1920*1080"  # 分辨率（宽*高格式）
     r2v_prompt_extend: bool = True  # 视频生视频的提示词改写，默认开启
     
+    # 文生视频专用
+    t2v_prompt_extend: bool = True  # 文生视频的智能改写，默认开启
+    
     group_count: int = 1
 
 
@@ -85,7 +101,7 @@ class VideoStudioTaskUpdateRequest(BaseModel):
     """更新任务请求"""
     name: Optional[str] = None
     selected_video_url: Optional[str] = None
-    task_type: Optional[str] = None  # 任务类型: image_to_video / reference_to_video
+    task_type: Optional[str] = None  # 任务类型: image_to_video / reference_to_video / text_to_video
     # 支持编辑的字段
     prompt: Optional[str] = None
     negative_prompt: Optional[str] = None
@@ -100,8 +116,9 @@ class VideoStudioTaskUpdateRequest(BaseModel):
     first_frame_url: Optional[str] = None
     audio_url: Optional[str] = None
     reference_video_urls: Optional[List[str]] = None  # 参考视频URL列表
-    size: Optional[str] = None  # 视频生视频分辨率
+    size: Optional[str] = None  # 视频生视频/文生视频分辨率
     r2v_prompt_extend: Optional[bool] = None  # 视频生视频的提示词改写
+    t2v_prompt_extend: Optional[bool] = None  # 文生视频的智能改写
     group_count: Optional[int] = None  # 生成组数
 
 
@@ -125,9 +142,10 @@ async def get_task(task_id: str):
 async def create_task(request: VideoStudioTaskCreateRequest):
     """创建并启动视频生成任务
     
-    支持两种任务类型：
+    支持三种任务类型：
     1. image_to_video（图生视频）：需要 first_frame_url
     2. reference_to_video（视频生视频）：需要 reference_video_urls
+    3. text_to_video（文生视频）：需要 prompt
     """
     # 打印详细请求信息
     print(f"\n{'#'*60}")
@@ -142,6 +160,7 @@ async def create_task(request: VideoStudioTaskCreateRequest):
     print(f"[请求参数] size: {request.size}")
     print(f"[请求参数] duration: {request.duration}")
     print(f"[请求参数] prompt_extend: {request.prompt_extend}")
+    print(f"[请求参数] t2v_prompt_extend: {request.t2v_prompt_extend}")
     print(f"[请求参数] watermark: {request.watermark}")
     print(f"[请求参数] seed: {request.seed}")
     print(f"[请求参数] auto_audio: {request.auto_audio}")
@@ -166,6 +185,9 @@ async def create_task(request: VideoStudioTaskCreateRequest):
             raise HTTPException(status_code=400, detail="视频生视频任务需要选择参考视频")
         if len(request.reference_video_urls) > 3:
             raise HTTPException(status_code=400, detail="参考视频最多3个")
+    elif request.task_type == "text_to_video":
+        if not request.prompt:
+            raise HTTPException(status_code=400, detail="文生视频任务需要输入提示词")
     else:
         raise HTTPException(status_code=400, detail="不支持的任务类型")
     
@@ -191,6 +213,7 @@ async def create_task(request: VideoStudioTaskCreateRequest):
         shot_type=request.shot_type,
         size=request.size,
         r2v_prompt_extend=request.r2v_prompt_extend,
+        t2v_prompt_extend=request.t2v_prompt_extend,
         group_count=request.group_count,
         status="processing"
     )
@@ -239,6 +262,24 @@ async def create_task(request: VideoStudioTaskCreateRequest):
                     prompt_extend=request.r2v_prompt_extend,
                 )
                 task.task_ids.append(api_task_id)
+            
+            elif request.task_type == "text_to_video":
+                # 文生视频任务
+                t2v_service = TextToVideoService()
+                
+                api_task_id = await t2v_service.create_task(
+                    prompt=request.prompt,
+                    model=request.model,
+                    size=request.size,
+                    duration=request.duration,
+                    prompt_extend=request.t2v_prompt_extend,
+                    shot_type=request.shot_type,
+                    watermark=request.watermark,
+                    seed=request.seed + i if request.seed else None,
+                    audio_url=request.audio_url,
+                    negative_prompt=request.negative_prompt if request.negative_prompt else None,
+                )
+                task.task_ids.append(api_task_id)
         
         storage_service.save_video_studio_task(task)
         
@@ -285,6 +326,11 @@ async def get_task_status(task_id: str):
                 print(f"[视频工作室状态查询] 使用 视频生视频服务 (HTTP)")
                 r2v_service = ReferenceToVideoService()
                 status, video_url = await r2v_service.get_task_status(api_task_id, task.project_id)
+            elif task_type == "text_to_video":
+                # 文生视频任务使用 HTTP 查询
+                print(f"[视频工作室状态查询] 使用 文生视频服务 (HTTP)")
+                t2v_service = TextToVideoService()
+                status, video_url = await t2v_service.get_task_status(api_task_id, task.project_id)
             else:
                 # 图生视频任务
                 i2v_service = ImageToVideoService()
@@ -383,6 +429,8 @@ async def update_task(task_id: str, request: VideoStudioTaskUpdateRequest):
         task.size = request.size
     if request.r2v_prompt_extend is not None:
         task.r2v_prompt_extend = request.r2v_prompt_extend
+    if request.t2v_prompt_extend is not None:
+        task.t2v_prompt_extend = request.t2v_prompt_extend
     if request.task_type is not None:
         task.task_type = request.task_type
     if request.group_count is not None:
@@ -410,6 +458,9 @@ async def regenerate_task(task_id: str):
     elif task_type == "reference_to_video":
         if not task.reference_video_urls:
             raise HTTPException(status_code=400, detail="任务没有参考视频")
+    elif task_type == "text_to_video":
+        if not task.prompt:
+            raise HTTPException(status_code=400, detail="任务没有提示词")
     
     # 重置任务状态
     task.status = "processing"
@@ -452,6 +503,39 @@ async def regenerate_task(task_id: str):
             task.error_message = str(e)
             storage_service.save_video_studio_task(task)
             raise HTTPException(status_code=500, detail=str(e))
+    
+    elif task_type == "text_to_video":
+        # 文生视频任务
+        t2v_service = TextToVideoService()
+        
+        async def generate_one_t2v(idx: int):
+            current_seed = task.seed + idx if task.seed is not None else None
+            # 获取t2v_prompt_extend，如果没有则默认True
+            t2v_prompt_extend = getattr(task, 't2v_prompt_extend', True)
+            return await t2v_service.create_task(
+                prompt=task.prompt,
+                model=task.model,
+                size=task.size,
+                duration=task.duration,
+                prompt_extend=t2v_prompt_extend,
+                shot_type=task.shot_type,
+                watermark=task.watermark,
+                seed=current_seed,
+                audio_url=task.audio_url,
+                negative_prompt=task.negative_prompt,
+            )
+        
+        try:
+            task_ids = await asyncio.gather(*[generate_one_t2v(i) for i in range(task.group_count)])
+            task.task_ids = list(task_ids)
+            storage_service.save_video_studio_task(task)
+            return {"task": task, "task_ids": task_ids}
+        except Exception as e:
+            task.status = "failed"
+            task.error_message = str(e)
+            storage_service.save_video_studio_task(task)
+            raise HTTPException(status_code=500, detail=str(e))
+    
     else:
         # 图生视频任务
         i2v_service = ImageToVideoService()

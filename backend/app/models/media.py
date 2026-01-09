@@ -59,9 +59,10 @@ class TextItem(BaseModel):
 class VideoStudioTask(BaseModel):
     """视频工作室任务
     
-    支持两种任务类型：
+    支持三种任务类型：
     1. 图生视频（image_to_video）：使用 first_frame_url
     2. 视频生视频（reference_to_video）：使用 reference_video_urls
+    3. 文生视频（text_to_video）：纯文本生成视频
     
     图生视频参数说明（根据官方文档）：
     - resolution: 分辨率档位，wan2.5/2.6 支持 480P/720P/1080P（默认1080P）
@@ -81,13 +82,23 @@ class VideoStudioTask(BaseModel):
     - seed: 随机种子
     - audio: 是否生成音频
     - r2v_prompt_extend: 提示词改写，默认 True
+    
+    文生视频参数说明（wan2.6-t2v）：
+    - size: 分辨率（宽*高格式，如 1920*1080），720P/1080P档位
+    - duration: 视频时长，wan2.6支持5/10/15秒，wan2.5支持5/10秒，其他固定5秒
+    - t2v_prompt_extend: 智能改写，默认 True
+    - shot_type: 镜头类型（仅wan2.6支持），single/multi
+    - watermark: 是否添加水印
+    - seed: 随机种子
+    - auto_audio: 是否自动配音（仅wan2.5及以上支持），默认True
+    - audio_url: 自定义音频URL
     """
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     project_id: str
     name: str = ""  # 任务名称
     
-    # 任务类型
-    task_type: str = "image_to_video"  # image_to_video: 图生视频, reference_to_video: 视频生视频
+    # 任务类型: image_to_video(图生视频), reference_to_video(视频生视频), text_to_video(文生视频)
+    task_type: str = "image_to_video"
     
     # 生成模式（图生视频使用）
     mode: str = "first_frame"  # first_frame: 首帧生视频, first_last_frame: 首尾帧生视频
@@ -100,7 +111,7 @@ class VideoStudioTask(BaseModel):
     reference_video_urls: List[str] = []  # 参考视频URL列表（最多3个）
     
     # 通用输入参数
-    audio_url: Optional[str] = None  # 自定义音频URL（从音频库选择，仅图生视频支持）
+    audio_url: Optional[str] = None  # 自定义音频URL
     prompt: str = ""  # 提示词
     negative_prompt: str = ""  # 负面提示词
     
@@ -119,6 +130,9 @@ class VideoStudioTask(BaseModel):
     # 生成参数 - 视频生视频专用
     size: str = "1920*1080"  # 分辨率（宽*高格式）
     r2v_prompt_extend: bool = True  # 视频生视频的提示词改写，默认开启
+    
+    # 生成参数 - 文生视频专用
+    t2v_prompt_extend: bool = True  # 文生视频的智能改写，默认开启
     
     # 生成结果
     group_count: int = 1  # 生成组数

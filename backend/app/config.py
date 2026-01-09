@@ -185,6 +185,172 @@ IMAGE_EDIT_MODELS = {
     }
 }
 
+# 文生视频模型配置
+# 参考: https://help.aliyun.com/zh/model-studio/text-to-video-api
+TEXT_TO_VIDEO_MODELS = {
+    "wan2.6-t2v": {
+        "name": "文生视频 wan2.6-t2v",
+        "description": "最新模型，支持多镜头叙事、自动配音，720P/1080P，5/10/15秒",
+        # 720P档位的所有分辨率
+        "resolutions_720p": [
+            {"value": "1280*720", "label": "1280×720 (16:9 横屏)"},
+            {"value": "720*1280", "label": "720×1280 (9:16 竖屏)"},
+            {"value": "960*960", "label": "960×960 (1:1 方形)"},
+            {"value": "1088*832", "label": "1088×832 (4:3 横屏)"},
+            {"value": "832*1088", "label": "832×1088 (3:4 竖屏)"},
+        ],
+        # 1080P档位的所有分辨率
+        "resolutions_1080p": [
+            {"value": "1920*1080", "label": "1920×1080 (16:9 横屏)"},
+            {"value": "1080*1920", "label": "1080×1920 (9:16 竖屏)"},
+            {"value": "1440*1440", "label": "1440×1440 (1:1 方形)"},
+            {"value": "1632*1248", "label": "1632×1248 (4:3 横屏)"},
+            {"value": "1248*1632", "label": "1248×1632 (3:4 竖屏)"},
+        ],
+        "default_size": "1920*1080",  # 官方默认值
+        "durations": [5, 10, 15],  # 支持的时长
+        "default_duration": 5,  # 默认时长
+        "prompt_max_length": 1500,  # 提示词最大长度
+        "negative_prompt_max_length": 500,  # 反向提示词最大长度
+        "supports_prompt_extend": True,  # 支持智能改写
+        "supports_shot_type": True,  # 支持镜头类型 (single/multi)
+        "default_shot_type": "single",
+        "supports_watermark": True,
+        "supports_seed": True,
+        "supports_negative_prompt": True,
+        "supports_audio": True,  # 支持音频（自动配音或自定义音频）
+        "default_audio": True,  # 默认自动配音
+        "audio_formats": ["wav", "mp3"],  # 支持的音频格式
+        "audio_duration_range": "3-30s",  # 音频时长范围
+        "audio_max_size_mb": 15,  # 音频最大文件大小
+    },
+    "wan2.5-t2v-preview": {
+        "name": "文生视频 wan2.5-t2v-preview",
+        "description": "万相2.5 preview，支持自动配音，480P/720P/1080P，5/10秒",
+        # 480P档位
+        "resolutions_480p": [
+            {"value": "832*480", "label": "832×480 (16:9 横屏)"},
+            {"value": "480*832", "label": "480×832 (9:16 竖屏)"},
+            {"value": "624*624", "label": "624×624 (1:1 方形)"},
+        ],
+        # 720P档位
+        "resolutions_720p": [
+            {"value": "1280*720", "label": "1280×720 (16:9 横屏)"},
+            {"value": "720*1280", "label": "720×1280 (9:16 竖屏)"},
+            {"value": "960*960", "label": "960×960 (1:1 方形)"},
+            {"value": "1088*832", "label": "1088×832 (4:3 横屏)"},
+            {"value": "832*1088", "label": "832×1088 (3:4 竖屏)"},
+        ],
+        # 1080P档位
+        "resolutions_1080p": [
+            {"value": "1920*1080", "label": "1920×1080 (16:9 横屏)"},
+            {"value": "1080*1920", "label": "1080×1920 (9:16 竖屏)"},
+            {"value": "1440*1440", "label": "1440×1440 (1:1 方形)"},
+            {"value": "1632*1248", "label": "1632×1248 (4:3 横屏)"},
+            {"value": "1248*1632", "label": "1248×1632 (3:4 竖屏)"},
+        ],
+        "default_size": "1920*1080",  # 官方默认值
+        "durations": [5, 10],  # 支持的时长
+        "default_duration": 5,  # 默认时长
+        "prompt_max_length": 1500,  # 提示词最大长度
+        "negative_prompt_max_length": 500,  # 反向提示词最大长度
+        "supports_prompt_extend": True,
+        "supports_shot_type": False,  # 不支持多镜头
+        "supports_watermark": True,
+        "supports_seed": True,
+        "supports_negative_prompt": True,
+        "supports_audio": True,  # 支持音频
+        "default_audio": True,  # 默认自动配音
+        "audio_formats": ["wav", "mp3"],
+        "audio_duration_range": "3-30s",
+        "audio_max_size_mb": 15,
+    },
+    "wan2.2-t2v-plus": {
+        "name": "文生视频 wan2.2-t2v-plus",
+        "description": "万相2.2专业版，无声视频，480P/1080P，固定5秒",
+        # 480P档位
+        "resolutions_480p": [
+            {"value": "832*480", "label": "832×480 (16:9 横屏)"},
+            {"value": "480*832", "label": "480×832 (9:16 竖屏)"},
+            {"value": "624*624", "label": "624×624 (1:1 方形)"},
+        ],
+        # 1080P档位
+        "resolutions_1080p": [
+            {"value": "1920*1080", "label": "1920×1080 (16:9 横屏)"},
+            {"value": "1080*1920", "label": "1080×1920 (9:16 竖屏)"},
+            {"value": "1440*1440", "label": "1440×1440 (1:1 方形)"},
+            {"value": "1632*1248", "label": "1632×1248 (4:3 横屏)"},
+            {"value": "1248*1632", "label": "1248×1632 (3:4 竖屏)"},
+        ],
+        "default_size": "1920*1080",  # 官方默认值
+        "durations": [5],  # 固定5秒
+        "default_duration": 5,
+        "prompt_max_length": 800,  # wan2.2及以下限制800字符
+        "negative_prompt_max_length": 500,
+        "supports_prompt_extend": True,
+        "supports_shot_type": False,
+        "supports_watermark": True,
+        "supports_seed": True,
+        "supports_negative_prompt": True,
+        "supports_audio": False,  # 无声视频
+        "default_audio": False,
+    },
+    "wanx2.1-t2v-turbo": {
+        "name": "文生视频 wanx2.1-t2v-turbo",
+        "description": "万相2.1极速版，无声视频，480P/720P，固定5秒",
+        # 480P档位
+        "resolutions_480p": [
+            {"value": "832*480", "label": "832×480 (16:9 横屏)"},
+            {"value": "480*832", "label": "480×832 (9:16 竖屏)"},
+            {"value": "624*624", "label": "624×624 (1:1 方形)"},
+        ],
+        # 720P档位
+        "resolutions_720p": [
+            {"value": "1280*720", "label": "1280×720 (16:9 横屏)"},
+            {"value": "720*1280", "label": "720×1280 (9:16 竖屏)"},
+            {"value": "960*960", "label": "960×960 (1:1 方形)"},
+            {"value": "1088*832", "label": "1088×832 (4:3 横屏)"},
+            {"value": "832*1088", "label": "832×1088 (3:4 竖屏)"},
+        ],
+        "default_size": "1280*720",  # 官方默认值
+        "durations": [5],  # 固定5秒
+        "default_duration": 5,
+        "prompt_max_length": 800,
+        "negative_prompt_max_length": 500,
+        "supports_prompt_extend": True,
+        "supports_shot_type": False,
+        "supports_watermark": True,
+        "supports_seed": True,
+        "supports_negative_prompt": True,
+        "supports_audio": False,  # 无声视频
+        "default_audio": False,
+    },
+    "wanx2.1-t2v-plus": {
+        "name": "文生视频 wanx2.1-t2v-plus",
+        "description": "万相2.1专业版，无声视频，720P，固定5秒",
+        # 720P档位
+        "resolutions_720p": [
+            {"value": "1280*720", "label": "1280×720 (16:9 横屏)"},
+            {"value": "720*1280", "label": "720×1280 (9:16 竖屏)"},
+            {"value": "960*960", "label": "960×960 (1:1 方形)"},
+            {"value": "1088*832", "label": "1088×832 (4:3 横屏)"},
+            {"value": "832*1088", "label": "832×1088 (3:4 竖屏)"},
+        ],
+        "default_size": "1280*720",  # 官方默认值
+        "durations": [5],  # 固定5秒
+        "default_duration": 5,
+        "prompt_max_length": 800,
+        "negative_prompt_max_length": 500,
+        "supports_prompt_extend": True,
+        "supports_shot_type": False,
+        "supports_watermark": True,
+        "supports_seed": True,
+        "supports_negative_prompt": True,
+        "supports_audio": False,  # 无声视频
+        "default_audio": False,
+    },
+}
+
 # 视频生视频模型配置（参考视频生成视频）
 # 参考: https://help.aliyun.com/zh/model-studio/reference-to-video-api
 REF_VIDEO_MODELS = {
@@ -354,6 +520,29 @@ class VideoConfig(BaseModel):
     shot_type: str = "single"  # 镜头类型（仅wan2.6支持），single单镜头/multi多镜头叙事
 
 
+class TextToVideoConfig(BaseModel):
+    """文生视频配置
+    
+    参数说明（根据官方文档）：
+    - model: 模型名称，默认 wan2.6-t2v
+    - size: 分辨率，格式为"宽*高"（如 1920*1080）
+    - duration: 视频时长，wan2.6支持5/10/15秒，wan2.5支持5/10秒，其他固定5秒
+    - prompt_extend: 智能改写，默认 True
+    - shot_type: 镜头类型（仅wan2.6支持），single/multi
+    - watermark: 水印标识（右下角"AI生成"），默认 False
+    - seed: 随机种子，范围 [0, 2147483647]
+    - audio: 是否自动配音（仅wan2.5及以上支持），默认 True
+    """
+    model: str = "wan2.6-t2v"  # 默认使用最新模型
+    size: str = "1920*1080"  # 分辨率（宽*高格式）
+    duration: int = 5  # 视频时长（秒）
+    prompt_extend: bool = True  # 智能改写，默认开启
+    shot_type: str = "single"  # 镜头类型：single单镜头/multi多镜头叙事
+    watermark: bool = False  # 水印，默认关闭
+    seed: Optional[int] = None  # 种子，None表示随机
+    audio: bool = True  # 是否自动配音，默认开启
+
+
 class RefVideoConfig(BaseModel):
     """视频生视频配置（参考视频生成视频）
     
@@ -415,6 +604,9 @@ class AppConfig(BaseModel):
     
     # 图生视频配置
     video: VideoConfig = VideoConfig()
+    
+    # 文生视频配置
+    text_to_video: TextToVideoConfig = TextToVideoConfig()
     
     # 视频生视频配置
     ref_video: RefVideoConfig = RefVideoConfig()
@@ -518,7 +710,7 @@ class ConfigManager:
             
             # 处理嵌套更新
             for key, value in kwargs.items():
-                if key in ['llm', 'image', 'image_edit', 'video', 'ref_video', 'oss'] and isinstance(value, dict):
+                if key in ['llm', 'image', 'image_edit', 'video', 'text_to_video', 'ref_video', 'oss'] and isinstance(value, dict):
                     # 合并嵌套配置
                     if key in updated_data:
                         updated_data[key].update(value)

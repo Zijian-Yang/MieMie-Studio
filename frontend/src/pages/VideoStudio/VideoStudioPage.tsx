@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { Card, Button, List, Modal, Input, Select, InputNumber, Switch, message, Popconfirm, Space, Empty, Spin, Row, Col, Tabs, Tag, Form } from 'antd'
 import { PlusOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, VideoCameraOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons'
-import { videoStudioApi, galleryApi, audioApi, videoLibraryApi, settingsApi, VideoStudioTask, GalleryImage, AudioItem, VideoLibraryItem, VideoModelInfo, RefVideoModelInfo } from '../../services/api'
+import { videoStudioApi, galleryApi, audioApi, videoLibraryApi, settingsApi, VideoStudioTask, GalleryImage, AudioItem, VideoLibraryItem, VideoModelInfo, RefVideoModelInfo, TextToVideoModelInfo } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 
 const { TextArea } = Input
@@ -28,7 +28,7 @@ const VideoStudioPage = () => {
   const [videoLibraryItems, setVideoLibraryItems] = useState<VideoLibraryItem[]>([])
   
   // 创建任务表单
-  const [taskType, setTaskType] = useState<'image_to_video' | 'reference_to_video'>('image_to_video')  // 任务类型
+  const [taskType, setTaskType] = useState<'image_to_video' | 'reference_to_video' | 'text_to_video'>('image_to_video')  // 任务类型
   const [taskName, setTaskName] = useState('')
   const [firstFrameUrl, setFirstFrameUrl] = useState('')
   const [audioUrl, setAudioUrl] = useState('')
@@ -45,12 +45,14 @@ const VideoStudioPage = () => {
   const [autoAudio, setAutoAudio] = useState(true)  // 自动配音（默认开启）
   const [shotType, setShotType] = useState('single')  // 镜头类型
   const [r2vPromptExtend, setR2vPromptExtend] = useState(true)  // 视频生视频提示词改写
+  const [t2vPromptExtend, setT2vPromptExtend] = useState(true)  // 文生视频智能改写
   const [groupCount, setGroupCount] = useState(1)
   const [creating, setCreating] = useState(false)
   
   // 模型配置
   const [videoModels, setVideoModels] = useState<Record<string, VideoModelInfo>>({})
   const [refVideoModels, setRefVideoModels] = useState<Record<string, RefVideoModelInfo>>({})
+  const [textToVideoModels, setTextToVideoModels] = useState<Record<string, TextToVideoModelInfo>>({})
   
   // 轮询
   const pollingRef = useRef<Set<string>>(new Set())
@@ -84,6 +86,7 @@ const VideoStudioPage = () => {
       setVideoLibraryItems(videoLibRes.videos)
       setVideoModels(settingsRes.available_video_models)
       setRefVideoModels(settingsRes.available_ref_video_models || {})
+      setTextToVideoModels(settingsRes.available_text_to_video_models || {})
       
       // 启动轮询
       tasksRes.tasks.forEach(task => {
@@ -149,22 +152,30 @@ const VideoStudioPage = () => {
       message.warning('请选择参考视频')
       return
     }
+    if (taskType === 'text_to_video' && !prompt) {
+      message.warning('文生视频任务需要提供提示词')
+      return
+    }
     
     setCreating(true)
     try {
+      // 获取当前文生视频模型
+      const t2vModel = taskType === 'text_to_video' ? (model || 'wan2.6-t2v') : undefined
+      const t2vModelInfo = t2vModel ? textToVideoModels[t2vModel] : undefined
+      
       const result = await videoStudioApi.create({
         project_id: projectId,
         name: taskName || undefined,
         task_type: taskType,
         // 图生视频参数
         first_frame_url: taskType === 'image_to_video' ? firstFrameUrl : undefined,
-        audio_url: taskType === 'image_to_video' ? (audioUrl || undefined) : undefined,
+        audio_url: taskType === 'image_to_video' ? (audioUrl || undefined) : (taskType === 'text_to_video' ? (audioUrl || undefined) : undefined),
         // 视频生视频参数
         reference_video_urls: taskType === 'reference_to_video' ? referenceVideoUrls : undefined,
         // 通用参数
         prompt,
         negative_prompt: negativePrompt,
-        model: taskType === 'reference_to_video' ? 'wan2.6-r2v' : model,
+        model: taskType === 'reference_to_video' ? 'wan2.6-r2v' : (taskType === 'text_to_video' ? (t2vModel || 'wan2.6-t2v') : model),
         duration,
         watermark,
         seed: seed || undefined,
@@ -174,8 +185,10 @@ const VideoStudioPage = () => {
         resolution: taskType === 'image_to_video' ? resolution : undefined,
         prompt_extend: taskType === 'image_to_video' ? promptExtend : undefined,
         // 视频生视频专用
-        size: taskType === 'reference_to_video' ? size : undefined,
+        size: taskType === 'reference_to_video' ? size : (taskType === 'text_to_video' ? size : undefined),
         r2v_prompt_extend: taskType === 'reference_to_video' ? r2vPromptExtend : undefined,
+        // 文生视频专用
+        t2v_prompt_extend: taskType === 'text_to_video' ? t2vPromptExtend : undefined,
         group_count: groupCount
       })
       
@@ -209,6 +222,7 @@ const VideoStudioPage = () => {
     setShotType('single')
     setPromptExtend(true)
     setR2vPromptExtend(true)  // 重置视频生视频提示词改写
+    setT2vPromptExtend(true)  // 重置文生视频智能改写
     setWatermark(false)
     setSeed(undefined)
     setAutoAudio(true)  // 默认开启
@@ -247,18 +261,22 @@ const VideoStudioPage = () => {
   }
 
   // 编辑表单的额外状态（不在 Form 中管理的值）
-  const [editTaskType, setEditTaskType] = useState<'image_to_video' | 'reference_to_video'>('image_to_video')
+  const [editTaskType, setEditTaskType] = useState<'image_to_video' | 'reference_to_video' | 'text_to_video'>('image_to_video')
   const [editFirstFrameUrl, setEditFirstFrameUrl] = useState('')
   const [editAudioUrl, setEditAudioUrl] = useState('')
   const [editReferenceVideoUrls, setEditReferenceVideoUrls] = useState<string[]>([])
   const [editGroupCount, setEditGroupCount] = useState(1)
   const [editModel, setEditModel] = useState('wan2.5-i2v-preview')  // 编辑弹窗中的当前模型
   const [editR2vPromptExtend, setEditR2vPromptExtend] = useState(true)  // 编辑弹窗中的r2v提示词改写
+  const [editT2vPromptExtend, setEditT2vPromptExtend] = useState(true)  // 编辑弹窗中的t2v智能改写
 
   // 获取编辑弹窗中当前模型的信息
   const getEditModelInfo = () => {
     if (editTaskType === 'reference_to_video') {
       return refVideoModels[editModel] || Object.values(refVideoModels)[0]
+    }
+    if (editTaskType === 'text_to_video') {
+      return textToVideoModels[editModel] || Object.values(textToVideoModels)[0]
     }
     return videoModels[editModel]
   }
@@ -267,14 +285,15 @@ const VideoStudioPage = () => {
   const openEditModal = (task: VideoStudioTask) => {
     setSelectedTask(task)
     // 设置非 Form 管理的值
-    const taskTypeValue = task.task_type || 'image_to_video'
+    const taskTypeValue = (task.task_type || 'image_to_video') as 'image_to_video' | 'reference_to_video' | 'text_to_video'
     setEditTaskType(taskTypeValue)
     setEditFirstFrameUrl(task.first_frame_url || '')
     setEditAudioUrl(task.audio_url || '')
     setEditReferenceVideoUrls(task.reference_video_urls || [])
     setEditGroupCount(task.group_count || 1)
-    setEditModel(task.model || 'wan2.5-i2v-preview')
+    setEditModel(task.model || (taskTypeValue === 'text_to_video' ? 'wan2.6-t2v' : 'wan2.5-i2v-preview'))
     setEditR2vPromptExtend(task.r2v_prompt_extend !== false)  // 默认true
+    setEditT2vPromptExtend(task.prompt_extend !== false)  // 文生视频智能改写，默认true
     
     editForm.setFieldsValue({
       name: task.name,
@@ -306,6 +325,10 @@ const VideoStudioPage = () => {
       message.warning('请选择参考视频')
       return
     }
+    if (editTaskType === 'text_to_video' && !editForm.getFieldValue('prompt')) {
+      message.warning('文生视频任务需要提供提示词')
+      return
+    }
     
     try {
       setSaving(true)
@@ -321,10 +344,14 @@ const VideoStudioPage = () => {
       if (editTaskType === 'image_to_video') {
         updateData.first_frame_url = editFirstFrameUrl
         updateData.audio_url = editAudioUrl || undefined
-      } else {
+      } else if (editTaskType === 'reference_to_video') {
         updateData.reference_video_urls = editReferenceVideoUrls
         updateData.size = values.size
         updateData.r2v_prompt_extend = editR2vPromptExtend
+      } else if (editTaskType === 'text_to_video') {
+        updateData.prompt_extend = editT2vPromptExtend
+        updateData.size = values.size
+        updateData.audio_url = editAudioUrl || undefined
       }
       
       const updatedTask = await videoStudioApi.update(selectedTask.id, updateData)
@@ -509,7 +536,11 @@ const VideoStudioPage = () => {
         onOk={handleCreate}
         confirmLoading={creating}
         okButtonProps={{ 
-          disabled: taskType === 'image_to_video' ? !firstFrameUrl : referenceVideoUrls.length === 0 
+          disabled: taskType === 'image_to_video' 
+            ? !firstFrameUrl 
+            : taskType === 'reference_to_video'
+              ? referenceVideoUrls.length === 0
+              : !prompt  // text_to_video 需要提示词
         }}
         width={700}
       >
@@ -533,6 +564,10 @@ const VideoStudioPage = () => {
                           setModel('wan2.6-r2v')
                           setFirstFrameUrl('')
                           setAudioUrl('')
+                        } else if (v === 'text_to_video') {
+                          setModel('wan2.6-t2v')
+                          setFirstFrameUrl('')
+                          setReferenceVideoUrls([])
                         } else {
                           setModel('wan2.5-i2v-preview')
                           setReferenceVideoUrls([])
@@ -549,6 +584,12 @@ const VideoStudioPage = () => {
                         <Space>
                           <Tag color="green">视频生视频</Tag>
                           参考视频角色和音色生成新视频
+                        </Space>
+                      </Option>
+                      <Option value="text_to_video">
+                        <Space>
+                          <Tag color="purple">文生视频</Tag>
+                          基于文字描述生成视频
                         </Space>
                       </Option>
                     </Select>
@@ -1040,6 +1081,228 @@ const VideoStudioPage = () => {
                       </Row>
                     </>
                   )}
+                  
+                  {/* 文生视频参数 */}
+                  {taskType === 'text_to_video' && (
+                    <>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>模型</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={model}
+                              onChange={(v) => {
+                                setModel(v)
+                                const modelInfo = textToVideoModels[v]
+                                if (modelInfo?.default_size) {
+                                  setSize(modelInfo.default_size)
+                                }
+                                if (modelInfo?.default_duration) {
+                                  setDuration(modelInfo.default_duration)
+                                }
+                              }}
+                            >
+                              {Object.entries(textToVideoModels).map(([key, info]) => (
+                                <Option key={key} value={key}>{info.name}</Option>
+                              ))}
+                            </Select>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              {textToVideoModels[model]?.description}
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>分辨率</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={size}
+                              onChange={setSize}
+                            >
+                              {textToVideoModels[model]?.resolutions_1080p && (
+                                <Select.OptGroup label="1080P 档位">
+                                  {textToVideoModels[model]?.resolutions_1080p?.map((res: any) => (
+                                    <Option key={res.value} value={res.value}>{res.label}</Option>
+                                  ))}
+                                </Select.OptGroup>
+                              )}
+                              {textToVideoModels[model]?.resolutions_720p && (
+                                <Select.OptGroup label="720P 档位">
+                                  {textToVideoModels[model]?.resolutions_720p?.map((res: any) => (
+                                    <Option key={res.value} value={res.value}>{res.label}</Option>
+                                  ))}
+                                </Select.OptGroup>
+                              )}
+                              {textToVideoModels[model]?.resolutions_480p && (
+                                <Select.OptGroup label="480P 档位">
+                                  {textToVideoModels[model]?.resolutions_480p?.map((res: any) => (
+                                    <Option key={res.value} value={res.value}>{res.label}</Option>
+                                  ))}
+                                </Select.OptGroup>
+                              )}
+                            </Select>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              分辨率直接影响费用：1080P {'>'} 720P {'>'} 480P
+                            </div>
+                          </div>
+                        </Col>
+                      </Row>
+                      
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>时长</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={duration}
+                              onChange={setDuration}
+                            >
+                              {textToVideoModels[model]?.durations?.map((d: number) => (
+                                <Option key={d} value={d}>{d} 秒</Option>
+                              ))}
+                            </Select>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              时长直接影响费用，按秒计费
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>生成组数</div>
+                            <InputNumber
+                              style={{ width: '100%' }}
+                              min={1}
+                              max={5}
+                              value={groupCount}
+                              onChange={(v) => setGroupCount(v || 1)}
+                            />
+                          </div>
+                        </Col>
+                      </Row>
+                      
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>镜头类型</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={shotType}
+                              onChange={setShotType}
+                            >
+                              <Option value="single">单镜头 - 一个连续镜头</Option>
+                              <Option value="multi">多镜头叙事 - 多个切换镜头</Option>
+                            </Select>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              {shotType === 'single' 
+                                ? '输出一个连续的镜头画面' 
+                                : '输出多个切换的镜头，适合故事叙述（需开启智能改写）'
+                              }
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <Space>
+                              <Switch
+                                checked={autoAudio}
+                                onChange={setAutoAudio}
+                                disabled={!!audioUrl}
+                              />
+                              <span>自动生成音频</span>
+                            </Space>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              {audioUrl 
+                                ? '已选择自定义音频，此选项无效'
+                                : autoAudio 
+                                  ? '模型将根据提示词和画面自动生成匹配的背景音'
+                                  : '关闭后生成无声视频'
+                              }
+                            </div>
+                          </div>
+                        </Col>
+                      </Row>
+                      
+                      <Row gutter={16}>
+                        <Col span={8}>
+                          <div style={{ marginBottom: 16 }}>
+                            <Space>
+                              <Switch
+                                checked={t2vPromptExtend}
+                                onChange={setT2vPromptExtend}
+                              />
+                              <span>智能改写</span>
+                            </Space>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              使用大模型优化提示词
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={8}>
+                          <div style={{ marginBottom: 16 }}>
+                            <Space>
+                              <Switch
+                                checked={watermark}
+                                onChange={setWatermark}
+                              />
+                              <span>添加水印</span>
+                            </Space>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              右下角"AI生成"标识
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={8}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>随机种子</div>
+                            <InputNumber
+                              style={{ width: '100%' }}
+                              min={0}
+                              max={2147483647}
+                              value={seed}
+                              onChange={(v) => setSeed(v || undefined)}
+                              placeholder="留空随机"
+                            />
+                          </div>
+                        </Col>
+                      </Row>
+                      
+                      {/* 音频设置 */}
+                      <div style={{ 
+                        padding: 12, 
+                        background: '#1a1a1a', 
+                        borderRadius: 8, 
+                        marginTop: 8,
+                        border: '1px solid #333'
+                      }}>
+                        <div style={{ marginBottom: 12, fontWeight: 500 }}>🔊 音频设置</div>
+                        
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ marginBottom: 8 }}>自定义音频</div>
+                          <Select
+                            style={{ width: '100%' }}
+                            value={audioUrl || undefined}
+                            onChange={(v) => {
+                              setAudioUrl(v || '')
+                              // 选择音频后，auto_audio 无效
+                              if (v) setAutoAudio(false)
+                            }}
+                            placeholder="从音频库选择（可选）"
+                            allowClear
+                          >
+                            {audioItems.map(audio => (
+                              <Option key={audio.id} value={audio.url}>
+                                {audio.name}
+                              </Option>
+                            ))}
+                          </Select>
+                          <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            传入音频后，视频将与音频内容对齐（如口型、节奏）
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )
             }
@@ -1157,7 +1420,9 @@ const VideoStudioPage = () => {
         okButtonProps={{ 
           disabled: editTaskType === 'image_to_video' 
             ? !editFirstFrameUrl 
-            : editReferenceVideoUrls.length === 0 
+            : editTaskType === 'reference_to_video'
+              ? editReferenceVideoUrls.length === 0
+              : false  // text_to_video 只需要提示词，在 handleSaveEdit 中验证
         }}
       >
         <Tabs
@@ -1173,8 +1438,8 @@ const VideoStudioPage = () => {
                   
                   {/* 任务类型标识（只读） */}
                   <div style={{ marginBottom: 16, padding: '8px 12px', background: '#1f1f1f', borderRadius: 4 }}>
-                    <Tag color={editTaskType === 'image_to_video' ? 'blue' : 'purple'}>
-                      {editTaskType === 'image_to_video' ? '图生视频' : '视频生视频'}
+                    <Tag color={editTaskType === 'image_to_video' ? 'blue' : editTaskType === 'reference_to_video' ? 'green' : 'purple'}>
+                      {editTaskType === 'image_to_video' ? '图生视频' : editTaskType === 'reference_to_video' ? '视频生视频' : '文生视频'}
                     </Tag>
                   </div>
                   
@@ -1285,7 +1550,7 @@ const VideoStudioPage = () => {
                               <Option key={key} value={key}>{info.name}</Option>
                             ))}
                           </Select>
-                        ) : (
+                        ) : editTaskType === 'reference_to_video' ? (
                           <Select
                             onChange={(v) => {
                               setEditModel(v)
@@ -1296,6 +1561,23 @@ const VideoStudioPage = () => {
                             }}
                           >
                             {Object.entries(refVideoModels).map(([key, info]) => (
+                              <Option key={key} value={key}>{info.name}</Option>
+                            ))}
+                          </Select>
+                        ) : (
+                          <Select
+                            onChange={(v) => {
+                              setEditModel(v)
+                              const modelInfo = textToVideoModels[v]
+                              if (modelInfo?.default_size) {
+                                editForm.setFieldValue('size', modelInfo.default_size)
+                              }
+                              if (modelInfo?.default_duration) {
+                                editForm.setFieldValue('duration', modelInfo.default_duration)
+                              }
+                            }}
+                          >
+                            {Object.entries(textToVideoModels).map(([key, info]) => (
                               <Option key={key} value={key}>{info.name}</Option>
                             ))}
                           </Select>
@@ -1315,12 +1597,38 @@ const VideoStudioPage = () => {
                             ))}
                           </Select>
                         </Form.Item>
-                      ) : (
+                      ) : editTaskType === 'reference_to_video' ? (
                         <Form.Item name="size" label="分辨率">
                           <Select>
                             {(getEditModelInfo()?.resolutions || []).map((res: any) => (
                               <Option key={res.value} value={res.value}>{res.label}</Option>
                             ))}
+                          </Select>
+                        </Form.Item>
+                      ) : (
+                        <Form.Item name="size" label="分辨率">
+                          <Select>
+                            {(getEditModelInfo() as any)?.resolutions_1080p && (
+                              <Select.OptGroup label="1080P 档位">
+                                {(getEditModelInfo() as any)?.resolutions_1080p?.map((res: any) => (
+                                  <Option key={res.value} value={res.value}>{res.label}</Option>
+                                ))}
+                              </Select.OptGroup>
+                            )}
+                            {(getEditModelInfo() as any)?.resolutions_720p && (
+                              <Select.OptGroup label="720P 档位">
+                                {(getEditModelInfo() as any)?.resolutions_720p?.map((res: any) => (
+                                  <Option key={res.value} value={res.value}>{res.label}</Option>
+                                ))}
+                              </Select.OptGroup>
+                            )}
+                            {(getEditModelInfo() as any)?.resolutions_480p && (
+                              <Select.OptGroup label="480P 档位">
+                                {(getEditModelInfo() as any)?.resolutions_480p?.map((res: any) => (
+                                  <Option key={res.value} value={res.value}>{res.label}</Option>
+                                ))}
+                              </Select.OptGroup>
+                            )}
                           </Select>
                         </Form.Item>
                       )}
@@ -1357,13 +1665,24 @@ const VideoStudioPage = () => {
                         <Form.Item name="prompt_extend" label="智能改写" valuePropName="checked">
                           <Switch />
                         </Form.Item>
-                      ) : (
+                      ) : editTaskType === 'reference_to_video' ? (
                         <div style={{ marginBottom: 24 }}>
                           <div style={{ marginBottom: 8 }}>提示词改写</div>
                           <Space>
                             <Switch 
                               checked={editR2vPromptExtend} 
                               onChange={setEditR2vPromptExtend}
+                            />
+                            <span style={{ color: '#888', fontSize: 12 }}>使用大模型优化提示词</span>
+                          </Space>
+                        </div>
+                      ) : (
+                        <div style={{ marginBottom: 24 }}>
+                          <div style={{ marginBottom: 8 }}>智能改写</div>
+                          <Space>
+                            <Switch 
+                              checked={editT2vPromptExtend} 
+                              onChange={setEditT2vPromptExtend}
                             />
                             <span style={{ color: '#888', fontSize: 12 }}>使用大模型优化提示词</span>
                           </Space>

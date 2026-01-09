@@ -166,6 +166,18 @@ export interface VideoConfig {
   audio: boolean    // 是否自动生成音频（仅wan2.5支持）
 }
 
+// 文生视频配置
+export interface TextToVideoConfig {
+  model: string
+  size: string  // 分辨率（宽*高格式，如 1920*1080）
+  duration: number  // 视频时长（秒）
+  prompt_extend: boolean  // 智能改写
+  shot_type: string  // 镜头类型，single/multi
+  watermark: boolean  // 水印
+  seed: number | null  // 随机种子
+  audio: boolean  // 是否自动配音
+}
+
 // 视频生视频配置
 export interface RefVideoConfig {
   model: string
@@ -176,6 +188,31 @@ export interface RefVideoConfig {
   watermark: boolean  // 水印
   seed: number | null  // 随机种子
   audio: boolean  // 是否生成音频
+}
+
+// 文生视频模型信息
+export interface TextToVideoModelInfo {
+  name: string
+  description?: string
+  resolutions_480p?: VideoResolutionOption[]  // 480P档位的分辨率
+  resolutions_720p?: VideoResolutionOption[]  // 720P档位的分辨率
+  resolutions_1080p?: VideoResolutionOption[]  // 1080P档位的分辨率
+  default_size: string  // 默认分辨率（宽*高）
+  durations: number[]  // 支持的时长列表
+  default_duration: number
+  prompt_max_length?: number  // 提示词最大长度
+  negative_prompt_max_length?: number  // 反向提示词最大长度
+  supports_prompt_extend: boolean
+  supports_shot_type: boolean
+  default_shot_type?: string
+  supports_watermark: boolean
+  supports_seed: boolean
+  supports_negative_prompt: boolean
+  supports_audio: boolean
+  default_audio: boolean
+  audio_formats?: string[]  // 支持的音频格式
+  audio_duration_range?: string  // 音频时长范围
+  audio_max_size_mb?: number  // 音频最大文件大小
 }
 
 // 视频生视频模型信息
@@ -228,6 +265,7 @@ export interface ConfigResponse {
   image: ImageConfig
   image_edit: ImageEditConfig
   video: VideoConfig
+  text_to_video: TextToVideoConfig  // 文生视频配置
   ref_video: RefVideoConfig  // 视频生视频配置
   oss: OSSConfigResponse
   available_regions: Record<string, RegionInfo>
@@ -235,6 +273,7 @@ export interface ConfigResponse {
   available_image_models: Record<string, ImageModelInfo>
   available_image_edit_models: Record<string, ImageModelInfo>
   available_video_models: Record<string, VideoModelInfo>
+  available_text_to_video_models: Record<string, TextToVideoModelInfo>  // 文生视频模型
   available_ref_video_models: Record<string, RefVideoModelInfo>  // 视频生视频模型
 }
 
@@ -245,6 +284,7 @@ export interface ConfigUpdateRequest {
   image?: Partial<ImageConfig>
   image_edit?: Partial<ImageEditConfig>
   video?: Partial<VideoConfig>
+  text_to_video?: Partial<TextToVideoConfig>  // 文生视频配置
   ref_video?: Partial<RefVideoConfig>  // 视频生视频配置
   oss?: Partial<OSSConfig>
 }
@@ -1256,8 +1296,8 @@ export interface VideoStudioTask {
   project_id: string
   name: string
   
-  // 任务类型
-  task_type: 'image_to_video' | 'reference_to_video'  // 图生视频或视频生视频
+  // 任务类型: image_to_video(图生视频), reference_to_video(视频生视频), text_to_video(文生视频)
+  task_type: 'image_to_video' | 'reference_to_video' | 'text_to_video'
   
   // 图生视频参数
   mode: 'first_frame' | 'first_last_frame'
@@ -1286,6 +1326,9 @@ export interface VideoStudioTask {
   size?: string  // 分辨率（宽*高格式）
   r2v_prompt_extend?: boolean  // 视频生视频提示词改写
   
+  // 文生视频专用
+  t2v_prompt_extend?: boolean  // 文生视频智能改写
+  
   group_count: number
   video_urls: string[]
   selected_video_url?: string
@@ -1303,12 +1346,12 @@ export const videoStudioApi = {
   create: (data: {
     project_id: string
     name?: string
-    task_type?: 'image_to_video' | 'reference_to_video'  // 任务类型
+    task_type?: 'image_to_video' | 'reference_to_video' | 'text_to_video'  // 任务类型
     // 图生视频参数
     mode?: string
     first_frame_url?: string  // 图生视频需要
     last_frame_url?: string
-    audio_url?: string
+    audio_url?: string  // 自定义音频URL（图生视频/文生视频支持）
     // 视频生视频参数
     reference_video_urls?: string[]  // 视频生视频需要
     // 通用参数
@@ -1326,12 +1369,14 @@ export const videoStudioApi = {
     // 视频生视频专用
     size?: string  // 分辨率（宽*高格式）
     r2v_prompt_extend?: boolean  // 视频生视频提示词改写
+    // 文生视频专用
+    t2v_prompt_extend?: boolean  // 文生视频智能改写
     group_count?: number
   }) => api.post<any, { task: VideoStudioTask }>('/video-studio', data),
   update: (id: string, data: { 
     name?: string
     selected_video_url?: string
-    task_type?: 'image_to_video' | 'reference_to_video'  // 任务类型
+    task_type?: 'image_to_video' | 'reference_to_video' | 'text_to_video'  // 任务类型
     prompt?: string
     negative_prompt?: string
     model?: string
@@ -1345,8 +1390,9 @@ export const videoStudioApi = {
     first_frame_url?: string
     audio_url?: string
     reference_video_urls?: string[]  // 参考视频URL列表
-    size?: string  // 视频生视频分辨率
+    size?: string  // 分辨率（宽*高格式）
     r2v_prompt_extend?: boolean  // 视频生视频提示词改写
+    t2v_prompt_extend?: boolean  // 文生视频智能改写
     group_count?: number
   }) => 
     api.put<any, VideoStudioTask>(`/video-studio/${id}`, data),
