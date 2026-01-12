@@ -11,7 +11,6 @@ from app.models.gallery import GalleryImage
 from app.services.storage import storage_service
 from app.services.dashscope.text_to_image import TextToImageService
 from app.services.dashscope.image_to_image import ImageToImageService
-from app.services.oss import oss_service
 from app.config import get_config
 
 router = APIRouter()
@@ -211,6 +210,7 @@ async def generate_frame(request: FrameGenerateRequest):
                 service = QwenImageEditService(QWEN_IMAGE_EDIT_PLUS_MODEL_INFO)
                 service.configure(config.dashscope_api_key, "")
                 
+                # 服务层会自动处理 OSS 上传
                 urls = await service.generate(
                     prompt=request.prompt,
                     images=ref_urls[:3],  # qwen 最多3张参考图
@@ -219,7 +219,8 @@ async def generate_frame(request: FrameGenerateRequest):
                     size=request.size if request.n == 1 else None,
                     prompt_extend=request.prompt_extend,
                     watermark=request.watermark,
-                    seed=request.seed
+                    seed=request.seed,
+                    project_id=request.project_id
                 )
             else:
                 # 使用 wan2.5-i2i-preview 或其他图生图模型
@@ -243,6 +244,7 @@ async def generate_frame(request: FrameGenerateRequest):
             # 确定文生图模型
             t2i_model = model if model in ['wan2.6-t2i', 'wan2.5-t2i-preview'] else None
             
+            # 服务层会自动处理 OSS 上传
             result = await t2i_service.generate_batch(
                 prompt=request.prompt, 
                 negative_prompt=request.negative_prompt,
@@ -259,16 +261,8 @@ async def generate_frame(request: FrameGenerateRequest):
             else:
                 urls = result
         
-        # 上传图片到 OSS
-        final_urls = []
-        for url in urls:
-            if url and oss_service.is_enabled():
-                oss_url = oss_service.upload_image(url, request.project_id)
-                if oss_url != url:
-                    print(f"[首帧生成] 图片已上传到 OSS: {oss_url[:60]}...")
-                final_urls.append(oss_url)
-            else:
-                final_urls.append(url)
+        # 所有服务层都已处理 OSS 上传，直接使用返回的 URL
+        final_urls = urls
         
         # 使用第一张图片作为主要结果
         main_url = final_urls[0] if final_urls else None
@@ -335,17 +329,18 @@ async def generate_frames_batch(request: FrameBatchGenerateRequest):
             ref_urls = get_shot_reference_urls(request.project_id, shot)
             
             if ref_urls:
-                # 使用多图生图
+                # 使用多图生图（服务层会自动处理 OSS 上传）
                 i2i_service = ImageToImageService()
                 enhanced_prompt = f"参考输入的图片素材，{prompt}"
                 url = await i2i_service.generate_with_multi_images(
                     prompt=enhanced_prompt,
-                    image_urls=ref_urls
+                    image_urls=ref_urls,
+                    project_id=request.project_id
                 )
             else:
-                # 使用纯文生图
+                # 使用纯文生图（服务层会自动处理 OSS 上传）
                 t2i_service = TextToImageService()
-                url = await t2i_service.generate(prompt)
+                url = await t2i_service.generate(prompt, project_id=request.project_id)
             
             frame = storage_service.get_frame_by_shot(request.project_id, shot.id)
             if not frame:

@@ -339,15 +339,16 @@ async def generate_character_images(character_id: str, request: CharacterGenerat
         )
         
         if image_urls:
-            # 使用图生图服务（带风格图片）
+            # 使用图生图服务（带风格图片）- 服务层会自动处理 OSS 上传
             i2i_service = ImageToImageService()
             url = await i2i_service.generate_with_multi_images(
                 prompt=final_prompt,
                 image_urls=image_urls,
-                negative_prompt=negative_prompt
+                negative_prompt=negative_prompt,
+                project_id=character.project_id
             )
         else:
-            # 使用文生图服务
+            # 使用文生图服务 - 服务层会自动处理 OSS 上传
             t2i_service = TextToImageService()
             url = await t2i_service.generate(
                 final_prompt, 
@@ -414,13 +415,16 @@ async def generate_all_character_images(character_id: str, request: CharacterGen
         )
         
         if image_urls:
+            # 服务层会自动处理 OSS 上传
             i2i_service = ImageToImageService()
             url = await i2i_service.generate_with_multi_images(
                 prompt=final_prompt,
                 image_urls=image_urls,
-                negative_prompt=negative_prompt
+                negative_prompt=negative_prompt,
+                project_id=character.project_id
             )
         else:
+            # 服务层会自动处理 OSS 上传
             t2i_service = TextToImageService()
             url = await t2i_service.generate(
                 final_prompt, 

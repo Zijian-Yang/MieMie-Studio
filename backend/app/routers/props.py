@@ -318,13 +318,16 @@ async def generate_prop_images(prop_id: str, request: PropGenerateRequest):
     
     try:
         if image_urls:
+            # 服务层会自动处理 OSS 上传
             i2i_service = ImageToImageService()
             url = await i2i_service.generate_with_multi_images(
                 prompt=final_prompt,
                 image_urls=image_urls,
-                negative_prompt=negative_prompt
+                negative_prompt=negative_prompt,
+                project_id=prop.project_id
             )
         else:
+            # 服务层会自动处理 OSS 上传
             t2i_service = TextToImageService()
             url = await t2i_service.generate(
                 final_prompt, 
@@ -385,13 +388,16 @@ async def generate_all_prop_images(prop_id: str, request: PropGenerateAllRequest
     
     async def generate_group(group_index: int) -> PropImage:
         if image_urls:
+            # 服务层会自动处理 OSS 上传
             i2i_service = ImageToImageService()
             url = await i2i_service.generate_with_multi_images(
                 prompt=final_prompt,
                 image_urls=image_urls,
-                negative_prompt=negative_prompt
+                negative_prompt=negative_prompt,
+                project_id=prop.project_id
             )
         else:
+            # 服务层会自动处理 OSS 上传
             t2i_service = TextToImageService()
             url = await t2i_service.generate(
                 final_prompt, 

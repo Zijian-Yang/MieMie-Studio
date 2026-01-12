@@ -469,11 +469,13 @@ async def generate_with_wanx_i2i(
     async def generate_single_group(group_index: int) -> List[StudioTaskImage]:
         """生成单组图片（一次请求生成 n 张）"""
         try:
+            # 服务层会自动处理 OSS 上传
             urls = await i2i_service.generate_with_multi_images(
                 prompt=task.prompt,
                 image_urls=ref_urls,
                 negative_prompt=task.negative_prompt,
-                n=n  # 传递 n 参数
+                n=n,
+                project_id=task.project_id  # 传递 project_id 让服务层处理 OSS 上传
             )
             # 如果返回单个URL，转为列表
             if isinstance(urls, str):
@@ -481,17 +483,9 @@ async def generate_with_wanx_i2i(
             
             images = []
             for i, url in enumerate(urls):
-                # 上传图片到 OSS
-                final_url = url
-                if url and oss_service.is_enabled():
-                    oss_url = oss_service.upload_image(url, task.project_id)
-                    if oss_url != url:
-                        final_url = oss_url
-                        print(f"[图片工作室] 图片已上传到 OSS: {oss_url[:60]}...")
-                
                 images.append(StudioTaskImage(
                     group_index=group_index * n + i,  # 全局索引
-                    url=final_url,
+                    url=url,
                     prompt_used=task.prompt
                 ))
             return images
@@ -564,6 +558,7 @@ async def generate_with_qwen_image_edit(
         """生成单组图片（一次请求生成 n 张）"""
         nonlocal image_index
         try:
+            # 服务层会自动处理 OSS 上传
             urls = await service.generate(
                 prompt=task.prompt,
                 images=ref_urls,
@@ -572,22 +567,16 @@ async def generate_with_qwen_image_edit(
                 size=size if n == 1 else None,
                 prompt_extend=prompt_extend,
                 watermark=watermark,
-                seed=seed
+                seed=seed,
+                project_id=task.project_id
             )
             
+            # 服务层已处理 OSS 上传
             images = []
             for i, url in enumerate(urls):
-                # 上传图片到 OSS
-                final_url = url
-                if url and oss_service.is_enabled():
-                    oss_url = oss_service.upload_image(url, task.project_id)
-                    if oss_url != url:
-                        final_url = oss_url
-                        print(f"[图片工作室] 图片已上传到 OSS: {oss_url[:60]}...")
-                
                 images.append(StudioTaskImage(
                     group_index=group_index * n + i,
-                    url=final_url,
+                    url=url,
                     prompt_used=task.prompt
                 ))
             return images

@@ -233,7 +233,8 @@ async def generate_style_images(style_id: str, request: StyleGenerateRequest):
     negative_prompt = request.negative_prompt or style.negative_prompt
     
     try:
-        url = await t2i_service.generate(style_prompt, negative_prompt=negative_prompt)
+        # 服务层会自动处理 OSS 上传
+        url = await t2i_service.generate(style_prompt, negative_prompt=negative_prompt, project_id=style.project_id)
         
         image = StyleImage(
             group_index=request.group_index,
@@ -274,7 +275,8 @@ async def generate_all_style_images(style_id: str, request: StyleGenerateAllRequ
     negative_prompt = request.negative_prompt or style.negative_prompt
     
     async def generate_group(group_index: int) -> StyleImage:
-        url = await t2i_service.generate(style_prompt, negative_prompt=negative_prompt)
+        # 服务层会自动处理 OSS 上传
+        url = await t2i_service.generate(style_prompt, negative_prompt=negative_prompt, project_id=style.project_id)
         return StyleImage(
             group_index=group_index,
             url=url,

@@ -215,6 +215,22 @@ export interface TextToVideoModelInfo {
   audio_max_size_mb?: number  // 音频最大文件大小
 }
 
+// 首尾帧生视频模型信息
+export interface KeyframeToVideoModelInfo {
+  name: string
+  description?: string
+  resolutions: string[]  // 支持的分辨率档位列表 ["480P", "720P", "1080P"]
+  default_resolution: string  // 默认分辨率档位
+  duration: number  // 固定时长（秒）
+  prompt_max_length?: number  // 提示词最大长度
+  negative_prompt_max_length?: number  // 反向提示词最大长度
+  supports_prompt_extend: boolean
+  supports_watermark: boolean
+  supports_seed: boolean
+  supports_negative_prompt: boolean
+  supports_audio: boolean  // 是否支持音频（wan2.2不支持）
+}
+
 // 视频生视频模型信息
 export interface RefVideoModelInfo {
   name: string
@@ -275,6 +291,7 @@ export interface ConfigResponse {
   available_video_models: Record<string, VideoModelInfo>
   available_text_to_video_models: Record<string, TextToVideoModelInfo>  // 文生视频模型
   available_ref_video_models: Record<string, RefVideoModelInfo>  // 视频生视频模型
+  available_keyframe_to_video_models: Record<string, KeyframeToVideoModelInfo>  // 首尾帧生视频模型
 }
 
 export interface ConfigUpdateRequest {
@@ -1296,8 +1313,8 @@ export interface VideoStudioTask {
   project_id: string
   name: string
   
-  // 任务类型: image_to_video(图生视频), reference_to_video(视频生视频), text_to_video(文生视频)
-  task_type: 'image_to_video' | 'reference_to_video' | 'text_to_video'
+  // 任务类型: image_to_video(图生视频), reference_to_video(视频生视频), text_to_video(文生视频), keyframe_to_video(首尾帧生视频)
+  task_type: 'image_to_video' | 'reference_to_video' | 'text_to_video' | 'keyframe_to_video'
   
   // 图生视频参数
   mode: 'first_frame' | 'first_last_frame'

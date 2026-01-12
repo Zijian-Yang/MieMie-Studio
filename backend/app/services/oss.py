@@ -2,6 +2,8 @@
 阿里云 OSS 存储服务
 用于将生成的图片和视频持久化存储到 OSS
 支持多用户独立 OSS 配置
+
+注意：使用线程池执行 OSS 上传操作，避免在异步环境中的并发问题
 """
 
 import os
@@ -9,6 +11,8 @@ import uuid
 import hashlib
 import requests
 import threading
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple
@@ -22,9 +26,15 @@ except ImportError:
 
 from app.config import get_config, OSSConfig
 
+# 全局线程池，用于执行 OSS 上传操作
+_oss_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="oss_upload")
+
 
 class OSSService:
-    """OSS 存储服务"""
+    """OSS 存储服务
+    
+    使用线程池执行 OSS 操作，避免 oss2 SDK 在异步环境中的连接问题
+    """
     
     def __init__(self):
         self._auth = None
@@ -59,6 +69,7 @@ class OSSService:
         
         try:
             auth = oss2.Auth(config.access_key_id, config.access_key_secret)
+            # 创建独立的 bucket 实例，避免连接复用问题
             bucket = oss2.Bucket(auth, config.endpoint_url, config.bucket_name)
             return True, bucket
         except Exception as e:
@@ -99,7 +110,7 @@ class OSSService:
         else:
             return f"{prefix}/{file_type}/{date_str}/{timestamp}_{unique_id}.{extension}"
     
-    def upload_from_url(
+    def _upload_from_url_sync(
         self, 
         url: str, 
         file_type: str = "image", 
@@ -107,7 +118,8 @@ class OSSService:
         project_id: str = ""
     ) -> Tuple[bool, str]:
         """
-        从 URL 下载文件并上传到 OSS
+        同步方法：从 URL 下载文件并上传到 OSS
+        此方法应在线程池中调用，避免阻塞异步事件循环
         
         Args:
             url: 原始文件 URL
@@ -122,49 +134,131 @@ class OSSService:
             # OSS 未启用，返回原始 URL
             return True, url
         
-        success, bucket = self._init_client()
-        if not success or bucket is None:
-            return False, "OSS 初始化失败"
-        
-        try:
-            # 下载文件
-            response = requests.get(url, timeout=60)
-            if response.status_code != 200:
-                return False, f"下载文件失败: HTTP {response.status_code}"
+        # 使用锁确保每次只有一个线程初始化客户端
+        with self._lock:
+            success, bucket = self._init_client()
+            if not success or bucket is None:
+                return False, "OSS 初始化失败"
             
-            # 根据 Content-Type 自动判断扩展名
-            content_type = response.headers.get('Content-Type', '')
-            if 'jpeg' in content_type or 'jpg' in content_type:
-                extension = 'jpg'
-            elif 'png' in content_type:
-                extension = 'png'
-            elif 'webp' in content_type:
-                extension = 'webp'
-            elif 'mp4' in content_type:
-                extension = 'mp4'
-            elif 'video' in content_type:
-                extension = 'mp4'
-            
-            # 生成对象键
-            object_key = self._generate_object_key(file_type, extension, project_id)
-            
-            # 上传到 OSS
-            result = bucket.put_object(object_key, response.content)
-            
-            if result.status == 200:
-                # 构建公开访问 URL
-                config = self._get_config()
-                oss_url = f"https://{config.bucket_name}.{config.endpoint_host}/{object_key}"
-                return True, oss_url
-            else:
-                return False, f"上传失败: HTTP {result.status}"
+            try:
+                # 下载文件
+                response = requests.get(url, timeout=60)
+                if response.status_code != 200:
+                    return False, f"下载文件失败: HTTP {response.status_code}"
                 
-        except requests.exceptions.Timeout:
-            return False, "下载超时"
-        except requests.exceptions.RequestException as e:
-            return False, f"下载失败: {str(e)}"
-        except Exception as e:
-            return False, f"上传失败: {str(e)}"
+                # 根据 Content-Type 自动判断扩展名
+                content_type = response.headers.get('Content-Type', '')
+                if 'jpeg' in content_type or 'jpg' in content_type:
+                    extension = 'jpg'
+                elif 'png' in content_type:
+                    extension = 'png'
+                elif 'webp' in content_type:
+                    extension = 'webp'
+                elif 'mp4' in content_type:
+                    extension = 'mp4'
+                elif 'video' in content_type:
+                    extension = 'mp4'
+                
+                # 生成对象键
+                object_key = self._generate_object_key(file_type, extension, project_id)
+                
+                # 上传到 OSS
+                result = bucket.put_object(object_key, response.content)
+                
+                if result.status == 200:
+                    # 构建公开访问 URL
+                    config = self._get_config()
+                    oss_url = f"https://{config.bucket_name}.{config.endpoint_host}/{object_key}"
+                    return True, oss_url
+                else:
+                    return False, f"上传失败: HTTP {result.status}"
+                    
+            except requests.exceptions.Timeout:
+                return False, "下载超时"
+            except requests.exceptions.RequestException as e:
+                return False, f"下载失败: {str(e)}"
+            except Exception as e:
+                return False, f"上传失败: {str(e)}"
+    
+    def upload_from_url(
+        self, 
+        url: str, 
+        file_type: str = "image", 
+        extension: str = "png",
+        project_id: str = ""
+    ) -> Tuple[bool, str]:
+        """
+        从 URL 下载文件并上传到 OSS（同步版本）
+        
+        Args:
+            url: 原始文件 URL
+            file_type: 文件类型
+            extension: 文件扩展名
+            project_id: 项目ID
+        
+        Returns:
+            (success, url_or_error): 成功时返回 OSS URL，失败时返回错误信息
+        """
+        return self._upload_from_url_sync(url, file_type, extension, project_id)
+    
+    async def upload_from_url_async(
+        self, 
+        url: str, 
+        file_type: str = "image", 
+        extension: str = "png",
+        project_id: str = ""
+    ) -> Tuple[bool, str]:
+        """
+        异步方法：从 URL 下载文件并上传到 OSS
+        使用线程池执行，避免阻塞异步事件循环和 oss2 SDK 的并发问题
+        
+        Args:
+            url: 原始文件 URL
+            file_type: 文件类型
+            extension: 文件扩展名
+            project_id: 项目ID
+        
+        Returns:
+            (success, url_or_error): 成功时返回 OSS URL，失败时返回错误信息
+        """
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            _oss_executor,
+            self._upload_from_url_sync,
+            url, file_type, extension, project_id
+        )
+    
+    def _upload_from_bytes_sync(
+        self, 
+        data: bytes, 
+        file_type: str = "image", 
+        extension: str = "png",
+        project_id: str = ""
+    ) -> Tuple[bool, str]:
+        """
+        同步方法：上传字节数据到 OSS
+        """
+        if not self.is_enabled():
+            return False, "OSS 未启用"
+        
+        with self._lock:
+            success, bucket = self._init_client()
+            if not success or bucket is None:
+                return False, "OSS 初始化失败"
+            
+            try:
+                object_key = self._generate_object_key(file_type, extension, project_id)
+                result = bucket.put_object(object_key, data)
+                
+                if result.status == 200:
+                    config = self._get_config()
+                    oss_url = f"https://{config.bucket_name}.{config.endpoint_host}/{object_key}"
+                    return True, oss_url
+                else:
+                    return False, f"上传失败: HTTP {result.status}"
+                    
+            except Exception as e:
+                return False, f"上传失败: {str(e)}"
     
     def upload_from_bytes(
         self, 
@@ -174,7 +268,7 @@ class OSSService:
         project_id: str = ""
     ) -> Tuple[bool, str]:
         """
-        上传字节数据到 OSS
+        上传字节数据到 OSS（同步版本）
         
         Args:
             data: 文件字节数据
@@ -185,30 +279,39 @@ class OSSService:
         Returns:
             (success, url_or_error): 成功时返回 OSS URL，失败时返回错误信息
         """
+        return self._upload_from_bytes_sync(data, file_type, extension, project_id)
+    
+    def _upload_bytes_sync(self, data: bytes, object_path: str) -> str:
+        """
+        同步方法：直接上传字节数据到指定OSS路径
+        """
         if not self.is_enabled():
-            return False, "OSS 未启用"
+            raise Exception("OSS 未启用")
         
-        success, bucket = self._init_client()
-        if not success or bucket is None:
-            return False, "OSS 初始化失败"
-        
-        try:
-            object_key = self._generate_object_key(file_type, extension, project_id)
-            result = bucket.put_object(object_key, data)
+        with self._lock:
+            success, bucket = self._init_client()
+            if not success or bucket is None:
+                raise Exception("OSS 初始化失败")
             
-            if result.status == 200:
+            try:
                 config = self._get_config()
-                oss_url = f"https://{config.bucket_name}.{config.endpoint_host}/{object_key}"
-                return True, oss_url
-            else:
-                return False, f"上传失败: HTTP {result.status}"
+                prefix = config.prefix.rstrip('/')
+                full_path = f"{prefix}/{object_path}"
                 
-        except Exception as e:
-            return False, f"上传失败: {str(e)}"
+                result = bucket.put_object(full_path, data)
+                
+                if result.status == 200:
+                    oss_url = f"https://{config.bucket_name}.{config.endpoint_host}/{full_path}"
+                    return oss_url
+                else:
+                    raise Exception(f"上传失败: HTTP {result.status}")
+                    
+            except Exception as e:
+                raise Exception(f"上传失败: {str(e)}")
     
     def upload_bytes(self, data: bytes, object_path: str) -> str:
         """
-        简化版：直接上传字节数据到指定OSS路径
+        简化版：直接上传字节数据到指定OSS路径（同步版本）
         
         Args:
             data: 文件字节数据
@@ -217,32 +320,11 @@ class OSSService:
         Returns:
             OSS URL，失败时抛出异常
         """
-        if not self.is_enabled():
-            raise Exception("OSS 未启用")
-        
-        success, bucket = self._init_client()
-        if not success or bucket is None:
-            raise Exception("OSS 初始化失败")
-        
-        try:
-            config = self._get_config()
-            prefix = config.prefix.rstrip('/')
-            full_path = f"{prefix}/{object_path}"
-            
-            result = bucket.put_object(full_path, data)
-            
-            if result.status == 200:
-                oss_url = f"https://{config.bucket_name}.{config.endpoint_host}/{full_path}"
-                return oss_url
-            else:
-                raise Exception(f"上传失败: HTTP {result.status}")
-                
-        except Exception as e:
-            raise Exception(f"上传失败: {str(e)}")
+        return self._upload_bytes_sync(data, object_path)
     
     def upload_image(self, url: str, project_id: str = "") -> str:
         """
-        上传图片到 OSS，返回持久化 URL
+        上传图片到 OSS，返回持久化 URL（同步版本）
         如果 OSS 未启用或上传失败，返回原始 URL
         
         Args:
@@ -259,9 +341,30 @@ class OSSService:
             print(f"图片上传到 OSS 失败: {result}，使用原始 URL")
             return url
     
+    async def upload_image_async(self, url: str, project_id: str = "") -> str:
+        """
+        异步上传图片到 OSS，返回持久化 URL
+        如果 OSS 未启用或上传失败，返回原始 URL
+        
+        推荐在异步环境中使用此方法，避免并发问题
+        
+        Args:
+            url: 原始图片 URL
+            project_id: 项目ID
+        
+        Returns:
+            持久化后的图片 URL
+        """
+        success, result = await self.upload_from_url_async(url, "image", "png", project_id)
+        if success:
+            return result
+        else:
+            print(f"图片上传到 OSS 失败: {result}，使用原始 URL")
+            return url
+    
     def upload_video(self, url: str, project_id: str = "") -> str:
         """
-        上传视频到 OSS，返回持久化 URL
+        上传视频到 OSS，返回持久化 URL（同步版本）
         如果 OSS 未启用或上传失败，返回原始 URL
         
         Args:
@@ -272,6 +375,27 @@ class OSSService:
             持久化后的视频 URL
         """
         success, result = self.upload_from_url(url, "video", "mp4", project_id)
+        if success:
+            return result
+        else:
+            print(f"视频上传到 OSS 失败: {result}，使用原始 URL")
+            return url
+    
+    async def upload_video_async(self, url: str, project_id: str = "") -> str:
+        """
+        异步上传视频到 OSS，返回持久化 URL
+        如果 OSS 未启用或上传失败，返回原始 URL
+        
+        推荐在异步环境中使用此方法，避免并发问题
+        
+        Args:
+            url: 原始视频 URL
+            project_id: 项目ID
+        
+        Returns:
+            持久化后的视频 URL
+        """
+        success, result = await self.upload_from_url_async(url, "video", "mp4", project_id)
         if success:
             return result
         else:

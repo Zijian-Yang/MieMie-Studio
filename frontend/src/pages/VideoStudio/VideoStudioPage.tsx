@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { Card, Button, List, Modal, Input, Select, InputNumber, Switch, message, Popconfirm, Space, Empty, Spin, Row, Col, Tabs, Tag, Form } from 'antd'
 import { PlusOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, VideoCameraOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons'
-import { videoStudioApi, galleryApi, audioApi, videoLibraryApi, settingsApi, VideoStudioTask, GalleryImage, AudioItem, VideoLibraryItem, VideoModelInfo, RefVideoModelInfo, TextToVideoModelInfo } from '../../services/api'
+import { videoStudioApi, galleryApi, audioApi, videoLibraryApi, settingsApi, VideoStudioTask, GalleryImage, AudioItem, VideoLibraryItem, VideoModelInfo, RefVideoModelInfo, TextToVideoModelInfo, KeyframeToVideoModelInfo } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 
 const { TextArea } = Input
@@ -28,9 +28,10 @@ const VideoStudioPage = () => {
   const [videoLibraryItems, setVideoLibraryItems] = useState<VideoLibraryItem[]>([])
   
   // 创建任务表单
-  const [taskType, setTaskType] = useState<'image_to_video' | 'reference_to_video' | 'text_to_video'>('image_to_video')  // 任务类型
+  const [taskType, setTaskType] = useState<'image_to_video' | 'reference_to_video' | 'text_to_video' | 'keyframe_to_video'>('image_to_video')  // 任务类型
   const [taskName, setTaskName] = useState('')
   const [firstFrameUrl, setFirstFrameUrl] = useState('')
+  const [lastFrameUrl, setLastFrameUrl] = useState('')  // 首尾帧生视频的尾帧图
   const [audioUrl, setAudioUrl] = useState('')
   const [referenceVideoUrls, setReferenceVideoUrls] = useState<string[]>([])  // 参考视频URL列表
   const [prompt, setPrompt] = useState('')
@@ -53,6 +54,7 @@ const VideoStudioPage = () => {
   const [videoModels, setVideoModels] = useState<Record<string, VideoModelInfo>>({})
   const [refVideoModels, setRefVideoModels] = useState<Record<string, RefVideoModelInfo>>({})
   const [textToVideoModels, setTextToVideoModels] = useState<Record<string, TextToVideoModelInfo>>({})
+  const [keyframeToVideoModels, setKeyframeToVideoModels] = useState<Record<string, KeyframeToVideoModelInfo>>({})
   
   // 轮询
   const pollingRef = useRef<Set<string>>(new Set())
@@ -87,6 +89,7 @@ const VideoStudioPage = () => {
       setVideoModels(settingsRes.available_video_models)
       setRefVideoModels(settingsRes.available_ref_video_models || {})
       setTextToVideoModels(settingsRes.available_text_to_video_models || {})
+      setKeyframeToVideoModels(settingsRes.available_keyframe_to_video_models || {})
       
       // 启动轮询
       tasksRes.tasks.forEach(task => {
@@ -156,6 +159,16 @@ const VideoStudioPage = () => {
       message.warning('文生视频任务需要提供提示词')
       return
     }
+    if (taskType === 'keyframe_to_video') {
+      if (!firstFrameUrl) {
+        message.warning('请选择首帧图')
+        return
+      }
+      if (!lastFrameUrl) {
+        message.warning('请选择尾帧图')
+        return
+      }
+    }
     
     setCreating(true)
     try {
@@ -163,27 +176,38 @@ const VideoStudioPage = () => {
       const t2vModel = taskType === 'text_to_video' ? (model || 'wan2.6-t2v') : undefined
       const t2vModelInfo = t2vModel ? textToVideoModels[t2vModel] : undefined
       
+      // 确定使用的模型
+      let taskModel = model
+      if (taskType === 'reference_to_video') {
+        taskModel = 'wan2.6-r2v'
+      } else if (taskType === 'text_to_video') {
+        taskModel = t2vModel || 'wan2.6-t2v'
+      } else if (taskType === 'keyframe_to_video') {
+        taskModel = model || 'wan2.2-kf2v-flash'
+      }
+      
       const result = await videoStudioApi.create({
         project_id: projectId,
         name: taskName || undefined,
         task_type: taskType,
-        // 图生视频参数
-        first_frame_url: taskType === 'image_to_video' ? firstFrameUrl : undefined,
+        // 图生视频/首尾帧生视频参数
+        first_frame_url: (taskType === 'image_to_video' || taskType === 'keyframe_to_video') ? firstFrameUrl : undefined,
+        last_frame_url: taskType === 'keyframe_to_video' ? lastFrameUrl : undefined,
         audio_url: taskType === 'image_to_video' ? (audioUrl || undefined) : (taskType === 'text_to_video' ? (audioUrl || undefined) : undefined),
         // 视频生视频参数
         reference_video_urls: taskType === 'reference_to_video' ? referenceVideoUrls : undefined,
         // 通用参数
         prompt,
         negative_prompt: negativePrompt,
-        model: taskType === 'reference_to_video' ? 'wan2.6-r2v' : (taskType === 'text_to_video' ? (t2vModel || 'wan2.6-t2v') : model),
+        model: taskModel,
         duration,
         watermark,
         seed: seed || undefined,
         auto_audio: autoAudio,
         shot_type: shotType,
-        // 图生视频专用
-        resolution: taskType === 'image_to_video' ? resolution : undefined,
-        prompt_extend: taskType === 'image_to_video' ? promptExtend : undefined,
+        // 图生视频/首尾帧生视频专用
+        resolution: (taskType === 'image_to_video' || taskType === 'keyframe_to_video') ? resolution : undefined,
+        prompt_extend: (taskType === 'image_to_video' || taskType === 'keyframe_to_video') ? promptExtend : undefined,
         // 视频生视频专用
         size: taskType === 'reference_to_video' ? size : (taskType === 'text_to_video' ? size : undefined),
         r2v_prompt_extend: taskType === 'reference_to_video' ? r2vPromptExtend : undefined,
@@ -211,6 +235,7 @@ const VideoStudioPage = () => {
     setTaskType('image_to_video')
     setTaskName('')
     setFirstFrameUrl('')
+    setLastFrameUrl('')  // 重置尾帧图
     setAudioUrl('')
     setReferenceVideoUrls([])
     setPrompt('')
@@ -261,8 +286,9 @@ const VideoStudioPage = () => {
   }
 
   // 编辑表单的额外状态（不在 Form 中管理的值）
-  const [editTaskType, setEditTaskType] = useState<'image_to_video' | 'reference_to_video' | 'text_to_video'>('image_to_video')
+  const [editTaskType, setEditTaskType] = useState<'image_to_video' | 'reference_to_video' | 'text_to_video' | 'keyframe_to_video'>('image_to_video')
   const [editFirstFrameUrl, setEditFirstFrameUrl] = useState('')
+  const [editLastFrameUrl, setEditLastFrameUrl] = useState('')  // 首尾帧生视频的尾帧图
   const [editAudioUrl, setEditAudioUrl] = useState('')
   const [editReferenceVideoUrls, setEditReferenceVideoUrls] = useState<string[]>([])
   const [editGroupCount, setEditGroupCount] = useState(1)
@@ -285,13 +311,18 @@ const VideoStudioPage = () => {
   const openEditModal = (task: VideoStudioTask) => {
     setSelectedTask(task)
     // 设置非 Form 管理的值
-    const taskTypeValue = (task.task_type || 'image_to_video') as 'image_to_video' | 'reference_to_video' | 'text_to_video'
+    const taskTypeValue = (task.task_type || 'image_to_video') as 'image_to_video' | 'reference_to_video' | 'text_to_video' | 'keyframe_to_video'
     setEditTaskType(taskTypeValue)
     setEditFirstFrameUrl(task.first_frame_url || '')
+    setEditLastFrameUrl(task.last_frame_url || '')  // 首尾帧生视频的尾帧图
     setEditAudioUrl(task.audio_url || '')
     setEditReferenceVideoUrls(task.reference_video_urls || [])
     setEditGroupCount(task.group_count || 1)
-    setEditModel(task.model || (taskTypeValue === 'text_to_video' ? 'wan2.6-t2v' : 'wan2.5-i2v-preview'))
+    // 根据任务类型设置默认模型
+    let defaultModel = 'wan2.5-i2v-preview'
+    if (taskTypeValue === 'text_to_video') defaultModel = 'wan2.6-t2v'
+    else if (taskTypeValue === 'keyframe_to_video') defaultModel = 'wan2.2-kf2v-flash'
+    setEditModel(task.model || defaultModel)
     setEditR2vPromptExtend(task.r2v_prompt_extend !== false)  // 默认true
     setEditT2vPromptExtend(task.prompt_extend !== false)  // 文生视频智能改写，默认true
     
@@ -329,6 +360,16 @@ const VideoStudioPage = () => {
       message.warning('文生视频任务需要提供提示词')
       return
     }
+    if (editTaskType === 'keyframe_to_video') {
+      if (!editFirstFrameUrl) {
+        message.warning('请选择首帧图')
+        return
+      }
+      if (!editLastFrameUrl) {
+        message.warning('请选择尾帧图')
+        return
+      }
+    }
     
     try {
       setSaving(true)
@@ -352,6 +393,9 @@ const VideoStudioPage = () => {
         updateData.prompt_extend = editT2vPromptExtend
         updateData.size = values.size
         updateData.audio_url = editAudioUrl || undefined
+      } else if (editTaskType === 'keyframe_to_video') {
+        updateData.first_frame_url = editFirstFrameUrl
+        updateData.last_frame_url = editLastFrameUrl
       }
       
       const updatedTask = await videoStudioApi.update(selectedTask.id, updateData)
@@ -540,7 +584,9 @@ const VideoStudioPage = () => {
             ? !firstFrameUrl 
             : taskType === 'reference_to_video'
               ? referenceVideoUrls.length === 0
-              : !prompt  // text_to_video 需要提示词
+              : taskType === 'keyframe_to_video'
+                ? !firstFrameUrl || !lastFrameUrl  // 首尾帧都需要
+                : !prompt  // text_to_video 需要提示词
         }}
         width={700}
       >
@@ -563,14 +609,22 @@ const VideoStudioPage = () => {
                         if (v === 'reference_to_video') {
                           setModel('wan2.6-r2v')
                           setFirstFrameUrl('')
+                          setLastFrameUrl('')
                           setAudioUrl('')
                         } else if (v === 'text_to_video') {
                           setModel('wan2.6-t2v')
                           setFirstFrameUrl('')
+                          setLastFrameUrl('')
                           setReferenceVideoUrls([])
+                        } else if (v === 'keyframe_to_video') {
+                          setModel('wan2.2-kf2v-flash')
+                          setReferenceVideoUrls([])
+                          setAudioUrl('')
+                          setResolution('720P')  // 默认720P
                         } else {
                           setModel('wan2.5-i2v-preview')
                           setReferenceVideoUrls([])
+                          setLastFrameUrl('')
                         }
                       }}
                     >
@@ -590,6 +644,12 @@ const VideoStudioPage = () => {
                         <Space>
                           <Tag color="purple">文生视频</Tag>
                           基于文字描述生成视频
+                        </Space>
+                      </Option>
+                      <Option value="keyframe_to_video">
+                        <Space>
+                          <Tag color="orange">首尾帧生视频</Tag>
+                          基于首帧和尾帧图生成平滑过渡视频
                         </Space>
                       </Option>
                     </Select>
@@ -661,8 +721,71 @@ const VideoStudioPage = () => {
                     </div>
                   )}
                   
+                  {/* 首尾帧生视频：首帧图和尾帧图选择 */}
+                  {taskType === 'keyframe_to_video' && (
+                    <>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>首帧图 *</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={firstFrameUrl || undefined}
+                              onChange={setFirstFrameUrl}
+                              placeholder="从图库选择首帧图"
+                              optionLabelProp="label"
+                            >
+                              {galleryImages.map(img => (
+                                <Option key={img.id} value={img.url} label={img.name}>
+                                  <Space>
+                                    <img src={img.url} alt="" style={{ width: 40, height: 40, objectFit: 'cover' }} />
+                                    {img.name}
+                                  </Space>
+                                </Option>
+                              ))}
+                            </Select>
+                            {firstFrameUrl && (
+                              <div style={{ marginTop: 8 }}>
+                                <img src={firstFrameUrl} alt="首帧预览" style={{ maxWidth: 150, maxHeight: 100 }} />
+                              </div>
+                            )}
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>尾帧图 *</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={lastFrameUrl || undefined}
+                              onChange={setLastFrameUrl}
+                              placeholder="从图库选择尾帧图"
+                              optionLabelProp="label"
+                            >
+                              {galleryImages.map(img => (
+                                <Option key={img.id} value={img.url} label={img.name}>
+                                  <Space>
+                                    <img src={img.url} alt="" style={{ width: 40, height: 40, objectFit: 'cover' }} />
+                                    {img.name}
+                                  </Space>
+                                </Option>
+                              ))}
+                            </Select>
+                            {lastFrameUrl && (
+                              <div style={{ marginTop: 8 }}>
+                                <img src={lastFrameUrl} alt="尾帧预览" style={{ maxWidth: 150, maxHeight: 100 }} />
+                              </div>
+                            )}
+                          </div>
+                        </Col>
+                      </Row>
+                      <div style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>
+                        首尾帧图片要求：JPEG/JPG/PNG/BMP/WEBP格式，尺寸360-2000像素，最大10MB。输出视频宽高比以首帧为准。
+                      </div>
+                    </>
+                  )}
+                  
                   <div style={{ marginBottom: 16 }}>
-                    <div style={{ marginBottom: 8 }}>提示词</div>
+                    <div style={{ marginBottom: 8 }}>提示词{taskType === 'text_to_video' ? ' *' : ''}</div>
                     <TextArea
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
@@ -1303,6 +1426,139 @@ const VideoStudioPage = () => {
                       </div>
                     </>
                   )}
+                  
+                  {/* 首尾帧生视频参数 */}
+                  {taskType === 'keyframe_to_video' && (
+                    <>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>模型</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={model}
+                              onChange={(v) => {
+                                setModel(v)
+                                const modelInfo = keyframeToVideoModels[v]
+                                if (modelInfo?.default_resolution) {
+                                  setResolution(modelInfo.default_resolution)
+                                }
+                              }}
+                            >
+                              {Object.entries(keyframeToVideoModels).map(([key, info]) => (
+                                <Option key={key} value={key}>{info.name}</Option>
+                              ))}
+                            </Select>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              {keyframeToVideoModels[model]?.description}
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>分辨率</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={resolution}
+                              onChange={setResolution}
+                            >
+                              {(keyframeToVideoModels[model]?.resolutions || ['480P', '720P', '1080P']).map((res: string) => (
+                                <Option key={res} value={res}>{res}</Option>
+                              ))}
+                            </Select>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              分辨率直接影响费用：1080P {'>'} 720P {'>'} 480P
+                            </div>
+                          </div>
+                        </Col>
+                      </Row>
+                      
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>时长</div>
+                            <Input value="5 秒（固定）" disabled />
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              首尾帧生视频固定生成5秒视频
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>生成组数</div>
+                            <InputNumber
+                              style={{ width: '100%' }}
+                              min={1}
+                              max={5}
+                              value={groupCount}
+                              onChange={(v) => setGroupCount(v || 1)}
+                            />
+                          </div>
+                        </Col>
+                      </Row>
+                      
+                      <Row gutter={16}>
+                        <Col span={8}>
+                          <div style={{ marginBottom: 16 }}>
+                            <Space>
+                              <Switch
+                                checked={promptExtend}
+                                onChange={setPromptExtend}
+                              />
+                              <span>智能改写</span>
+                            </Space>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              使用大模型优化提示词
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={8}>
+                          <div style={{ marginBottom: 16 }}>
+                            <Space>
+                              <Switch
+                                checked={watermark}
+                                onChange={setWatermark}
+                              />
+                              <span>添加水印</span>
+                            </Space>
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              右下角"AI生成"标识
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={8}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>随机种子</div>
+                            <InputNumber
+                              style={{ width: '100%' }}
+                              min={0}
+                              max={2147483647}
+                              value={seed}
+                              onChange={(v) => setSeed(v || undefined)}
+                              placeholder="留空随机"
+                            />
+                          </div>
+                        </Col>
+                      </Row>
+                      
+                      <div style={{ 
+                        padding: 12, 
+                        background: '#1a1a1a', 
+                        borderRadius: 8, 
+                        marginTop: 8,
+                        border: '1px solid #333'
+                      }}>
+                        <div style={{ fontWeight: 500, marginBottom: 8 }}>💡 使用提示</div>
+                        <ul style={{ fontSize: 12, color: '#888', paddingLeft: 16, margin: 0 }}>
+                          <li>首尾帧生视频会生成从首帧平滑过渡到尾帧的5秒视频</li>
+                          <li>输出视频的宽高比将以首帧图像为准</li>
+                          <li>提示词可选，用于描述中间过渡过程（如运镜、动作变化）</li>
+                          <li>如果首尾帧主体/场景变化大，建议描写变化过程</li>
+                          <li>生成的视频为无声视频</li>
+                        </ul>
+                      </div>
+                    </>
+                  )}
                 </div>
               )
             }
@@ -1422,7 +1678,9 @@ const VideoStudioPage = () => {
             ? !editFirstFrameUrl 
             : editTaskType === 'reference_to_video'
               ? editReferenceVideoUrls.length === 0
-              : false  // text_to_video 只需要提示词，在 handleSaveEdit 中验证
+              : editTaskType === 'keyframe_to_video'
+                ? !editFirstFrameUrl || !editLastFrameUrl
+                : false  // text_to_video 只需要提示词，在 handleSaveEdit 中验证
         }}
       >
         <Tabs
@@ -1438,8 +1696,16 @@ const VideoStudioPage = () => {
                   
                   {/* 任务类型标识（只读） */}
                   <div style={{ marginBottom: 16, padding: '8px 12px', background: '#1f1f1f', borderRadius: 4 }}>
-                    <Tag color={editTaskType === 'image_to_video' ? 'blue' : editTaskType === 'reference_to_video' ? 'green' : 'purple'}>
-                      {editTaskType === 'image_to_video' ? '图生视频' : editTaskType === 'reference_to_video' ? '视频生视频' : '文生视频'}
+                    <Tag color={
+                      editTaskType === 'image_to_video' ? 'blue' : 
+                      editTaskType === 'reference_to_video' ? 'green' : 
+                      editTaskType === 'keyframe_to_video' ? 'orange' : 
+                      'purple'
+                    }>
+                      {editTaskType === 'image_to_video' ? '图生视频' : 
+                       editTaskType === 'reference_to_video' ? '视频生视频' : 
+                       editTaskType === 'keyframe_to_video' ? '首尾帧生视频' :
+                       '文生视频'}
                     </Tag>
                   </div>
                   
@@ -1511,7 +1777,70 @@ const VideoStudioPage = () => {
                     </div>
                   )}
                   
-                  <Form.Item name="prompt" label="提示词">
+                  {/* 首尾帧生视频：首帧图和尾帧图选择 */}
+                  {editTaskType === 'keyframe_to_video' && (
+                    <>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>首帧图 *</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={editFirstFrameUrl || undefined}
+                              onChange={setEditFirstFrameUrl}
+                              placeholder="从图库选择首帧图"
+                              optionLabelProp="label"
+                            >
+                              {galleryImages.map(img => (
+                                <Option key={img.id} value={img.url} label={img.name}>
+                                  <Space>
+                                    <img src={img.url} alt="" style={{ width: 40, height: 40, objectFit: 'cover' }} />
+                                    {img.name}
+                                  </Space>
+                                </Option>
+                              ))}
+                            </Select>
+                            {editFirstFrameUrl && (
+                              <div style={{ marginTop: 8 }}>
+                                <img src={editFirstFrameUrl} alt="首帧预览" style={{ maxWidth: 120, maxHeight: 80, borderRadius: 4 }} />
+                              </div>
+                            )}
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>尾帧图 *</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={editLastFrameUrl || undefined}
+                              onChange={setEditLastFrameUrl}
+                              placeholder="从图库选择尾帧图"
+                              optionLabelProp="label"
+                            >
+                              {galleryImages.map(img => (
+                                <Option key={img.id} value={img.url} label={img.name}>
+                                  <Space>
+                                    <img src={img.url} alt="" style={{ width: 40, height: 40, objectFit: 'cover' }} />
+                                    {img.name}
+                                  </Space>
+                                </Option>
+                              ))}
+                            </Select>
+                            {editLastFrameUrl && (
+                              <div style={{ marginTop: 8 }}>
+                                <img src={editLastFrameUrl} alt="尾帧预览" style={{ maxWidth: 120, maxHeight: 80, borderRadius: 4 }} />
+                              </div>
+                            )}
+                          </div>
+                        </Col>
+                      </Row>
+                      <div style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>
+                        首尾帧图片要求：JPEG/JPG/PNG/BMP/WEBP格式，尺寸360-2000像素，最大10MB。
+                      </div>
+                    </>
+                  )}
+                  
+                  <Form.Item name="prompt" label={editTaskType === 'keyframe_to_video' ? '提示词（可选）' : '提示词'}>
                     <TextArea rows={3} placeholder="描述想要生成的视频内容" />
                   </Form.Item>
                   

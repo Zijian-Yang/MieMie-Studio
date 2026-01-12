@@ -245,9 +245,9 @@ class ImageToImageService:
                     for result in results:
                         if "url" in result:
                             image_url = result["url"]
-                            # 如果启用了 OSS，上传图片并返回 OSS URL
+                            # 如果启用了 OSS，上传图片并返回 OSS URL（使用异步方法）
                             if oss_service.is_enabled():
-                                image_url = oss_service.upload_image(image_url, project_id)
+                                image_url = await oss_service.upload_image_async(image_url, project_id)
                             image_urls.append(image_url)
                     if image_urls:
                         return image_urls

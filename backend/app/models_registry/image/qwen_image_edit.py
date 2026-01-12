@@ -37,6 +37,7 @@ from ..base import (
     ParameterType, ParameterConstraint, SelectOption,
     BaseModelService, TaskResult, TaskStatus, registry
 )
+from app.services.oss import oss_service
 
 
 # ============ 模型定义 ============
@@ -218,6 +219,7 @@ class QwenImageEditService(BaseModelService[List[str]]):
         prompt_extend: bool = True,
         watermark: bool = False,
         seed: Optional[int] = None,
+        project_id: str = "",
         **kwargs
     ) -> List[str]:
         """
@@ -232,9 +234,10 @@ class QwenImageEditService(BaseModelService[List[str]]):
             prompt_extend: 是否开启智能改写
             watermark: 是否添加水印
             seed: 随机种子
+            project_id: 项目ID，用于 OSS 上传路径
             
         Returns:
-            生成的图片URL列表
+            生成的图片URL列表（如果启用 OSS，返回 OSS URL）
         """
         # 确保 images 是列表
         if isinstance(images, str):
@@ -310,6 +313,14 @@ class QwenImageEditService(BaseModelService[List[str]]):
         if not urls:
             raise Exception("未能从响应中提取到图片URL")
         
+        # 如果启用了 OSS，上传图片并返回 OSS URL
+        if oss_service.is_enabled():
+            oss_urls = []
+            for url in urls:
+                oss_url = await oss_service.upload_image_async(url, project_id)
+                oss_urls.append(oss_url)
+            return oss_urls
+        
         return urls
     
     async def edit_single_image(
@@ -322,6 +333,7 @@ class QwenImageEditService(BaseModelService[List[str]]):
         prompt_extend: bool = True,
         watermark: bool = False,
         seed: Optional[int] = None,
+        project_id: str = "",
     ) -> List[str]:
         """
         单图编辑模式
@@ -335,6 +347,7 @@ class QwenImageEditService(BaseModelService[List[str]]):
             prompt_extend=prompt_extend,
             watermark=watermark,
             seed=seed,
+            project_id=project_id,
         )
     
     async def merge_images(
@@ -347,6 +360,7 @@ class QwenImageEditService(BaseModelService[List[str]]):
         prompt_extend: bool = True,
         watermark: bool = False,
         seed: Optional[int] = None,
+        project_id: str = "",
     ) -> List[str]:
         """
         多图融合模式
@@ -368,6 +382,7 @@ class QwenImageEditService(BaseModelService[List[str]]):
             prompt_extend=prompt_extend,
             watermark=watermark,
             seed=seed,
+            project_id=project_id,
         )
 
 

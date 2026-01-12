@@ -429,9 +429,9 @@ class ImageToVideoService:
                 # SDK 异常，尝试 HTTP
                 status, video_url = await self._get_task_status_http(task_id)
         
-        # 如果启用了 OSS，上传视频并返回 OSS URL
+        # 如果启用了 OSS，上传视频并返回 OSS URL（使用异步方法）
         if status == 'SUCCEEDED' and video_url and oss_service.is_enabled():
-            video_url = oss_service.upload_video(video_url, project_id)
+            video_url = await oss_service.upload_video_async(video_url, project_id)
         
         return status, video_url
     
@@ -465,9 +465,9 @@ class ImageToVideoService:
             
             if task_status == 'SUCCEEDED':
                 video_url = rsp.output.video_url
-                # 如果启用了 OSS，上传视频并返回 OSS URL
+                # 如果启用了 OSS，上传视频并返回 OSS URL（使用异步方法）
                 if oss_service.is_enabled():
-                    video_url = oss_service.upload_video(video_url, project_id)
+                    video_url = await oss_service.upload_video_async(video_url, project_id)
                 return video_url
             elif task_status == 'FAILED':
                 error_msg = getattr(rsp.output, 'message', '未知错误')

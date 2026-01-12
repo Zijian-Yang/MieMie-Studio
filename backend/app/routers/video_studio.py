@@ -1,9 +1,10 @@
 """
 视频工作室 API 路由
-支持三种任务类型：
+支持四种任务类型：
 1. 图生视频（image_to_video）：基于首帧图生成视频
 2. 视频生视频（reference_to_video）：基于参考视频生成新视频
 3. 文生视频（text_to_video）：基于文本提示词生成视频
+4. 首尾帧生视频（keyframe_to_video）：基于首帧和尾帧图片生成平滑过渡视频
 """
 
 from fastapi import APIRouter, HTTPException
@@ -16,6 +17,7 @@ from app.services.storage import storage_service
 from app.services.dashscope.image_to_video import ImageToVideoService
 from app.services.dashscope.reference_to_video import ReferenceToVideoService
 from app.services.dashscope.text_to_video import TextToVideoService
+from app.services.dashscope.keyframe_to_video import KeyframeToVideoService
 from app.services.oss import oss_service
 
 router = APIRouter()
@@ -24,10 +26,11 @@ router = APIRouter()
 class VideoStudioTaskCreateRequest(BaseModel):
     """创建视频生成任务请求
     
-    支持三种任务类型：
+    支持四种任务类型：
     1. image_to_video（图生视频）：使用 first_frame_url
     2. reference_to_video（视频生视频）：使用 reference_video_urls
     3. text_to_video（文生视频）：使用 prompt 生成视频
+    4. keyframe_to_video（首尾帧生视频）：使用 first_frame_url 和 last_frame_url
     
     图生视频参数说明（根据官方文档）：
     - resolution: 分辨率档位，wan2.5/2.6 支持 480P/720P/1080P（默认1080P）
@@ -57,11 +60,21 @@ class VideoStudioTaskCreateRequest(BaseModel):
     - seed: 随机种子
     - auto_audio: 是否自动配音（仅wan2.5及以上支持），默认True
     - audio_url: 自定义音频URL
+    
+    首尾帧生视频参数说明（wan2.2-kf2v-flash）：
+    - first_frame_url: 首帧图URL（必选）
+    - last_frame_url: 尾帧图URL（必选）
+    - prompt: 提示词（可选，最多800字符）
+    - resolution: 分辨率档位，480P/720P/1080P（默认720P）
+    - duration: 固定5秒
+    - prompt_extend: 智能改写，默认 True
+    - watermark: 是否添加水印，默认 False
+    - seed: 随机种子
     """
     project_id: str
     name: str = ""
     
-    # 任务类型: image_to_video, reference_to_video, text_to_video
+    # 任务类型: image_to_video, reference_to_video, text_to_video, keyframe_to_video
     task_type: str = "image_to_video"
     
     # 图生视频参数
@@ -188,6 +201,11 @@ async def create_task(request: VideoStudioTaskCreateRequest):
     elif request.task_type == "text_to_video":
         if not request.prompt:
             raise HTTPException(status_code=400, detail="文生视频任务需要输入提示词")
+    elif request.task_type == "keyframe_to_video":
+        if not request.first_frame_url:
+            raise HTTPException(status_code=400, detail="首尾帧生视频任务需要选择首帧图")
+        if not request.last_frame_url:
+            raise HTTPException(status_code=400, detail="首尾帧生视频任务需要选择尾帧图")
     else:
         raise HTTPException(status_code=400, detail="不支持的任务类型")
     
@@ -280,6 +298,23 @@ async def create_task(request: VideoStudioTaskCreateRequest):
                     negative_prompt=request.negative_prompt if request.negative_prompt else None,
                 )
                 task.task_ids.append(api_task_id)
+            
+            elif request.task_type == "keyframe_to_video":
+                # 首尾帧生视频任务
+                kf2v_service = KeyframeToVideoService()
+                
+                api_task_id = await kf2v_service.create_task(
+                    first_frame_url=request.first_frame_url,
+                    last_frame_url=request.last_frame_url,
+                    prompt=request.prompt if request.prompt else None,
+                    model=request.model,
+                    resolution=request.resolution,
+                    prompt_extend=request.prompt_extend,
+                    watermark=request.watermark,
+                    seed=request.seed + i if request.seed else None,
+                    negative_prompt=request.negative_prompt if request.negative_prompt else None,
+                )
+                task.task_ids.append(api_task_id)
         
         storage_service.save_video_studio_task(task)
         
@@ -331,6 +366,11 @@ async def get_task_status(task_id: str):
                 print(f"[视频工作室状态查询] 使用 文生视频服务 (HTTP)")
                 t2v_service = TextToVideoService()
                 status, video_url = await t2v_service.get_task_status(api_task_id, task.project_id)
+            elif task_type == "keyframe_to_video":
+                # 首尾帧生视频任务使用 HTTP 查询
+                print(f"[视频工作室状态查询] 使用 首尾帧生视频服务 (HTTP)")
+                kf2v_service = KeyframeToVideoService()
+                status, video_url = await kf2v_service.get_task_status(api_task_id, task.project_id)
             else:
                 # 图生视频任务
                 i2v_service = ImageToVideoService()
@@ -342,16 +382,8 @@ async def get_task_status(task_id: str):
             print(f"[视频工作室状态查询] 子任务 {api_task_id} 状态: {status}")
             
             if status == "SUCCEEDED" and video_url:
-                # 上传视频到 OSS
-                if oss_service.is_enabled():
-                    print(f"[视频工作室状态查询] 正在上传视频到 OSS...")
-                    oss_url = oss_service.upload_video(video_url, task.project_id)
-                    if oss_url != video_url:
-                        print(f"[视频工作室状态查询] OSS上传成功: {oss_url[:80]}...")
-                        video_url = oss_url
-                    else:
-                        print(f"[视频工作室状态查询] OSS上传失败，使用原始URL")
-                
+                # 注意：服务层已经处理了 OSS 上传（传入了 task.project_id）
+                # 这里不需要重复上传
                 video_urls.append(video_url)
                 print(f"[视频工作室状态查询] 子任务成功，视频URL已获取")
             elif status == "FAILED":
@@ -461,6 +493,11 @@ async def regenerate_task(task_id: str):
     elif task_type == "text_to_video":
         if not task.prompt:
             raise HTTPException(status_code=400, detail="任务没有提示词")
+    elif task_type == "keyframe_to_video":
+        if not task.first_frame_url:
+            raise HTTPException(status_code=400, detail="任务没有首帧图")
+        if not task.last_frame_url:
+            raise HTTPException(status_code=400, detail="任务没有尾帧图")
     
     # 重置任务状态
     task.status = "processing"
@@ -527,6 +564,35 @@ async def regenerate_task(task_id: str):
         
         try:
             task_ids = await asyncio.gather(*[generate_one_t2v(i) for i in range(task.group_count)])
+            task.task_ids = list(task_ids)
+            storage_service.save_video_studio_task(task)
+            return {"task": task, "task_ids": task_ids}
+        except Exception as e:
+            task.status = "failed"
+            task.error_message = str(e)
+            storage_service.save_video_studio_task(task)
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    elif task_type == "keyframe_to_video":
+        # 首尾帧生视频任务
+        kf2v_service = KeyframeToVideoService()
+        
+        async def generate_one_kf2v(idx: int):
+            current_seed = task.seed + idx if task.seed is not None else None
+            return await kf2v_service.create_task(
+                first_frame_url=task.first_frame_url,
+                last_frame_url=task.last_frame_url,
+                prompt=task.prompt if task.prompt else None,
+                model=task.model,
+                resolution=task.resolution,
+                prompt_extend=task.prompt_extend,
+                watermark=task.watermark,
+                seed=current_seed,
+                negative_prompt=task.negative_prompt if task.negative_prompt else None,
+            )
+        
+        try:
+            task_ids = await asyncio.gather(*[generate_one_kf2v(i) for i in range(task.group_count)])
             task.task_ids = list(task_ids)
             storage_service.save_video_studio_task(task)
             return {"task": task, "task_ids": task_ids}

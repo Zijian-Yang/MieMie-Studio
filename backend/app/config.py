@@ -351,6 +351,30 @@ TEXT_TO_VIDEO_MODELS = {
     },
 }
 
+# 首尾帧生视频模型配置
+# 参考: https://help.aliyun.com/zh/model-studio/image-to-video-by-first-and-last-frame-api-reference
+KEYFRAME_TO_VIDEO_MODELS = {
+    "wan2.2-kf2v-flash": {
+        "name": "首尾帧生视频 wan2.2-kf2v-flash",
+        "description": "万相2.2极速版，无声视频，速度提升50%，稳定性全面提升",
+        "resolutions": ["480P", "720P", "1080P"],
+        "default_resolution": "720P",
+        "duration": 5,  # 固定5秒
+        "prompt_max_length": 800,  # 提示词最大长度
+        "negative_prompt_max_length": 500,  # 反向提示词最大长度
+        "supports_prompt_extend": True,  # 支持智能改写
+        "supports_watermark": True,
+        "supports_seed": True,
+        "supports_negative_prompt": True,
+        "supports_audio": False,  # 无声视频
+        # 图像限制
+        "image_formats": ["JPEG", "JPG", "PNG", "BMP", "WEBP"],
+        "image_min_dimension": 360,  # 图像最小边长
+        "image_max_dimension": 2000,  # 图像最大边长
+        "image_max_size_mb": 10,  # 图像最大文件大小
+    },
+}
+
 # 视频生视频模型配置（参考视频生成视频）
 # 参考: https://help.aliyun.com/zh/model-studio/reference-to-video-api
 REF_VIDEO_MODELS = {

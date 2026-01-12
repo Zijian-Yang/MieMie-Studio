@@ -8,7 +8,7 @@ from typing import Optional, List, Dict, Any
 
 from app.config import (
     config_manager, AppConfig, LLMConfig, ImageConfig, ImageEditConfig, VideoConfig, TextToVideoConfig, RefVideoConfig, OSSConfig,
-    API_REGIONS, LLM_MODELS, IMAGE_MODELS, IMAGE_EDIT_MODELS, VIDEO_MODELS, TEXT_TO_VIDEO_MODELS, REF_VIDEO_MODELS
+    API_REGIONS, LLM_MODELS, IMAGE_MODELS, IMAGE_EDIT_MODELS, VIDEO_MODELS, TEXT_TO_VIDEO_MODELS, REF_VIDEO_MODELS, KEYFRAME_TO_VIDEO_MODELS
 )
 from app.services.oss import oss_service
 
@@ -163,6 +163,7 @@ class ConfigResponse(BaseModel):
     available_video_models: Dict[str, Dict[str, Any]]
     available_text_to_video_models: Dict[str, Dict[str, Any]]  # 文生视频模型
     available_ref_video_models: Dict[str, Dict[str, Any]]  # 视频生视频模型
+    available_keyframe_to_video_models: Dict[str, Dict[str, Any]]  # 首尾帧生视频模型
 
 
 def mask_api_key(api_key: str) -> str:
@@ -216,7 +217,8 @@ async def get_settings():
         available_image_edit_models=IMAGE_EDIT_MODELS,
         available_video_models=VIDEO_MODELS,
         available_text_to_video_models=TEXT_TO_VIDEO_MODELS,
-        available_ref_video_models=REF_VIDEO_MODELS
+        available_ref_video_models=REF_VIDEO_MODELS,
+        available_keyframe_to_video_models=KEYFRAME_TO_VIDEO_MODELS
     )
 
 

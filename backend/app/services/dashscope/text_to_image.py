@@ -352,11 +352,11 @@ class TextToImageService:
                 
                 print(f"[文生图HTTP] 成功生成 {len(urls)} 张图片")
                 
-                # 上传到 OSS
+                # 上传到 OSS（使用异步方法避免并发问题）
                 if oss_service.is_enabled() and urls:
                     oss_urls = []
                     for url in urls:
-                        oss_url = oss_service.upload_image(url, project_id)
+                        oss_url = await oss_service.upload_image_async(url, project_id)
                         oss_urls.append(oss_url)
                     return oss_urls
                 
@@ -428,11 +428,11 @@ class TextToImageService:
             
             if task_status == 'SUCCEEDED':
                 urls = [result.url for result in rsp.output.results]
-                # 如果启用了 OSS，上传图片并返回 OSS URL
+                # 如果启用了 OSS，上传图片并返回 OSS URL（使用异步方法）
                 if oss_service.is_enabled():
                     oss_urls = []
                     for url in urls:
-                        oss_url = oss_service.upload_image(url, project_id)
+                        oss_url = await oss_service.upload_image_async(url, project_id)
                         oss_urls.append(oss_url)
                     return oss_urls
                 return urls
@@ -590,11 +590,11 @@ class TextToImageService:
                         
                         print(f"[wan2.6-image] 生成成功，共 {len(urls)} 张图片")
                         
-                        # 上传到 OSS
+                        # 上传到 OSS（使用异步方法）
                         if oss_service.is_enabled():
                             oss_urls = []
                             for img_url in urls:
-                                oss_url = oss_service.upload_image(img_url, project_id)
+                                oss_url = await oss_service.upload_image_async(img_url, project_id)
                                 oss_urls.append(oss_url)
                             return oss_urls
                         

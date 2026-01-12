@@ -313,13 +313,16 @@ async def generate_scene_images(scene_id: str, request: SceneGenerateRequest):
     
     try:
         if image_urls:
+            # 服务层会自动处理 OSS 上传
             i2i_service = ImageToImageService()
             url = await i2i_service.generate_with_multi_images(
                 prompt=final_prompt,
                 image_urls=image_urls,
-                negative_prompt=negative_prompt
+                negative_prompt=negative_prompt,
+                project_id=scene.project_id
             )
         else:
+            # 服务层会自动处理 OSS 上传
             t2i_service = TextToImageService()
             url = await t2i_service.generate(
                 final_prompt, 
@@ -380,13 +383,16 @@ async def generate_all_scene_images(scene_id: str, request: SceneGenerateAllRequ
     
     async def generate_group(group_index: int) -> SceneImage:
         if image_urls:
+            # 服务层会自动处理 OSS 上传
             i2i_service = ImageToImageService()
             url = await i2i_service.generate_with_multi_images(
                 prompt=final_prompt,
                 image_urls=image_urls,
-                negative_prompt=negative_prompt
+                negative_prompt=negative_prompt,
+                project_id=scene.project_id
             )
         else:
+            # 服务层会自动处理 OSS 上传
             t2i_service = TextToImageService()
             url = await t2i_service.generate(
                 final_prompt, 
