@@ -53,8 +53,8 @@ logs/
 *.sqlite
 *.sqlite3
 
-# User data (如果不想提交用户数据，取消下面的注释)
-# backend/data/users/
+# User data
+backend/data/users/
 # backend/data/sessions.json
 
 # Build outputs
