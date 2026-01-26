@@ -1,0 +1,13 @@
+{
+  "dashscope_api_key": "your-dashscope-api-key",
+  "model": "wan2.5-t2i-preview",
+  "base_url": "https://dashscope.aliyuncs.com/api/v1",
+  "size": "768*768",
+  "aspect_ratio": "4:1",
+  "prompt": "一间有着精致窗户的花店，漂亮的木质门，摆放着花朵",
+  "negative_prompt": "",
+  "n": 1,
+  "prompt_extend": true,
+  "watermark": false,
+  "seed": null
+}

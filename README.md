@@ -61,9 +61,9 @@ npm run dev
 
 ### 配置 API Key
 
-1. 打开浏览器访问 http://localhost:3000
-2. 点击左侧菜单"设置"
-3. 输入您的百炼 DashScope API Key
+1. **后端配置**（可选）：复制 `backend/data/config.example.json` 为 `backend/data/config.json`，填入 DashScope API Key 与（若使用 OSS）阿里云 OSS 凭证。不复制则可通过前端设置页配置 API Key。
+2. **根目录文生图脚本**（可选）：若使用根目录的 `text_to_image.py`，复制 `text_to_image_config.example.json` 为 `text_to_image_config.json` 并填入 API Key。**请勿将含真实密钥的配置文件提交到仓库。**
+3. 打开浏览器访问 http://localhost:3000，点击左侧菜单「设置」亦可输入百炼 DashScope API Key。
 
 ## 项目结构
 

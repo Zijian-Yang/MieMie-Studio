@@ -53,9 +53,11 @@ logs/
 *.sqlite
 *.sqlite3
 
-# User data
+# User data and sensitive config
 backend/data/users/
-# backend/data/sessions.json
+backend/data/users.json
+backend/data/sessions.json
+text_to_image_config.json
 
 # Build outputs
 dist/

@@ -1,0 +1,57 @@
+{
+  "dashscope_api_key": "your-dashscope-api-key",
+  "api_region": "beijing",
+  "llm": {
+    "model": "qwen3-max",
+    "max_tokens": 65536,
+    "top_p": 0.8,
+    "temperature": 0.7,
+    "enable_thinking": false,
+    "thinking_budget": 4096,
+    "result_format": "message",
+    "enable_search": false
+  },
+  "image": {
+    "model": "wan2.6-t2i",
+    "width": 1440,
+    "height": 810,
+    "prompt_extend": false,
+    "watermark": false,
+    "seed": null
+  },
+  "image_edit": {
+    "model": "wan2.5-i2i-preview",
+    "width": 768,
+    "height": 1024,
+    "prompt_extend": false,
+    "watermark": false,
+    "seed": null
+  },
+  "video": {
+    "model": "wan2.6-i2v",
+    "resolution": "1080P",
+    "prompt_extend": false,
+    "watermark": false,
+    "seed": null,
+    "duration": 15,
+    "audio": true,
+    "shot_type": "single"
+  },
+  "ref_video": {
+    "model": "wan2.6-r2v",
+    "size": "1920*1080",
+    "duration": 10,
+    "shot_type": "multi",
+    "watermark": false,
+    "seed": null,
+    "audio": true
+  },
+  "oss": {
+    "enabled": false,
+    "access_key_id": "",
+    "access_key_secret": "",
+    "bucket_name": "",
+    "endpoint": "https://oss-cn-beijing.aliyuncs.com",
+    "prefix": "aistudio/"
+  }
+}

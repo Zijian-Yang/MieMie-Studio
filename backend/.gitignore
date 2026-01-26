@@ -41,6 +41,8 @@ env/
 
 # Data files (keep structure but ignore content)
 data/config.json
+data/users.json
+data/sessions.json
 data/projects/*.json
 data/characters/*.json
 data/scenes/*.json
