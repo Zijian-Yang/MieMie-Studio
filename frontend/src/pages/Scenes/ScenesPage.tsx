@@ -551,6 +551,26 @@ const ScenesPage = () => {
                 </Space>
               </Card>
               
+              {/* 追踪ID显示 */}
+              {(selectedScene.last_task_id || selectedScene.last_request_id) && (
+                <div style={{ 
+                  marginTop: 16, 
+                  padding: '8px 12px', 
+                  background: '#1a1a1a', 
+                  borderRadius: 6,
+                  fontSize: 11,
+                  color: '#666',
+                  fontFamily: 'monospace'
+                }}>
+                  {selectedScene.last_task_id && (
+                    <div>Task ID: {selectedScene.last_task_id}</div>
+                  )}
+                  {selectedScene.last_request_id && (
+                    <div>Request ID: {selectedScene.last_request_id}</div>
+                  )}
+                </div>
+              )}
+              
               <div style={{ marginTop: 16, textAlign: 'right' }}>
                 <Popconfirm title="确定删除此场景？" onConfirm={() => { deleteScene(selectedScene.id); setIsModalOpen(false) }} okText="删除" cancelText="取消" okButtonProps={{ danger: true }}>
                   <Button danger icon={<DeleteOutlined />}>删除场景</Button>

@@ -200,12 +200,15 @@ const StudioPage = () => {
       prompt: task.prompt,
       negative_prompt: task.negative_prompt,
       n: task.n || 1,
-      group_count: task.group_count,
-      // qwen-image-edit-plus 默认值
-      size: '',
-      prompt_extend: true,
-      watermark: false,
-      seed: undefined
+      group_count: task.group_count || 3,  // 默认3组并发
+      // 加载保存的高级参数（如果有），否则使用默认值
+      size: task.size || '',
+      prompt_extend: task.prompt_extend !== undefined ? task.prompt_extend : true,
+      watermark: task.watermark !== undefined ? task.watermark : false,
+      seed: task.seed || undefined,
+      // wan2.6-image 专用参数
+      enable_interleave: task.enable_interleave || false,
+      max_images: task.max_images || 5
     })
     setIsModalOpen(true)
   }
@@ -220,7 +223,16 @@ const StudioPage = () => {
         model: values.model,
         prompt: values.prompt,
         negative_prompt: values.negative_prompt,
-        group_count: values.group_count
+        n: values.n,
+        group_count: values.group_count,
+        // 保存高级生成参数
+        size: values.size || undefined,
+        prompt_extend: values.prompt_extend,
+        watermark: values.watermark,
+        seed: values.seed || undefined,
+        // wan2.6-image 专用参数
+        enable_interleave: values.enable_interleave,
+        max_images: values.max_images
       })
       safeSetState(setTasks, (prev: StudioTask[]) => prev.map(t => t.id === updated.id ? updated : t))
       setSelectedTask(updated)
@@ -283,7 +295,7 @@ const StudioPage = () => {
         prompt: values.prompt,
         negative_prompt: values.negative_prompt,
         n: values.n || (isWan26Image ? 4 : 1),  // wan2.6-image 默认4张
-        group_count: values.group_count
+        group_count: values.group_count || 3  // 默认3组并发
       }
       
       // 文生图模型参数
@@ -1091,46 +1103,52 @@ const StudioPage = () => {
               
               {/* 生成的图片 */}
               {selectedTask.images.length > 0 ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-                  {selectedTask.images.map((image, idx) => (
-                    <div 
-                      key={image.id}
-                      style={{ 
-                        position: 'relative',
-                        aspectRatio: '1',
-                        background: '#1a1a1a',
-                        borderRadius: 8,
-                        overflow: 'hidden',
-                        cursor: 'pointer',
-                        border: selectedImages.has(image.id) ? '2px solid #1890ff' : '2px solid transparent'
-                      }}
-                      onClick={() => toggleImageSelection(image.id)}
-                    >
-                      {image.url ? (
-                        <img 
-                          src={image.url} 
-                          alt={`第 ${idx + 1} 组`} 
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                        />
-                      ) : (
-                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <PictureOutlined style={{ fontSize: 32, color: '#444' }} />
+                <Image.PreviewGroup
+                  items={selectedTask.images.filter(img => img.url).map(img => img.url!)}
+                >
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+                    {selectedTask.images.map((image, idx) => (
+                      <div 
+                        key={image.id}
+                        style={{ 
+                          position: 'relative',
+                          aspectRatio: '1',
+                          background: '#1a1a1a',
+                          borderRadius: 8,
+                          overflow: 'hidden',
+                          border: selectedImages.has(image.id) ? '2px solid #1890ff' : '2px solid transparent'
+                        }}
+                      >
+                        {image.url ? (
+                          <Image 
+                            src={image.url} 
+                            alt={`第 ${idx + 1} 组`} 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            preview={{ mask: '点击预览' }}
+                          />
+                        ) : (
+                          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <PictureOutlined style={{ fontSize: 32, color: '#444' }} />
+                          </div>
+                        )}
+                        <div 
+                          style={{ position: 'absolute', top: 8, left: 8, cursor: 'pointer', zIndex: 10 }}
+                          onClick={(e) => { e.stopPropagation(); toggleImageSelection(image.id); }}
+                        >
+                          <Checkbox checked={selectedImages.has(image.id)} />
                         </div>
-                      )}
-                      <div style={{ position: 'absolute', top: 8, left: 8 }}>
-                        <Checkbox checked={selectedImages.has(image.id)} />
-                      </div>
-                      <div style={{ position: 'absolute', bottom: 8, right: 8 }}>
-                        <Tag>第 {idx + 1} 组</Tag>
-                      </div>
-                      {image.is_selected && (
-                        <div style={{ position: 'absolute', top: 8, right: 8 }}>
-                          <Tag color="green">已保存</Tag>
+                        <div style={{ position: 'absolute', bottom: 8, right: 8, pointerEvents: 'none' }}>
+                          <Tag>第 {idx + 1} 组</Tag>
                         </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                        {image.is_selected && (
+                          <div style={{ position: 'absolute', top: 8, right: 8, pointerEvents: 'none' }}>
+                            <Tag color="green">已保存</Tag>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </Image.PreviewGroup>
               ) : (
                 <Empty 
                   description="暂无生成结果，点击右侧生成按钮开始" 
@@ -1220,7 +1238,7 @@ const StudioPage = () => {
                     border: '1px solid #333'
                   }}>
                     <div style={{ marginBottom: 8, color: '#888', fontSize: 12 }}>
-                      文生图模型参数
+                      文生图模型参数（wan2.6-t2i 总像素需在1280×1280到1440×1440之间）
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                       <Form.Item 
@@ -1232,15 +1250,13 @@ const StudioPage = () => {
                           placeholder="默认 1280×1280"
                           allowClear
                           options={[
-                            { value: '1280*1280', label: '1280×1280 (1:1)' },
-                            { value: '1024*1024', label: '1024×1024 (1:1)' },
-                            { value: '1280*720', label: '1280×720 (16:9)' },
-                            { value: '720*1280', label: '720×1280 (9:16)' },
-                            { value: '1280*960', label: '1280×960 (4:3)' },
-                            { value: '960*1280', label: '960×1280 (3:4)' },
-                            { value: '1200*800', label: '1200×800 (3:2)' },
-                            { value: '800*1200', label: '800×1200 (2:3)' },
-                            { value: '1344*576', label: '1344×576 (21:9)' },
+                            { value: '1280*1280', label: '1280×1280 (1:1 默认)' },
+                            { value: '1696*960', label: '1696×960 (16:9 横屏)' },
+                            { value: '960*1696', label: '960×1696 (9:16 竖屏)' },
+                            { value: '1472*1104', label: '1472×1104 (4:3 横屏)' },
+                            { value: '1104*1472', label: '1104×1472 (3:4 竖屏)' },
+                            { value: '1440*1152', label: '1440×1152 (5:4 横屏)' },
+                            { value: '1152*1440', label: '1152×1440 (4:5 竖屏)' },
                           ]}
                         />
                       </Form.Item>
@@ -1523,6 +1539,26 @@ const StudioPage = () => {
                   </Button>
                 </Popconfirm>
               </Space>
+              
+              {/* 追踪ID显示 */}
+              {(selectedTask.last_task_id || selectedTask.last_request_id) && (
+                <div style={{ 
+                  marginTop: 16, 
+                  padding: '8px 12px', 
+                  background: '#1a1a1a', 
+                  borderRadius: 6,
+                  fontSize: 11,
+                  color: '#666',
+                  fontFamily: 'monospace'
+                }}>
+                  {selectedTask.last_task_id && (
+                    <div>Task ID: {selectedTask.last_task_id}</div>
+                  )}
+                  {selectedTask.last_request_id && (
+                    <div>Request ID: {selectedTask.last_request_id}</div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}

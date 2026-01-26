@@ -47,6 +47,10 @@ class Character(BaseModel):
     # 音色
     voice: VoiceConfig = Field(default_factory=VoiceConfig)
     
+    # 最近一次生成的任务ID（用于追踪）
+    last_task_id: Optional[str] = None  # DashScope 任务ID
+    last_request_id: Optional[str] = None  # DashScope 请求ID
+    
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     

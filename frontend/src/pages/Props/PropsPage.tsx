@@ -551,6 +551,26 @@ const PropsPage = () => {
                 </Space>
               </Card>
               
+              {/* 追踪ID显示 */}
+              {(selectedProp.last_task_id || selectedProp.last_request_id) && (
+                <div style={{ 
+                  marginTop: 16, 
+                  padding: '8px 12px', 
+                  background: '#1a1a1a', 
+                  borderRadius: 6,
+                  fontSize: 11,
+                  color: '#666',
+                  fontFamily: 'monospace'
+                }}>
+                  {selectedProp.last_task_id && (
+                    <div>Task ID: {selectedProp.last_task_id}</div>
+                  )}
+                  {selectedProp.last_request_id && (
+                    <div>Request ID: {selectedProp.last_request_id}</div>
+                  )}
+                </div>
+              )}
+              
               <div style={{ marginTop: 16, textAlign: 'right' }}>
                 <Popconfirm title="确定删除此道具？" onConfirm={() => { deleteProp(selectedProp.id); setIsModalOpen(false) }} okText="删除" cancelText="取消" okButtonProps={{ danger: true }}>
                   <Button danger icon={<DeleteOutlined />}>删除道具</Button>

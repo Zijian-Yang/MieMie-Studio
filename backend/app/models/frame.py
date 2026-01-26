@@ -31,6 +31,10 @@ class Frame(BaseModel):
     image_groups: List[FrameImage] = []  # 首帧图片组（最多3组）
     selected_group_index: int = 0  # 选中的组索引
     
+    # 最近一次生成的任务ID（用于追踪）
+    last_task_id: Optional[str] = None  # DashScope 任务ID
+    last_request_id: Optional[str] = None  # DashScope 请求ID
+    
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     

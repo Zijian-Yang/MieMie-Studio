@@ -1085,16 +1085,28 @@ const VideosPage = () => {
                   </Col>
                   <Col span={12}>
                     <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>时长</div>
-                    <Select
-                      style={{ width: '100%' }}
-                      size="small"
-                      value={videoDuration !== null ? videoDuration : systemVideoConfig.duration}
-                      onChange={setVideoDuration}
-                    >
-                      {(getCurrentModelInfo()?.durations || [5]).map((d: number) => (
-                        <Option key={d} value={d}>{d} 秒</Option>
-                      ))}
-                    </Select>
+                    {getCurrentModelInfo()?.duration_range ? (
+                      <InputNumber
+                        style={{ width: '100%' }}
+                        size="small"
+                        min={getCurrentModelInfo()?.duration_range?.[0] || 2}
+                        max={getCurrentModelInfo()?.duration_range?.[1] || 15}
+                        value={videoDuration !== null ? videoDuration : systemVideoConfig.duration}
+                        onChange={(v) => setVideoDuration(v || systemVideoConfig.duration)}
+                        addonAfter="秒"
+                      />
+                    ) : (
+                      <Select
+                        style={{ width: '100%' }}
+                        size="small"
+                        value={videoDuration !== null ? videoDuration : systemVideoConfig.duration}
+                        onChange={setVideoDuration}
+                      >
+                        {(getCurrentModelInfo()?.durations || [5]).map((d: number) => (
+                          <Option key={d} value={d}>{d} 秒</Option>
+                        ))}
+                      </Select>
+                    )}
                   </Col>
                   <Col span={12}>
                     <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>随机种子</div>
@@ -1250,6 +1262,26 @@ const VideosPage = () => {
                   </Button>
                 )}
               </Space>
+              
+              {/* 追踪ID显示 */}
+              {selectedVideo?.task && (selectedVideo.task.task_id || selectedVideo.task.request_id) && (
+                <div style={{ 
+                  marginTop: 16, 
+                  padding: '8px 12px', 
+                  background: '#1a1a1a', 
+                  borderRadius: 6,
+                  fontSize: 11,
+                  color: '#666',
+                  fontFamily: 'monospace'
+                }}>
+                  {selectedVideo.task.task_id && (
+                    <div>Task ID: {selectedVideo.task.task_id}</div>
+                  )}
+                  {selectedVideo.task.request_id && (
+                    <div>Request ID: {selectedVideo.task.request_id}</div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1335,20 +1367,38 @@ const VideosPage = () => {
             <Col span={12}>
               <div style={{ marginBottom: 16 }}>
                 <div style={{ marginBottom: 8, color: '#e0e0e0' }}>视频时长</div>
-                <Select
-                  style={{ width: '100%' }}
-                  value={videoDuration !== null ? videoDuration : systemVideoConfig.duration}
-                  onChange={setVideoDuration}
-                >
-                  {(getCurrentModelInfo()?.durations || [5, 10]).map((d: number) => (
-                    <Option key={d} value={d}>{d} 秒</Option>
-                  ))}
-                </Select>
+                {getCurrentModelInfo()?.duration_range ? (
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    min={getCurrentModelInfo()?.duration_range?.[0] || 2}
+                    max={getCurrentModelInfo()?.duration_range?.[1] || 15}
+                    value={videoDuration !== null ? videoDuration : systemVideoConfig.duration}
+                    onChange={(v) => setVideoDuration(v || systemVideoConfig.duration)}
+                    addonAfter="秒"
+                  />
+                ) : (
+                  <Select
+                    style={{ width: '100%' }}
+                    value={videoDuration !== null ? videoDuration : systemVideoConfig.duration}
+                    onChange={setVideoDuration}
+                  >
+                    {(getCurrentModelInfo()?.durations || [5, 10]).map((d: number) => (
+                      <Option key={d} value={d}>{d} 秒</Option>
+                    ))}
+                  </Select>
+                )}
+                {getCurrentModelInfo()?.duration_range && (
+                  <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+                    支持 {getCurrentModelInfo()?.duration_range?.[0]}-{getCurrentModelInfo()?.duration_range?.[1]} 秒连续时长
+                  </div>
+                )}
               </div>
             </Col>
             <Col span={12}>
               <div style={{ marginBottom: 16 }}>
-                <div style={{ marginBottom: 8, color: '#e0e0e0' }}>自动生成音频</div>
+                <div style={{ marginBottom: 8, color: '#e0e0e0' }}>
+                  {getCurrentModelInfo()?.supports_audio_toggle ? '有声视频' : '自动生成音频'}
+                </div>
                 <Switch
                   checked={videoAudio !== null ? videoAudio : systemVideoConfig.audio}
                   onChange={setVideoAudio}
@@ -1356,6 +1406,11 @@ const VideosPage = () => {
                 />
                 {!getCurrentModelInfo()?.supports_audio && (
                   <span style={{ marginLeft: 8, color: '#888' }}>（当前模型不支持）</span>
+                )}
+                {getCurrentModelInfo()?.supports_audio_toggle && (
+                  <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+                    {videoAudio !== false ? '输出有声视频' : '输出无声视频（费用更低）'}
+                  </div>
                 )}
               </div>
             </Col>

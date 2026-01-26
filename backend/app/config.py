@@ -72,16 +72,17 @@ IMAGE_MODELS = {
         "supports_max_images": True,  # enable_interleave=true 时可设置最大生成图数
         "max_images_range": [1, 5],  # max_images 参数范围
         "default_max_images": 5,  # max_images 默认值
+        # 分辨率符合API要求：总像素在[768*768, 1280*1280]之间
         "common_sizes": [
             {"width": 1280, "height": 1280, "label": "1:1 方形 (默认)"},
-            {"width": 1024, "height": 1024, "label": "1:1 方形 (小)"},
+            {"width": 1024, "height": 1024, "label": "1:1 方形 (中)"},
+            {"width": 896, "height": 896, "label": "1:1 方形 (小)"},
             {"width": 1280, "height": 720, "label": "16:9 横屏"},
             {"width": 720, "height": 1280, "label": "9:16 竖屏"},
-            {"width": 1280, "height": 960, "label": "4:3 横屏"},
-            {"width": 960, "height": 1280, "label": "3:4 竖屏"},
-            {"width": 800, "height": 1200, "label": "2:3 竖屏"},
+            {"width": 1152, "height": 896, "label": "4:3 横屏"},
+            {"width": 896, "height": 1152, "label": "3:4 竖屏"},
             {"width": 1200, "height": 800, "label": "3:2 横屏"},
-            {"width": 1344, "height": 576, "label": "21:9 超宽横屏"},
+            {"width": 800, "height": 1200, "label": "2:3 竖屏"},
         ],
         # 图像尺寸限制
         "image_min_dimension": 384,  # 参考图最小边长
@@ -91,27 +92,27 @@ IMAGE_MODELS = {
     },
     "wan2.6-t2i": {
         "name": "文生图 wan2.6-t2i",
-        "description": "HTTP同步调用，快速生成高质量图像",
-        "min_pixels": 768 * 768,  # 最小总像素
-        "max_pixels": 1440 * 1440,  # 最大总像素
+        "description": "HTTP异步调用，快速生成高质量图像，单请求最多4张图",
+        "min_pixels": 1280 * 1280,  # 最小总像素 1,638,400
+        "max_pixels": 1440 * 1440,  # 最大总像素 2,073,600
         "min_ratio": 0.25,  # 最小宽高比 1:4
         "max_ratio": 4.0,  # 最大宽高比 4:1
-        "use_http": True,  # 使用 HTTP 同步调用（不是 SDK）
+        "use_http": True,  # 使用 HTTP 异步调用
+        "is_async": True,  # 异步调用，需要轮询获取结果
         "max_n": 4,  # 最多生成 4 张图片
         "supports_prompt_extend": True,
         "supports_watermark": True,
         "supports_seed": True,
         "supports_negative_prompt": True,
+        # 分辨率符合API要求：总像素在[1280*1280, 1440*1440]之间
         "common_sizes": [
             {"width": 1280, "height": 1280, "label": "1:1 方形 (默认)"},
-            {"width": 1024, "height": 1024, "label": "1:1 方形 (小)"},
-            {"width": 1280, "height": 720, "label": "16:9 横屏"},
-            {"width": 720, "height": 1280, "label": "9:16 竖屏"},
-            {"width": 1280, "height": 960, "label": "4:3 横屏"},
-            {"width": 960, "height": 1280, "label": "3:4 竖屏"},
-            {"width": 800, "height": 1200, "label": "2:3 竖屏"},
-            {"width": 1200, "height": 800, "label": "3:2 横屏"},
-            {"width": 1344, "height": 576, "label": "21:9 超宽横屏"},
+            {"width": 1696, "height": 960, "label": "16:9 横屏"},
+            {"width": 960, "height": 1696, "label": "9:16 竖屏"},
+            {"width": 1472, "height": 1104, "label": "4:3 横屏"},
+            {"width": 1104, "height": 1472, "label": "3:4 竖屏"},
+            {"width": 1440, "height": 1152, "label": "5:4 横屏"},
+            {"width": 1152, "height": 1440, "label": "4:5 竖屏"},
         ]
     },
     "wan2.5-t2i-preview": {
@@ -416,9 +417,30 @@ REF_VIDEO_MODELS = {
 # 图生视频模型配置
 # 参考: https://www.alibabacloud.com/help/zh/model-studio/image-to-video-api-reference
 VIDEO_MODELS = {
+    "wan2.6-i2v-flash": {
+        "name": "图生视频 wan2.6-i2v-flash (推荐)",
+        "description": "万相2.6极速版，支持2-15秒连续时长、多镜头叙事、有声/无声切换",
+        "resolutions": [
+            {"value": "720P", "label": "720P (高清)"},
+            {"value": "1080P", "label": "1080P (全高清)"},
+        ],
+        "default_resolution": "1080P",  # 官方默认值
+        "duration_range": [2, 15],  # 连续时长范围（秒），区别于固定选项
+        "default_duration": 5,  # 默认时长
+        "supports_prompt_extend": True,
+        "supports_watermark": True,
+        "supports_seed": True,
+        "supports_negative_prompt": True,
+        "supports_audio": True,  # 支持音频参数 (audio, audio_url)
+        "supports_audio_toggle": True,  # 支持有声/无声切换（wan2.6-i2v-flash 特有）
+        "default_audio": True,  # 默认开启自动配音
+        "supports_shot_type": True,  # 支持镜头类型 (single/multi)
+        "default_shot_type": "single",
+        "image_param": "img_url",  # API 中图片参数名
+    },
     "wan2.6-i2v": {
         "name": "图生视频 wan2.6-i2v",
-        "description": "最新模型，支持多镜头叙事、自动配音，分辨率由输入图像决定",
+        "description": "万相2.6，支持多镜头叙事、自动配音，分辨率由输入图像决定",
         "resolutions": [
             {"value": "720P", "label": "720P (高清)"},
             {"value": "1080P", "label": "1080P (全高清)"},

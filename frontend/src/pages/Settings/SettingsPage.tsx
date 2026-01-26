@@ -695,7 +695,7 @@ const SettingsPage = () => {
                 label={
                   <Space>
                     图片宽度
-                    <Tooltip title="根据模型限制，总像素需在 768×768 到 1440×1440 之间，宽高比 1:4 到 4:1">
+                    <Tooltip title={`根据当前模型限制，总像素需在 ${(getImageModelInfo()?.min_pixels || 768*768).toLocaleString()} 到 ${(getImageModelInfo()?.max_pixels || 1440*1440).toLocaleString()} 之间，宽高比 1:4 到 4:1`}>
                       <QuestionCircleOutlined style={{ color: '#888' }} />
                     </Tooltip>
                   </Space>
@@ -976,28 +976,44 @@ const SettingsPage = () => {
                 name="video_duration"
                 label="默认时长"
                 extra={
-                  form.getFieldValue('video_model')?.includes('wan2.6')
-                    ? 'wan2.6 支持 5/10/15 秒'
-                    : form.getFieldValue('video_model')?.includes('wan2.5') 
-                      ? 'wan2.5 支持 5 或 10 秒' 
-                      : 'wanx2.1 支持 3/4/5 秒'
+                  getCurrentVideoModelInfo()?.duration_range
+                    ? `支持 ${getCurrentVideoModelInfo()?.duration_range?.[0]}-${getCurrentVideoModelInfo()?.duration_range?.[1]} 秒连续时长`
+                    : form.getFieldValue('video_model')?.includes('wan2.6')
+                      ? 'wan2.6 支持 5/10/15 秒'
+                      : form.getFieldValue('video_model')?.includes('wan2.5') 
+                        ? 'wan2.5 支持 5 或 10 秒' 
+                        : 'wanx2.1 支持 3/4/5 秒'
                 }
               >
-                <Select>
-                  {(getCurrentVideoModelInfo()?.durations || [5]).map((d: number) => (
-                    <Select.Option key={d} value={d}>{d} 秒</Select.Option>
-                  ))}
-                </Select>
+                {getCurrentVideoModelInfo()?.duration_range ? (
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    min={getCurrentVideoModelInfo()?.duration_range?.[0] || 2}
+                    max={getCurrentVideoModelInfo()?.duration_range?.[1] || 15}
+                    addonAfter="秒"
+                  />
+                ) : (
+                  <Select>
+                    {(getCurrentVideoModelInfo()?.durations || [5]).map((d: number) => (
+                      <Select.Option key={d} value={d}>{d} 秒</Select.Option>
+                    ))}
+                  </Select>
+                )}
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
                 name="video_audio"
-                label="自动生成音频"
+                label={getCurrentVideoModelInfo()?.supports_audio_toggle ? '有声视频' : '自动生成音频'}
                 valuePropName="checked"
-                tooltip="仅 wan2.5/2.6 支持，模型根据提示词和画面自动生成匹配的背景音频"
+                tooltip={getCurrentVideoModelInfo()?.supports_audio_toggle 
+                  ? '控制是否输出有声视频，无声视频费用更低'
+                  : '模型根据提示词和画面自动生成匹配的背景音频'
+                }
                 extra={getCurrentVideoModelInfo()?.supports_audio 
-                  ? '开启后默认自动配音，可在工作室中覆盖' 
+                  ? (getCurrentVideoModelInfo()?.supports_audio_toggle 
+                      ? '开启后输出有声视频，关闭后输出无声视频'
+                      : '开启后默认自动配音，可在工作室中覆盖')
                   : '当前模型不支持音频'
                 }
               >

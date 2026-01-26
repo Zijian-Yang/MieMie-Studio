@@ -40,6 +40,16 @@ class StudioTask(BaseModel):
     n: int = 1  # 每次请求生成的图片数量
     group_count: int = 3  # 并发请求数（总图片数 = n * group_count）
     
+    # 高级生成参数（持久化保存）
+    size: Optional[str] = None  # 输出尺寸，如 "1280*1280"
+    prompt_extend: bool = True  # 智能改写
+    watermark: bool = False  # 水印
+    seed: Optional[int] = None  # 随机种子
+    
+    # wan2.6-image 专用参数
+    enable_interleave: bool = False  # 图文混合模式
+    max_images: int = 5  # 图文混合模式下最大生成图数
+    
     # 参考素材
     references: List[ReferenceItem] = []  # 参考素材列表
     
@@ -49,6 +59,10 @@ class StudioTask(BaseModel):
     # 状态
     status: str = "pending"  # pending, generating, completed, failed
     error_message: Optional[str] = None
+    
+    # 最近一次生成的任务ID（用于追踪）
+    last_task_id: Optional[str] = None  # DashScope 任务ID
+    last_request_id: Optional[str] = None  # DashScope 请求ID
     
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)

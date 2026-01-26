@@ -2,11 +2,19 @@
 阿里云 DashScope 图生视频服务封装
 
 模型参数差异：
+- wan2.6-i2v-flash (推荐):
+  - 图片参数: img_url
+  - 分辨率参数: resolution (720P/1080P)
+  - 支持 duration (2-15秒连续范围)
+  - 支持音频: audio_url, audio (audio 布尔值控制有声/无声)
+  - 支持镜头类型: shot_type (single/multi)
+  - 需要通过 HTTP 请求调用
+
 - wan2.6-i2v:
   - 图片参数: img_url
   - 分辨率参数: resolution (720P/1080P)
   - 支持 duration (5/10/15秒)
-  - 支持音频: audio_url, audio
+  - 支持音频: audio_url (默认有声)
   - 支持镜头类型: shot_type (single/multi)
   - 需要通过 HTTP 请求调用
 
@@ -237,10 +245,17 @@ class ImageToVideoService:
         if resolution_value:
             parameters["resolution"] = resolution_value
         
-        # 视频时长（wan2.6 支持 5/10/15秒）
+        # 视频时长
+        # wan2.6-i2v-flash 支持 2-15 秒连续范围
+        # wan2.6-i2v 支持 5/10/15 秒固定选项
         duration_value = duration if duration is not None else self.video_config.duration
         if duration_value is not None:
-            parameters["duration"] = max(5, min(15, duration_value))
+            if 'wan2.6-i2v-flash' in model:
+                # wan2.6-i2v-flash 支持 2-15 秒连续范围
+                parameters["duration"] = max(2, min(15, duration_value))
+            else:
+                # wan2.6-i2v 支持 5/10/15 秒
+                parameters["duration"] = max(5, min(15, duration_value))
         
         # 智能改写
         prompt_extend_value = prompt_extend if prompt_extend is not None else self.video_config.prompt_extend
@@ -257,11 +272,13 @@ class ImageToVideoService:
         if seed_value is not None:
             parameters["seed"] = seed_value
         
-        # 音频参数
-        if not audio_url:
-            audio_value = audio if audio is not None else self.video_config.audio
-            if audio_value is not None:
-                parameters["audio"] = audio_value
+        # 音频参数（仅 wan2.6-i2v-flash 支持 audio 布尔开关控制有声/无声）
+        # wan2.6-i2v 默认输出有声视频，不支持此参数
+        if 'wan2.6-i2v-flash' in model:
+            if not audio_url:
+                audio_value = audio if audio is not None else self.video_config.audio
+                if audio_value is not None:
+                    parameters["audio"] = audio_value
         
         # 镜头类型（仅 wan2.6 支持，且需要 prompt_extend=true 才生效）
         shot_type_value = shot_type or getattr(self.video_config, 'shot_type', None)

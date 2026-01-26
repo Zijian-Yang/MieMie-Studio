@@ -1776,6 +1776,26 @@ const FramesPage = () => {
                           <p style={{ marginBottom: 0 }}><strong>时长：</strong>{selectedShot.duration || 5}秒</p>
                         </div>
                       </Card>
+                      
+                      {/* 追踪ID显示 */}
+                      {selectedFrame && (selectedFrame.last_task_id || selectedFrame.last_request_id) && (
+                        <div style={{ 
+                          marginTop: 12, 
+                          padding: '8px 12px', 
+                          background: '#1a1a1a', 
+                          borderRadius: 6,
+                          fontSize: 11,
+                          color: '#666',
+                          fontFamily: 'monospace'
+                        }}>
+                          {selectedFrame.last_task_id && (
+                            <div>Task ID: {selectedFrame.last_task_id}</div>
+                          )}
+                          {selectedFrame.last_request_id && (
+                            <div>Request ID: {selectedFrame.last_request_id}</div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )

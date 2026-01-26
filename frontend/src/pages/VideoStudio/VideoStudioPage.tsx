@@ -830,12 +830,18 @@ const VideoStudioPage = () => {
                                 if (modelInfo?.default_resolution) {
                                   setResolution(modelInfo.default_resolution)
                                 }
-                                // 处理音频支持（wan2.5/2.6 支持）
-                                if (!modelInfo?.supports_audio) {
+                                // 处理默认时长
+                                if (modelInfo?.default_duration) {
+                                  setDuration(modelInfo.default_duration)
+                                }
+                                // 处理音频支持
+                                if (modelInfo?.supports_audio) {
+                                  setAutoAudio(modelInfo.default_audio !== false)
+                                } else {
                                   setAutoAudio(false)
                                   setAudioUrl('')
                                 }
-                                // 处理镜头类型（仅 wan2.6 支持）
+                                // 处理镜头类型
                                 if (modelInfo?.supports_shot_type) {
                                   setShotType(modelInfo.default_shot_type || 'single')
                                 } else {
@@ -872,32 +878,30 @@ const VideoStudioPage = () => {
                         <Col span={12}>
                           <div style={{ marginBottom: 16 }}>
                             <div style={{ marginBottom: 8 }}>时长</div>
-                            <Select
-                              style={{ width: '100%' }}
-                              value={duration}
-                              onChange={setDuration}
-                            >
-                              {isWan26 ? (
-                                <>
-                                  <Option value={5}>5 秒</Option>
-                                  <Option value={10}>10 秒</Option>
-                                  <Option value={15}>15 秒</Option>
-                                </>
-                              ) : isWan25OrNewer ? (
-                                <>
-                                  <Option value={5}>5 秒</Option>
-                                  <Option value={10}>10 秒</Option>
-                                </>
-                              ) : (
-                                <>
-                                  <Option value={3}>3 秒</Option>
-                                  <Option value={4}>4 秒</Option>
-                                  <Option value={5}>5 秒</Option>
-                                </>
-                              )}
-                            </Select>
+                            {/* 根据模型是否有 duration_range 来决定使用 InputNumber 还是 Select */}
+                            {currentModelInfo?.duration_range ? (
+                              <InputNumber
+                                style={{ width: '100%' }}
+                                min={currentModelInfo.duration_range[0]}
+                                max={currentModelInfo.duration_range[1]}
+                                value={duration}
+                                onChange={(v) => setDuration(v || currentModelInfo.default_duration || 5)}
+                                addonAfter="秒"
+                              />
+                            ) : (
+                              <Select
+                                style={{ width: '100%' }}
+                                value={duration}
+                                onChange={setDuration}
+                              >
+                                {(currentModelInfo?.durations || [5]).map(d => (
+                                  <Option key={d} value={d}>{d} 秒</Option>
+                                ))}
+                              </Select>
+                            )}
                             <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
                               时长直接影响费用，按秒计费
+                              {currentModelInfo?.duration_range && ` (${currentModelInfo.duration_range[0]}-${currentModelInfo.duration_range[1]}秒)`}
                             </div>
                           </div>
                         </Col>
@@ -959,7 +963,7 @@ const VideoStudioPage = () => {
                         </Col>
                       </Row>
                       
-                      {isWan25OrNewer && (
+                      {currentModelInfo?.supports_audio && (
                         <div style={{ 
                           padding: 12, 
                           background: '#1a1a1a', 
@@ -967,7 +971,7 @@ const VideoStudioPage = () => {
                           marginTop: 8,
                           border: '1px solid #333'
                         }}>
-                          <div style={{ marginBottom: 12, fontWeight: 500 }}>🔊 音频设置（仅 wan2.5/2.6 支持）</div>
+                          <div style={{ marginBottom: 12, fontWeight: 500 }}>🔊 音频设置</div>
                           
                           <div style={{ marginBottom: 12 }}>
                             <div style={{ marginBottom: 8 }}>自定义音频</div>
@@ -993,29 +997,51 @@ const VideoStudioPage = () => {
                             </div>
                           </div>
                           
-                          <div>
-                            <Space>
-                              <Switch
-                                checked={autoAudio}
-                                onChange={setAutoAudio}
-                                disabled={!!audioUrl}
-                              />
-                              <span>自动生成音频</span>
-                            </Space>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                              {audioUrl 
-                                ? '已选择自定义音频，此选项无效'
-                                : autoAudio 
-                                  ? '模型将根据提示词和画面自动生成匹配的背景音'
-                                  : '关闭后生成无声视频'
-                              }
+                          {/* 有声/无声切换（仅支持 audio toggle 的模型显示，如 wan2.6-i2v-flash） */}
+                          {currentModelInfo?.supports_audio_toggle ? (
+                            <div>
+                              <Space>
+                                <Switch
+                                  checked={autoAudio}
+                                  onChange={setAutoAudio}
+                                  disabled={!!audioUrl}
+                                />
+                                <span>有声视频</span>
+                              </Space>
+                              <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                                {audioUrl 
+                                  ? '已选择自定义音频'
+                                  : autoAudio 
+                                    ? '模型将根据提示词和画面自动生成匹配的背景音'
+                                    : '关闭后生成无声视频（费用更低）'
+                                }
+                              </div>
                             </div>
-                          </div>
+                          ) : (
+                            <div>
+                              <Space>
+                                <Switch
+                                  checked={autoAudio}
+                                  onChange={setAutoAudio}
+                                  disabled={!!audioUrl}
+                                />
+                                <span>自动生成音频</span>
+                              </Space>
+                              <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                                {audioUrl 
+                                  ? '已选择自定义音频，此选项无效'
+                                  : autoAudio 
+                                    ? '模型将根据提示词和画面自动生成匹配的背景音'
+                                    : '关闭后将使用静音视频'
+                                }
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                       
-                      {/* 镜头类型（仅 wan2.6-i2v 支持） */}
-                      {isWan26 && (
+                      {/* 镜头类型（支持 shot_type 的模型） */}
+                      {currentModelInfo?.supports_shot_type && (
                         <div style={{ 
                           padding: 12, 
                           background: '#1a1a1a', 
@@ -1023,7 +1049,7 @@ const VideoStudioPage = () => {
                           marginTop: 8,
                         }}>
                           <div style={{ marginBottom: 8, fontWeight: 500, color: '#e5a84b' }}>
-                            镜头类型设置 (wan2.6 特有)
+                            🎬 镜头类型设置
                           </div>
                           <div>
                             <div style={{ marginBottom: 8 }}>镜头类型</div>
@@ -1659,6 +1685,26 @@ const VideoStudioPage = () => {
                 </div>
               </div>
             )}
+            
+            {/* 追踪ID显示 */}
+            {(selectedTask.task_ids?.length > 0 || selectedTask.request_ids?.length > 0) && (
+              <div style={{ 
+                marginTop: 16, 
+                padding: '8px 12px', 
+                background: '#1a1a1a', 
+                borderRadius: 6,
+                fontSize: 11,
+                color: '#666',
+                fontFamily: 'monospace'
+              }}>
+                {selectedTask.task_ids?.length > 0 && (
+                  <div>Task ID: {selectedTask.task_ids[selectedTask.task_ids.length - 1]}</div>
+                )}
+                {selectedTask.request_ids?.length > 0 && (
+                  <div>Request ID: {selectedTask.request_ids[selectedTask.request_ids.length - 1]}</div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </Modal>
@@ -1967,11 +2013,21 @@ const VideoStudioPage = () => {
                   <Row gutter={16}>
                     <Col span={12}>
                       <Form.Item name="duration" label="视频时长">
-                        <Select>
-                          {(getEditModelInfo()?.durations || [5, 10]).map((d: number) => (
-                            <Option key={d} value={d}>{d} 秒</Option>
-                          ))}
-                        </Select>
+                        {/* 根据模型是否有 duration_range 来决定使用 InputNumber 还是 Select */}
+                        {(getEditModelInfo() as VideoModelInfo)?.duration_range ? (
+                          <InputNumber
+                            style={{ width: '100%' }}
+                            min={(getEditModelInfo() as VideoModelInfo)?.duration_range?.[0] || 2}
+                            max={(getEditModelInfo() as VideoModelInfo)?.duration_range?.[1] || 15}
+                            addonAfter="秒"
+                          />
+                        ) : (
+                          <Select>
+                            {((getEditModelInfo() as VideoModelInfo)?.durations || [5, 10]).map((d: number) => (
+                              <Option key={d} value={d}>{d} 秒</Option>
+                            ))}
+                          </Select>
+                        )}
                       </Form.Item>
                     </Col>
                     <Col span={12}>

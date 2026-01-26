@@ -4,6 +4,7 @@
 """
 
 from typing import List, Optional, Tuple
+from dataclasses import dataclass, field
 from http import HTTPStatus
 import dashscope
 from dashscope import ImageSynthesis
@@ -14,6 +15,14 @@ import base64
 
 from app.config import get_config, IMAGE_MODELS
 from app.services.oss import oss_service
+
+
+@dataclass
+class GenerationResult:
+    """生成结果，包含URLs和追踪ID"""
+    urls: List[str] = field(default_factory=list)
+    task_id: Optional[str] = None
+    request_id: Optional[str] = None
 
 
 # wan2.6-image 参考图片尺寸限制
@@ -185,7 +194,7 @@ class TextToImageService:
         watermark: Optional[bool] = None,
         seed: Optional[int] = None,
         project_id: str = ""
-    ) -> List[str]:
+    ) -> GenerationResult:
         """
         批量生成图片
         
@@ -202,7 +211,7 @@ class TextToImageService:
             project_id: 项目ID，用于 OSS 上传路径
             
         Returns:
-            图片 URL 列表（如果启用 OSS，返回 OSS URL）
+            GenerationResult: 包含图片URL列表和task_id/request_id
         """
         # 使用配置的默认值
         final_width = width if width is not None else self.image_config.width
@@ -224,7 +233,7 @@ class TextToImageService:
         
         # wan2.6-image 使用 HTTP 异步调用（需要轮询）
         if final_model == 'wan2.6-image':
-            return await self._generate_batch_wan26_image(
+            urls = await self._generate_batch_wan26_image(
                 prompt=prompt,
                 negative_prompt=negative_prompt,
                 size=size,
@@ -236,10 +245,12 @@ class TextToImageService:
                 image_urls=None,  # 纯文生图不需要参考图
                 enable_interleave=False
             )
+            # _generate_batch_wan26_image 返回 List[str]，需要包装
+            return GenerationResult(urls=urls)
         
-        # wan2.6-t2i 使用 HTTP 同步调用
-        if use_http:
-            return await self._generate_batch_http(
+        # wan2.6-t2i 使用 HTTP 异步调用（返回 GenerationResult）
+        if use_http and is_async:
+            return await self._generate_batch_http_async(
                 prompt=prompt,
                 negative_prompt=negative_prompt,
                 size=size,
@@ -251,8 +262,23 @@ class TextToImageService:
                 project_id=project_id
             )
         
+        # 其他 HTTP 模型使用同步调用
+        if use_http:
+            urls = await self._generate_batch_http(
+                prompt=prompt,
+                negative_prompt=negative_prompt,
+                size=size,
+                n=n,
+                model=final_model,
+                prompt_extend=final_prompt_extend,
+                watermark=final_watermark,
+                seed=final_seed,
+                project_id=project_id
+            )
+            return GenerationResult(urls=urls)
+        
         # 其他模型使用 SDK 异步调用
-        return await self._generate_batch_sdk(
+        urls = await self._generate_batch_sdk(
             prompt=prompt,
             negative_prompt=negative_prompt,
             size=size,
@@ -263,6 +289,7 @@ class TextToImageService:
             seed=final_seed,
             project_id=project_id
         )
+        return GenerationResult(urls=urls)
     
     async def _generate_batch_http(
         self,
@@ -367,6 +394,162 @@ class TextToImageService:
             raise Exception("文生图请求超时")
         except Exception as e:
             print(f"[文生图HTTP] 异常: {str(e)}")
+            raise
+    
+    async def _generate_batch_http_async(
+        self,
+        prompt: str,
+        negative_prompt: str,
+        size: str,
+        n: int,
+        model: str,
+        prompt_extend: bool,
+        watermark: bool,
+        seed: Optional[int],
+        project_id: str
+    ) -> List[str]:
+        """
+        使用 HTTP 异步接口生成图片（wan2.6-t2i）
+        
+        步骤：
+        1. 创建任务获取 task_id
+        2. 轮询获取结果
+        
+        参考: https://help.aliyun.com/zh/model-studio/text-to-image-v2-api-reference
+        """
+        import asyncio
+        import json
+        
+        # 步骤1：创建任务
+        # 注意：异步调用使用不同的端点
+        url = f"{self.base_url}/services/aigc/image-generation/generation"
+        
+        # 构建请求体（使用 messages 格式）
+        request_body = {
+            "model": model,
+            "input": {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "text": prompt
+                            }
+                        ]
+                    }
+                ]
+            },
+            "parameters": {
+                "size": size,
+                "n": n,
+                "prompt_extend": prompt_extend,
+                "watermark": watermark,
+            }
+        }
+        
+        # 添加可选参数
+        if negative_prompt:
+            request_body["parameters"]["negative_prompt"] = negative_prompt
+        if seed is not None:
+            request_body["parameters"]["seed"] = seed
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+            "X-DashScope-Async": "enable"  # 关键：启用异步模式
+        }
+        
+        print(f"[文生图HTTP异步] 创建任务: {url}")
+        print(f"[文生图HTTP异步] 模型: {model}, 尺寸: {size}, 数量: {n}")
+        print(f"[文生图HTTP异步] 提示词: {prompt[:100]}...")
+        
+        try:
+            # 使用较长的超时时间以支持轮询
+            async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, read=60.0)) as client:
+                # 创建任务
+                response = await client.post(url, json=request_body, headers=headers)
+                result = response.json()
+                
+                print(f"[文生图HTTP异步] 创建任务响应: {json.dumps(result, ensure_ascii=False)[:500]}")
+                
+                # 获取 request_id
+                request_id = result.get("request_id")
+                
+                if response.status_code != 200:
+                    error_code = result.get('code', 'Unknown')
+                    error_message = result.get('message', response.text)
+                    print(f"[文生图HTTP异步] 创建任务失败: {error_code} - {error_message}")
+                    raise Exception(f"创建任务失败: {error_code} - {error_message}")
+                
+                task_id = result.get("output", {}).get("task_id")
+                if not task_id:
+                    raise Exception(f"创建任务失败: 未返回 task_id")
+                
+                print(f"[文生图HTTP异步] 任务已创建，task_id: {task_id}, request_id: {request_id}")
+                
+                # 步骤2：轮询获取结果
+                query_url = f"{self.base_url}/tasks/{task_id}"
+                max_wait_time = 300  # 5分钟
+                poll_interval = 5  # 每5秒检查一次
+                elapsed_time = 0
+                
+                query_headers = {
+                    "Authorization": f"Bearer {self.api_key}"
+                }
+                
+                while elapsed_time < max_wait_time:
+                    await asyncio.sleep(poll_interval)
+                    elapsed_time += poll_interval
+                    
+                    query_response = await client.get(query_url, headers=query_headers)
+                    query_result = query_response.json()
+                    
+                    task_status = query_result.get("output", {}).get("task_status", "UNKNOWN")
+                    print(f"[文生图HTTP异步] 任务状态: {task_status}, 已等待: {elapsed_time}s")
+                    
+                    if task_status == "SUCCEEDED":
+                        # 从 choices 中提取图片 URL
+                        choices = query_result.get("output", {}).get("choices", [])
+                        urls = []
+                        
+                        for choice in choices:
+                            message_content = choice.get("message", {}).get("content", [])
+                            for item in message_content:
+                                if item.get("type") == "image" and item.get("image"):
+                                    urls.append(item["image"])
+                        
+                        print(f"[文生图HTTP异步] 生成成功，共 {len(urls)} 张图片")
+                        
+                        # 上传到 OSS
+                        if oss_service.is_enabled():
+                            oss_urls = []
+                            for img_url in urls:
+                                oss_url = await oss_service.upload_image_async(img_url, project_id)
+                                oss_urls.append(oss_url)
+                            return GenerationResult(urls=oss_urls, task_id=task_id, request_id=request_id)
+                        
+                        return GenerationResult(urls=urls, task_id=task_id, request_id=request_id)
+                    
+                    elif task_status == "FAILED":
+                        error_code = query_result.get("output", {}).get("code", "Unknown")
+                        error_msg = query_result.get("output", {}).get("message", "未知错误")
+                        print(f"[文生图HTTP异步] 任务失败: {error_code} - {error_msg}")
+                        print(f"[文生图HTTP异步] 完整响应: {json.dumps(query_result, ensure_ascii=False)}")
+                        raise Exception(f"图片生成失败: {error_code} - {error_msg}")
+                    
+                    elif task_status in ["PENDING", "RUNNING"]:
+                        continue
+                    
+                    else:
+                        raise Exception(f"未知的任务状态: {task_status}")
+                
+                raise Exception(f"图片生成超时（已等待 {max_wait_time} 秒）")
+                
+        except httpx.TimeoutException:
+            print(f"[文生图HTTP异步] 请求超时")
+            raise Exception("文生图请求超时")
+        except Exception as e:
+            print(f"[文生图HTTP异步] 异常: {str(e)}")
             raise
     
     async def _generate_batch_sdk(

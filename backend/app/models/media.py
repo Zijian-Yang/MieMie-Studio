@@ -141,6 +141,7 @@ class VideoStudioTask(BaseModel):
     
     # 任务状态
     task_ids: List[str] = []  # 各组的任务ID
+    request_ids: List[str] = []  # 各组的请求ID（用于追踪）
     status: str = "pending"  # pending, processing, succeeded, failed
     error_message: Optional[str] = None
     

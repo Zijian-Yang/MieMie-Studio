@@ -109,13 +109,15 @@ export interface VideoModelInfo {
   description?: string
   resolutions: VideoResolutionOption[]
   default_resolution: string
-  durations?: number[]  // 支持的时长列表
+  durations?: number[]  // 支持的时长列表（固定选项）
+  duration_range?: [number, number]  // 连续时长范围 [min, max]（如 wan2.6-i2v-flash 的 [2, 15]）
   default_duration?: number
   supports_prompt_extend?: boolean
   supports_watermark?: boolean
   supports_seed?: boolean
   supports_negative_prompt?: boolean
   supports_audio?: boolean  // 是否支持音频参数
+  supports_audio_toggle?: boolean  // 是否支持有声/无声切换（仅 wan2.6-i2v-flash）
   default_audio?: boolean  // 默认是否开启自动配音
   supports_shot_type?: boolean  // 是否支持镜头类型（仅wan2.6）
   default_shot_type?: string  // 默认镜头类型
@@ -614,6 +616,9 @@ export interface Character {
     custom_audio_url?: string
     test_text: string
   }
+  // 追踪ID
+  last_task_id?: string  // DashScope 任务ID
+  last_request_id?: string  // DashScope 请求ID
   created_at: string
   updated_at: string
 }
@@ -687,6 +692,9 @@ export interface Scene {
   negative_prompt: string
   image_groups: SceneImage[]
   selected_group_index: number
+  // 追踪ID
+  last_task_id?: string  // DashScope 任务ID
+  last_request_id?: string  // DashScope 请求ID
   created_at: string
   updated_at: string
 }
@@ -758,6 +766,9 @@ export interface Prop {
   negative_prompt: string
   image_groups: PropImage[]
   selected_group_index: number
+  // 追踪ID
+  last_task_id?: string  // DashScope 任务ID
+  last_request_id?: string  // DashScope 请求ID
   created_at: string
   updated_at: string
 }
@@ -827,6 +838,9 @@ export interface Frame {
   prompt: string
   image_groups: FrameImage[]
   selected_group_index: number
+  // 追踪ID
+  last_task_id?: string  // DashScope 任务ID
+  last_request_id?: string  // DashScope 请求ID
   created_at: string
   updated_at: string
 }
@@ -874,6 +888,7 @@ export const framesApi = {
 export interface VideoTask {
   id: string
   task_id: string
+  request_id?: string  // DashScope 请求ID
   status: 'pending' | 'processing' | 'succeeded' | 'failed'
   progress: number
   error_message?: string
@@ -1121,6 +1136,17 @@ export interface StudioTask {
   negative_prompt: string
   n: number  // 每次请求生成的图片数量
   group_count: number  // 并发请求数（总图片数 = n * group_count）
+  // 高级生成参数（持久化保存）
+  size?: string  // 输出尺寸
+  prompt_extend?: boolean  // 智能改写
+  watermark?: boolean  // 水印
+  seed?: number  // 随机种子
+  // wan2.6-image 专用参数
+  enable_interleave?: boolean  // 图文混合模式
+  max_images?: number  // 图文混合模式下最大生成图数
+  // 追踪ID
+  last_task_id?: string  // DashScope 任务ID
+  last_request_id?: string  // DashScope 请求ID
   references: ReferenceItem[]
   images: StudioTaskImage[]
   status: 'pending' | 'generating' | 'completed' | 'failed'
@@ -1350,6 +1376,7 @@ export interface VideoStudioTask {
   video_urls: string[]
   selected_video_url?: string
   task_ids: string[]
+  request_ids?: string[]  // 各组的请求ID（用于追踪）
   status: 'pending' | 'processing' | 'succeeded' | 'failed'
   error_message?: string
   created_at: string
