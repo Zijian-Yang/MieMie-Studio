@@ -2,7 +2,7 @@
 视频工作室 API 路由
 支持四种任务类型：
 1. 图生视频（image_to_video）：基于首帧图生成视频
-2. 视频生视频（reference_to_video）：基于参考视频生成新视频
+2. 参考生视频（reference_to_video）：基于参考视频/图片生成新视频
 3. 文生视频（text_to_video）：基于文本提示词生成视频
 4. 首尾帧生视频（keyframe_to_video）：基于首帧和尾帧图片生成平滑过渡视频
 """
@@ -28,7 +28,7 @@ class VideoStudioTaskCreateRequest(BaseModel):
     
     支持四种任务类型：
     1. image_to_video（图生视频）：使用 first_frame_url
-    2. reference_to_video（视频生视频）：使用 reference_video_urls
+    2. reference_to_video（参考生视频）：使用 reference_video_urls（支持视频和图片，总数≤5）
     3. text_to_video（文生视频）：使用 prompt 生成视频
     4. keyframe_to_video（首尾帧生视频）：使用 first_frame_url 和 last_frame_url
     
@@ -42,14 +42,12 @@ class VideoStudioTaskCreateRequest(BaseModel):
     - seed: 随机种子，范围 [0, 2147483647]
     - shot_type: 镜头类型（仅 wan2.6 支持），single/multi
     
-    视频生视频参数说明（wan2.6-r2v）：
-    - size: 分辨率（宽*高格式，如 1920*1080）
-    - duration: 视频时长，5 或 10 秒
+    参考生视频参数说明（wan2.6-r2v）：
+    - size: 分辨率（宽*高格式，如 1920*1080），默认1080P 16:9
+    - duration: 视频时长，2-10秒整数
     - shot_type: 镜头类型，single/multi
     - watermark: 是否添加水印
     - seed: 随机种子
-    - audio: 是否生成音频
-    - r2v_prompt_extend: 提示词改写，默认 True
     
     文生视频参数说明（wan2.6-t2v）：
     - size: 分辨率（宽*高格式，如 1920*1080），720P/1080P档位
@@ -83,8 +81,8 @@ class VideoStudioTaskCreateRequest(BaseModel):
     last_frame_url: Optional[str] = None  # 尾帧图URL（首尾帧模式）
     audio_url: Optional[str] = None  # 自定义音频URL
     
-    # 视频生视频参数
-    reference_video_urls: List[str] = []  # 参考视频URL列表（最多3个）
+    # 参考生视频参数（支持视频和图片，总数≤5）
+    reference_video_urls: List[str] = []  # 参考素材URL列表（视频+图片）
     
     # 通用参数
     prompt: str = ""
@@ -100,9 +98,8 @@ class VideoStudioTaskCreateRequest(BaseModel):
     resolution: str = "1080P"  # 默认1080P
     prompt_extend: bool = True  # 智能改写
     
-    # 视频生视频专用
+    # 参考生视频专用
     size: str = "1920*1080"  # 分辨率（宽*高格式）
-    r2v_prompt_extend: bool = True  # 视频生视频的提示词改写，默认开启
     
     # 文生视频专用
     t2v_prompt_extend: bool = True  # 文生视频的智能改写，默认开启
@@ -128,9 +125,8 @@ class VideoStudioTaskUpdateRequest(BaseModel):
     shot_type: Optional[str] = None  # 镜头类型
     first_frame_url: Optional[str] = None
     audio_url: Optional[str] = None
-    reference_video_urls: Optional[List[str]] = None  # 参考视频URL列表
-    size: Optional[str] = None  # 视频生视频/文生视频分辨率
-    r2v_prompt_extend: Optional[bool] = None  # 视频生视频的提示词改写
+    reference_video_urls: Optional[List[str]] = None  # 参考素材URL列表（视频+图片）
+    size: Optional[str] = None  # 参考生视频/文生视频分辨率
     t2v_prompt_extend: Optional[bool] = None  # 文生视频的智能改写
     group_count: Optional[int] = None  # 生成组数
 
@@ -155,10 +151,11 @@ async def get_task(task_id: str):
 async def create_task(request: VideoStudioTaskCreateRequest):
     """创建并启动视频生成任务
     
-    支持三种任务类型：
+    支持四种任务类型：
     1. image_to_video（图生视频）：需要 first_frame_url
-    2. reference_to_video（视频生视频）：需要 reference_video_urls
+    2. reference_to_video（参考生视频）：需要 reference_video_urls（支持视频+图片）
     3. text_to_video（文生视频）：需要 prompt
+    4. keyframe_to_video（首尾帧生视频）：需要 first_frame_url 和 last_frame_url
     """
     # 打印详细请求信息
     print(f"\n{'#'*60}")
@@ -178,7 +175,6 @@ async def create_task(request: VideoStudioTaskCreateRequest):
     print(f"[请求参数] seed: {request.seed}")
     print(f"[请求参数] auto_audio: {request.auto_audio}")
     print(f"[请求参数] shot_type: {request.shot_type}")
-    print(f"[请求参数] r2v_prompt_extend: {request.r2v_prompt_extend}")
     print(f"[请求参数] group_count: {request.group_count}")
     if request.first_frame_url:
         print(f"[请求参数] first_frame_url: {request.first_frame_url[:100]}...")
@@ -195,9 +191,9 @@ async def create_task(request: VideoStudioTaskCreateRequest):
             raise HTTPException(status_code=400, detail="首尾帧模式需要选择尾帧图")
     elif request.task_type == "reference_to_video":
         if not request.reference_video_urls:
-            raise HTTPException(status_code=400, detail="视频生视频任务需要选择参考视频")
-        if len(request.reference_video_urls) > 3:
-            raise HTTPException(status_code=400, detail="参考视频最多3个")
+            raise HTTPException(status_code=400, detail="参考生视频任务需要选择参考素材（视频或图片）")
+        if len(request.reference_video_urls) > 5:
+            raise HTTPException(status_code=400, detail="参考素材总数最多5个（视频≤3，图片≤5）")
     elif request.task_type == "text_to_video":
         if not request.prompt:
             raise HTTPException(status_code=400, detail="文生视频任务需要输入提示词")
@@ -230,7 +226,6 @@ async def create_task(request: VideoStudioTaskCreateRequest):
         auto_audio=request.auto_audio,
         shot_type=request.shot_type,
         size=request.size,
-        r2v_prompt_extend=request.r2v_prompt_extend,
         t2v_prompt_extend=request.t2v_prompt_extend,
         group_count=request.group_count,
         status="processing"
@@ -263,11 +258,11 @@ async def create_task(request: VideoStudioTaskCreateRequest):
                     raise HTTPException(status_code=400, detail="首尾帧模式暂不支持")
             
             elif request.task_type == "reference_to_video":
-                # 视频生视频任务
+                # 参考生视频任务（支持视频和图片作为参考素材）
                 r2v_service = ReferenceToVideoService()
                 
                 api_task_id = await r2v_service.create_task(
-                    reference_video_urls=request.reference_video_urls,
+                    reference_urls=request.reference_video_urls,  # 包含视频和图片URL
                     prompt=request.prompt,
                     model=request.model,
                     size=request.size,
@@ -275,9 +270,7 @@ async def create_task(request: VideoStudioTaskCreateRequest):
                     shot_type=request.shot_type,
                     watermark=request.watermark,
                     seed=request.seed + i if request.seed else None,
-                    audio=request.auto_audio,
                     negative_prompt=request.negative_prompt if request.negative_prompt else None,
-                    prompt_extend=request.r2v_prompt_extend,
                 )
                 task.task_ids.append(api_task_id)
             
@@ -357,8 +350,8 @@ async def get_task_status(task_id: str):
         print(f"\n[视频工作室状态查询] 查询子任务: {api_task_id}")
         try:
             if task_type == "reference_to_video" or task.model == "wan2.6-r2v":
-                # 视频生视频任务使用 HTTP 查询
-                print(f"[视频工作室状态查询] 使用 视频生视频服务 (HTTP)")
+                # 参考生视频任务使用 HTTP 查询
+                print(f"[视频工作室状态查询] 使用 参考生视频服务 (HTTP)")
                 r2v_service = ReferenceToVideoService()
                 status, video_url = await r2v_service.get_task_status(api_task_id, task.project_id)
             elif task_type == "text_to_video":
@@ -459,8 +452,6 @@ async def update_task(task_id: str, request: VideoStudioTaskUpdateRequest):
         task.reference_video_urls = request.reference_video_urls
     if request.size is not None:
         task.size = request.size
-    if request.r2v_prompt_extend is not None:
-        task.r2v_prompt_extend = request.r2v_prompt_extend
     if request.t2v_prompt_extend is not None:
         task.t2v_prompt_extend = request.t2v_prompt_extend
     if request.task_type is not None:
@@ -509,15 +500,13 @@ async def regenerate_task(task_id: str):
     import asyncio
     
     if task_type == "reference_to_video" or task.model == "wan2.6-r2v":
-        # 视频生视频任务
+        # 参考生视频任务（支持视频和图片作为参考素材）
         r2v_service = ReferenceToVideoService()
         
         async def generate_one_r2v(idx: int):
             current_seed = task.seed + idx if task.seed is not None else None
-            # 获取r2v_prompt_extend，如果没有则默认True
-            r2v_prompt_extend = getattr(task, 'r2v_prompt_extend', True)
             return await r2v_service.create_task(
-                reference_video_urls=task.reference_video_urls,
+                reference_urls=task.reference_video_urls,  # 包含视频和图片URL
                 prompt=task.prompt,
                 model=task.model,
                 size=task.size,
@@ -525,9 +514,7 @@ async def regenerate_task(task_id: str):
                 shot_type=task.shot_type,
                 watermark=task.watermark,
                 seed=current_seed,
-                audio=task.auto_audio,
                 negative_prompt=task.negative_prompt,
-                prompt_extend=r2v_prompt_extend,
             )
         
         try:

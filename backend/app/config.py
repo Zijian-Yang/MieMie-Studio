@@ -376,12 +376,12 @@ KEYFRAME_TO_VIDEO_MODELS = {
     },
 }
 
-# 视频生视频模型配置（参考视频生成视频）
-# 参考: https://help.aliyun.com/zh/model-studio/reference-to-video-api
+# 参考生视频模型配置（参考视频/图像生成视频）
+# 参考: https://help.aliyun.com/zh/model-studio/wan-video-to-video-api-reference
 REF_VIDEO_MODELS = {
     "wan2.6-r2v": {
-        "name": "视频生视频 wan2.6-r2v",
-        "description": "参考输入视频的角色形象和音色，生成保持角色一致性的新视频，支持多镜头叙事",
+        "name": "参考生视频 wan2.6-r2v",
+        "description": "参考输入视频或图像中的角色形象（视频还可参考音色），生成保持角色一致性的新视频，支持多镜头叙事",
         # 720P档位的所有分辨率
         "resolutions_720p": [
             {"value": "1280*720", "label": "1280×720 (16:9 横屏)"},
@@ -398,19 +398,27 @@ REF_VIDEO_MODELS = {
             {"value": "1632*1248", "label": "1632×1248 (4:3 横屏)"},
             {"value": "1248*1632", "label": "1248×1632 (3:4 竖屏)"},
         ],
-        "default_size": "1920*1080",  # 官方默认值
-        "durations": [5, 10],  # 支持的时长
+        "default_size": "1920*1080",  # 官方默认值 (1080P 16:9)
+        "min_duration": 2,  # 最小时长
+        "max_duration": 10,  # 最大时长
         "default_duration": 5,  # 默认时长
         "supports_shot_type": True,  # 支持镜头类型 (single/multi)
         "default_shot_type": "single",
         "supports_watermark": True,
         "supports_seed": True,
         "supports_negative_prompt": True,
-        "supports_audio": True,  # 默认自动配音
+        "supports_audio": True,  # 参考视频可提取音色，支持通过提示词生成声音
         "default_audio": True,
+        # 参考素材限制（图片+视频）
+        "max_reference_images": 5,  # 最多5张参考图片
         "max_reference_videos": 3,  # 最多3个参考视频
-        "reference_video_duration": "2-30s",  # 参考视频时长要求
+        "max_reference_total": 5,  # 图片+视频总数不超过5个
+        "reference_video_duration": "1-30s",  # 参考视频时长要求
         "reference_video_max_size": "100MB",  # 单个视频最大100MB
+        "reference_image_formats": ["JPEG", "JPG", "PNG", "BMP", "WEBP"],  # 支持的图片格式
+        "reference_image_min_dim": 240,  # 图片最小宽高
+        "reference_image_max_dim": 5000,  # 图片最大宽高
+        "reference_image_max_size": "10MB",  # 单张图片最大10MB
     }
 }
 
@@ -590,26 +598,29 @@ class TextToVideoConfig(BaseModel):
 
 
 class RefVideoConfig(BaseModel):
-    """视频生视频配置（参考视频生成视频）
+    """参考生视频配置（参考视频/图像生成视频）
     
     参数说明（根据官方文档 wan2.6-r2v）：
     - model: 模型名称，目前仅支持 wan2.6-r2v
-    - size: 分辨率，格式为"宽*高"（如 1920*1080）
-    - duration: 视频时长，5 或 10 秒
+    - size: 分辨率，格式为"宽*高"（如 1920*1080），默认1080P 16:9
+    - duration: 视频时长，2-10秒整数
     - shot_type: 镜头类型，single 单镜头 / multi 多镜头叙事
-    - prompt_extend: 提示词改写，默认 True
     - watermark: 水印标识（右下角"AI生成"），默认 False
     - seed: 随机种子，范围 [0, 2147483647]
-    - audio: 是否生成音频，默认 True
+    
+    参考素材说明：
+    - 支持视频和图片作为参考素材
+    - 图片数量：0-5张
+    - 视频数量：0-3个
+    - 总数限制：图片+视频 ≤ 5
+    - 通过 character1, character2 等标识引用参考角色
     """
     model: str = "wan2.6-r2v"  # 目前仅支持此模型
-    size: str = "1920*1080"  # 分辨率（宽*高格式）
-    duration: int = 5  # 视频时长（秒）
+    size: str = "1920*1080"  # 分辨率（宽*高格式），默认1080P 16:9
+    duration: int = 5  # 视频时长（2-10秒整数）
     shot_type: str = "single"  # 镜头类型：single单镜头/multi多镜头叙事
-    prompt_extend: bool = True  # 提示词改写，默认开启
     watermark: bool = False  # 水印，默认关闭
     seed: Optional[int] = None  # 种子，None表示随机
-    audio: bool = True  # 是否生成音频，默认开启
 
 
 class OSSConfig(BaseModel):
@@ -654,7 +665,7 @@ class AppConfig(BaseModel):
     # 文生视频配置
     text_to_video: TextToVideoConfig = TextToVideoConfig()
     
-    # 视频生视频配置
+    # 参考生视频配置
     ref_video: RefVideoConfig = RefVideoConfig()
     
     # OSS 配置

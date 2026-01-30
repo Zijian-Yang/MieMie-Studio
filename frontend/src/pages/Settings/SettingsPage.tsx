@@ -64,13 +64,11 @@ const SettingsPage = () => {
         video_seed: data.video.seed,
         video_audio: data.video.audio,
         video_shot_type: data.video.shot_type || 'single',
-        // 视频生视频配置
+        // 参考生视频配置
         ref_video_model: data.ref_video?.model || 'wan2.6-r2v',
         ref_video_size: data.ref_video?.size || '1920*1080',
         ref_video_duration: data.ref_video?.duration || 5,
         ref_video_shot_type: data.ref_video?.shot_type || 'single',
-        ref_video_prompt_extend: data.ref_video?.prompt_extend ?? true,
-        ref_video_audio: data.ref_video?.audio ?? true,
         ref_video_watermark: data.ref_video?.watermark || false,
         ref_video_seed: data.ref_video?.seed,
         // OSS 配置
@@ -154,8 +152,6 @@ const SettingsPage = () => {
           size: values.ref_video_size,
           duration: values.ref_video_duration,
           shot_type: values.ref_video_shot_type,
-          prompt_extend: values.ref_video_prompt_extend,
-          audio: values.ref_video_audio,
           watermark: values.ref_video_watermark,
           seed: values.ref_video_seed || null,
         },
@@ -278,7 +274,7 @@ const SettingsPage = () => {
     return config.available_video_models[videoModel]
   }
 
-  // 获取当前视频生视频模型信息
+  // 获取当前参考生视频模型信息
   const getCurrentRefVideoModelInfo = () => {
     if (!config) return null
     const refVideoModel = form.getFieldValue('ref_video_model') || config.ref_video?.model || 'wan2.6-r2v'
@@ -1074,14 +1070,14 @@ const SettingsPage = () => {
         </Form>
       </Card>
 
-      {/* 视频生视频模型配置 */}
+      {/* 参考生视频模型配置 */}
       <Card 
-        title="视频生视频模型配置" 
+        title="参考生视频模型配置" 
         style={{ marginBottom: 24, background: '#242424', borderColor: '#333' }}
       >
         <Alert
-          message="视频生视频（wan2.6-r2v）"
-          description="参考输入视频的角色形象和音色，生成保持角色一致性的新视频。提示词中使用 character1/character2 指代参考视频中的主体。"
+          message="参考生视频（wan2.6-r2v）"
+          description="参考输入视频或图像中的角色形象（视频还可参考音色），生成保持角色一致性的新视频，支持多镜头叙事。提示词中使用 character1/character2 指代参考素材中的主体。参考素材支持：图片0-5张、视频0-3个，总数≤5。"
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
@@ -1091,7 +1087,7 @@ const SettingsPage = () => {
             <Col span={12}>
               <Form.Item
                 name="ref_video_model"
-                label="视频生视频模型"
+                label="参考生视频模型"
               >
                 <Select
                   options={
@@ -1135,13 +1131,14 @@ const SettingsPage = () => {
               <Form.Item
                 name="ref_video_duration"
                 label="默认时长"
-                extra="视频生视频支持 5 或 10 秒"
+                extra="参考生视频支持 2-10 秒整数时长"
               >
-                <Select>
-                  {(getCurrentRefVideoModelInfo()?.durations || [5, 10]).map((d: number) => (
-                    <Select.Option key={d} value={d}>{d} 秒</Select.Option>
-                  ))}
-                </Select>
+                <InputNumber
+                  style={{ width: '100%' }}
+                  min={getCurrentRefVideoModelInfo()?.min_duration || 2}
+                  max={getCurrentRefVideoModelInfo()?.max_duration || 10}
+                  addonAfter="秒"
+                />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -1159,27 +1156,7 @@ const SettingsPage = () => {
           </Row>
 
           <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="ref_video_prompt_extend"
-                label="提示词改写"
-                valuePropName="checked"
-                tooltip="使用大模型优化提示词，提升生成效果"
-              >
-                <Switch />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="ref_video_audio"
-                label="自动生成音频"
-                valuePropName="checked"
-                tooltip="模型可参考输入视频的音色生成新音频"
-              >
-                <Switch />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
+            <Col span={12}>
               <Form.Item
                 name="ref_video_watermark"
                 label="添加水印"
@@ -1188,6 +1165,11 @@ const SettingsPage = () => {
               >
                 <Switch />
               </Form.Item>
+            </Col>
+            <Col span={12}>
+              <div style={{ fontSize: 12, color: '#888', paddingTop: 32 }}>
+                音频说明：参考视频时可自动提取音色，也可通过提示词描述声音效果
+              </div>
             </Col>
           </Row>
 

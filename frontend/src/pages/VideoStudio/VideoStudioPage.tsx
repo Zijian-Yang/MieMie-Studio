@@ -8,6 +8,16 @@ import { useProjectStore } from '../../stores/projectStore'
 const { TextArea } = Input
 const { Option } = Select
 
+// 参考素材项类型
+interface ReferenceItem {
+  id: string
+  url: string
+  type: 'video' | 'image'
+  name: string
+  thumbnail?: string
+  duration?: number  // 视频时长
+}
+
 const VideoStudioPage = () => {
   const { projectId } = useParams<{ projectId: string }>()
   const { fetchProject } = useProjectStore()
@@ -33,19 +43,18 @@ const VideoStudioPage = () => {
   const [firstFrameUrl, setFirstFrameUrl] = useState('')
   const [lastFrameUrl, setLastFrameUrl] = useState('')  // 首尾帧生视频的尾帧图
   const [audioUrl, setAudioUrl] = useState('')
-  const [referenceVideoUrls, setReferenceVideoUrls] = useState<string[]>([])  // 参考视频URL列表
+  const [referenceItems, setReferenceItems] = useState<ReferenceItem[]>([])  // 参考素材队列（视频+图片，有序）
   const [prompt, setPrompt] = useState('')
   const [negativePrompt, setNegativePrompt] = useState('')
   const [model, setModel] = useState('wan2.5-i2v-preview')
   const [resolution, setResolution] = useState('1080P')  // 默认1080P
-  const [size, setSize] = useState('1920*1080')  // 视频生视频分辨率
+  const [size, setSize] = useState('1920*1080')  // 参考生视频分辨率
   const [duration, setDuration] = useState(5)
   const [promptExtend, setPromptExtend] = useState(true)  // 智能改写
   const [watermark, setWatermark] = useState(false)  // 水印
   const [seed, setSeed] = useState<number | undefined>(undefined)  // 随机种子
   const [autoAudio, setAutoAudio] = useState(true)  // 自动配音（默认开启）
   const [shotType, setShotType] = useState('single')  // 镜头类型
-  const [r2vPromptExtend, setR2vPromptExtend] = useState(true)  // 视频生视频提示词改写
   const [t2vPromptExtend, setT2vPromptExtend] = useState(true)  // 文生视频智能改写
   const [groupCount, setGroupCount] = useState(1)
   const [creating, setCreating] = useState(false)
@@ -151,8 +160,8 @@ const VideoStudioPage = () => {
       message.warning('请选择首帧图')
       return
     }
-    if (taskType === 'reference_to_video' && referenceVideoUrls.length === 0) {
-      message.warning('请选择参考视频')
+    if (taskType === 'reference_to_video' && referenceItems.length === 0) {
+      message.warning('请选择参考素材（视频或图片）')
       return
     }
     if (taskType === 'text_to_video' && !prompt) {
@@ -194,8 +203,8 @@ const VideoStudioPage = () => {
         first_frame_url: (taskType === 'image_to_video' || taskType === 'keyframe_to_video') ? firstFrameUrl : undefined,
         last_frame_url: taskType === 'keyframe_to_video' ? lastFrameUrl : undefined,
         audio_url: taskType === 'image_to_video' ? (audioUrl || undefined) : (taskType === 'text_to_video' ? (audioUrl || undefined) : undefined),
-        // 视频生视频参数
-        reference_video_urls: taskType === 'reference_to_video' ? referenceVideoUrls : undefined,
+        // 参考生视频参数（按顺序传递所有参考素材URL）
+        reference_video_urls: taskType === 'reference_to_video' ? referenceItems.map(item => item.url) : undefined,
         // 通用参数
         prompt,
         negative_prompt: negativePrompt,
@@ -208,9 +217,8 @@ const VideoStudioPage = () => {
         // 图生视频/首尾帧生视频专用
         resolution: (taskType === 'image_to_video' || taskType === 'keyframe_to_video') ? resolution : undefined,
         prompt_extend: (taskType === 'image_to_video' || taskType === 'keyframe_to_video') ? promptExtend : undefined,
-        // 视频生视频专用
+        // 参考生视频专用
         size: taskType === 'reference_to_video' ? size : (taskType === 'text_to_video' ? size : undefined),
-        r2v_prompt_extend: taskType === 'reference_to_video' ? r2vPromptExtend : undefined,
         // 文生视频专用
         t2v_prompt_extend: taskType === 'text_to_video' ? t2vPromptExtend : undefined,
         group_count: groupCount
@@ -237,16 +245,15 @@ const VideoStudioPage = () => {
     setFirstFrameUrl('')
     setLastFrameUrl('')  // 重置尾帧图
     setAudioUrl('')
-    setReferenceVideoUrls([])
+    setReferenceItems([])
     setPrompt('')
     setNegativePrompt('')
     setModel('wan2.5-i2v-preview')
     setResolution('1080P')  // 默认1080P
-    setSize('1920*1080')  // 默认视频生视频分辨率
+    setSize('1920*1080')  // 默认参考生视频分辨率
     setDuration(5)
     setShotType('single')
     setPromptExtend(true)
-    setR2vPromptExtend(true)  // 重置视频生视频提示词改写
     setT2vPromptExtend(true)  // 重置文生视频智能改写
     setWatermark(false)
     setSeed(undefined)
@@ -290,10 +297,9 @@ const VideoStudioPage = () => {
   const [editFirstFrameUrl, setEditFirstFrameUrl] = useState('')
   const [editLastFrameUrl, setEditLastFrameUrl] = useState('')  // 首尾帧生视频的尾帧图
   const [editAudioUrl, setEditAudioUrl] = useState('')
-  const [editReferenceVideoUrls, setEditReferenceVideoUrls] = useState<string[]>([])
+  const [editReferenceItems, setEditReferenceItems] = useState<ReferenceItem[]>([])  // 编辑弹窗中的参考素材队列
   const [editGroupCount, setEditGroupCount] = useState(1)
   const [editModel, setEditModel] = useState('wan2.5-i2v-preview')  // 编辑弹窗中的当前模型
-  const [editR2vPromptExtend, setEditR2vPromptExtend] = useState(true)  // 编辑弹窗中的r2v提示词改写
   const [editT2vPromptExtend, setEditT2vPromptExtend] = useState(true)  // 编辑弹窗中的t2v智能改写
 
   // 获取编辑弹窗中当前模型的信息
@@ -316,14 +322,49 @@ const VideoStudioPage = () => {
     setEditFirstFrameUrl(task.first_frame_url || '')
     setEditLastFrameUrl(task.last_frame_url || '')  // 首尾帧生视频的尾帧图
     setEditAudioUrl(task.audio_url || '')
-    setEditReferenceVideoUrls(task.reference_video_urls || [])
+    // 将已有的 reference_video_urls 转换为 ReferenceItem 格式
+    const existingUrls = task.reference_video_urls || []
+    const items: ReferenceItem[] = existingUrls.map((url, index) => {
+      // 尝试从视频库匹配
+      const video = videoLibraryItems.find(v => v.url === url)
+      if (video) {
+        return {
+          id: `ref-${Date.now()}-${index}`,
+          url: video.url,
+          type: 'video' as const,
+          name: video.name,
+          thumbnail: video.thumbnail_url,
+          duration: video.duration
+        }
+      }
+      // 尝试从图库匹配
+      const image = galleryImages.find(img => img.url === url)
+      if (image) {
+        return {
+          id: `ref-${Date.now()}-${index}`,
+          url: image.url,
+          type: 'image' as const,
+          name: image.name,
+          thumbnail: image.url
+        }
+      }
+      // 未知来源，根据URL扩展名判断类型
+      const isVideo = /\.(mp4|mov|avi|webm)$/i.test(url)
+      return {
+        id: `ref-${Date.now()}-${index}`,
+        url,
+        type: isVideo ? 'video' as const : 'image' as const,
+        name: url.split('/').pop() || `素材${index + 1}`,
+        thumbnail: isVideo ? undefined : url
+      }
+    })
+    setEditReferenceItems(items)
     setEditGroupCount(task.group_count || 1)
     // 根据任务类型设置默认模型
     let defaultModel = 'wan2.5-i2v-preview'
     if (taskTypeValue === 'text_to_video') defaultModel = 'wan2.6-t2v'
     else if (taskTypeValue === 'keyframe_to_video') defaultModel = 'wan2.2-kf2v-flash'
     setEditModel(task.model || defaultModel)
-    setEditR2vPromptExtend(task.r2v_prompt_extend !== false)  // 默认true
     setEditT2vPromptExtend(task.prompt_extend !== false)  // 文生视频智能改写，默认true
     
     editForm.setFieldsValue({
@@ -352,8 +393,8 @@ const VideoStudioPage = () => {
       message.warning('请选择首帧图')
       return
     }
-    if (editTaskType === 'reference_to_video' && editReferenceVideoUrls.length === 0) {
-      message.warning('请选择参考视频')
+    if (editTaskType === 'reference_to_video' && editReferenceItems.length === 0) {
+      message.warning('请选择参考素材（视频或图片）')
       return
     }
     if (editTaskType === 'text_to_video' && !editForm.getFieldValue('prompt')) {
@@ -386,9 +427,9 @@ const VideoStudioPage = () => {
         updateData.first_frame_url = editFirstFrameUrl
         updateData.audio_url = editAudioUrl || undefined
       } else if (editTaskType === 'reference_to_video') {
-        updateData.reference_video_urls = editReferenceVideoUrls
+        // 按顺序传递所有参考素材URL
+        updateData.reference_video_urls = editReferenceItems.map(item => item.url)
         updateData.size = values.size
-        updateData.r2v_prompt_extend = editR2vPromptExtend
       } else if (editTaskType === 'text_to_video') {
         updateData.prompt_extend = editT2vPromptExtend
         updateData.size = values.size
@@ -461,7 +502,7 @@ const VideoStudioPage = () => {
   const isWan25OrNewer = model.includes('wan2.5') || model.includes('wan2.6')
   const isWan26 = model.includes('wan2.6')
   const currentModelInfo = videoModels[model]
-  const currentRefVideoModelInfo = refVideoModels['wan2.6-r2v']  // 目前只有一个视频生视频模型
+  const currentRefVideoModelInfo = refVideoModels['wan2.6-r2v']  // 目前只有一个参考生视频模型
 
   return (
     <div style={{ padding: 24 }}>
@@ -583,7 +624,7 @@ const VideoStudioPage = () => {
           disabled: taskType === 'image_to_video' 
             ? !firstFrameUrl 
             : taskType === 'reference_to_video'
-              ? referenceVideoUrls.length === 0
+              ? referenceItems.length === 0  // 至少需要一个参考素材
               : taskType === 'keyframe_to_video'
                 ? !firstFrameUrl || !lastFrameUrl  // 首尾帧都需要
                 : !prompt  // text_to_video 需要提示词
@@ -636,8 +677,8 @@ const VideoStudioPage = () => {
                       </Option>
                       <Option value="reference_to_video">
                         <Space>
-                          <Tag color="green">视频生视频</Tag>
-                          参考视频角色和音色生成新视频
+                          <Tag color="green">参考生视频</Tag>
+                          参考视频/图片中的角色生成新视频
                         </Space>
                       </Option>
                       <Option value="text_to_video">
@@ -692,33 +733,243 @@ const VideoStudioPage = () => {
                     </div>
                   )}
                   
-                  {/* 视频生视频：参考视频选择 */}
+                  {/* 参考生视频：参考素材选择（视频+图片，总数≤5） */}
                   {taskType === 'reference_to_video' && (
-                    <div style={{ marginBottom: 16 }}>
-                      <div style={{ marginBottom: 8 }}>参考视频 * (最多3个)</div>
-                      <Select
-                        mode="multiple"
-                        style={{ width: '100%' }}
-                        value={referenceVideoUrls}
-                        onChange={(urls) => setReferenceVideoUrls(urls.slice(0, 3))}
-                        placeholder="从视频库选择参考视频"
-                        optionLabelProp="label"
-                        maxTagCount={3}
-                      >
-                        {videoLibraryItems.map(video => (
-                          <Option key={video.id} value={video.url} label={video.name}>
-                            <Space>
-                              <VideoCameraOutlined />
-                              {video.name}
-                              {video.duration && <span style={{ color: '#888' }}>({video.duration}s)</span>}
-                            </Space>
-                          </Option>
-                        ))}
-                      </Select>
-                      <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                        提示词中使用 character1/character2/character3 指代对应视频的主体
+                    <>
+                      {/* 添加素材选择器 */}
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>添加参考视频</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={undefined}
+                              onChange={(url) => {
+                                if (!url || referenceItems.length >= 5) return
+                                const videoCount = referenceItems.filter(i => i.type === 'video').length
+                                if (videoCount >= 3) {
+                                  message.warning('视频最多3个')
+                                  return
+                                }
+                                const video = videoLibraryItems.find(v => v.url === url)
+                                if (video && !referenceItems.some(i => i.url === url)) {
+                                  setReferenceItems([...referenceItems, {
+                                    id: `ref-${Date.now()}`,
+                                    url: video.url,
+                                    type: 'video',
+                                    name: video.name,
+                                    thumbnail: video.thumbnail_url,
+                                    duration: video.duration
+                                  }])
+                                }
+                              }}
+                              placeholder="选择视频添加到队列"
+                              disabled={referenceItems.length >= 5 || referenceItems.filter(i => i.type === 'video').length >= 3}
+                            >
+                              {videoLibraryItems.filter(v => !referenceItems.some(i => i.url === v.url)).map(video => (
+                                <Option key={video.id} value={video.url}>
+                                  <Space>
+                                    <VideoCameraOutlined />
+                                    {video.name}
+                                    {video.duration && <span style={{ color: '#888' }}>({video.duration}s)</span>}
+                                  </Space>
+                                </Option>
+                              ))}
+                            </Select>
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>添加参考图片</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={undefined}
+                              onChange={(url) => {
+                                if (!url || referenceItems.length >= 5) return
+                                const imageCount = referenceItems.filter(i => i.type === 'image').length
+                                if (imageCount >= 5) {
+                                  message.warning('图片最多5张')
+                                  return
+                                }
+                                const image = galleryImages.find(img => img.url === url)
+                                if (image && !referenceItems.some(i => i.url === url)) {
+                                  setReferenceItems([...referenceItems, {
+                                    id: `ref-${Date.now()}`,
+                                    url: image.url,
+                                    type: 'image',
+                                    name: image.name,
+                                    thumbnail: image.url
+                                  }])
+                                }
+                              }}
+                              placeholder="选择图片添加到队列"
+                              disabled={referenceItems.length >= 5}
+                            >
+                              {galleryImages.filter(img => !referenceItems.some(i => i.url === img.url)).map(img => (
+                                <Option key={img.id} value={img.url}>
+                                  <Space>
+                                    <img src={img.url} alt="" style={{ width: 24, height: 24, objectFit: 'cover', borderRadius: 2 }} />
+                                    {img.name}
+                                  </Space>
+                                </Option>
+                              ))}
+                            </Select>
+                          </div>
+                        </Col>
+                      </Row>
+                      
+                      {/* 已选素材队列 */}
+                      <div style={{ 
+                        padding: '12px', 
+                        background: '#1a1a1a', 
+                        borderRadius: 8,
+                        marginBottom: 16 
+                      }}>
+                        <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 500 }}>
+                            已选素材队列
+                            <span style={{ 
+                              marginLeft: 8, 
+                              color: referenceItems.length >= 5 ? '#ff4d4f' : '#52c41a',
+                              fontSize: 12,
+                              fontWeight: 'normal'
+                            }}>
+                              ({referenceItems.length}/5)
+                            </span>
+                          </span>
+                          {referenceItems.length > 0 && (
+                            <Button type="link" size="small" danger onClick={() => setReferenceItems([])}>
+                              清空全部
+                            </Button>
+                          )}
+                        </div>
+                        
+                        {referenceItems.length === 0 ? (
+                          <div style={{ color: '#666', textAlign: 'center', padding: '20px 0' }}>
+                            请从上方选择参考视频或图片
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                            {referenceItems.map((item, index) => (
+                              <div 
+                                key={item.id}
+                                style={{ 
+                                  width: 110,
+                                  background: '#2a2a2a',
+                                  borderRadius: 8,
+                                  overflow: 'hidden',
+                                  position: 'relative'
+                                }}
+                              >
+                                {/* 缩略图 */}
+                                <div style={{ 
+                                  width: '100%', 
+                                  height: 70, 
+                                  background: '#333',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}>
+                                  {item.type === 'video' ? (
+                                    item.thumbnail ? (
+                                      <img src={item.thumbnail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    ) : (
+                                      <VideoCameraOutlined style={{ fontSize: 24, color: '#666' }} />
+                                    )
+                                  ) : (
+                                    <img src={item.thumbnail || item.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                  )}
+                                </div>
+                                
+                                {/* 类型标签 */}
+                                <Tag 
+                                  color={item.type === 'video' ? 'blue' : 'green'} 
+                                  style={{ position: 'absolute', top: 4, left: 4, fontSize: 10 }}
+                                >
+                                  {item.type === 'video' ? '视频' : '图片'}
+                                </Tag>
+                                
+                                {/* character 编号 */}
+                                <div style={{
+                                  position: 'absolute',
+                                  top: 4,
+                                  right: 4,
+                                  background: 'rgba(0,0,0,0.7)',
+                                  color: '#fff',
+                                  padding: '2px 6px',
+                                  borderRadius: 4,
+                                  fontSize: 10,
+                                  fontWeight: 500
+                                }}>
+                                  character{index + 1}
+                                </div>
+                                
+                                {/* 信息和操作 */}
+                                <div style={{ padding: '6px 8px' }}>
+                                  <div style={{ 
+                                    fontSize: 11, 
+                                    color: '#ccc',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    marginBottom: 4
+                                  }}>
+                                    {item.name}
+                                  </div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Space size={4}>
+                                      <Button 
+                                        type="text" 
+                                        size="small"
+                                        disabled={index === 0}
+                                        onClick={() => {
+                                          if (index > 0) {
+                                            const newItems = [...referenceItems]
+                                            ;[newItems[index - 1], newItems[index]] = [newItems[index], newItems[index - 1]]
+                                            setReferenceItems(newItems)
+                                          }
+                                        }}
+                                        style={{ padding: '0 4px', fontSize: 12 }}
+                                      >
+                                        ↑
+                                      </Button>
+                                      <Button 
+                                        type="text" 
+                                        size="small"
+                                        disabled={index === referenceItems.length - 1}
+                                        onClick={() => {
+                                          if (index < referenceItems.length - 1) {
+                                            const newItems = [...referenceItems]
+                                            ;[newItems[index], newItems[index + 1]] = [newItems[index + 1], newItems[index]]
+                                            setReferenceItems(newItems)
+                                          }
+                                        }}
+                                        style={{ padding: '0 4px', fontSize: 12 }}
+                                      >
+                                        ↓
+                                      </Button>
+                                    </Space>
+                                    <Button 
+                                      type="text" 
+                                      size="small" 
+                                      danger
+                                      onClick={() => setReferenceItems(referenceItems.filter(i => i.id !== item.id))}
+                                      style={{ padding: '0 4px' }}
+                                    >
+                                      <DeleteOutlined style={{ fontSize: 12 }} />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        <div style={{ marginTop: 12, fontSize: 12, color: '#888' }}>
+                          提示词中使用 <code style={{ background: '#333', padding: '0 4px', borderRadius: 2 }}>character1</code>, <code style={{ background: '#333', padding: '0 4px', borderRadius: 2 }}>character2</code>... 按上述顺序引用角色
+                        </div>
                       </div>
-                    </div>
+                    </>
                   )}
                   
                   {/* 首尾帧生视频：首帧图和尾帧图选择 */}
@@ -1073,7 +1324,7 @@ const VideoStudioPage = () => {
                     </>
                   )}
                   
-                  {/* 视频生视频参数 */}
+                  {/* 参考生视频参数 */}
                   {taskType === 'reference_to_video' && (
                     <>
                       <Row gutter={16}>
@@ -1085,10 +1336,10 @@ const VideoStudioPage = () => {
                               value="wan2.6-r2v"
                               disabled
                             >
-                              <Option value="wan2.6-r2v">{currentRefVideoModelInfo?.name || '万相2.6 视频生视频'}</Option>
+                              <Option value="wan2.6-r2v">{currentRefVideoModelInfo?.name || '万相2.6 参考生视频'}</Option>
                             </Select>
                             <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                              {currentRefVideoModelInfo?.description || '参考视频的角色和音色生成新视频'}
+                              {currentRefVideoModelInfo?.description || '参考视频/图像的角色形象生成新视频'}
                             </div>
                           </div>
                         </Col>
@@ -1121,15 +1372,15 @@ const VideoStudioPage = () => {
                       <Row gutter={16}>
                         <Col span={12}>
                           <div style={{ marginBottom: 16 }}>
-                            <div style={{ marginBottom: 8 }}>时长</div>
-                            <Select
+                            <div style={{ marginBottom: 8 }}>时长 (2-10秒)</div>
+                            <InputNumber
                               style={{ width: '100%' }}
+                              min={currentRefVideoModelInfo?.min_duration || 2}
+                              max={currentRefVideoModelInfo?.max_duration || 10}
                               value={duration}
-                              onChange={setDuration}
-                            >
-                              <Option value={5}>5 秒</Option>
-                              <Option value={10}>10 秒</Option>
-                            </Select>
+                              onChange={(v) => setDuration(v || 5)}
+                              addonAfter="秒"
+                            />
                             <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
                               时长直接影响费用，按秒计费
                             </div>
@@ -1170,37 +1421,14 @@ const VideoStudioPage = () => {
                           </div>
                         </Col>
                         <Col span={12}>
-                          <div style={{ marginBottom: 16 }}>
-                            <Space>
-                              <Switch
-                                checked={autoAudio}
-                                onChange={setAutoAudio}
-                              />
-                              <span>自动生成音频</span>
-                            </Space>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                              模型可参考输入视频的音色生成新音频
-                            </div>
+                          <div style={{ fontSize: 12, color: '#888', paddingTop: 24 }}>
+                            音频说明：参考视频时可自动提取音色，也可通过提示词描述声音效果
                           </div>
                         </Col>
                       </Row>
                       
                       <Row gutter={16}>
-                        <Col span={8}>
-                          <div style={{ marginBottom: 16 }}>
-                            <Space>
-                              <Switch
-                                checked={r2vPromptExtend}
-                                onChange={setR2vPromptExtend}
-                              />
-                              <span>提示词改写</span>
-                            </Space>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                              使用大模型优化提示词
-                            </div>
-                          </div>
-                        </Col>
-                        <Col span={8}>
+                        <Col span={12}>
                           <div style={{ marginBottom: 16 }}>
                             <Space>
                               <Switch
@@ -1214,7 +1442,7 @@ const VideoStudioPage = () => {
                             </div>
                           </div>
                         </Col>
-                        <Col span={8}>
+                        <Col span={12}>
                           <div style={{ marginBottom: 16 }}>
                             <div style={{ marginBottom: 8 }}>随机种子</div>
                             <InputNumber
@@ -1723,7 +1951,7 @@ const VideoStudioPage = () => {
           disabled: editTaskType === 'image_to_video' 
             ? !editFirstFrameUrl 
             : editTaskType === 'reference_to_video'
-              ? editReferenceVideoUrls.length === 0
+              ? editReferenceItems.length === 0  // 至少需要一个参考素材
               : editTaskType === 'keyframe_to_video'
                 ? !editFirstFrameUrl || !editLastFrameUrl
                 : false  // text_to_video 只需要提示词，在 handleSaveEdit 中验证
@@ -1749,7 +1977,7 @@ const VideoStudioPage = () => {
                       'purple'
                     }>
                       {editTaskType === 'image_to_video' ? '图生视频' : 
-                       editTaskType === 'reference_to_video' ? '视频生视频' : 
+                       editTaskType === 'reference_to_video' ? '参考生视频' : 
                        editTaskType === 'keyframe_to_video' ? '首尾帧生视频' :
                        '文生视频'}
                     </Tag>
@@ -1783,44 +2011,243 @@ const VideoStudioPage = () => {
                     </div>
                   )}
                   
-                  {/* 视频生视频：参考视频选择 */}
+                  {/* 参考生视频：参考素材选择（视频+图片，总数≤5） */}
                   {editTaskType === 'reference_to_video' && (
-                    <div style={{ marginBottom: 16 }}>
-                      <div style={{ marginBottom: 8 }}>参考视频 * (最多3个)</div>
-                      <Select
-                        mode="multiple"
-                        style={{ width: '100%' }}
-                        value={editReferenceVideoUrls}
-                        onChange={(urls) => setEditReferenceVideoUrls(urls.slice(0, 3))}
-                        placeholder="从视频库选择参考视频"
-                        optionLabelProp="label"
-                        maxTagCount={3}
-                      >
-                        {videoLibraryItems.map(video => (
-                          <Option key={video.id} value={video.url} label={video.name}>
-                            <Space>
-                              <VideoCameraOutlined />
-                              {video.name}
-                            </Space>
-                          </Option>
-                        ))}
-                      </Select>
-                      <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                        提示词中使用 character1/character2/character3 指代对应视频的主体
-                      </div>
-                      {editReferenceVideoUrls.length > 0 && (
-                        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-                          {editReferenceVideoUrls.map((url, idx) => (
-                            <video 
-                              key={idx} 
-                              src={url} 
-                              style={{ width: 100, height: 60, objectFit: 'cover', borderRadius: 4 }}
-                              muted
-                            />
-                          ))}
+                    <>
+                      {/* 添加素材选择器 */}
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>添加参考视频</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={undefined}
+                              onChange={(url) => {
+                                if (!url || editReferenceItems.length >= 5) return
+                                const videoCount = editReferenceItems.filter(i => i.type === 'video').length
+                                if (videoCount >= 3) {
+                                  message.warning('视频最多3个')
+                                  return
+                                }
+                                const video = videoLibraryItems.find(v => v.url === url)
+                                if (video && !editReferenceItems.some(i => i.url === url)) {
+                                  setEditReferenceItems([...editReferenceItems, {
+                                    id: `ref-${Date.now()}`,
+                                    url: video.url,
+                                    type: 'video',
+                                    name: video.name,
+                                    thumbnail: video.thumbnail_url,
+                                    duration: video.duration
+                                  }])
+                                }
+                              }}
+                              placeholder="选择视频添加到队列"
+                              disabled={editReferenceItems.length >= 5 || editReferenceItems.filter(i => i.type === 'video').length >= 3}
+                            >
+                              {videoLibraryItems.filter(v => !editReferenceItems.some(i => i.url === v.url)).map(video => (
+                                <Option key={video.id} value={video.url}>
+                                  <Space>
+                                    <VideoCameraOutlined />
+                                    {video.name}
+                                    {video.duration && <span style={{ color: '#888' }}>({video.duration}s)</span>}
+                                  </Space>
+                                </Option>
+                              ))}
+                            </Select>
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>添加参考图片</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={undefined}
+                              onChange={(url) => {
+                                if (!url || editReferenceItems.length >= 5) return
+                                const imageCount = editReferenceItems.filter(i => i.type === 'image').length
+                                if (imageCount >= 5) {
+                                  message.warning('图片最多5张')
+                                  return
+                                }
+                                const image = galleryImages.find(img => img.url === url)
+                                if (image && !editReferenceItems.some(i => i.url === url)) {
+                                  setEditReferenceItems([...editReferenceItems, {
+                                    id: `ref-${Date.now()}`,
+                                    url: image.url,
+                                    type: 'image',
+                                    name: image.name,
+                                    thumbnail: image.url
+                                  }])
+                                }
+                              }}
+                              placeholder="选择图片添加到队列"
+                              disabled={editReferenceItems.length >= 5}
+                            >
+                              {galleryImages.filter(img => !editReferenceItems.some(i => i.url === img.url)).map(img => (
+                                <Option key={img.id} value={img.url}>
+                                  <Space>
+                                    <img src={img.url} alt="" style={{ width: 24, height: 24, objectFit: 'cover', borderRadius: 2 }} />
+                                    {img.name}
+                                  </Space>
+                                </Option>
+                              ))}
+                            </Select>
+                          </div>
+                        </Col>
+                      </Row>
+                      
+                      {/* 已选素材队列 */}
+                      <div style={{ 
+                        padding: '12px', 
+                        background: '#1a1a1a', 
+                        borderRadius: 8,
+                        marginBottom: 16 
+                      }}>
+                        <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 500 }}>
+                            已选素材队列
+                            <span style={{ 
+                              marginLeft: 8, 
+                              color: editReferenceItems.length >= 5 ? '#ff4d4f' : '#52c41a',
+                              fontSize: 12,
+                              fontWeight: 'normal'
+                            }}>
+                              ({editReferenceItems.length}/5)
+                            </span>
+                          </span>
+                          {editReferenceItems.length > 0 && (
+                            <Button type="link" size="small" danger onClick={() => setEditReferenceItems([])}>
+                              清空全部
+                            </Button>
+                          )}
                         </div>
-                      )}
-                    </div>
+                        
+                        {editReferenceItems.length === 0 ? (
+                          <div style={{ color: '#666', textAlign: 'center', padding: '20px 0' }}>
+                            请从上方选择参考视频或图片
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                            {editReferenceItems.map((item, index) => (
+                              <div 
+                                key={item.id}
+                                style={{ 
+                                  width: 110,
+                                  background: '#2a2a2a',
+                                  borderRadius: 8,
+                                  overflow: 'hidden',
+                                  position: 'relative'
+                                }}
+                              >
+                                {/* 缩略图 */}
+                                <div style={{ 
+                                  width: '100%', 
+                                  height: 70, 
+                                  background: '#333',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}>
+                                  {item.type === 'video' ? (
+                                    item.thumbnail ? (
+                                      <img src={item.thumbnail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    ) : (
+                                      <VideoCameraOutlined style={{ fontSize: 24, color: '#666' }} />
+                                    )
+                                  ) : (
+                                    <img src={item.thumbnail || item.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                  )}
+                                </div>
+                                
+                                {/* 类型标签 */}
+                                <Tag 
+                                  color={item.type === 'video' ? 'blue' : 'green'} 
+                                  style={{ position: 'absolute', top: 4, left: 4, fontSize: 10 }}
+                                >
+                                  {item.type === 'video' ? '视频' : '图片'}
+                                </Tag>
+                                
+                                {/* character 编号 */}
+                                <div style={{
+                                  position: 'absolute',
+                                  top: 4,
+                                  right: 4,
+                                  background: 'rgba(0,0,0,0.7)',
+                                  color: '#fff',
+                                  padding: '2px 6px',
+                                  borderRadius: 4,
+                                  fontSize: 10,
+                                  fontWeight: 500
+                                }}>
+                                  character{index + 1}
+                                </div>
+                                
+                                {/* 信息和操作 */}
+                                <div style={{ padding: '6px 8px' }}>
+                                  <div style={{ 
+                                    fontSize: 11, 
+                                    color: '#ccc',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    marginBottom: 4
+                                  }}>
+                                    {item.name}
+                                  </div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Space size={4}>
+                                      <Button 
+                                        type="text" 
+                                        size="small"
+                                        disabled={index === 0}
+                                        onClick={() => {
+                                          if (index > 0) {
+                                            const newItems = [...editReferenceItems]
+                                            ;[newItems[index - 1], newItems[index]] = [newItems[index], newItems[index - 1]]
+                                            setEditReferenceItems(newItems)
+                                          }
+                                        }}
+                                        style={{ padding: '0 4px', fontSize: 12 }}
+                                      >
+                                        ↑
+                                      </Button>
+                                      <Button 
+                                        type="text" 
+                                        size="small"
+                                        disabled={index === editReferenceItems.length - 1}
+                                        onClick={() => {
+                                          if (index < editReferenceItems.length - 1) {
+                                            const newItems = [...editReferenceItems]
+                                            ;[newItems[index], newItems[index + 1]] = [newItems[index + 1], newItems[index]]
+                                            setEditReferenceItems(newItems)
+                                          }
+                                        }}
+                                        style={{ padding: '0 4px', fontSize: 12 }}
+                                      >
+                                        ↓
+                                      </Button>
+                                    </Space>
+                                    <Button 
+                                      type="text" 
+                                      size="small" 
+                                      danger
+                                      onClick={() => setEditReferenceItems(editReferenceItems.filter(i => i.id !== item.id))}
+                                      style={{ padding: '0 4px' }}
+                                    >
+                                      <DeleteOutlined style={{ fontSize: 12 }} />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        <div style={{ marginTop: 12, fontSize: 12, color: '#888' }}>
+                          提示词中使用 <code style={{ background: '#333', padding: '0 4px', borderRadius: 2 }}>character1</code>, <code style={{ background: '#333', padding: '0 4px', borderRadius: 2 }}>character2</code>... 按上述顺序引用角色
+                        </div>
+                      </div>
+                    </>
                   )}
                   
                   {/* 首尾帧生视频：首帧图和尾帧图选择 */}
@@ -1975,9 +2402,16 @@ const VideoStudioPage = () => {
                       ) : editTaskType === 'reference_to_video' ? (
                         <Form.Item name="size" label="分辨率">
                           <Select>
-                            {(getEditModelInfo()?.resolutions || []).map((res: any) => (
-                              <Option key={res.value} value={res.value}>{res.label}</Option>
-                            ))}
+                            <Select.OptGroup label="1080P 档位">
+                              {(getEditModelInfo() as any)?.resolutions_1080p?.map((res: any) => (
+                                <Option key={res.value} value={res.value}>{res.label}</Option>
+                              ))}
+                            </Select.OptGroup>
+                            <Select.OptGroup label="720P 档位">
+                              {(getEditModelInfo() as any)?.resolutions_720p?.map((res: any) => (
+                                <Option key={res.value} value={res.value}>{res.label}</Option>
+                              ))}
+                            </Select.OptGroup>
                           </Select>
                         </Form.Item>
                       ) : (
@@ -2013,12 +2447,20 @@ const VideoStudioPage = () => {
                   <Row gutter={16}>
                     <Col span={12}>
                       <Form.Item name="duration" label="视频时长">
-                        {/* 根据模型是否有 duration_range 来决定使用 InputNumber 还是 Select */}
+                        {/* 根据模型是否有 duration_range 或 min/max_duration 来决定使用 InputNumber 还是 Select */}
                         {(getEditModelInfo() as VideoModelInfo)?.duration_range ? (
                           <InputNumber
                             style={{ width: '100%' }}
                             min={(getEditModelInfo() as VideoModelInfo)?.duration_range?.[0] || 2}
                             max={(getEditModelInfo() as VideoModelInfo)?.duration_range?.[1] || 15}
+                            addonAfter="秒"
+                          />
+                        ) : editTaskType === 'reference_to_video' ? (
+                          // 参考生视频支持2-10秒连续范围
+                          <InputNumber
+                            style={{ width: '100%' }}
+                            min={(getEditModelInfo() as any)?.min_duration || 2}
+                            max={(getEditModelInfo() as any)?.max_duration || 10}
                             addonAfter="秒"
                           />
                         ) : (
@@ -2052,14 +2494,13 @@ const VideoStudioPage = () => {
                         </Form.Item>
                       ) : editTaskType === 'reference_to_video' ? (
                         <div style={{ marginBottom: 24 }}>
-                          <div style={{ marginBottom: 8 }}>提示词改写</div>
-                          <Space>
-                            <Switch 
-                              checked={editR2vPromptExtend} 
-                              onChange={setEditR2vPromptExtend}
-                            />
-                            <span style={{ color: '#888', fontSize: 12 }}>使用大模型优化提示词</span>
-                          </Space>
+                          <div style={{ marginBottom: 8 }}>镜头类型</div>
+                          <Form.Item name="shot_type" noStyle>
+                            <Select style={{ width: '100%' }}>
+                              <Option value="single">单镜头</Option>
+                              <Option value="multi">多镜头叙事</Option>
+                            </Select>
+                          </Form.Item>
                         </div>
                       ) : (
                         <div style={{ marginBottom: 24 }}>

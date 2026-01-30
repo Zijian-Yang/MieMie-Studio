@@ -82,15 +82,13 @@ class TextToVideoConfigRequest(BaseModel):
 
 
 class RefVideoConfigRequest(BaseModel):
-    """视频生视频配置请求（wan2.6-r2v）"""
+    """参考生视频配置请求（wan2.6-r2v）"""
     model: Optional[str] = None
-    size: Optional[str] = None  # 分辨率（宽*高格式，如 1920*1080）
-    duration: Optional[int] = None  # 视频时长（秒），5 或 10
+    size: Optional[str] = None  # 分辨率（宽*高格式，如 1920*1080），默认1080P 16:9
+    duration: Optional[int] = None  # 视频时长（2-10秒整数）
     shot_type: Optional[str] = None  # 镜头类型，single/multi
-    prompt_extend: Optional[bool] = None  # 提示词改写
     watermark: Optional[bool] = None  # 水印
     seed: Optional[int] = None  # 随机种子
-    audio: Optional[bool] = None  # 是否生成音频
 
 
 class OSSConfigRequest(BaseModel):
@@ -112,7 +110,7 @@ class ConfigUpdateRequest(BaseModel):
     image_edit: Optional[ImageEditConfigRequest] = None
     video: Optional[VideoConfigRequest] = None
     text_to_video: Optional[TextToVideoConfigRequest] = None  # 文生视频配置
-    ref_video: Optional[RefVideoConfigRequest] = None  # 视频生视频配置
+    ref_video: Optional[RefVideoConfigRequest] = None  # 参考生视频配置
     oss: Optional[OSSConfigRequest] = None
 
 
@@ -149,7 +147,7 @@ class ConfigResponse(BaseModel):
     # 文生视频配置
     text_to_video: Dict[str, Any]
     
-    # 视频生视频配置
+    # 参考生视频配置
     ref_video: Dict[str, Any]
     
     # OSS 配置
@@ -162,7 +160,7 @@ class ConfigResponse(BaseModel):
     available_image_edit_models: Dict[str, Dict[str, Any]]
     available_video_models: Dict[str, Dict[str, Any]]
     available_text_to_video_models: Dict[str, Dict[str, Any]]  # 文生视频模型
-    available_ref_video_models: Dict[str, Dict[str, Any]]  # 视频生视频模型
+    available_ref_video_models: Dict[str, Dict[str, Any]]  # 参考生视频模型
     available_keyframe_to_video_models: Dict[str, Dict[str, Any]]  # 首尾帧生视频模型
 
 
@@ -283,7 +281,7 @@ async def update_settings(request: ConfigUpdateRequest):
         ref_video_update = {k: v for k, v in request.ref_video.model_dump().items() if v is not None}
         if ref_video_update:
             if "model" in ref_video_update and ref_video_update["model"] not in REF_VIDEO_MODELS:
-                raise HTTPException(status_code=400, detail=f"无效的视频生视频模型: {ref_video_update['model']}")
+                raise HTTPException(status_code=400, detail=f"无效的参考生视频模型: {ref_video_update['model']}")
             update_data["ref_video"] = ref_video_update
     
     if request.oss is not None:
@@ -364,7 +362,7 @@ async def get_text_to_video_models():
 
 @router.get("/models/ref-video")
 async def get_ref_video_models():
-    """获取可用的视频生视频模型列表"""
+    """获取可用的参考生视频模型列表"""
     return {"models": REF_VIDEO_MODELS}
 
 
