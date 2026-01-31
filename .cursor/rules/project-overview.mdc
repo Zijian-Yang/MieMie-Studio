@@ -1,0 +1,64 @@
+# MieMie-Studio 项目概览
+
+## 项目简介
+MieMie-Studio（咩咩工作室）是一个 AI 驱动的漫剧/短剧视频生成平台，基于阿里云通义万相（DashScope）API，支持从剧本创作到视频成片的完整工作流。
+
+## 技术栈
+
+### 后端
+- **框架**: FastAPI (Python 3.9+)
+- **异步**: asyncio, aiohttp
+- **数据验证**: Pydantic
+- **AI 服务**: DashScope SDK
+- **存储**: JSON 文件 + 阿里云 OSS
+
+### 前端
+- **框架**: React 18 + TypeScript
+- **构建**: Vite
+- **UI**: Ant Design
+- **状态管理**: Zustand
+- **样式**: CSS Modules + 内联样式
+
+## 目录结构
+
+```
+MieMie-Studio/
+├── backend/
+│   ├── app/
+│   │   ├── main.py           # FastAPI 入口
+│   │   ├── config.py         # 配置管理
+│   │   ├── models/           # Pydantic 数据模型
+│   │   ├── routers/          # API 路由
+│   │   ├── services/         # 业务服务
+│   │   │   ├── dashscope/    # DashScope 服务封装
+│   │   │   ├── storage.py    # 存储服务
+│   │   │   └── oss.py        # OSS 服务
+│   │   └── utils/            # 工具函数
+│   ├── data/                 # 数据存储目录
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── pages/            # 页面组件
+│   │   ├── components/       # 通用组件
+│   │   ├── services/         # API 服务
+│   │   ├── stores/           # Zustand stores
+│   │   └── utils/            # 工具函数
+│   └── vite.config.ts
+└── docs/                     # 开发文档
+```
+
+## 核心功能模块
+1. **项目管理** - 创建、编辑、删除项目
+2. **剧本创作** - AI 辅助剧本生成
+3. **分镜脚本** - 自动拆分剧本为分镜
+4. **角色/场景/道具** - 资源管理和图片生成
+5. **首帧生成** - 分镜关键帧图片
+6. **视频生成** - 图生视频、首尾帧生视频
+7. **图片/视频工作室** - 独立的生成工作台
+
+## 数据流
+```
+用户请求 → 前端 → Vite 代理 → FastAPI 路由 → 服务层 → DashScope API
+                                    ↓
+                              OSS 存储 ← 生成结果
+```

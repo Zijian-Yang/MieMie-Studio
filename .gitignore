@@ -68,3 +68,10 @@ build/
 Thumbs.db
 .DS_Store
 
+# Excluded from GitHub (temporary - for initial release)
+docs/
+encrypt_secrets.py
+cursor-chat-history/
+cursor-chat-history.zip
+场景控制平台/
+
