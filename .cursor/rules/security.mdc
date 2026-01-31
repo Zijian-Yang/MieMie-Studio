@@ -7,7 +7,6 @@
 - `backend/data/users.json` - 用户密码
 - `backend/data/sessions.json` - 会话 token
 - `backend/data/users/` - 用户私有数据目录
-- `text_to_image_config.json` - API Key
 
 ### .gitignore 配置
 确保以下内容在 `.gitignore` 中：
@@ -15,7 +14,7 @@
 backend/data/users/
 backend/data/users.json
 backend/data/sessions.json
-text_to_image_config.json
+backend/data/config.json
 ```
 
 ### 配置文件模板

@@ -48,7 +48,7 @@
 - DashScope API 集成（文生图、图生视频、LLM）
 
 ### 变更 (Changed)
-- 平台名称从 "AI 视频工作室" 改为 "淸水Studio"
+- 平台名称从 "AI 视频工作室" 改为 "MieMie-Studio"
 - 模型显示名称标准化为 "x生x <model code>" 格式
 
 ### 修复 (Fixed)

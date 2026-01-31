@@ -34,8 +34,7 @@ MieMie-Studio/
 │   │   │   ├── storage.py    # 存储服务
 │   │   │   └── oss.py        # OSS 服务
 │   │   └── utils/            # 工具函数
-│   ├── data/                 # 数据存储目录
-│   └── requirements.txt
+│   └── data/                 # 数据存储目录
 ├── frontend/
 │   ├── src/
 │   │   ├── pages/            # 页面组件
@@ -44,7 +43,8 @@ MieMie-Studio/
 │   │   ├── stores/           # Zustand stores
 │   │   └── utils/            # 工具函数
 │   └── vite.config.ts
-└── docs/                     # 开发文档
+├── docs/                     # 开发文档
+└── requirements.txt          # Python 依赖
 ```
 
 ## 核心功能模块

@@ -1,6 +1,6 @@
-# AI 视频生成平台
+# MieMie-Studio
 
-基于阿里云通义万相 API 的 AI 视频生成操作平台，支持从剧本创作到视频生成的完整工作流程。
+基于阿里云通义万相 API 的 AI 漫剧/短剧视频生成平台，支持从剧本创作到视频生成的完整工作流程。
 
 ## 功能特性
 
@@ -38,8 +38,7 @@
 ### 安装依赖
 
 ```bash
-# 后端依赖
-cd backend
+# 后端依赖（在项目根目录）
 pip install -r requirements.txt
 
 # 前端依赖
@@ -62,13 +61,14 @@ npm run dev
 ### 配置 API Key
 
 1. **后端配置**（可选）：复制 `backend/data/config.example.json` 为 `backend/data/config.json`，填入 DashScope API Key 与（若使用 OSS）阿里云 OSS 凭证。不复制则可通过前端设置页配置 API Key。
-2. **根目录文生图脚本**（可选）：若使用根目录的 `text_to_image.py`，复制 `text_to_image_config.example.json` 为 `text_to_image_config.json` 并填入 API Key。**请勿将含真实密钥的配置文件提交到仓库。**
-3. 打开浏览器访问 http://localhost:3000，点击左侧菜单「设置」亦可输入百炼 DashScope API Key。
+2. 打开浏览器访问 http://localhost:3000，点击左侧菜单「设置」输入百炼 DashScope API Key。
+
+**注意**：请勿将含真实密钥的配置文件提交到仓库。
 
 ## 项目结构
 
 ```
-万相/
+MieMie-Studio/
 ├── backend/                    # FastAPI 后端
 │   ├── app/
 │   │   ├── main.py            # 应用入口
@@ -78,8 +78,7 @@ npm run dev
 │   │   │   ├── dashscope/     # 阿里云 API 封装
 │   │   │   └── storage.py     # 存储服务
 │   │   └── models/            # 数据模型
-│   ├── data/                  # 数据存储
-│   └── requirements.txt
+│   └── data/                  # 数据存储
 ├── frontend/                   # React 前端
 │   ├── src/
 │   │   ├── components/        # 通用组件
@@ -88,6 +87,8 @@ npm run dev
 │   │   ├── stores/            # 状态管理
 │   │   └── styles/            # 样式文件
 │   └── package.json
+├── docs/                       # 开发文档
+├── requirements.txt            # Python 依赖
 └── README.md
 ```
 

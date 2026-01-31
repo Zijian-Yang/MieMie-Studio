@@ -57,7 +57,7 @@ logs/
 backend/data/users/
 backend/data/users.json
 backend/data/sessions.json
-text_to_image_config.json
+backend/data/config.json
 
 # Build outputs
 dist/
