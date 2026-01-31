@@ -35,27 +35,44 @@
 - Python 3.10+
 - 阿里云百炼 API Key
 
-### 安装依赖
+### 一键启动（推荐）
 
 ```bash
-# 后端依赖（在项目根目录）
-pip install -r requirements.txt
+# 首次运行会自动安装依赖、创建虚拟环境
+./run.sh start
 
-# 前端依赖
-cd frontend
-npm install
+# 查看服务状态
+./run.sh status
+
+# 停止服务
+./run.sh stop
+
+# 重启服务
+./run.sh restart
+
+# 查看更多命令
+./run.sh help
 ```
 
-### 启动服务
+### 手动安装和启动
 
 ```bash
-# 启动后端 (端口 8000)
+# 安装依赖
+./run.sh install
+
+# 或手动安装：
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cd frontend && npm install
+
+# 手动启动后端 (端口 8000)
 cd backend
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# 启动前端 (端口 3000)
+# 手动启动前端 (端口 3000，另一个终端)
 cd frontend
-npm run dev
+npm run dev -- --host
 ```
 
 ### 配置 API Key
@@ -89,6 +106,7 @@ MieMie-Studio/
 │   └── package.json
 ├── docs/                       # 开发文档
 ├── requirements.txt            # Python 依赖
+├── run.sh                      # 启动管理脚本
 └── README.md
 ```
 
