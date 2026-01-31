@@ -132,4 +132,12 @@ MieMie-Studio/
 
 ## License
 
-MIT
+GPL v3
+
+本项目采用 GPL v3 开源协议：
+- ✅ 可以自由使用、修改和分发
+- ✅ 可以用于商业目的
+- ✅ 但修改后的代码必须同样开源（GPL v3）
+- ✅ 必须保留原作者版权声明
+
+详见 [LICENSE](LICENSE) 文件。
