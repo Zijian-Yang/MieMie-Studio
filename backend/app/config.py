@@ -105,14 +105,16 @@ IMAGE_MODELS = {
         "supports_seed": True,
         "supports_negative_prompt": True,
         # 分辨率符合API要求：总像素在[1280*1280, 1440*1440]之间
+        # 参考官方文档推荐的分辨率
         "common_sizes": [
-            {"width": 1280, "height": 1280, "label": "1:1 方形 (默认)"},
-            {"width": 1696, "height": 960, "label": "16:9 横屏"},
-            {"width": 960, "height": 1696, "label": "9:16 竖屏"},
-            {"width": 1472, "height": 1104, "label": "4:3 横屏"},
-            {"width": 1104, "height": 1472, "label": "3:4 竖屏"},
-            {"width": 1440, "height": 1152, "label": "5:4 横屏"},
-            {"width": 1152, "height": 1440, "label": "4:5 竖屏"},
+            {"width": 1280, "height": 1280, "label": "1:1 方形 (默认)"},  # 1,638,400 ✓
+            {"width": 1440, "height": 1440, "label": "1:1 方形 (大)"},    # 2,073,600 ✓
+            {"width": 1712, "height": 960, "label": "16:9 横屏"},         # 1,643,520 ✓
+            {"width": 960, "height": 1712, "label": "9:16 竖屏"},         # 1,643,520 ✓
+            {"width": 1488, "height": 1104, "label": "4:3 横屏"},         # 1,642,752 ✓
+            {"width": 1104, "height": 1488, "label": "3:4 竖屏"},         # 1,642,752 ✓
+            {"width": 1440, "height": 1152, "label": "5:4 横屏"},         # 1,658,880 ✓
+            {"width": 1152, "height": 1440, "label": "4:5 竖屏"},         # 1,658,880 ✓
         ]
     },
     "wan2.5-t2i-preview": {
@@ -141,25 +143,38 @@ IMAGE_MODELS = {
 }
 
 # 图像编辑模型配置 (图生图)
-# 参考: https://www.alibabacloud.com/help/zh/model-studio/wan2-5-image-edit-api-reference
+# 参考: https://help.aliyun.com/zh/model-studio/wan-image-edit-2-5
 # 参考: https://www.alibabacloud.com/help/zh/model-studio/qwen-image-edit-api
 IMAGE_EDIT_MODELS = {
     "wan2.5-i2i-preview": {
         "name": "图生图 wan2.5-i2i-preview",
-        "description": "支持风格迁移、局部编辑等图像编辑功能",
-        "min_pixels": 768 * 768,  # 最小总像素
-        "max_pixels": 1440 * 1440,  # 最大总像素
+        "description": "支持风格迁移、局部编辑、多图融合等图像编辑功能",
+        "min_pixels": 768 * 768,  # 最小总像素 589,824
+        "max_pixels": 1280 * 1280,  # 最大总像素 1,638,400（官方文档明确）
         "min_ratio": 0.25,  # 最小宽高比 1:4
         "max_ratio": 4.0,  # 最大宽高比 4:1
+        # 输入图像限制
+        "max_input_images": 3,  # 最多输入3张图像
+        "image_min_dimension": 384,  # 输入图像最小边长
+        "image_max_dimension": 5000,  # 输入图像最大边长
+        "image_max_size_mb": 10,  # 输入图像最大文件大小
+        "supported_formats": ["JPEG", "JPG", "PNG", "BMP", "WEBP"],
+        # 官方推荐的输出分辨率
         "common_sizes": [
-            {"width": 1024, "height": 1024, "label": "1:1 方形"},
-            {"width": 1280, "height": 720, "label": "16:9 横屏"},
-            {"width": 720, "height": 1280, "label": "9:16 竖屏"},
-            {"width": 1024, "height": 768, "label": "4:3 横屏"},
-            {"width": 768, "height": 1024, "label": "3:4 竖屏"},
+            {"width": 1280, "height": 1280, "label": "1:1 方形 (默认)"},  # 1,638,400 ✓
+            {"width": 1024, "height": 1024, "label": "1:1 方形 (中)"},    # 1,048,576 ✓
+            {"width": 1280, "height": 720, "label": "16:9 横屏"},         # 921,600 ✓
+            {"width": 720, "height": 1280, "label": "9:16 竖屏"},         # 921,600 ✓
+            {"width": 1280, "height": 960, "label": "4:3 横屏"},          # 1,228,800 ✓
+            {"width": 960, "height": 1280, "label": "3:4 竖屏"},          # 1,228,800 ✓
+            {"width": 1200, "height": 800, "label": "3:2 横屏"},          # 960,000 ✓
+            {"width": 800, "height": 1200, "label": "2:3 竖屏"},          # 960,000 ✓
+            {"width": 1344, "height": 576, "label": "21:9 超宽"},         # 774,144 ✓
         ],
         "supports_prompt_extend": True,
+        "supports_watermark": True,
         "supports_seed": True,
+        "max_n": 4,  # 最多输出4张图像
     },
     "qwen-image-edit-plus": {
         "name": "图生图 qwen-image-edit-plus",

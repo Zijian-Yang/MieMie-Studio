@@ -27,7 +27,7 @@ import {
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { framesApi, scriptsApi, galleryApi, charactersApi, scenesApi, propsApi, stylesApi, Frame, Shot, GalleryImage, Character, Scene, Prop, Style } from '../../services/api'
+import { framesApi, scriptsApi, galleryApi, charactersApi, scenesApi, propsApi, stylesApi, settingsApi, Frame, Shot, GalleryImage, Character, Scene, Prop, Style } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 import { useGenerationStore } from '../../stores/generationStore'
 
@@ -187,6 +187,9 @@ const FramesPage = () => {
   const [frameSize, setFrameSize] = useState<string | null>(null)
   const [frameEnableInterleave, setFrameEnableInterleave] = useState<boolean>(false)  // wan2.6-image 图文混合模式
   
+  // 从 API 获取的模型尺寸配置
+  const [modelSizeConfigs, setModelSizeConfigs] = useState<Record<string, Array<{width?: number, height?: number, value?: string, label: string}>>>({})
+  
   // 可用的模型（图生图 + 文生图 + wan2.6-image）
   const availableImageModels: Record<string, {
     id: string
@@ -280,13 +283,14 @@ const FramesPage = () => {
       safeSetState(setLoading, true)
       try {
         fetchProject(projectId).catch(() => {})
-        const [framesRes, galleryRes, charsRes, scenesRes, propsRes, stylesRes] = await Promise.all([
+        const [framesRes, galleryRes, charsRes, scenesRes, propsRes, stylesRes, settingsRes] = await Promise.all([
           framesApi.list(projectId),
           galleryApi.list(projectId),
           charactersApi.list(projectId),
           scenesApi.list(projectId),
           propsApi.list(projectId),
           stylesApi.list(projectId),
+          settingsApi.getSettings().catch(() => ({ available_image_models: {} })),
         ])
         safeSetState(setFrames, framesRes.frames)
         safeSetState(setGalleryImages, galleryRes.images)
@@ -294,6 +298,16 @@ const FramesPage = () => {
         safeSetState(setScenes, scenesRes.scenes)
         safeSetState(setProps, propsRes.props)
         safeSetState(setStyles, stylesRes.styles)
+        
+        // 提取模型的 common_sizes 配置
+        const sizeConfigs: Record<string, Array<{width?: number, height?: number, value?: string, label: string}>> = {}
+        const models = settingsRes.available_image_models || {}
+        for (const [modelId, modelInfo] of Object.entries(models)) {
+          if ((modelInfo as any).common_sizes) {
+            sizeConfigs[modelId] = (modelInfo as any).common_sizes
+          }
+        }
+        safeSetState(setModelSizeConfigs, sizeConfigs)
       } catch (error) {
         message.error('加载失败')
       } finally {
@@ -1692,11 +1706,15 @@ const FramesPage = () => {
                                     allowClear
                                     placeholder="默认"
                                   >
-                                    <Option value="1024*1024">1024×1024 (1:1)</Option>
-                                    <Option value="1280*720">1280×720 (16:9)</Option>
-                                    <Option value="720*1280">720×1280 (9:16)</Option>
-                                    <Option value="1024*768">1024×768 (4:3)</Option>
-                                    <Option value="768*1024">768×1024 (3:4)</Option>
+                                    {modelSizeConfigs[frameModel]?.map((size, idx) => {
+                                      const value = size.value !== undefined ? size.value : `${size.width}*${size.height}`
+                                      return <Option key={idx} value={value}>{size.label}</Option>
+                                    }) || (
+                                      <>
+                                        <Option value="1280*1280">1280×1280 (1:1)</Option>
+                                        <Option value="1024*1024">1024×1024 (1:1)</Option>
+                                      </>
+                                    )}
                                   </Select>
                                 </div>
                               )}

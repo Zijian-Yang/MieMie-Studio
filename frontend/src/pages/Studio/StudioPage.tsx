@@ -824,19 +824,16 @@ const StudioPage = () => {
                   style={{ marginBottom: 0 }}
                 >
                   <Select
-                    placeholder="默认 1280×1280"
+                    placeholder="默认尺寸"
                     allowClear
-                    options={[
-                      { value: '1280*1280', label: '1280×1280 (1:1)' },
-                      { value: '1024*1024', label: '1024×1024 (1:1)' },
-                      { value: '1280*720', label: '1280×720 (16:9)' },
-                      { value: '720*1280', label: '720×1280 (9:16)' },
-                      { value: '1280*960', label: '1280×960 (4:3)' },
-                      { value: '960*1280', label: '960×1280 (3:4)' },
-                      { value: '1200*800', label: '1200×800 (3:2)' },
-                      { value: '800*1200', label: '800×1200 (2:3)' },
-                      { value: '1344*576', label: '1344×576 (21:9)' },
-                    ]}
+                    options={
+                      availableModels[createForm.getFieldValue('model')]?.common_sizes?.map((size: any) => ({
+                        value: typeof size === 'string' ? size : `${size.width}*${size.height}`,
+                        label: typeof size === 'string' ? size.replace('*', '×') : size.label
+                      })) || [
+                        { value: '1280*1280', label: '1280×1280 (1:1)' },
+                      ]
+                    }
                   />
                 </Form.Item>
                 <Form.Item 
@@ -897,19 +894,16 @@ const StudioPage = () => {
                   style={{ marginBottom: 0 }}
                 >
                   <Select
-                    placeholder="默认 1280×1280"
+                    placeholder="默认尺寸"
                     allowClear
-                    options={[
-                      { value: '1280*1280', label: '1280×1280 (1:1)' },
-                      { value: '1024*1024', label: '1024×1024 (1:1)' },
-                      { value: '1280*720', label: '1280×720 (16:9)' },
-                      { value: '720*1280', label: '720×1280 (9:16)' },
-                      { value: '1280*960', label: '1280×960 (4:3)' },
-                      { value: '960*1280', label: '960×1280 (3:4)' },
-                      { value: '1200*800', label: '1200×800 (3:2)' },
-                      { value: '800*1200', label: '800×1200 (2:3)' },
-                      { value: '1344*576', label: '1344×576 (21:9 超宽)' },
-                    ]}
+                    options={
+                      availableModels['wan2.6-image']?.common_sizes?.map((size: any) => ({
+                        value: typeof size === 'string' ? size : `${size.width}*${size.height}`,
+                        label: typeof size === 'string' ? size.replace('*', '×') : size.label
+                      })) || [
+                        { value: '1280*1280', label: '1280×1280 (1:1)' },
+                      ]
+                    }
                   />
                 </Form.Item>
                 <Form.Item 
@@ -1238,7 +1232,7 @@ const StudioPage = () => {
                     border: '1px solid #333'
                   }}>
                     <div style={{ marginBottom: 8, color: '#888', fontSize: 12 }}>
-                      文生图模型参数（wan2.6-t2i 总像素需在1280×1280到1440×1440之间）
+                      文生图模型参数
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                       <Form.Item 
@@ -1247,17 +1241,16 @@ const StudioPage = () => {
                         style={{ marginBottom: 0 }}
                       >
                         <Select
-                          placeholder="默认 1280×1280"
+                          placeholder="默认尺寸"
                           allowClear
-                          options={[
-                            { value: '1280*1280', label: '1280×1280 (1:1 默认)' },
-                            { value: '1696*960', label: '1696×960 (16:9 横屏)' },
-                            { value: '960*1696', label: '960×1696 (9:16 竖屏)' },
-                            { value: '1472*1104', label: '1472×1104 (4:3 横屏)' },
-                            { value: '1104*1472', label: '1104×1472 (3:4 竖屏)' },
-                            { value: '1440*1152', label: '1440×1152 (5:4 横屏)' },
-                            { value: '1152*1440', label: '1152×1440 (4:5 竖屏)' },
-                          ]}
+                          options={
+                            availableModels[form.getFieldValue('model') || selectedTask?.model || '']?.common_sizes?.map((size: any) => ({
+                              value: typeof size === 'string' ? size : `${size.width}*${size.height}`,
+                              label: typeof size === 'string' ? size.replace('*', '×') : size.label
+                            })) || [
+                              { value: '1280*1280', label: '1280×1280 (1:1)' },
+                            ]
+                          }
                         />
                       </Form.Item>
                       <Form.Item 
@@ -1318,19 +1311,16 @@ const StudioPage = () => {
                         style={{ marginBottom: 0 }}
                       >
                         <Select
-                          placeholder="默认 1280×1280"
+                          placeholder="默认尺寸"
                           allowClear
-                          options={[
-                            { value: '1280*1280', label: '1280×1280 (1:1)' },
-                            { value: '1024*1024', label: '1024×1024 (1:1)' },
-                            { value: '1280*720', label: '1280×720 (16:9)' },
-                            { value: '720*1280', label: '720×1280 (9:16)' },
-                            { value: '1280*960', label: '1280×960 (4:3)' },
-                            { value: '960*1280', label: '960×1280 (3:4)' },
-                            { value: '1200*800', label: '1200×800 (3:2)' },
-                            { value: '800*1200', label: '800×1200 (2:3)' },
-                            { value: '1344*576', label: '1344×576 (21:9 超宽)' },
-                          ]}
+                          options={
+                            availableModels['wan2.6-image']?.common_sizes?.map((size: any) => ({
+                              value: typeof size === 'string' ? size : `${size.width}*${size.height}`,
+                              label: typeof size === 'string' ? size.replace('*', '×') : size.label
+                            })) || [
+                              { value: '1280*1280', label: '1280×1280 (1:1)' },
+                            ]
+                          }
                         />
                       </Form.Item>
                       <Form.Item 
@@ -1464,17 +1454,15 @@ const StudioPage = () => {
                           <Select
                             allowClear
                             placeholder="默认（保持原图比例）"
-                            options={[
-                              { value: '', label: '默认（保持原图比例）' },
-                              { value: '1024*1024', label: '1024×1024 (1:1)' },
-                              { value: '1280*720', label: '1280×720 (16:9)' },
-                              { value: '720*1280', label: '720×1280 (9:16)' },
-                              { value: '1024*768', label: '1024×768 (4:3)' },
-                              { value: '768*1024', label: '768×1024 (3:4)' },
-                              { value: '1920*1080', label: '1920×1080 (FHD)' },
-                              { value: '1080*1920', label: '1080×1920 (FHD竖)' },
-                              { value: '2048*2048', label: '2048×2048 (最大)' },
-                            ]}
+                            options={
+                              availableModels['qwen-image-edit-plus']?.common_sizes?.map((size: any) => ({
+                                value: size.value !== undefined ? size.value : (typeof size === 'string' ? size : `${size.width}*${size.height}`),
+                                label: size.label || (typeof size === 'string' ? size.replace('*', '×') : `${size.width}×${size.height}`)
+                              })) || [
+                                { value: '', label: '默认（保持原图比例）' },
+                                { value: '1024*1024', label: '1024×1024 (1:1)' },
+                              ]
+                            }
                             disabled={form.getFieldValue('group_count') > 1}
                           />
                         </Form.Item>

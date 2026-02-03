@@ -33,22 +33,29 @@ WAN26_IMAGE_MAX_DIM = 5000
 async def validate_and_resize_reference_image(
     image_url: str, 
     min_dim: int = WAN26_IMAGE_MIN_DIM, 
-    max_dim: int = WAN26_IMAGE_MAX_DIM
+    max_dim: int = WAN26_IMAGE_MAX_DIM,
+    project_id: str = ""
 ) -> Tuple[bool, str, str]:
     """
     验证并调整参考图片尺寸，确保符合 wan2.6-image 要求
+    
+    如果图片尺寸不符合要求，会调整尺寸并上传到 OSS，返回新的 OSS URL。
+    避免使用 base64，因为 base64 编码会导致请求体过大。
     
     Args:
         image_url: 图片URL
         min_dim: 最小尺寸 (默认384)
         max_dim: 最大尺寸 (默认5000)
+        project_id: 项目ID，用于 OSS 上传路径
     
     Returns:
         (is_valid, new_url_or_error, message)
         - is_valid: 是否有效（原图有效或成功调整）
-        - new_url_or_error: 新的URL（如果调整了）或错误信息
+        - new_url_or_error: 新的URL（如果调整了则为 OSS URL）或错误信息
         - message: 处理信息
     """
+    import uuid
+    
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(image_url)
@@ -88,17 +95,39 @@ async def validate_and_resize_reference_image(
             # 使用高质量重采样
             resized_img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
             
-            # 转换为 base64
+            # 保存到字节流
             buffer = BytesIO()
             # 保存为原格式或默认 PNG
             img_format = img.format or 'PNG'
             if img_format.upper() == 'JPEG':
                 resized_img = resized_img.convert('RGB')
+                extension = 'jpg'
+            else:
+                extension = img_format.lower()
             resized_img.save(buffer, format=img_format, quality=95)
             buffer.seek(0)
+            image_bytes = buffer.getvalue()
             
-            # 转为 base64 URL
-            img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+            # 上传到 OSS 获取持久化 URL（避免使用 base64）
+            if oss_service.is_enabled():
+                try:
+                    success, result = oss_service.upload_from_bytes(
+                        image_bytes, 
+                        "image", 
+                        extension,
+                        project_id
+                    )
+                    if success:
+                        print(f"[wan2.6-image] 调整后的图片已上传到 OSS: {result}")
+                        return True, result, f"图片已从 {width}x{height} 调整为 {new_width}x{new_height}，已上传到 OSS"
+                    else:
+                        print(f"[wan2.6-image] OSS 上传失败: {result}")
+                except Exception as e:
+                    print(f"[wan2.6-image] OSS 上传异常: {str(e)}")
+            
+            # OSS 未启用或上传失败时，退回到 base64（不推荐，但作为降级方案）
+            print(f"[wan2.6-image] 警告: OSS 未启用或上传失败，使用 base64 作为降级方案")
+            img_base64 = base64.b64encode(image_bytes).decode('utf-8')
             mime_type = f"image/{img_format.lower()}"
             if img_format.upper() == 'JPEG':
                 mime_type = "image/jpeg"
@@ -106,8 +135,7 @@ async def validate_and_resize_reference_image(
                 mime_type = "image/png"
             
             base64_url = f"data:{mime_type};base64,{img_base64}"
-            
-            return True, base64_url, f"图片已从 {width}x{height} 调整为 {new_width}x{new_height}"
+            return True, base64_url, f"图片已从 {width}x{height} 调整为 {new_width}x{new_height}（使用 base64，建议启用 OSS）"
             
     except Exception as e:
         return False, f"处理图片失败: {str(e)}", ""
@@ -667,7 +695,10 @@ class TextToImageService:
         if image_urls:
             for i, img_url in enumerate(image_urls):
                 print(f"[wan2.6-image] 验证参考图 {i+1}/{len(image_urls)}...")
-                is_valid, result, message = await validate_and_resize_reference_image(img_url)
+                is_valid, result, message = await validate_and_resize_reference_image(
+                    img_url, 
+                    project_id=project_id
+                )
                 
                 if not is_valid:
                     raise Exception(f"参考图 {i+1} 无效: {result}")
