@@ -399,6 +399,174 @@ show_logs() {
 }
 
 # ======================
+# 更新项目
+# ======================
+
+update_project() {
+    log_info "检查更新..."
+    
+    # 检查是否有未提交的更改
+    if ! git diff --quiet 2>/dev/null; then
+        log_warn "检测到本地有未提交的更改"
+        echo ""
+        echo "本地修改的文件:"
+        git diff --name-only
+        echo ""
+        read -p "是否暂存本地更改并继续更新? (y/N): " confirm
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+            log_info "更新已取消"
+            return 0
+        fi
+        log_info "暂存本地更改..."
+        git stash
+    fi
+    
+    # 获取远程更新
+    log_info "获取最新代码..."
+    git fetch origin
+    
+    # 检查是否有更新
+    LOCAL=$(git rev-parse HEAD)
+    REMOTE=$(git rev-parse origin/main 2>/dev/null || git rev-parse origin/master)
+    
+    if [ "$LOCAL" = "$REMOTE" ]; then
+        log_success "已是最新版本"
+        # 恢复暂存的更改
+        git stash pop 2>/dev/null || true
+        return 0
+    fi
+    
+    # 显示更新内容
+    echo ""
+    log_info "发现新版本，更新内容:"
+    git log --oneline HEAD..origin/main 2>/dev/null || git log --oneline HEAD..origin/master
+    echo ""
+    
+    # 拉取更新
+    log_info "正在更新..."
+    git pull origin main 2>/dev/null || git pull origin master
+    
+    # 恢复暂存的更改
+    if git stash list | grep -q "stash@{0}"; then
+        log_info "恢复本地更改..."
+        git stash pop || {
+            log_warn "自动合并失败，请手动解决冲突"
+            log_info "使用 'git stash pop' 查看暂存的更改"
+        }
+    fi
+    
+    # 检查是否需要更新依赖
+    log_info "检查依赖更新..."
+    
+    # 检查 requirements.txt 是否有变化
+    if git diff HEAD~1 --name-only | grep -q "requirements.txt"; then
+        log_info "检测到 Python 依赖变化，更新中..."
+        "$VENV_DIR/bin/pip" install -r "$PROJECT_DIR/requirements.txt"
+    fi
+    
+    # 检查 package.json 是否有变化
+    if git diff HEAD~1 --name-only | grep -q "frontend/package.json"; then
+        log_info "检测到前端依赖变化，更新中..."
+        cd "$FRONTEND_DIR"
+        npm install
+        cd "$PROJECT_DIR"
+    fi
+    
+    log_success "更新完成！"
+    echo ""
+    log_info "如果服务正在运行，建议重启以应用更新："
+    echo "  ./run.sh restart"
+}
+
+# ======================
+# 清理项目
+# ======================
+
+clean_project() {
+    echo ""
+    echo "========== 清理选项 =========="
+    echo ""
+    echo "1) 清理日志文件"
+    echo "2) 清理 Python 缓存 (__pycache__)"
+    echo "3) 重置前端依赖 (删除 node_modules 并重新安装)"
+    echo "4) 重置后端依赖 (删除 venv 并重新创建)"
+    echo "5) 全部清理并重新安装"
+    echo "0) 取消"
+    echo ""
+    read -p "请选择 [0-5]: " choice
+    
+    case "$choice" in
+        1)
+            log_info "清理日志文件..."
+            rm -rf "$LOG_DIR"/*.log 2>/dev/null
+            rm -rf "$BACKEND_DIR/logs"/*.log 2>/dev/null
+            log_success "日志已清理"
+            ;;
+        2)
+            log_info "清理 Python 缓存..."
+            find "$PROJECT_DIR" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null
+            find "$PROJECT_DIR" -type f -name "*.pyc" -delete 2>/dev/null
+            log_success "缓存已清理"
+            ;;
+        3)
+            log_info "重置前端依赖..."
+            rm -rf "$FRONTEND_DIR/node_modules"
+            cd "$FRONTEND_DIR"
+            npm install
+            cd "$PROJECT_DIR"
+            log_success "前端依赖已重置"
+            ;;
+        4)
+            log_info "重置后端依赖..."
+            rm -rf "$VENV_DIR"
+            create_venv
+            install_backend_deps
+            log_success "后端依赖已重置"
+            ;;
+        5)
+            log_info "全部清理并重新安装..."
+            rm -rf "$LOG_DIR"/*.log 2>/dev/null
+            rm -rf "$BACKEND_DIR/logs"/*.log 2>/dev/null
+            find "$PROJECT_DIR" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null
+            rm -rf "$FRONTEND_DIR/node_modules"
+            rm -rf "$VENV_DIR"
+            install_all_deps
+            log_success "清理完成，依赖已重新安装"
+            ;;
+        0|*)
+            log_info "已取消"
+            ;;
+    esac
+}
+
+# ======================
+# 显示版本信息
+# ======================
+
+show_version() {
+    echo ""
+    echo "========== MieMie-Studio =========="
+    echo ""
+    
+    # 获取版本信息
+    if [ -d ".git" ]; then
+        COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
+        DATE=$(git log -1 --format=%cd --date=short 2>/dev/null || echo "unknown")
+        echo "  版本: $COMMIT ($BRANCH)"
+        echo "  更新日期: $DATE"
+    else
+        echo "  版本: 未知 (非 Git 仓库)"
+    fi
+    
+    echo ""
+    echo "  项目地址: https://github.com/Zijian-Yang/MieMie-Studio"
+    echo "  许可证: GPL v3"
+    echo ""
+    echo "==================================="
+}
+
+# ======================
 # 连接到 screen 会话
 # ======================
 
@@ -439,21 +607,31 @@ show_help() {
     echo ""
     echo "用法: ./run.sh [命令] [参数]"
     echo ""
-    echo "命令:"
+    echo "服务管理:"
     echo "  start              启动前后端服务"
     echo "  stop               停止所有服务"
     echo "  restart            重启所有服务"
     echo "  status             查看服务状态"
+    echo ""
+    echo "依赖管理:"
     echo "  install            安装所有依赖"
+    echo "  update             更新项目到最新版本"
+    echo "  clean              清理缓存/重置依赖"
+    echo ""
+    echo "调试工具:"
     echo "  logs [service]     查看日志 (backend/frontend/all)"
     echo "  attach [service]   连接到 screen 会话 (backend/frontend)"
+    echo ""
+    echo "其他:"
+    echo "  version            显示版本信息"
     echo "  help               显示此帮助信息"
     echo ""
     echo "示例:"
-    echo "  ./run.sh start     # 启动服务"
-    echo "  ./run.sh status    # 查看状态"
-    echo "  ./run.sh logs backend  # 查看后端日志"
-    echo "  ./run.sh attach backend  # 连接到后端终端"
+    echo "  ./run.sh start          # 启动服务"
+    echo "  ./run.sh status         # 查看状态"
+    echo "  ./run.sh update         # 更新到最新版本"
+    echo "  ./run.sh logs backend   # 查看后端日志"
+    echo "  ./run.sh attach backend # 连接到后端终端"
     echo ""
 }
 
@@ -481,6 +659,15 @@ main() {
             ;;
         install)
             install_all_deps
+            ;;
+        update)
+            update_project
+            ;;
+        clean)
+            clean_project
+            ;;
+        version|--version|-v)
+            show_version
             ;;
         logs)
             show_logs "$2"
