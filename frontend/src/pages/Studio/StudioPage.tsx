@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { 
   Button, Modal, Form, Input, Empty, Spin, message, 
@@ -45,7 +45,7 @@ const StudioPage = () => {
   const { models: registryModels, loading: modelsLoading, getImageModels, getSizeOptions } = useModelRegistry()
   
   // 兼容旧代码：将 registryModels 格式化为旧的 availableModels 格式
-  const availableModels = React.useMemo(() => {
+  const availableModels = useMemo(() => {
     const result: Record<string, any> = {}
     Object.values(registryModels).forEach(model => {
       if (model.type === 'text_to_image' || model.type === 'image_to_image') {
