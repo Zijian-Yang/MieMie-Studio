@@ -1516,19 +1516,50 @@ export interface ModelCapabilities {
   supports_watermark?: boolean
   supports_audio?: boolean
   max_concurrent?: number
+  // 图像特有能力
+  supports_reference_images?: boolean
+  max_reference_images?: number
+  supports_interleave?: boolean  // 图文混合模式
+}
+
+// 尺寸选项
+export interface SizeOption {
+  width: number
+  height: number
+  label: string
+  aspect_ratio?: string
+  value: string  // "width*height"
+}
+
+// 尺寸约束
+export interface SizeConstraints {
+  min_pixels?: number
+  max_pixels?: number
+  min_ratio?: number
+  max_ratio?: number
+  min_width?: number
+  max_width?: number
+  min_height?: number
+  max_height?: number
 }
 
 // 模型信息
 export interface RegisteredModelInfo {
   id: string
   name: string
-  type: string  // llm, text_to_image, image_to_image, image_to_video, etc.
+  type: string  // llm, text_to_image, image_to_image, image_to_video, text_to_video, reference_to_video, etc.
   description?: string
+  version?: string
   capabilities?: ModelCapabilities
   parameters?: ModelParameterDef[]
   default_values?: Record<string, any>
+  // 尺寸相关
+  size_constraints?: SizeConstraints
+  common_sizes?: SizeOption[]
+  // 状态
   deprecated?: boolean
   deprecated_message?: string
+  recommended?: boolean  // 推荐模型
   doc_url?: string
 }
 
@@ -1542,6 +1573,14 @@ export interface ModelTypeInfo {
 export const modelsApi = {
   // 获取所有模型
   listAll: () => api.get<any, { models: Record<string, RegisteredModelInfo> }>('/models'),
+  
+  // 获取图像生成模型（文生图 + 图生图）
+  listImageModels: () => 
+    api.get<any, { models: Record<string, RegisteredModelInfo> }>('/models/image'),
+  
+  // 获取视频生成模型
+  listVideoModels: () => 
+    api.get<any, { models: Record<string, RegisteredModelInfo> }>('/models/video'),
   
   // 按类型获取模型
   listByType: (modelType: string) => 
@@ -1557,6 +1596,24 @@ export const modelsApi = {
       `/models/${modelId}/parameters`,
       { params: group ? { group } : {} }
     ),
+  
+  // 获取模型支持的尺寸选项
+  getSizes: (modelId: string) => 
+    api.get<any, { 
+      model_id: string
+      common_sizes: SizeOption[]
+      size_constraints: SizeConstraints | null 
+    }>(`/models/${modelId}/sizes`),
+  
+  // 验证尺寸
+  validateSize: (modelId: string, width: number, height: number) => 
+    api.post<any, { 
+      valid: boolean
+      message: string
+      width: number
+      height: number
+      total_pixels: number 
+    }>(`/models/${modelId}/validate-size`, null, { params: { width, height } }),
   
   // 验证参数
   validateParams: (modelId: string, params: Record<string, any>) => 

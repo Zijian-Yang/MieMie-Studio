@@ -119,6 +119,70 @@ class ModelParameter(BaseModel):
         return True, ""
 
 
+# ============ 尺寸定义 ============
+
+class SizeOption(BaseModel):
+    """
+    尺寸选项
+    
+    用于定义模型支持的预设尺寸
+    """
+    width: int
+    height: int
+    label: str
+    aspect_ratio: Optional[str] = None
+    
+    @property
+    def total_pixels(self) -> int:
+        """总像素数"""
+        return self.width * self.height
+    
+    @property
+    def size_string(self) -> str:
+        """尺寸字符串 (width*height)"""
+        return f"{self.width}*{self.height}"
+
+
+class SizeConstraints(BaseModel):
+    """
+    尺寸约束
+    
+    定义模型对尺寸的限制
+    """
+    min_pixels: Optional[int] = None  # 最小总像素
+    max_pixels: Optional[int] = None  # 最大总像素
+    min_ratio: Optional[float] = None  # 最小宽高比 (width/height)
+    max_ratio: Optional[float] = None  # 最大宽高比
+    min_width: Optional[int] = None
+    max_width: Optional[int] = None
+    min_height: Optional[int] = None
+    max_height: Optional[int] = None
+    
+    def validate(self, width: int, height: int) -> tuple[bool, str]:
+        """验证尺寸是否符合约束"""
+        total_pixels = width * height
+        ratio = width / height if height > 0 else 0
+        
+        if self.min_pixels and total_pixels < self.min_pixels:
+            return False, f"总像素 {total_pixels} 小于最小值 {self.min_pixels}"
+        if self.max_pixels and total_pixels > self.max_pixels:
+            return False, f"总像素 {total_pixels} 大于最大值 {self.max_pixels}"
+        if self.min_ratio and ratio < self.min_ratio:
+            return False, f"宽高比 {ratio:.2f} 小于最小值 {self.min_ratio}"
+        if self.max_ratio and ratio > self.max_ratio:
+            return False, f"宽高比 {ratio:.2f} 大于最大值 {self.max_ratio}"
+        if self.min_width and width < self.min_width:
+            return False, f"宽度 {width} 小于最小值 {self.min_width}"
+        if self.max_width and width > self.max_width:
+            return False, f"宽度 {width} 大于最大值 {self.max_width}"
+        if self.min_height and height < self.min_height:
+            return False, f"高度 {height} 小于最小值 {self.min_height}"
+        if self.max_height and height > self.max_height:
+            return False, f"高度 {height} 大于最大值 {self.max_height}"
+        
+        return True, ""
+
+
 # ============ 模型能力声明 ============
 
 class ModelType(str, Enum):
@@ -128,6 +192,8 @@ class ModelType(str, Enum):
     IMAGE_TO_IMAGE = "image_to_image"  # 图生图
     IMAGE_TO_VIDEO = "image_to_video"  # 图生视频
     TEXT_TO_VIDEO = "text_to_video"  # 文生视频
+    REFERENCE_TO_VIDEO = "reference_to_video"  # 参考生视频
+    KEYFRAME_TO_VIDEO = "keyframe_to_video"  # 关键帧生视频
     TEXT_TO_AUDIO = "text_to_audio"  # 文生音频
     AUDIO_TO_TEXT = "audio_to_text"  # 语音识别
 
@@ -157,6 +223,11 @@ class ModelCapability(BaseModel):
     supports_prompt_extend: bool = False  # 支持智能改写
     supports_watermark: bool = False  # 支持水印控制
     supports_audio: bool = False  # 支持音频（视频模型）
+    
+    # 图像特有能力
+    supports_reference_images: bool = False  # 支持参考图
+    max_reference_images: int = 0  # 最大参考图数量
+    supports_interleave: bool = False  # 支持图文混合模式
 
 
 class ModelInfo(BaseModel):
@@ -179,6 +250,10 @@ class ModelInfo(BaseModel):
     # 参数定义
     parameters: List[ModelParameter] = []
     
+    # 尺寸约束（图像/视频模型）
+    size_constraints: Optional[SizeConstraints] = None
+    common_sizes: List[SizeOption] = []
+    
     # API 信息
     api_model_name: str = ""  # API 中使用的模型名
     api_endpoint: str = ""  # API 端点
@@ -190,6 +265,7 @@ class ModelInfo(BaseModel):
     enabled: bool = True
     deprecated: bool = False
     deprecated_message: str = ""
+    recommended: bool = False  # 推荐模型标记
     
     def get_parameter(self, name: str) -> Optional[ModelParameter]:
         """获取参数定义"""
@@ -215,6 +291,25 @@ class ModelInfo(BaseModel):
             if not valid:
                 errors.append(error)
         return len(errors) == 0, errors
+    
+    def validate_size(self, width: int, height: int) -> tuple[bool, str]:
+        """验证尺寸是否符合约束"""
+        if self.size_constraints:
+            return self.size_constraints.validate(width, height)
+        return True, ""
+    
+    def get_common_sizes_for_frontend(self) -> List[Dict[str, Any]]:
+        """获取前端使用的尺寸选项"""
+        return [
+            {
+                "width": s.width,
+                "height": s.height,
+                "label": s.label,
+                "aspect_ratio": s.aspect_ratio,
+                "value": s.size_string,
+            }
+            for s in self.common_sizes
+        ]
 
 
 # ============ 任务状态 ============
@@ -383,8 +478,30 @@ class ModelRegistry:
                 "default_values": model_info.get_default_values(),
                 "deprecated": model_info.deprecated,
                 "deprecated_message": model_info.deprecated_message,
+                "recommended": model_info.recommended,
+                "size_constraints": model_info.size_constraints.model_dump() if model_info.size_constraints else None,
+                "common_sizes": model_info.get_common_sizes_for_frontend(),
             }
         return result
+    
+    def get_image_models(self) -> List[ModelInfo]:
+        """获取所有图像生成模型（文生图 + 图生图）"""
+        return [
+            m for m in self._models.values()
+            if m.enabled and m.type in [ModelType.TEXT_TO_IMAGE, ModelType.IMAGE_TO_IMAGE]
+        ]
+    
+    def get_video_models(self) -> List[ModelInfo]:
+        """获取所有视频生成模型"""
+        return [
+            m for m in self._models.values()
+            if m.enabled and m.type in [
+                ModelType.TEXT_TO_VIDEO, 
+                ModelType.IMAGE_TO_VIDEO,
+                ModelType.REFERENCE_TO_VIDEO,
+                ModelType.KEYFRAME_TO_VIDEO,
+            ]
+        ]
 
 
 # 全局注册中心实例

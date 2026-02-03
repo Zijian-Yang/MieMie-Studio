@@ -45,6 +45,9 @@ from .base import (
     ModelInfo,
     TaskStatus,
     TaskResult,
+    # 尺寸定义
+    SizeOption,
+    SizeConstraints,
     # 基类
     BaseModelService,
     # 注册中心
@@ -58,11 +61,15 @@ from .base import (
 # LLM 模型
 from .llm import qwen
 
-# 图像模型
-from .image import wan25_t2i, wan25_i2i, qwen_image_edit
+# 图像模型（按版本排序，新版本在前）
+from .image import wan26_t2i, wan26_image  # 万相2.6
+from .image import wan25_t2i, wan25_i2i    # 万相2.5
+from .image import qwen_image_edit          # 通义千问
 
-# 视频模型
-from .video import wan25_i2v, wanx21_i2v
+# 视频模型（按版本排序，新版本在前）
+from .video import wan26_t2v, wan26_i2v, wan26_r2v  # 万相2.6
+from .video import wan25_i2v  # 万相2.5
+from .video import wanx21_i2v  # 万相2.1
 
 
 __all__ = [
@@ -76,6 +83,9 @@ __all__ = [
     "ModelInfo",
     "TaskStatus",
     "TaskResult",
+    # 尺寸定义
+    "SizeOption",
+    "SizeConstraints",
     # 基类
     "BaseModelService",
     # 注册中心

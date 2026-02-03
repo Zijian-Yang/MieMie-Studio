@@ -15,6 +15,8 @@ import {
   StudioTask, GalleryImage, Character, Scene, Prop, ReferenceItem, Style
 } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
+import { useModelRegistry } from '../../hooks/useModelRegistry'
+import { ModelSelector, SizeSelector } from '../../components/ModelConfig'
 
 const { TextArea } = Input
 
@@ -38,26 +40,28 @@ const StudioPage = () => {
   const [props, setProps] = useState<Prop[]>([])
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([])
   const [styles, setStyles] = useState<Style[]>([])
-  const [availableModels, setAvailableModels] = useState<Record<string, {
-    id: string
-    name: string
-    description?: string
-    model_type?: 'text_to_image' | 'image_to_image' | 'image_generation'
-    capabilities?: {
-      supports_batch?: boolean
-      supports_async?: boolean
-      supports_negative_prompt?: boolean
-      supports_prompt_extend?: boolean
-      supports_watermark?: boolean
-      supports_seed?: boolean
-      max_n?: number
-      supports_reference_images?: boolean
-      supports_interleave?: boolean
-      max_reference_images?: number
-    }
-    parameters?: any[]
-    common_sizes?: string[]
-  }>>({})
+  
+  // 使用统一的模型注册中心
+  const { models: registryModels, loading: modelsLoading, getImageModels, getSizeOptions } = useModelRegistry()
+  
+  // 兼容旧代码：将 registryModels 格式化为旧的 availableModels 格式
+  const availableModels = React.useMemo(() => {
+    const result: Record<string, any> = {}
+    Object.values(registryModels).forEach(model => {
+      if (model.type === 'text_to_image' || model.type === 'image_to_image') {
+        result[model.id] = {
+          id: model.id,
+          name: model.name,
+          description: model.description,
+          model_type: model.type,
+          capabilities: model.capabilities,
+          parameters: model.parameters,
+          common_sizes: model.common_sizes?.map(s => s.value) || []
+        }
+      }
+    })
+    return result
+  }, [registryModels])
   
   const isMountedRef = useRef(true)
 
@@ -79,22 +83,13 @@ const StudioPage = () => {
       try {
         fetchProject(projectId).catch(() => {})
         
-        const [tasksRes, charactersRes, scenesRes, propsRes, galleryRes, stylesRes, modelsRes] = await Promise.all([
+        const [tasksRes, charactersRes, scenesRes, propsRes, galleryRes, stylesRes] = await Promise.all([
           studioApi.list(projectId),
           charactersApi.list(projectId),
           scenesApi.list(projectId),
           propsApi.list(projectId),
           galleryApi.list(projectId),
           stylesApi.list(projectId),
-          studioApi.getAvailableModels().catch(() => ({ 
-            models: {
-              'wan2.5-i2i-preview': {
-                id: 'wan2.5-i2i-preview',
-                name: '图生图 wan2.5-i2i-preview',
-                description: '风格迁移和多图融合'
-              }
-            }
-          }))
         ])
         
         safeSetState(setTasks, tasksRes.tasks)
@@ -103,7 +98,7 @@ const StudioPage = () => {
         safeSetState(setProps, propsRes.props)
         safeSetState(setGalleryImages, galleryRes.images)
         safeSetState(setStyles, stylesRes.styles)
-        safeSetState(setAvailableModels, modelsRes.models || {})
+        // 模型配置现在通过 useModelRegistry hook 自动获取
       } catch (error) {
         message.error('加载失败')
       } finally {
