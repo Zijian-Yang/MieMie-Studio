@@ -88,7 +88,6 @@ chmod +x run.sh
 
   后端: http://localhost:8000
   前端: http://localhost:3000
-  API文档: http://localhost:8000/docs
 ```
 
 #### 方式二：手动启动
@@ -341,27 +340,11 @@ Windows 用户请使用手动启动方式，或安装 [Git Bash](https://gitforw
 
 ---
 
-## API 文档
-
-启动后端后访问 http://localhost:8000/docs 查看完整 API 文档（Swagger UI）。
-
 ## 使用的阿里云 API
 
 - [文生图 API](https://help.aliyun.com/zh/model-studio/text-to-image-v2-api-reference)
 - [图生视频 API](https://help.aliyun.com/zh/model-studio/image-to-video-api-reference)
 - [通义千问 API](https://help.aliyun.com/zh/model-studio/developer-reference/use-qwen-by-calling-api)
-
----
-
-## 贡献指南
-
-欢迎提交 Issue 和 Pull Request！
-
-1. Fork 本仓库
-2. 创建特性分支：`git checkout -b feature/AmazingFeature`
-3. 提交更改：`git commit -m 'Add some AmazingFeature'`
-4. 推送分支：`git push origin feature/AmazingFeature`
-5. 提交 Pull Request
 
 ---
 
@@ -383,3 +366,4 @@ GPL v3
 
 - 项目地址：https://github.com/Zijian-Yang/MieMie-Studio
 - 问题反馈：https://github.com/Zijian-Yang/MieMie-Studio/issues
+- 邮箱：Zijian-Yang@users.noreply.github.com
