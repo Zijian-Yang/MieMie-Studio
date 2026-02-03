@@ -359,11 +359,3 @@ GPL v3
 - ✅ 必须保留原作者版权声明
 
 详见 [LICENSE](LICENSE) 文件。
-
----
-
-## 联系方式
-
-- 项目地址：https://github.com/Zijian-Yang/MieMie-Studio
-- 问题反馈：https://github.com/Zijian-Yang/MieMie-Studio/issues
-- 邮箱：Zijian-Yang@users.noreply.github.com
