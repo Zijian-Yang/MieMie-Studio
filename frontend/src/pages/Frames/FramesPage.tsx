@@ -27,9 +27,11 @@ import {
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { framesApi, scriptsApi, galleryApi, charactersApi, scenesApi, propsApi, stylesApi, settingsApi, Frame, Shot, GalleryImage, Character, Scene, Prop, Style } from '../../services/api'
+import { framesApi, scriptsApi, galleryApi, charactersApi, scenesApi, propsApi, stylesApi, settingsApi, Frame, Shot, GalleryImage, Character, Scene, Prop, Style, RegisteredModelInfo } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 import { useGenerationStore } from '../../stores/generationStore'
+import { useModelRegistry } from '../../hooks/useModelRegistry'
+import { ModelSelector, SizeSelector } from '../../components/ModelConfig'
 
 const { TextArea } = Input
 const { Option } = Select
@@ -187,67 +189,50 @@ const FramesPage = () => {
   const [frameSize, setFrameSize] = useState<string | null>(null)
   const [frameEnableInterleave, setFrameEnableInterleave] = useState<boolean>(false)  // wan2.6-image 图文混合模式
   
-  // 从 API 获取的模型尺寸配置
-  const [modelSizeConfigs, setModelSizeConfigs] = useState<Record<string, Array<{width?: number, height?: number, value?: string, label: string}>>>({})
+  // 使用统一的模型注册中心获取模型配置
+  const { models: registryModels, loading: modelsLoading, getImageModels, getSizeOptions } = useModelRegistry()
   
-  // 可用的模型（图生图 + 文生图 + wan2.6-image）
-  const availableImageModels: Record<string, {
-    id: string
-    name: string
-    description: string
-    maxN: number
-    supportsSize: boolean
-    modelType: 'i2i' | 't2i' | 'multi'  // 图生图 / 文生图 / 多功能
-    supportsInterleave?: boolean
-    supportsReferences?: boolean
-    maxReferences?: number
-  }> = {
-    // 多功能模型 (图生图，支持文生图模式)
-    'wan2.6-image': {
-      id: 'wan2.6-image',
-      name: '图生图 wan2.6-image',
-      description: '最强模型，支持参考图生图、图文混合、纯文生图',
-      maxN: 4,
-      supportsSize: true,
-      modelType: 'multi',
-      supportsInterleave: true,  // 支持图文混合模式
-      supportsReferences: true,  // 支持参考图
-      maxReferences: 3,
-    },
-    // 图生图模型
-    'wan2.5-i2i-preview': {
-      id: 'wan2.5-i2i-preview',
-      name: '图生图 wan2.5-i2i-preview',
-      description: '风格迁移和多图融合，最多4张参考图',
-      maxN: 4,
-      supportsSize: false,
-      modelType: 'i2i',
-    },
-    'qwen-image-edit-plus': {
-      id: 'qwen-image-edit-plus',
-      name: '图生图 qwen-image-edit-plus',
-      description: '支持单图编辑和多图融合，最多3张参考图',
-      maxN: 6,
-      supportsSize: true,
-      modelType: 'i2i',
-    },
-    // 文生图模型
-    'wan2.6-t2i': {
-      id: 'wan2.6-t2i',
-      name: '文生图 wan2.6-t2i',
-      description: 'HTTP同步调用，快速生成高质量图像',
-      maxN: 4,
-      supportsSize: true,
-      modelType: 't2i',
-    },
-    'wan2.5-t2i-preview': {
-      id: 'wan2.5-t2i-preview',
-      name: '文生图 wan2.5-t2i-preview',
-      description: 'SDK异步调用，自由选尺寸',
-      maxN: 4,
-      supportsSize: true,
-      modelType: 't2i',
-    },
+  // 获取图像模型列表（文生图 + 图生图）
+  const imageModels = getImageModels()
+  
+  // 辅助函数：获取模型信息
+  const getModelInfo = (modelId: string): RegisteredModelInfo | undefined => {
+    return registryModels[modelId]
+  }
+  
+  // 辅助函数：判断模型类型
+  const getModelType = (modelId: string): 'i2i' | 't2i' | 'multi' => {
+    const model = getModelInfo(modelId)
+    if (!model) return 'i2i'
+    if (model.type === 'text_to_image') return 't2i'
+    if (model.id === 'wan2.6-image') return 'multi'  // wan2.6-image 支持多功能
+    return 'i2i'
+  }
+  
+  // 辅助函数：判断是否支持尺寸选择
+  const supportsSize = (modelId: string): boolean => {
+    const model = getModelInfo(modelId)
+    return (model?.common_sizes?.length || 0) > 0
+  }
+  
+  // 辅助函数：获取最大生成数量
+  const getMaxN = (modelId: string): number => {
+    const model = getModelInfo(modelId)
+    // 从参数定义中查找 n 参数的约束
+    const nParam = model?.parameters?.find(p => p.name === 'n')
+    return nParam?.constraint?.max_value as number || 4
+  }
+  
+  // 辅助函数：判断是否支持图文混合
+  const supportsInterleave = (modelId: string): boolean => {
+    const model = getModelInfo(modelId)
+    return model?.capabilities?.supports_interleave || false
+  }
+  
+  // 辅助函数：判断是否支持参考图
+  const supportsReferences = (modelId: string): boolean => {
+    const model = getModelInfo(modelId)
+    return model?.capabilities?.supports_reference_images || false
   }
   
   const shouldStopRef = useRef(false)
@@ -283,14 +268,13 @@ const FramesPage = () => {
       safeSetState(setLoading, true)
       try {
         fetchProject(projectId).catch(() => {})
-        const [framesRes, galleryRes, charsRes, scenesRes, propsRes, stylesRes, settingsRes] = await Promise.all([
+        const [framesRes, galleryRes, charsRes, scenesRes, propsRes, stylesRes] = await Promise.all([
           framesApi.list(projectId),
           galleryApi.list(projectId),
           charactersApi.list(projectId),
           scenesApi.list(projectId),
           propsApi.list(projectId),
           stylesApi.list(projectId),
-          settingsApi.getSettings().catch(() => ({ available_image_models: {} })),
         ])
         safeSetState(setFrames, framesRes.frames)
         safeSetState(setGalleryImages, galleryRes.images)
@@ -298,16 +282,7 @@ const FramesPage = () => {
         safeSetState(setScenes, scenesRes.scenes)
         safeSetState(setProps, propsRes.props)
         safeSetState(setStyles, stylesRes.styles)
-        
-        // 提取模型的 common_sizes 配置
-        const sizeConfigs: Record<string, Array<{width?: number, height?: number, value?: string, label: string}>> = {}
-        const models = settingsRes.available_image_models || {}
-        for (const [modelId, modelInfo] of Object.entries(models)) {
-          if ((modelInfo as any).common_sizes) {
-            sizeConfigs[modelId] = (modelInfo as any).common_sizes
-          }
-        }
-        safeSetState(setModelSizeConfigs, sizeConfigs)
+        // 模型配置现在通过 useModelRegistry hook 自动获取
       } catch (error) {
         message.error('加载失败')
       } finally {
@@ -826,10 +801,10 @@ const FramesPage = () => {
         }
       }
       
-      // 判断模型类型
-      const modelInfo = availableImageModels[frameModel]
-      const isTextToImage = modelInfo?.modelType === 't2i'
-      const isMultiModel = modelInfo?.modelType === 'multi'
+        // 判断模型类型
+        const modelType = getModelType(frameModel)
+        const isTextToImage = modelType === 't2i'
+        const isMultiModel = modelType === 'multi'
       
       // 构建请求参数
       const generateParams: any = {
@@ -1649,8 +1624,8 @@ const FramesPage = () => {
                         extra={
                           <span style={{ fontSize: 11, color: '#666' }}>
                             {(() => {
-                              const modelInfo = availableImageModels[frameModel]
-                              if (modelInfo?.modelType === 'multi') return 'wan2.6-image 多功能'
+                              const modelType = getModelType(frameModel)
+                              if (modelType === 'multi') return 'wan2.6-image 多功能'
                               if (useReferences && selectedReferences.length > 0) return '图生图模式'
                               return '文生图模式'
                             })()}
@@ -1660,22 +1635,17 @@ const FramesPage = () => {
                         <>
                           <div style={{ marginBottom: 12 }}>
                             <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>生成模型</div>
-                            <Select
-                              style={{ width: '100%' }}
-                              size="small"
+                            <ModelSelector
+                              category={['text_to_image', 'image_to_image']}
                               value={frameModel}
-                              onChange={setFrameModel}
-                            >
-                              {Object.values(availableImageModels).map(m => (
-                                <Option key={m.id} value={m.id}>
-                                  {m.name}
-                                  {m.modelType === 'multi' && <Tag color="gold" style={{ marginLeft: 8 }}>多功能</Tag>}
-                                  {m.modelType === 't2i' && <Tag color="blue" style={{ marginLeft: 8 }}>文生图</Tag>}
-                                </Option>
-                              ))}
-                            </Select>
+                              onChange={(modelId) => setFrameModel(modelId)}
+                              size="small"
+                              showCapabilities={false}
+                              showDescription={false}
+                              loading={modelsLoading}
+                            />
                             <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
-                              {availableImageModels[frameModel]?.description}
+                              {getModelInfo(frameModel)?.description}
                             </div>
                           </div>
                           
@@ -1686,38 +1656,29 @@ const FramesPage = () => {
                                 style={{ width: '100%' }}
                                 size="small"
                                 min={1}
-                                max={availableImageModels[frameModel]?.maxN || 4}
+                                max={getMaxN(frameModel)}
                                 value={frameN}
                                 onChange={(v) => setFrameN(v || 1)}
                               />
                               <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
-                                最多 {availableImageModels[frameModel]?.maxN || 4} 张
+                                最多 {getMaxN(frameModel)} 张
                               </div>
                             </div>
                               
-                            {availableImageModels[frameModel]?.supportsSize && frameN === 1 && (
+                            {supportsSize(frameModel) && frameN === 1 && (
                               <div>
                                 <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>输出尺寸</div>
-                                <Select
-                                  style={{ width: '100%' }}
+                                <SizeSelector
+                                  modelId={frameModel}
+                                  value={frameSize || undefined}
+                                  onChange={(value) => setFrameSize(value)}
+                                  showPixelInfo={false}
+                                  showValidation={false}
+                                  allowClear
                                   size="small"
-                                    value={frameSize}
-                                    onChange={setFrameSize}
-                                    allowClear
-                                    placeholder="默认"
-                                  >
-                                    {modelSizeConfigs[frameModel]?.map((size, idx) => {
-                                      const value = size.value !== undefined ? size.value : `${size.width}*${size.height}`
-                                      return <Option key={idx} value={value}>{size.label}</Option>
-                                    }) || (
-                                      <>
-                                        <Option value="1280*1280">1280×1280 (1:1)</Option>
-                                        <Option value="1024*1024">1024×1024 (1:1)</Option>
-                                      </>
-                                    )}
-                                  </Select>
-                                </div>
-                              )}
+                                />
+                              </div>
+                            )}
                             </div>
                             
                             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
@@ -1738,7 +1699,7 @@ const FramesPage = () => {
                                 <span style={{ fontSize: 12, color: '#888' }}>水印</span>
                               </div>
                               {/* wan2.6-image 专用：图文混合模式 */}
-                              {availableImageModels[frameModel]?.supportsInterleave && (
+                              {supportsInterleave(frameModel) && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                   <Switch
                                     size="small"
@@ -1765,12 +1726,12 @@ const FramesPage = () => {
                               />
                             </div>
                           {/* 提示信息 */}
-                          {availableImageModels[frameModel]?.modelType === 'i2i' && (!useReferences || selectedReferences.length === 0) && (
+                          {getModelType(frameModel) === 'i2i' && (!useReferences || selectedReferences.length === 0) && (
                             <div style={{ color: '#ff9800', fontSize: 11, marginTop: 8, padding: 8, background: 'rgba(255,152,0,0.1)', borderRadius: 4 }}>
                               ⚠️ 当前选择的是图生图模型，请添加参考素材
                             </div>
                           )}
-                          {availableImageModels[frameModel]?.modelType === 'multi' && (
+                          {getModelType(frameModel) === 'multi' && (
                             <div style={{ color: '#666', fontSize: 11, marginTop: 8 }}>
                               💡 wan2.6-image 支持无参考图（文生图）或 1-3 张参考图
                               {frameEnableInterleave && (

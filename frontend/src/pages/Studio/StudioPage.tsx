@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { 
   Button, Modal, Form, Input, Empty, Spin, message, 
@@ -15,6 +15,8 @@ import {
   StudioTask, GalleryImage, Character, Scene, Prop, ReferenceItem, Style
 } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
+import { useModelRegistry } from '../../hooks/useModelRegistry'
+import { ModelSelector, SizeSelector } from '../../components/ModelConfig'
 
 const { TextArea } = Input
 
@@ -26,11 +28,9 @@ const StudioPage = () => {
   const [loading, setLoading] = useState(true)
   const [selectedTask, setSelectedTask] = useState<StudioTask | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set())
   const [form] = Form.useForm()
-  const [createForm] = Form.useForm()
   
   // 素材选择
   const [characters, setCharacters] = useState<Character[]>([])
@@ -38,26 +38,28 @@ const StudioPage = () => {
   const [props, setProps] = useState<Prop[]>([])
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([])
   const [styles, setStyles] = useState<Style[]>([])
-  const [availableModels, setAvailableModels] = useState<Record<string, {
-    id: string
-    name: string
-    description?: string
-    model_type?: 'text_to_image' | 'image_to_image' | 'image_generation'
-    capabilities?: {
-      supports_batch?: boolean
-      supports_async?: boolean
-      supports_negative_prompt?: boolean
-      supports_prompt_extend?: boolean
-      supports_watermark?: boolean
-      supports_seed?: boolean
-      max_n?: number
-      supports_reference_images?: boolean
-      supports_interleave?: boolean
-      max_reference_images?: number
-    }
-    parameters?: any[]
-    common_sizes?: string[]
-  }>>({})
+  
+  // 使用统一的模型注册中心
+  const { models: registryModels, loading: modelsLoading, getImageModels, getSizeOptions } = useModelRegistry()
+  
+  // 兼容旧代码：将 registryModels 格式化为旧的 availableModels 格式
+  const availableModels = useMemo(() => {
+    const result: Record<string, any> = {}
+    Object.values(registryModels).forEach(model => {
+      if (model.type === 'text_to_image' || model.type === 'image_to_image') {
+        result[model.id] = {
+          id: model.id,
+          name: model.name,
+          description: model.description,
+          model_type: model.type,
+          capabilities: model.capabilities,
+          parameters: model.parameters,
+          common_sizes: model.common_sizes?.map(s => s.value) || []
+        }
+      }
+    })
+    return result
+  }, [registryModels])
   
   const isMountedRef = useRef(true)
 
@@ -79,22 +81,13 @@ const StudioPage = () => {
       try {
         fetchProject(projectId).catch(() => {})
         
-        const [tasksRes, charactersRes, scenesRes, propsRes, galleryRes, stylesRes, modelsRes] = await Promise.all([
+        const [tasksRes, charactersRes, scenesRes, propsRes, galleryRes, stylesRes] = await Promise.all([
           studioApi.list(projectId),
           charactersApi.list(projectId),
           scenesApi.list(projectId),
           propsApi.list(projectId),
           galleryApi.list(projectId),
           stylesApi.list(projectId),
-          studioApi.getAvailableModels().catch(() => ({ 
-            models: {
-              'wan2.5-i2i-preview': {
-                id: 'wan2.5-i2i-preview',
-                name: '图生图 wan2.5-i2i-preview',
-                description: '风格迁移和多图融合'
-              }
-            }
-          }))
         ])
         
         safeSetState(setTasks, tasksRes.tasks)
@@ -103,7 +96,7 @@ const StudioPage = () => {
         safeSetState(setProps, propsRes.props)
         safeSetState(setGalleryImages, galleryRes.images)
         safeSetState(setStyles, stylesRes.styles)
-        safeSetState(setAvailableModels, modelsRes.models || {})
+        // 模型配置现在通过 useModelRegistry hook 自动获取
       } catch (error) {
         message.error('加载失败')
       } finally {
@@ -113,20 +106,38 @@ const StudioPage = () => {
     loadData()
   }, [projectId, fetchProject, safeSetState])
 
+  // 新建模式状态
+  const [isCreating, setIsCreating] = useState(false)
+  
   const openCreateModal = () => {
-    createForm.resetFields()
-    createForm.setFieldsValue({
-      model: 'wan2.5-i2i-preview',
-      n: 1,  // 每次请求生成的图片数量
-      group_count: 3  // 并发请求数
+    // 直接使用统一的弹窗，设置为新建模式
+    setIsCreating(true)
+    setSelectedTask(null)
+    setSelectedImages(new Set())
+    form.resetFields()
+    form.setFieldsValue({
+      name: '',
+      description: '',
+      model: 'wan2.6-image',  // 默认使用最新模型
+      prompt: '',
+      negative_prompt: '',
+      n: 4,  // wan2.6-image 默认4张
+      group_count: 3,  // 并发请求数
+      prompt_extend: true,
+      watermark: false,
+      enable_interleave: false,
+      max_images: 5,
+      references: [],
+      style_id: null,
     })
-    setIsCreateModalOpen(true)
+    setSelectedStyleId(null)
+    setIsModalOpen(true)
   }
 
   const createTask = async () => {
     if (!projectId) return
     try {
-      const values = await createForm.validateFields()
+      const values = await form.validateFields()
       
       // 解析选中的素材
       let references = (values.references || []).map((ref: string) => {
@@ -173,33 +184,40 @@ const StudioPage = () => {
         model: values.model,
         prompt: finalPrompt,
         negative_prompt: finalNegativePrompt,
-        n: values.n || 1,
+        n: values.n || 4,
         group_count: values.group_count,
-        references
+        references,
+        // 保存高级参数
+        size: values.size || undefined,
+        prompt_extend: values.prompt_extend,
+        watermark: values.watermark,
+        seed: values.seed || undefined,
+        enable_interleave: values.enable_interleave,
+        max_images: values.max_images
       })
       
       safeSetState(setTasks, (prev: StudioTask[]) => [task, ...prev])
-      setIsCreateModalOpen(false)
       setSelectedStyleId(null)
-      message.success('任务已创建')
-      
-      // 自动打开编辑弹窗
-      openTaskModal(task)
+      setIsCreating(false)
+      setSelectedTask(task)
+      message.success('任务已创建，可以开始生成图片')
     } catch (error) {
       message.error('创建失败')
     }
   }
 
   const openTaskModal = (task: StudioTask) => {
+    setIsCreating(false)  // 编辑模式
     setSelectedTask(task)
     setSelectedImages(new Set())
+    setSelectedStyleId(null)
     form.setFieldsValue({
       name: task.name,
       description: task.description,
       model: task.model,
       prompt: task.prompt,
       negative_prompt: task.negative_prompt,
-      n: task.n || 1,
+      n: task.n || 4,
       group_count: task.group_count || 3,  // 默认3组并发
       // 加载保存的高级参数（如果有），否则使用默认值
       size: task.size || '',
@@ -208,7 +226,9 @@ const StudioPage = () => {
       seed: task.seed || undefined,
       // wan2.6-image 专用参数
       enable_interleave: task.enable_interleave || false,
-      max_images: task.max_images || 5
+      max_images: task.max_images || 5,
+      // 还原参考素材选择（编辑时显示）
+      references: task.references?.map(ref => `${ref.type}:${ref.id}`) || [],
     })
     setIsModalOpen(true)
   }
@@ -658,496 +678,230 @@ const StudioPage = () => {
         </div>
       )}
 
-      {/* 新建任务弹窗 */}
-      <Modal
-        title="新建生图任务"
-        open={isCreateModalOpen}
-        onOk={createTask}
-        onCancel={() => setIsCreateModalOpen(false)}
-        okText="创建"
-        cancelText="取消"
-        width={700}
-      >
-        <Form form={createForm} layout="vertical">
-          <Form.Item name="name" label="任务名称" rules={[{ required: true, message: '请输入任务名称' }]}>
-            <Input placeholder="例如：角色合影生成" />
-          </Form.Item>
-          <Form.Item name="description" label="任务描述">
-            <TextArea rows={2} placeholder="描述这个任务的目的" />
-          </Form.Item>
-          <Form.Item 
-            name="references" 
-            label="选择参考素材（多图生图）" 
-            extra={
-              <span style={{ color: '#888' }}>
-                按顺序选择参考素材，可在提示词中使用"<strong>第一个图</strong>"、"<strong>第二个图</strong>"等引用不同素材。
-                例如："第一个图中的人和第二个图中的人在第三个图的场景中坐着"
-              </span>
-            }
-          >
-            <Select
-              mode="multiple"
-              placeholder="按顺序选择参考素材"
-              options={buildReferenceOptions()}
-              style={{ width: '100%' }}
-              optionFilterProp="children"
-            />
-          </Form.Item>
-          
-          {/* 独立的风格选择模块 */}
-          <Form.Item 
-            name="style_id" 
-            label="风格选择" 
-            extra={
-              <span style={{ color: '#888' }}>
-                图片风格：风格图作为最后一个参考图片加入素材。
-                文本风格：风格描述嵌入提示词尾部。
-              </span>
-            }
-          >
-            <Select
-              placeholder="选择风格（可选）"
-              options={buildStyleOptions()}
-              style={{ width: '100%' }}
-              allowClear
-              onChange={(value) => setSelectedStyleId(value || null)}
-            />
-          </Form.Item>
-          
-          {/* 显示选中风格的预览 */}
-          {selectedStyleId && (() => {
-            const style = styles.find(s => s.id === selectedStyleId)
-            if (!style) return null
-            return (
-              <div style={{ 
-                marginBottom: 16, 
-                padding: 12, 
-                background: '#1a1a1a', 
-                borderRadius: 8,
-                border: '1px solid #333'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                  {style.style_type === 'image' && getStyleImageUrl(style) && (
-                    <img 
-                      src={getStyleImageUrl(style)!} 
-                      alt={style.name}
-                      style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 4 }}
-                    />
-                  )}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 500, marginBottom: 4 }}>{style.name}</div>
-                    <Tag color={style.style_type === 'image' ? 'blue' : 'green'}>
-                      {style.style_type === 'image' ? '图片风格' : '文本风格'}
-                    </Tag>
-                    {style.style_type === 'text' && style.text_style_content && (
-                      <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
-                        {style.text_style_content.slice(0, 100)}...
-                      </div>
-                    )}
-                    {style.style_type === 'image' && style.style_prompt && (
-                      <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
-                        {style.style_prompt.slice(0, 100)}...
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          })()}
-          <Form.Item name="model" label="生成模型" extra={
-            availableModels[createForm.getFieldValue('model')]?.description
-          }>
-            <Select 
-              options={Object.values(availableModels).map(m => ({ 
-                label: m.name, 
-                value: m.id 
-              }))} 
-              onChange={() => createForm.setFieldsValue({})} // 触发重新渲染显示描述
-            />
-          </Form.Item>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Form.Item 
-              name="n" 
-              label="生图数量" 
-              tooltip="每次请求生成的图片数量"
-              extra={(() => {
-                const model = createForm.getFieldValue('model')
-                const modelInfo = availableModels[model]
-                if (model === 'qwen-image-edit-plus') return '最多6张'
-                if (modelInfo?.capabilities?.max_n) return `最多${modelInfo.capabilities.max_n}张`
-                return '最多4张'
-              })()}
-            >
-              <InputNumber 
-                min={1} 
-                max={(() => {
-                  const model = createForm.getFieldValue('model')
-                  const modelInfo = availableModels[model]
-                  if (model === 'qwen-image-edit-plus') return 6
-                  if (modelInfo?.capabilities?.max_n) return modelInfo.capabilities.max_n
-                  return 4
-                })()}
-                style={{ width: '100%' }} 
-              />
-            </Form.Item>
-            <Form.Item 
-              name="group_count" 
-              label="并发组数" 
-              tooltip="并发请求数，总图片数 = 生图数量 × 并发组数"
-            >
-              <InputNumber min={1} max={10} style={{ width: '100%' }} />
-            </Form.Item>
-          </div>
-          <Form.Item name="prompt" label="生成提示词">
-            <TextArea rows={3} placeholder="描述要生成的图片内容" />
-          </Form.Item>
-          <Form.Item name="negative_prompt" label="负向提示词">
-            <TextArea rows={2} placeholder="描述不希望出现的内容" />
-          </Form.Item>
-
-          {/* 文生图模型参数 */}
-          {availableModels[createForm.getFieldValue('model')]?.model_type === 'text_to_image' && (
-            <div style={{ 
-              padding: '12px', 
-              background: '#1a1a1a', 
-              borderRadius: 8, 
-              marginTop: 16,
-              border: '1px solid #333'
-            }}>
-              <div style={{ marginBottom: 8, color: '#888', fontSize: 12 }}>
-                文生图模型参数
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                <Form.Item 
-                  name="size" 
-                  label="输出尺寸"
-                  style={{ marginBottom: 0 }}
-                >
-                  <Select
-                    placeholder="默认尺寸"
-                    allowClear
-                    options={
-                      availableModels[createForm.getFieldValue('model')]?.common_sizes?.map((size: any) => ({
-                        value: typeof size === 'string' ? size : `${size.width}*${size.height}`,
-                        label: typeof size === 'string' ? size.replace('*', '×') : size.label
-                      })) || [
-                        { value: '1280*1280', label: '1280×1280 (1:1)' },
-                      ]
-                    }
-                  />
-                </Form.Item>
-                <Form.Item 
-                  name="seed" 
-                  label="随机种子"
-                  style={{ marginBottom: 0 }}
-                >
-                  <InputNumber 
-                    min={0} 
-                    max={2147483647} 
-                    style={{ width: '100%' }} 
-                    placeholder="随机"
-                  />
-                </Form.Item>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <Form.Item 
-                  name="prompt_extend" 
-                  label="智能改写"
-                  valuePropName="checked"
-                  initialValue={true}
-                  style={{ marginBottom: 0 }}
-                >
-                  <Switch checkedChildren="开" unCheckedChildren="关" />
-                </Form.Item>
-                <Form.Item 
-                  name="watermark" 
-                  label="水印"
-                  valuePropName="checked"
-                  initialValue={false}
-                  style={{ marginBottom: 0 }}
-                >
-                  <Switch checkedChildren="开" unCheckedChildren="关" />
-                </Form.Item>
-              </div>
-              <div style={{ marginTop: 8, color: '#666', fontSize: 11 }}>
-                提示：文生图模型不需要参考图片，只需要输入提示词
-              </div>
-            </div>
-          )}
-
-          {/* wan2.6-image 模型参数 */}
-          {createForm.getFieldValue('model') === 'wan2.6-image' && (
-            <div style={{ 
-              padding: '12px', 
-              background: '#1a1a1a', 
-              borderRadius: 8, 
-              marginTop: 16,
-              border: '1px solid #333'
-            }}>
-              <div style={{ marginBottom: 8, color: '#888', fontSize: 12 }}>
-                Wan2.6 图像生成参数
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                <Form.Item 
-                  name="size" 
-                  label="输出尺寸"
-                  style={{ marginBottom: 0 }}
-                >
-                  <Select
-                    placeholder="默认尺寸"
-                    allowClear
-                    options={
-                      availableModels['wan2.6-image']?.common_sizes?.map((size: any) => ({
-                        value: typeof size === 'string' ? size : `${size.width}*${size.height}`,
-                        label: typeof size === 'string' ? size.replace('*', '×') : size.label
-                      })) || [
-                        { value: '1280*1280', label: '1280×1280 (1:1)' },
-                      ]
-                    }
-                  />
-                </Form.Item>
-                <Form.Item 
-                  name="enable_interleave" 
-                  label="图文混合模式"
-                  valuePropName="checked"
-                  initialValue={false}
-                  style={{ marginBottom: 0 }}
-                  tooltip="启用后生成图文并茂内容。限制：参考图最多1张，生图数量固定为1"
-                >
-                  <Switch 
-                    checkedChildren="开" 
-                    unCheckedChildren="关"
-                    onChange={(checked) => {
-                      if (checked) {
-                        // 图文混合模式：n 固定为 1
-                        createForm.setFieldValue('n', 1)
-                      }
-                    }}
-                  />
-                </Form.Item>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                <Form.Item 
-                  name="n" 
-                  label="生图数量"
-                  style={{ marginBottom: 0 }}
-                  initialValue={4}
-                  tooltip={createForm.getFieldValue('enable_interleave') 
-                    ? "图文混合模式下固定为1" 
-                    : "参考图模式下可选1-4张"}
-                >
-                  <InputNumber 
-                    min={1} 
-                    max={createForm.getFieldValue('enable_interleave') ? 1 : 4}
-                    disabled={createForm.getFieldValue('enable_interleave')}
-                    style={{ width: '100%' }} 
-                    placeholder="默认4张"
-                  />
-                </Form.Item>
-                {createForm.getFieldValue('enable_interleave') && (
-                  <Form.Item 
-                    name="max_images" 
-                    label="最大图片数"
-                    style={{ marginBottom: 0 }}
-                    initialValue={5}
-                    tooltip="图文混合模式下，模型最多生成的图片数量(1-5)，实际生成数量可能更少"
-                  >
-                    <InputNumber 
-                      min={1} 
-                      max={5}
-                      style={{ width: '100%' }} 
-                      placeholder="默认5张"
-                    />
-                  </Form.Item>
-                )}
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                <Form.Item 
-                  name="prompt_extend" 
-                  label="智能改写"
-                  valuePropName="checked"
-                  initialValue={true}
-                  style={{ marginBottom: 0 }}
-                  tooltip="仅非图文混合模式生效，自动优化提示词"
-                >
-                  <Switch 
-                    checkedChildren="开" 
-                    unCheckedChildren="关"
-                    disabled={createForm.getFieldValue('enable_interleave')}
-                  />
-                </Form.Item>
-                <Form.Item 
-                  name="watermark" 
-                  label="水印"
-                  valuePropName="checked"
-                  initialValue={false}
-                  style={{ marginBottom: 0 }}
-                  tooltip="在图片右下角添加'AI生成'水印"
-                >
-                  <Switch checkedChildren="开" unCheckedChildren="关" />
-                </Form.Item>
-                <Form.Item 
-                  name="seed" 
-                  label="随机种子"
-                  style={{ marginBottom: 0 }}
-                  tooltip="相同种子可获得相对稳定的生成结果"
-                >
-                  <InputNumber 
-                    min={0} 
-                    max={2147483647} 
-                    style={{ width: '100%' }} 
-                    placeholder="随机"
-                  />
-                </Form.Item>
-              </div>
-              <div style={{ marginTop: 8, padding: '8px', background: '#252525', borderRadius: 4, fontSize: 11 }}>
-                <div style={{ color: '#888', marginBottom: 4 }}>📝 模式说明：</div>
-                <div style={{ color: '#666' }}>
-                  {createForm.getFieldValue('enable_interleave') ? (
-                    <>• <strong>图文混合模式</strong>：根据提示词生成图文并茂的内容，支持0-1张参考图</>
-                  ) : (
-                    <>• <strong>参考图模式</strong>：基于1-3张参考图进行风格迁移、主体一致性生成，支持0张时为纯文生图</>
-                  )}
-                </div>
-                <div style={{ color: '#555', marginTop: 4 }}>
-                  参考图要求：宽高 384-5000px，格式 JPEG/PNG/BMP/WEBP，≤10MB
-                </div>
-              </div>
-            </div>
-          )}
-        </Form>
-      </Modal>
-
-      {/* 任务详情/编辑弹窗 */}
+      {/* 统一的新建/编辑弹窗 */}
       <Modal
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>任务详情 - {selectedTask?.name}</span>
-            {selectedTask && getStatusTag(selectedTask.status)}
+            <span>{isCreating ? '新建生图任务' : `任务详情 - ${selectedTask?.name}`}</span>
+            {!isCreating && selectedTask && getStatusTag(selectedTask.status)}
           </div>
         }
         open={isModalOpen}
-        onCancel={() => setIsModalOpen(false)}
+        onCancel={() => { setIsModalOpen(false); setIsCreating(false); setSelectedStyleId(null); }}
         footer={null}
         width={1100}
       >
-        {selectedTask && (
+        {(isCreating || selectedTask) && (
           <div style={{ display: 'flex', gap: 24 }}>
-            {/* 左侧：生成结果 */}
+            {/* 左侧：生成结果或素材选择 */}
             <div style={{ width: 500 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <h4 style={{ margin: 0 }}>生成结果</h4>
-                <Space>
-                  {selectedImages.size > 0 && (
-                    <Button 
-                      type="primary" 
-                      icon={<SaveOutlined />} 
-                      onClick={saveToGallery}
-                    >
-                      保存选中到图库 ({selectedImages.size})
-                    </Button>
-                  )}
-                </Space>
-              </div>
-              
-              {/* 参考素材预览 */}
-              {selectedTask.references.length > 0 && (
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
-                    参考素材（按选择顺序，可在提示词中使用"第一个图"、"第二个图"等引用）：
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {selectedTask.references.map((ref, idx) => (
-                      <Tooltip key={idx} title={`第${idx + 1}个图: ${ref.name} (${ref.type})`}>
-                        <div style={{ 
-                          position: 'relative',
-                          width: 60, 
-                          height: 60, 
-                          borderRadius: 6, 
-                          overflow: 'hidden',
-                          border: '1px solid #333',
-                          background: '#1a1a1a'
-                        }}>
-                          {ref.url ? (
-                            <img src={ref.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <PictureOutlined style={{ color: '#444' }} />
-                            </div>
+              {isCreating ? (
+                <>
+                  {/* 新建模式：显示素材选择 */}
+                  <h4 style={{ margin: '0 0 12px 0' }}>选择参考素材</h4>
+                  <Form.Item 
+                    name="references"
+                    extra={
+                      <span style={{ color: '#888', fontSize: 12 }}>
+                        按顺序选择参考素材，可在提示词中使用"第一个图"、"第二个图"等引用不同素材
+                      </span>
+                    }
+                  >
+                    <Select
+                      mode="multiple"
+                      placeholder="按顺序选择参考素材（可选）"
+                      options={buildReferenceOptions()}
+                      style={{ width: '100%' }}
+                      optionFilterProp="children"
+                    />
+                  </Form.Item>
+                  
+                  {/* 风格选择 */}
+                  <h4 style={{ margin: '16px 0 12px 0' }}>风格选择</h4>
+                  <Form.Item 
+                    name="style_id"
+                    extra={
+                      <span style={{ color: '#888', fontSize: 12 }}>
+                        图片风格：作为最后一个参考图加入。文本风格：描述嵌入提示词尾部
+                      </span>
+                    }
+                  >
+                    <Select
+                      placeholder="选择风格（可选）"
+                      options={buildStyleOptions()}
+                      style={{ width: '100%' }}
+                      allowClear
+                      onChange={(value) => setSelectedStyleId(value || null)}
+                    />
+                  </Form.Item>
+                  
+                  {/* 选中风格预览 */}
+                  {selectedStyleId && (() => {
+                    const style = styles.find(s => s.id === selectedStyleId)
+                    if (!style) return null
+                    return (
+                      <div style={{ 
+                        padding: 12, 
+                        background: '#1a1a1a', 
+                        borderRadius: 8,
+                        border: '1px solid #333',
+                        marginBottom: 16
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                          {style.style_type === 'image' && getStyleImageUrl(style) && (
+                            <img 
+                              src={getStyleImageUrl(style)!} 
+                              alt={style.name}
+                              style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 4 }}
+                            />
                           )}
-                          {/* 序号标签 */}
-                          <div style={{ 
-                            position: 'absolute', 
-                            top: 2, 
-                            left: 2, 
-                            background: 'rgba(0,0,0,0.7)', 
-                            color: '#fff',
-                            fontSize: 10,
-                            padding: '1px 4px',
-                            borderRadius: 3
-                          }}>
-                            {idx + 1}
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 500, marginBottom: 4 }}>{style.name}</div>
+                            <Tag color={style.style_type === 'image' ? 'blue' : 'green'}>
+                              {style.style_type === 'image' ? '图片风格' : '文本风格'}
+                            </Tag>
+                            {style.style_type === 'text' && style.text_style_content && (
+                              <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
+                                {style.text_style_content.slice(0, 100)}...
+                              </div>
+                            )}
                           </div>
                         </div>
-                      </Tooltip>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {/* 生成的图片 */}
-              {selectedTask.images.length > 0 ? (
-                <Image.PreviewGroup
-                  items={selectedTask.images.filter(img => img.url).map(img => img.url!)}
-                >
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-                    {selectedTask.images.map((image, idx) => (
-                      <div 
-                        key={image.id}
-                        style={{ 
-                          position: 'relative',
-                          aspectRatio: '1',
-                          background: '#1a1a1a',
-                          borderRadius: 8,
-                          overflow: 'hidden',
-                          border: selectedImages.has(image.id) ? '2px solid #1890ff' : '2px solid transparent'
-                        }}
-                      >
-                        {image.url ? (
-                          <Image 
-                            src={image.url} 
-                            alt={`第 ${idx + 1} 组`} 
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            preview={{ mask: '点击预览' }}
-                          />
-                        ) : (
-                          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <PictureOutlined style={{ fontSize: 32, color: '#444' }} />
-                          </div>
-                        )}
-                        <div 
-                          style={{ position: 'absolute', top: 8, left: 8, cursor: 'pointer', zIndex: 10 }}
-                          onClick={(e) => { e.stopPropagation(); toggleImageSelection(image.id); }}
-                        >
-                          <Checkbox checked={selectedImages.has(image.id)} />
-                        </div>
-                        <div style={{ position: 'absolute', bottom: 8, right: 8, pointerEvents: 'none' }}>
-                          <Tag>第 {idx + 1} 组</Tag>
-                        </div>
-                        {image.is_selected && (
-                          <div style={{ position: 'absolute', top: 8, right: 8, pointerEvents: 'none' }}>
-                            <Tag color="green">已保存</Tag>
-                          </div>
-                        )}
                       </div>
-                    ))}
+                    )
+                  })()}
+                  
+                  <div style={{ 
+                    padding: 16, 
+                    background: '#1a1a1a', 
+                    borderRadius: 8,
+                    textAlign: 'center',
+                    color: '#666',
+                    marginTop: 16
+                  }}>
+                    <PictureOutlined style={{ fontSize: 48, marginBottom: 12, color: '#444' }} />
+                    <div>填写右侧配置后点击创建任务</div>
+                    <div style={{ fontSize: 12, marginTop: 4 }}>创建后可生成图片</div>
                   </div>
-                </Image.PreviewGroup>
-              ) : (
-                <Empty 
-                  description="暂无生成结果，点击右侧生成按钮开始" 
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                />
+                </>
+              ) : selectedTask && (
+                <>
+                  {/* 编辑模式：显示生成结果 */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <h4 style={{ margin: 0 }}>生成结果</h4>
+                    <Space>
+                      {selectedImages.size > 0 && (
+                        <Button 
+                          type="primary" 
+                          icon={<SaveOutlined />} 
+                          onClick={saveToGallery}
+                        >
+                          保存选中到图库 ({selectedImages.size})
+                        </Button>
+                      )}
+                    </Space>
+                  </div>
+                  
+                  {/* 参考素材预览 */}
+                  {selectedTask.references.length > 0 && (
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
+                        参考素材（按选择顺序，可在提示词中使用"第一个图"、"第二个图"等引用）：
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {selectedTask.references.map((ref, idx) => (
+                          <Tooltip key={idx} title={`第${idx + 1}个图: ${ref.name} (${ref.type})`}>
+                            <div style={{ 
+                              position: 'relative',
+                              width: 60, 
+                              height: 60, 
+                              borderRadius: 6, 
+                              overflow: 'hidden',
+                              border: '1px solid #333',
+                              background: '#1a1a1a'
+                            }}>
+                              {ref.url ? (
+                                <img src={ref.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ) : (
+                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  <PictureOutlined style={{ color: '#444' }} />
+                                </div>
+                              )}
+                              {/* 序号标签 */}
+                              <div style={{ 
+                                position: 'absolute', 
+                                top: 2, 
+                                left: 2, 
+                                background: 'rgba(0,0,0,0.7)', 
+                                color: '#fff',
+                                fontSize: 10,
+                                padding: '1px 4px',
+                                borderRadius: 3
+                              }}>
+                                {idx + 1}
+                              </div>
+                            </div>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* 生成的图片 */}
+                  {selectedTask.images.length > 0 ? (
+                    <Image.PreviewGroup
+                      items={selectedTask.images.filter(img => img.url).map(img => img.url!)}
+                    >
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+                        {selectedTask.images.map((image, idx) => (
+                          <div 
+                            key={image.id}
+                            style={{ 
+                              position: 'relative',
+                              aspectRatio: '1',
+                              background: '#1a1a1a',
+                              borderRadius: 8,
+                              overflow: 'hidden',
+                              border: selectedImages.has(image.id) ? '2px solid #1890ff' : '2px solid transparent'
+                            }}
+                          >
+                            {image.url ? (
+                              <Image 
+                                src={image.url} 
+                                alt={`第 ${idx + 1} 组`} 
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                preview={{ mask: '点击预览' }}
+                              />
+                            ) : (
+                              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <PictureOutlined style={{ fontSize: 32, color: '#444' }} />
+                              </div>
+                            )}
+                            <div 
+                              style={{ position: 'absolute', top: 8, left: 8, cursor: 'pointer', zIndex: 10 }}
+                              onClick={(e) => { e.stopPropagation(); toggleImageSelection(image.id); }}
+                            >
+                              <Checkbox checked={selectedImages.has(image.id)} />
+                            </div>
+                            <div style={{ position: 'absolute', bottom: 8, right: 8, pointerEvents: 'none' }}>
+                              <Tag>第 {idx + 1} 组</Tag>
+                            </div>
+                            {image.is_selected && (
+                              <div style={{ position: 'absolute', top: 8, right: 8, pointerEvents: 'none' }}>
+                                <Tag color="green">已保存</Tag>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </Image.PreviewGroup>
+                  ) : (
+                    <Empty 
+                      description="暂无生成结果，点击右侧生成按钮开始" 
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    />
+                  )}
+                </>
               )}
             </div>
 
@@ -1164,7 +918,7 @@ const StudioPage = () => {
                   name="model" 
                   label="生成模型"
                   extra={
-                    selectedTask && availableModels[form.getFieldValue('model') || selectedTask.model]?.description
+                    availableModels[form.getFieldValue('model') || selectedTask?.model || 'wan2.6-image']?.description
                   }
                 >
                   <Select 
@@ -1503,33 +1257,51 @@ const StudioPage = () => {
               </Form>
               
               <Space style={{ width: '100%' }} direction="vertical">
-                <Button 
-                  type="primary" 
-                  icon={<ThunderboltOutlined />} 
-                  onClick={generateImages}
-                  loading={isGenerating}
-                  block
-                >
-                  {selectedTask.images.length > 0 ? '重新生成' : '开始生成'}
-                </Button>
-                <Button onClick={saveTask} block>
-                  保存任务配置
-                </Button>
-                <Popconfirm
-                  title="确定删除此任务？"
-                  onConfirm={() => deleteTask(selectedTask.id)}
-                  okText="删除"
-                  cancelText="取消"
-                  okButtonProps={{ danger: true }}
-                >
-                  <Button danger block icon={<DeleteOutlined />}>
-                    删除任务
-                  </Button>
-                </Popconfirm>
+                {isCreating ? (
+                  <>
+                    <Button 
+                      type="primary" 
+                      icon={<PlusOutlined />} 
+                      onClick={createTask}
+                      block
+                    >
+                      创建任务
+                    </Button>
+                    <Button onClick={() => { setIsModalOpen(false); setIsCreating(false); setSelectedStyleId(null); }} block>
+                      取消
+                    </Button>
+                  </>
+                ) : selectedTask && (
+                  <>
+                    <Button 
+                      type="primary" 
+                      icon={<ThunderboltOutlined />} 
+                      onClick={generateImages}
+                      loading={isGenerating}
+                      block
+                    >
+                      {selectedTask.images.length > 0 ? '重新生成' : '开始生成'}
+                    </Button>
+                    <Button onClick={saveTask} block>
+                      保存任务配置
+                    </Button>
+                    <Popconfirm
+                      title="确定删除此任务？"
+                      onConfirm={() => deleteTask(selectedTask.id)}
+                      okText="删除"
+                      cancelText="取消"
+                      okButtonProps={{ danger: true }}
+                    >
+                      <Button danger block icon={<DeleteOutlined />}>
+                        删除任务
+                      </Button>
+                    </Popconfirm>
+                  </>
+                )}
               </Space>
               
               {/* 追踪ID显示 */}
-              {(selectedTask.last_task_id || selectedTask.last_request_id) && (
+              {!isCreating && selectedTask && (selectedTask.last_task_id || selectedTask.last_request_id) && (
                 <div style={{ 
                   marginTop: 16, 
                   padding: '8px 12px', 
