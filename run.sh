@@ -185,6 +185,13 @@ install_all_deps() {
 }
 
 # ======================
+# 端口配置
+# ======================
+
+BACKEND_PORT=8000
+FRONTEND_PORT=3000
+
+# ======================
 # 服务状态检查
 # ======================
 
@@ -194,6 +201,56 @@ is_backend_running() {
 
 is_frontend_running() {
     screen -list 2>/dev/null | grep -q "$FRONTEND_SESSION"
+}
+
+# 检查端口是否被占用，返回占用进程的 PID
+get_port_pid() {
+    local port=$1
+    lsof -ti :$port 2>/dev/null | head -1
+}
+
+# 检查端口并处理冲突
+check_port_and_handle() {
+    local port=$1
+    local service_name=$2
+    local pids=$(lsof -ti :$port 2>/dev/null)
+    
+    if [ -n "$pids" ]; then
+        log_warn "端口 $port 已被占用"
+        echo ""
+        echo "占用进程:"
+        lsof -i :$port 2>/dev/null | head -5
+        echo ""
+        echo "请选择操作:"
+        echo "  1) 终止占用进程并继续启动"
+        echo "  2) 取消启动"
+        echo ""
+        read -p "请选择 [1/2]: " choice
+        
+        case "$choice" in
+            1)
+                log_info "终止占用端口 $port 的进程..."
+                for pid in $pids; do
+                    kill $pid 2>/dev/null && log_info "已终止进程 PID: $pid"
+                done
+                sleep 1
+                # 再次检查
+                if [ -n "$(lsof -ti :$port 2>/dev/null)" ]; then
+                    log_warn "进程未能正常终止，尝试强制终止..."
+                    for pid in $pids; do
+                        kill -9 $pid 2>/dev/null
+                    done
+                    sleep 1
+                fi
+                return 0
+                ;;
+            2|*)
+                log_info "启动已取消"
+                return 1
+                ;;
+        esac
+    fi
+    return 0
 }
 
 # ======================
@@ -206,6 +263,11 @@ start_backend() {
         return 0
     fi
     
+    # 检查端口是否被占用
+    if ! check_port_and_handle $BACKEND_PORT "后端"; then
+        return 1
+    fi
+    
     # 确保依赖已安装
     if ! backend_deps_installed; then
         install_backend_deps
@@ -214,16 +276,19 @@ start_backend() {
     # 创建日志目录
     mkdir -p "$LOG_DIR"
     
+    # 清空旧日志（避免混淆）
+    > "$BACKEND_LOG"
+    
     log_info "启动后端服务..."
     screen -dmS "$BACKEND_SESSION" bash -c "
         cd '$BACKEND_DIR'
         source '$VENV_DIR/bin/activate'
-        uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 2>&1 | tee -a '$BACKEND_LOG'
+        uvicorn app.main:app --reload --host 0.0.0.0 --port $BACKEND_PORT 2>&1 | tee -a '$BACKEND_LOG'
     "
     
     sleep 2
     if is_backend_running; then
-        log_success "后端服务已启动 (http://localhost:8000)"
+        log_success "后端服务已启动 (http://localhost:$BACKEND_PORT)"
     else
         log_error "后端服务启动失败，请查看日志: $BACKEND_LOG"
         return 1
@@ -236,6 +301,11 @@ start_frontend() {
         return 0
     fi
     
+    # 检查端口是否被占用
+    if ! check_port_and_handle $FRONTEND_PORT "前端"; then
+        return 1
+    fi
+    
     # 确保依赖已安装
     if ! frontend_deps_installed; then
         install_frontend_deps
@@ -244,15 +314,18 @@ start_frontend() {
     # 创建日志目录
     mkdir -p "$LOG_DIR"
     
+    # 清空旧日志（避免混淆）
+    > "$FRONTEND_LOG"
+    
     log_info "启动前端服务..."
     screen -dmS "$FRONTEND_SESSION" bash -c "
         cd '$FRONTEND_DIR'
-        npm run dev -- --host 2>&1 | tee -a '$FRONTEND_LOG'
+        npm run dev -- --host --port $FRONTEND_PORT 2>&1 | tee -a '$FRONTEND_LOG'
     "
     
     sleep 3
     if is_frontend_running; then
-        log_success "前端服务已启动 (http://localhost:3000)"
+        log_success "前端服务已启动 (http://localhost:$FRONTEND_PORT)"
     else
         log_error "前端服务启动失败，请查看日志: $FRONTEND_LOG"
         return 1
@@ -263,14 +336,14 @@ start_all() {
     check_screen
     log_info "启动 MieMie-Studio..."
     echo ""
-    start_backend
-    start_frontend
+    start_backend || return 1
+    start_frontend || return 1
     echo ""
     log_success "MieMie-Studio 启动完成!"
     echo ""
-    echo "  后端: http://localhost:8000"
-    echo "  前端: http://localhost:3000"
-    echo "  API文档: http://localhost:8000/docs"
+    echo "  后端: http://localhost:$BACKEND_PORT"
+    echo "  前端: http://localhost:$FRONTEND_PORT"
+    echo "  API文档: http://localhost:$BACKEND_PORT/docs"
     echo ""
     echo "使用 './run.sh logs' 查看日志"
     echo "使用 './run.sh stop' 停止服务"
@@ -280,11 +353,45 @@ start_all() {
 # 服务停止
 # ======================
 
-stop_backend() {
-    if is_backend_running; then
-        log_info "停止后端服务..."
-        screen -S "$BACKEND_SESSION" -X quit 2>/dev/null || true
+# 终止指定端口的所有进程
+kill_port_processes() {
+    local port=$1
+    local pids=$(lsof -ti :$port 2>/dev/null)
+    
+    if [ -n "$pids" ]; then
+        for pid in $pids; do
+            kill $pid 2>/dev/null
+        done
         sleep 1
+        # 检查是否还有残留进程
+        pids=$(lsof -ti :$port 2>/dev/null)
+        if [ -n "$pids" ]; then
+            for pid in $pids; do
+                kill -9 $pid 2>/dev/null
+            done
+        fi
+    fi
+}
+
+stop_backend() {
+    local was_running=false
+    
+    if is_backend_running; then
+        was_running=true
+        log_info "停止后端服务..."
+        # 先发送 SIGTERM 给 screen 会话中的进程
+        screen -S "$BACKEND_SESSION" -X stuff $'\003' 2>/dev/null  # 发送 Ctrl+C
+        sleep 1
+        screen -S "$BACKEND_SESSION" -X quit 2>/dev/null || true
+    fi
+    
+    # 确保端口上的进程被终止
+    if [ -n "$(lsof -ti :$BACKEND_PORT 2>/dev/null)" ]; then
+        log_info "清理残留的后端进程..."
+        kill_port_processes $BACKEND_PORT
+    fi
+    
+    if $was_running; then
         log_success "后端服务已停止"
     else
         log_info "后端服务未运行"
@@ -292,10 +399,24 @@ stop_backend() {
 }
 
 stop_frontend() {
+    local was_running=false
+    
     if is_frontend_running; then
+        was_running=true
         log_info "停止前端服务..."
-        screen -S "$FRONTEND_SESSION" -X quit 2>/dev/null || true
+        # 先发送 SIGTERM 给 screen 会话中的进程
+        screen -S "$FRONTEND_SESSION" -X stuff $'\003' 2>/dev/null  # 发送 Ctrl+C
         sleep 1
+        screen -S "$FRONTEND_SESSION" -X quit 2>/dev/null || true
+    fi
+    
+    # 确保端口上的进程被终止
+    if [ -n "$(lsof -ti :$FRONTEND_PORT 2>/dev/null)" ]; then
+        log_info "清理残留的前端进程..."
+        kill_port_processes $FRONTEND_PORT
+    fi
+    
+    if $was_running; then
         log_success "前端服务已停止"
     else
         log_info "前端服务未运行"
@@ -319,15 +440,21 @@ show_status() {
     echo ""
     
     # 后端状态
+    local backend_port_pid=$(get_port_pid $BACKEND_PORT)
     if is_backend_running; then
-        echo -e "  后端: ${GREEN}运行中${NC} (screen: $BACKEND_SESSION)"
+        echo -e "  后端: ${GREEN}运行中${NC} (screen: $BACKEND_SESSION, 端口: $BACKEND_PORT)"
+    elif [ -n "$backend_port_pid" ]; then
+        echo -e "  后端: ${YELLOW}异常${NC} (screen 已退出但端口 $BACKEND_PORT 仍被 PID $backend_port_pid 占用)"
     else
         echo -e "  后端: ${RED}未运行${NC}"
     fi
     
     # 前端状态
+    local frontend_port_pid=$(get_port_pid $FRONTEND_PORT)
     if is_frontend_running; then
-        echo -e "  前端: ${GREEN}运行中${NC} (screen: $FRONTEND_SESSION)"
+        echo -e "  前端: ${GREEN}运行中${NC} (screen: $FRONTEND_SESSION, 端口: $FRONTEND_PORT)"
+    elif [ -n "$frontend_port_pid" ]; then
+        echo -e "  前端: ${YELLOW}异常${NC} (screen 已退出但端口 $FRONTEND_PORT 仍被 PID $frontend_port_pid 占用)"
     else
         echo -e "  前端: ${RED}未运行${NC}"
     fi
