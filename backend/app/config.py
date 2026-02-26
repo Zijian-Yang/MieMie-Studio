@@ -179,25 +179,68 @@ IMAGE_EDIT_MODELS = {
     "qwen-image-edit-plus": {
         "name": "图生图 qwen-image-edit-plus",
         "description": "支持单图编辑和多图融合，可修改文字、增删物体、改变动作、风格迁移等",
-        "max_images": 3,  # 最多输入3张图片
-        "max_output": 6,  # 最多输出6张图片
-        "min_size": 512,  # 最小尺寸
-        "max_size": 2048,  # 最大尺寸
-        "common_sizes": [
-            {"value": "", "label": "默认（保持原图比例）"},
-            {"value": "1024*1024", "label": "1024x1024 方形 1:1"},
-            {"value": "1280*720", "label": "1280x720 横向 16:9"},
-            {"value": "720*1280", "label": "720x1280 竖向 9:16"},
-            {"value": "1024*768", "label": "1024x768 横向 4:3"},
-            {"value": "768*1024", "label": "768x1024 竖向 3:4"},
-            {"value": "1920*1080", "label": "1920x1080 横向 16:9"},
-            {"value": "1080*1920", "label": "1080x1920 竖向 9:16"},
-            {"value": "2048*2048", "label": "2048x2048 方形 1:1"},
-        ],
+        "max_input_images": 3,  # 最多输入3张图片
+        "max_n": 6,  # 最多输出6张图片
+        "min_size": 512,  # 最小尺寸（像素）
+        "max_size": 2048,  # 最大尺寸（像素）
         "supports_prompt_extend": True,
         "supports_watermark": True,
         "supports_seed": True,
-        "size_only_when_n_is_1": True,  # size 参数仅当 n=1 时可用
+        "supports_negative_prompt": True,
+        "supports_size": True,  # 支持自定义分辨率
+        "common_sizes": [
+            {"value": "", "label": "默认（保持原图比例）"},
+            {"value": "1024*1024", "label": "1024x1024 方形 1:1"},
+            {"value": "1536*1536", "label": "1536x1536 方形 1:1"},
+            {"value": "768*1152", "label": "768x1152 竖向 2:3"},
+            {"value": "1152*768", "label": "1152x768 横向 3:2"},
+            {"value": "1024*1536", "label": "1024x1536 竖向 2:3"},
+            {"value": "1536*1024", "label": "1536x1024 横向 3:2"},
+            {"value": "960*1280", "label": "960x1280 竖向 3:4"},
+            {"value": "1280*960", "label": "1280x960 横向 4:3"},
+            {"value": "1080*1440", "label": "1080x1440 竖向 3:4"},
+            {"value": "1440*1080", "label": "1440x1080 横向 4:3"},
+            {"value": "720*1280", "label": "720x1280 竖向 9:16"},
+            {"value": "1280*720", "label": "1280x720 横向 16:9"},
+            {"value": "1080*1920", "label": "1080x1920 竖向 9:16"},
+            {"value": "1920*1080", "label": "1920x1080 横向 16:9"},
+            {"value": "576*1344", "label": "576x1344 竖向 9:21"},
+            {"value": "1344*576", "label": "1344x576 横向 21:9"},
+            {"value": "2048*872", "label": "2048x872 横向 21:9"},
+        ],
+    },
+    "qwen-image-edit-max": {
+        "name": "图生图 qwen-image-edit-max",
+        "description": "最强图像编辑模型，支持单图编辑和多图融合，效果优于plus。可修改文字、增删物体、改变动作、风格迁移、增强画面细节",
+        "max_input_images": 3,  # 最多输入3张图片
+        "max_n": 6,  # 最多输出6张图片
+        "min_size": 512,  # 最小尺寸（像素）
+        "max_size": 2048,  # 最大尺寸（像素）
+        "supports_prompt_extend": True,
+        "supports_watermark": True,
+        "supports_seed": True,
+        "supports_negative_prompt": True,
+        "supports_size": True,  # 支持自定义分辨率
+        "common_sizes": [
+            {"value": "", "label": "默认（保持原图比例）"},
+            {"value": "1024*1024", "label": "1024x1024 方形 1:1"},
+            {"value": "1536*1536", "label": "1536x1536 方形 1:1"},
+            {"value": "768*1152", "label": "768x1152 竖向 2:3"},
+            {"value": "1152*768", "label": "1152x768 横向 3:2"},
+            {"value": "1024*1536", "label": "1024x1536 竖向 2:3"},
+            {"value": "1536*1024", "label": "1536x1024 横向 3:2"},
+            {"value": "960*1280", "label": "960x1280 竖向 3:4"},
+            {"value": "1280*960", "label": "1280x960 横向 4:3"},
+            {"value": "1080*1440", "label": "1080x1440 竖向 3:4"},
+            {"value": "1440*1080", "label": "1440x1080 横向 4:3"},
+            {"value": "720*1280", "label": "720x1280 竖向 9:16"},
+            {"value": "1280*720", "label": "1280x720 横向 16:9"},
+            {"value": "1080*1920", "label": "1080x1920 竖向 9:16"},
+            {"value": "1920*1080", "label": "1920x1080 横向 16:9"},
+            {"value": "576*1344", "label": "576x1344 竖向 9:21"},
+            {"value": "1344*576", "label": "1344x576 横向 21:9"},
+            {"value": "2048*872", "label": "2048x872 横向 21:9"},
+        ],
     }
 }
 

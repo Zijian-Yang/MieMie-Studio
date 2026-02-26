@@ -1653,6 +1653,13 @@ export const authApi = {
   
   // 获取当前用户
   me: () => api.get<any, UserInfo>('/auth/me'),
+  
+  // 修改密码
+  changePassword: (oldPassword: string, newPassword: string) => 
+    api.post<any, { success: boolean; message: string }>('/auth/change-password', {
+      old_password: oldPassword,
+      new_password: newPassword
+    }),
 }
 
 export default api

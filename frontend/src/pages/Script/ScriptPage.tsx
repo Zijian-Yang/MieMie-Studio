@@ -815,7 +815,7 @@ const ScriptPage = () => {
                           onChange={(v) => updateColumnModel(column.id, v)}
                           size="small"
                           style={{ width: 120 }}
-                          options={availableModels.map(m => ({ label: m.name, value: m.key }))}
+                          options={availableModels.map(m => ({ label: `${m.name} ${m.key}`, value: m.key }))}
                         />
                         <Tooltip title={hasProjectConfig(column.model) ? '已自定义配置' : '模型参数设置'}>
                           <Button

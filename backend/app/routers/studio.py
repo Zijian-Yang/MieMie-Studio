@@ -3,7 +3,7 @@
 
 支持的模型：
 - wan2.5-i2i-preview: 万相图生图（风格迁移）
-- qwen-image-edit-plus: 通义千问图像编辑（单图编辑/多图融合）
+- qwen-image-edit-plus/max: 通义千问图像编辑（单图编辑/多图融合）
 """
 
 import asyncio
@@ -169,10 +169,12 @@ async def update_studio_task(task_id: str, request: TaskUpdateRequest):
     if "references" in update_data and update_data["references"] is not None:
         references = []
         for ref in update_data["references"]:
-            url, name = get_reference_url(ref.type, ref.id)
+            ref_type = ref["type"] if isinstance(ref, dict) else ref.type
+            ref_id = ref["id"] if isinstance(ref, dict) else ref.id
+            url, name = get_reference_url(ref_type, ref_id)
             references.append(ReferenceItem(
-                type=ref.type,
-                id=ref.id,
+                type=ref_type,
+                id=ref_id,
                 name=name,
                 url=url
             ))
@@ -192,7 +194,7 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
     """生成任务图片
     
     支持的模型：
-    - 图生图模型：wan2.5-i2i-preview, qwen-image-edit-plus
+    - 图生图模型：wan2.5-i2i-preview, qwen-image-edit-plus, qwen-image-edit-max
     - 文生图模型：wan2.6-t2i, wan2.5-t2i-preview
     
     多图生图说明：
@@ -200,7 +202,7 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
     - 用户可以在 prompt 中使用"第一个图"、"第二个图"等引用不同的参考图
     - 例如："第一个图中的人和第二个图中的人在第三个图的场景中坐着"
     
-    qwen-image-edit-plus 特点：
+    qwen-image-edit-plus/max 特点：
     - 1张图片：单图编辑模式
     - 2-3张图片：多图融合模式
     - 支持一次输出1-6张图片
@@ -241,13 +243,11 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
     config = get_config()
     model_name = task.model or "wan2.5-i2i-preview"
     
-    # 检查是否是文生图模型
+    # 检查是否是文生图模型（在 IMAGE_MODELS 中但不是图生图类型）
     is_text_to_image = model_name in IMAGE_MODELS
     
-    # 收集参考图片URL（图生图模型需要）
+    # 收集参考图片URL
     ref_urls = [ref.url for ref in task.references if ref.url]
-    if not is_text_to_image and not ref_urls:
-        raise HTTPException(status_code=400, detail="没有有效的参考素材图片")
     
     task.status = "generating"
     task.images = []
@@ -265,6 +265,14 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
             # 使用 wan2.6-image 模型（支持参考图和纯文生图）
             enable_interleave = request.enable_interleave if hasattr(request, 'enable_interleave') else False
             max_images = request.max_images if hasattr(request, 'max_images') else 5
+            
+            # wan2.6-image 在非图文混合模式下必须有参考图
+            if not enable_interleave and not ref_urls:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="wan2.6-image 在非图文混合模式下需要参考图，请添加参考素材或开启图文混合模式"
+                )
+            
             images = await generate_with_wan26_image(
                 task=task,
                 ref_urls=ref_urls if ref_urls else None,
@@ -288,29 +296,43 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
             # 保存追踪ID
             task.last_task_id = last_task_id
             task.last_request_id = last_request_id
-        elif model_name == "qwen-image-edit-plus":
-            # 使用通义千问图像编辑模型
+        elif model_name in ("qwen-image-edit-plus", "qwen-image-edit-max"):
+            # 使用通义千问图像编辑模型（plus/max 共用接口）
             images = await generate_with_qwen_image_edit(
                 task=task,
                 ref_urls=ref_urls,
                 api_key=config.dashscope_api_key,
                 base_url=config.base_url,
+                model_name=model_name,
                 size=size,
                 prompt_extend=prompt_extend,
                 watermark=watermark,
                 seed=seed
             )
         else:
-            # 使用万相图生图模型
+            # 使用万相图生图模型（需要参考图）
+            if not ref_urls:
+                raise HTTPException(status_code=400, detail="该模型需要参考素材图片")
             images = await generate_with_wanx_i2i(
                 task=task,
                 ref_urls=ref_urls
             )
         
         task.images = images
-        task.status = "completed"
-        storage_service.save_studio_task(task)
         
+        # 检查是否有有效的生成结果
+        valid_images = [img for img in images if img.url]
+        if not valid_images and images:
+            task.status = "failed"
+            task.error_message = "所有生成任务均失败，请检查参数或参考图后重试"
+        elif len(valid_images) < len(images):
+            task.status = "completed"
+            task.error_message = f"部分生成失败：{len(valid_images)}/{len(images)} 张成功"
+        else:
+            task.status = "completed"
+            task.error_message = None
+        
+        storage_service.save_studio_task(task)
         return {"task": task}
     except Exception as e:
         task.status = "failed"
@@ -603,42 +625,38 @@ async def generate_with_qwen_image_edit(
     ref_urls: List[str],
     api_key: str,
     base_url: str = "",
+    model_name: str = "qwen-image-edit-max",
     size: Optional[str] = None,
     prompt_extend: bool = True,
     watermark: bool = False,
     seed: Optional[int] = None
 ) -> List[StudioTaskImage]:
-    """使用通义千问图像编辑模型生成
+    """使用通义千问图像编辑模型生成（plus/max 共用）
     
     n: 每次请求生成的图片数量（1-6）
     group_count: 并发请求数
     总图片数 = n * group_count
     
-    qwen-image-edit-plus 特点：
+    qwen-image-edit-plus/max 特点：
     - 支持 1-3 张输入图片
     - 支持一次输出 1-6 张图片（通过 n 参数）
-    - 支持 size, prompt_extend, watermark, seed 参数
-    - size 参数仅当 n=1 时可用
+    - 支持 size, prompt_extend, watermark, seed, negative_prompt 参数
     - 不支持异步接口，只有同步调用
     """
-    from app.models_registry.image.qwen_image_edit import QwenImageEditService, QWEN_IMAGE_EDIT_PLUS_MODEL_INFO
+    from app.models_registry.image.qwen_image_edit import (
+        QwenImageEditService, QWEN_IMAGE_EDIT_PLUS_MODEL_INFO, QWEN_IMAGE_EDIT_MAX_MODEL_INFO
+    )
     
-    # 验证图片数量
     if len(ref_urls) > 3:
-        raise ValueError("qwen-image-edit-plus 最多支持3张输入图片")
+        raise ValueError(f"{model_name} 最多支持3张输入图片")
     
-    service = QwenImageEditService(QWEN_IMAGE_EDIT_PLUS_MODEL_INFO)
+    model_info = QWEN_IMAGE_EDIT_MAX_MODEL_INFO if model_name == "qwen-image-edit-max" else QWEN_IMAGE_EDIT_PLUS_MODEL_INFO
+    service = QwenImageEditService(model_info)
     service.configure(api_key, base_url)
     
-    n = task.n or 1  # 每次请求生成的图片数量
-    
-    # 验证 n 参数
+    n = task.n or 1
     if n > 6:
-        n = 6  # qwen-image-edit-plus 最多支持一次生成6张
-    
-    # 如果设置了 size，则 n 必须为 1
-    if size and n > 1:
-        raise ValueError("设置 size 参数时，生图数量 n 必须为 1")
+        n = 6
     
     all_images = []
     image_index = 0
@@ -654,7 +672,7 @@ async def generate_with_qwen_image_edit(
                 images=ref_urls,
                 negative_prompt=task.negative_prompt,
                 n=n,
-                size=size if n == 1 else None,
+                size=size,
                 prompt_extend=prompt_extend,
                 watermark=watermark,
                 seed=seed,
@@ -672,7 +690,7 @@ async def generate_with_qwen_image_edit(
             return images
         except Exception as e:
             import traceback
-            print(f"qwen-image-edit-plus 生成失败: {e}")
+            print(f"{model_name} 生成失败: {e}")
             traceback.print_exc()
             # 返回 n 个失败的图片
             return [StudioTaskImage(
@@ -743,7 +761,7 @@ async def get_available_models():
     """获取可用的图片工作室模型列表
     
     返回支持的模型：
-    - 图生图模型：wan2.5-i2i-preview, qwen-image-edit-plus
+    - 图生图模型：wan2.5-i2i-preview, qwen-image-edit-plus, qwen-image-edit-max
     - 文生图模型：wan2.6-t2i, wan2.5-t2i-preview
     """
     from app.models_registry import registry, ModelType
@@ -761,6 +779,7 @@ async def get_available_models():
             "model_type": "image_to_image",
             "capabilities": model.capabilities.model_dump() if model.capabilities else {},
             "parameters": [p.model_dump() for p in model.parameters] if model.parameters else [],
+            "common_sizes": model.get_common_sizes_for_frontend(),
         }
     
     # 添加文生图模型（从 IMAGE_MODELS 配置）

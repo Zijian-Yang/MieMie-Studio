@@ -222,12 +222,12 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
           <Option
             key={model.id}
             value={model.id}
-            label={model.name}
+            label={`${model.name} ${model.id}`}
             disabled={model.deprecated}
           >
             <div>
               <div style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>{model.name}</span>
+                <span>{model.name} <span style={{ color: '#888', fontWeight: 400 }}>{model.id}</span></span>
                 {model.recommended && (
                   <Tag color="gold" style={{ margin: 0 }}>
                     <StarOutlined /> 推荐

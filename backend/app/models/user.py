@@ -54,3 +54,9 @@ class LoginResponse(BaseModel):
     token: str
     user: UserResponse
 
+
+class ChangePasswordRequest(BaseModel):
+    """修改密码请求"""
+    old_password: str
+    new_password: str
+

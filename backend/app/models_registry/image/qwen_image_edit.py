@@ -1,5 +1,5 @@
 """
-通义千问图像编辑模型 (qwen-image-edit-plus)
+通义千问图像编辑模型 (qwen-image-edit-plus / qwen-image-edit-max)
 
 API 文档: https://www.alibabacloud.com/help/zh/model-studio/qwen-image-edit-api
 
@@ -7,24 +7,21 @@ API 文档: https://www.alibabacloud.com/help/zh/model-studio/qwen-image-edit-ap
 - 支持单图编辑和多图融合两种模式
 - 单图编辑：输入1张图片+提示词，编辑图片内容
 - 多图融合：输入2-3张图片+提示词，融合多张图片
-- 支持输出1-6张图片
+- 支持输出1-6张图片 (plus/max)
 - 支持负面提示词、智能改写、水印、种子
-- 支持自定义输出尺寸（仅当n=1时）
+- 支持自定义输出尺寸 (plus/max)
 - 不支持异步接口，仅同步调用
 
-使用场景：
-- 精确修改图内文字
-- 增删或移动物体
-- 改变主体动作
-- 迁移图片风格
-- 增强画面细节
-- 多图融合创作
+模型系列：
+- qwen-image-edit-max: 最强版本，效果最好
+- qwen-image-edit-plus: 标准版本
+- qwen-image-edit: 基础版本（仅输出1张，不支持自定义尺寸/智能改写）
 
-参数说明（根据官方文档）：
-- n: 输出图片数量 1-6，默认1
+参数说明（根据 2026-02 官方文档）：
+- n: 输出图片数量 1-6，默认1 (plus/max)
 - negative_prompt: 负面提示词，最长500字符
-- size: 输出分辨率 "宽*高"，范围[512,2048]，仅当n=1时可用
-- prompt_extend: 智能改写，默认True
+- size: 输出分辨率 "宽*高"，宽高范围[512,2048] (plus/max)
+- prompt_extend: 智能改写，默认True (plus/max)
 - watermark: 水印，默认False
 - seed: 随机种子，范围[0,2147483647]
 """
@@ -34,38 +31,39 @@ from dashscope import MultiModalConversation
 
 from ..base import (
     ModelInfo, ModelType, ModelCapability, ModelParameter,
-    ParameterType, ParameterConstraint, SelectOption,
+    ParameterType, ParameterConstraint, SelectOption, SizeOption,
     BaseModelService, TaskResult, TaskStatus, registry
 )
 from app.services.oss import oss_service
 
 
+# ============ 尺寸定义 ============
+
+QWEN_IMAGE_EDIT_COMMON_SIZES = [
+    SizeOption(width=1024, height=1024, label="1024×1024 方形 1:1", aspect_ratio="1:1"),
+    SizeOption(width=1536, height=1536, label="1536×1536 方形 1:1", aspect_ratio="1:1"),
+    SizeOption(width=1152, height=768, label="1152×768 横向 3:2", aspect_ratio="3:2"),
+    SizeOption(width=768, height=1152, label="768×1152 竖向 2:3", aspect_ratio="2:3"),
+    SizeOption(width=1536, height=1024, label="1536×1024 横向 3:2", aspect_ratio="3:2"),
+    SizeOption(width=1024, height=1536, label="1024×1536 竖向 2:3", aspect_ratio="2:3"),
+    SizeOption(width=1280, height=960, label="1280×960 横向 4:3", aspect_ratio="4:3"),
+    SizeOption(width=960, height=1280, label="960×1280 竖向 3:4", aspect_ratio="3:4"),
+    SizeOption(width=1440, height=1080, label="1440×1080 横向 4:3", aspect_ratio="4:3"),
+    SizeOption(width=1080, height=1440, label="1080×1440 竖向 3:4", aspect_ratio="3:4"),
+    SizeOption(width=1280, height=720, label="1280×720 横向 16:9", aspect_ratio="16:9"),
+    SizeOption(width=720, height=1280, label="720×1280 竖向 9:16", aspect_ratio="9:16"),
+    SizeOption(width=1920, height=1080, label="1920×1080 横向 16:9", aspect_ratio="16:9"),
+    SizeOption(width=1080, height=1920, label="1080×1920 竖向 9:16", aspect_ratio="9:16"),
+    SizeOption(width=1344, height=576, label="1344×576 横向 21:9", aspect_ratio="21:9"),
+    SizeOption(width=2048, height=872, label="2048×872 横向 21:9", aspect_ratio="21:9"),
+]
+
+
 # ============ 模型定义 ============
 
-QWEN_IMAGE_EDIT_PLUS_MODEL_INFO = ModelInfo(
-    id="qwen-image-edit-plus",
-    name="通义千问 图像编辑 Plus",
-    type=ModelType.IMAGE_TO_IMAGE,
-    provider="dashscope",
-    description="支持单图编辑和多图融合，可修改文字、增删物体、改变动作、风格迁移等",
-    version="plus",
-    
-    api_model_name="qwen-image-edit-plus",
-    doc_url="https://www.alibabacloud.com/help/zh/model-studio/qwen-image-edit-api",
-    
-    capabilities=ModelCapability(
-        supports_streaming=False,
-        supports_batch=True,  # 支持输出多张图片
-        supports_async=False,  # 不支持异步接口
-        max_concurrent=3,
-        supports_negative_prompt=True,
-        supports_seed=True,  # 支持种子
-        supports_prompt_extend=True,  # 支持智能改写
-        supports_watermark=True,  # 支持水印控制
-    ),
-    
-    parameters=[
-        # === 基础参数 ===
+def _build_qwen_image_edit_params():
+    """构建 qwen-image-edit plus/max 系列共用参数"""
+    return [
         ModelParameter(
             name="prompt",
             label="编辑提示词",
@@ -86,8 +84,6 @@ QWEN_IMAGE_EDIT_PLUS_MODEL_INFO = ModelInfo(
             group="basic",
             order=2,
         ),
-        
-        # === 图片输入参数 ===
         ModelParameter(
             name="images",
             label="输入图片",
@@ -98,13 +94,11 @@ QWEN_IMAGE_EDIT_PLUS_MODEL_INFO = ModelInfo(
             group="input",
             order=1,
         ),
-        
-        # === 生成参数 ===
         ModelParameter(
             name="n",
             label="生成数量",
             type=ParameterType.INTEGER,
-            description="输出图片数量（1-6张）。设置size参数时只能为1。",
+            description="输出图片数量（1-6张）",
             required=False,
             default=1,
             constraint=ParameterConstraint(min_value=1, max_value=6),
@@ -115,22 +109,26 @@ QWEN_IMAGE_EDIT_PLUS_MODEL_INFO = ModelInfo(
             name="size",
             label="输出尺寸",
             type=ParameterType.SELECT,
-            description="输出图像分辨率，仅当生成数量为1时可用。不设置则保持原图比例，接近1024*1024。",
+            description="输出图像分辨率，宽高范围[512,2048]。不设置则保持原图比例，接近1024*1024。",
             required=False,
             constraint=ParameterConstraint(
                 options=[
                     SelectOption(value="", label="默认（保持原图比例）"),
-                    SelectOption(value="1024*1024", label="1024×1024 (1:1)"),
-                    SelectOption(value="1280*720", label="1280×720 (16:9 横屏)"),
-                    SelectOption(value="720*1280", label="720×1280 (9:16 竖屏)"),
-                    SelectOption(value="1024*768", label="1024×768 (4:3 横屏)"),
-                    SelectOption(value="768*1024", label="768×1024 (3:4 竖屏)"),
-                    SelectOption(value="1920*1080", label="1920×1080 (全高清横屏)"),
-                    SelectOption(value="1080*1920", label="1080×1920 (全高清竖屏)"),
-                    SelectOption(value="2048*2048", label="2048×2048 (最大方形)"),
+                    SelectOption(value="1024*1024", label="1024×1024 方形 1:1"),
+                    SelectOption(value="1536*1536", label="1536×1536 方形 1:1"),
+                    SelectOption(value="1152*768", label="1152×768 横向 3:2"),
+                    SelectOption(value="768*1152", label="768×1152 竖向 2:3"),
+                    SelectOption(value="1536*1024", label="1536×1024 横向 3:2"),
+                    SelectOption(value="1024*1536", label="1024×1536 竖向 2:3"),
+                    SelectOption(value="1280*960", label="1280×960 横向 4:3"),
+                    SelectOption(value="960*1280", label="960×1280 竖向 3:4"),
+                    SelectOption(value="1280*720", label="1280×720 横向 16:9"),
+                    SelectOption(value="720*1280", label="720×1280 竖向 9:16"),
+                    SelectOption(value="1920*1080", label="1920×1080 横向 16:9"),
+                    SelectOption(value="1080*1920", label="1080×1920 竖向 9:16"),
+                    SelectOption(value="1344*576", label="1344×576 横向 21:9"),
+                    SelectOption(value="2048*872", label="2048×872 横向 21:9"),
                 ],
-                depends_on="n",
-                depends_value=1,
             ),
             group="generation",
             order=2,
@@ -166,7 +164,61 @@ QWEN_IMAGE_EDIT_PLUS_MODEL_INFO = ModelInfo(
             advanced=True,
             order=5,
         ),
-    ],
+    ]
+
+
+QWEN_IMAGE_EDIT_PLUS_MODEL_INFO = ModelInfo(
+    id="qwen-image-edit-plus",
+    name="通义千问 图像编辑 Plus",
+    type=ModelType.IMAGE_TO_IMAGE,
+    provider="dashscope",
+    description="支持单图编辑和多图融合，可修改文字、增删物体、改变动作、风格迁移等",
+    version="plus",
+    
+    api_model_name="qwen-image-edit-plus",
+    doc_url="https://www.alibabacloud.com/help/zh/model-studio/qwen-image-edit-api",
+    
+    capabilities=ModelCapability(
+        supports_streaming=False,
+        supports_batch=True,
+        supports_async=False,
+        max_concurrent=3,
+        supports_negative_prompt=True,
+        supports_seed=True,
+        supports_prompt_extend=True,
+        supports_watermark=True,
+    ),
+    
+    common_sizes=QWEN_IMAGE_EDIT_COMMON_SIZES,
+    parameters=_build_qwen_image_edit_params(),
+)
+
+
+QWEN_IMAGE_EDIT_MAX_MODEL_INFO = ModelInfo(
+    id="qwen-image-edit-max",
+    name="通义千问 图像编辑 Max",
+    type=ModelType.IMAGE_TO_IMAGE,
+    provider="dashscope",
+    description="最强图像编辑模型，支持单图编辑和多图融合，效果优于Plus。可修改文字、增删物体、改变动作、风格迁移、增强画面细节",
+    version="max",
+    
+    api_model_name="qwen-image-edit-max",
+    doc_url="https://www.alibabacloud.com/help/zh/model-studio/qwen-image-edit-api",
+    
+    capabilities=ModelCapability(
+        supports_streaming=False,
+        supports_batch=True,
+        supports_async=False,
+        max_concurrent=3,
+        supports_negative_prompt=True,
+        supports_seed=True,
+        supports_prompt_extend=True,
+        supports_watermark=True,
+    ),
+    
+    common_sizes=QWEN_IMAGE_EDIT_COMMON_SIZES,
+    recommended=True,
+    parameters=_build_qwen_image_edit_params(),
 )
 
 
@@ -174,16 +226,14 @@ QWEN_IMAGE_EDIT_PLUS_MODEL_INFO = ModelInfo(
 
 class QwenImageEditService(BaseModelService[List[str]]):
     """
-    通义千问图像编辑服务
+    通义千问图像编辑服务（plus / max 共用）
     
     支持两种模式：
     1. 单图编辑：输入1张图片，进行编辑
     2. 多图融合：输入2-3张图片，融合生成新图
-    
-    根据输入图片数量自动选择模式。
     """
     
-    def __init__(self, model_info: ModelInfo = QWEN_IMAGE_EDIT_PLUS_MODEL_INFO):
+    def __init__(self, model_info: ModelInfo = QWEN_IMAGE_EDIT_MAX_MODEL_INFO):
         super().__init__(model_info)
     
     def configure(self, api_key: str, base_url: str = ""):
@@ -247,10 +297,6 @@ class QwenImageEditService(BaseModelService[List[str]]):
         if len(images) < 1 or len(images) > 3:
             raise ValueError(f"图片数量必须为1-3张，当前: {len(images)}")
         
-        # 验证 size 参数：仅当 n=1 时可用
-        if size and n > 1:
-            raise ValueError("设置 size 参数时，生成数量 n 必须为 1")
-        
         # 构建消息内容
         content = self._build_content(images, prompt)
         
@@ -275,8 +321,7 @@ class QwenImageEditService(BaseModelService[List[str]]):
         if negative_prompt:
             call_params["negative_prompt"] = negative_prompt
         
-        # size 仅当 n=1 时有效
-        if size and n == 1:
+        if size:
             call_params["size"] = size
         
         # prompt_extend 默认为 True
@@ -390,6 +435,7 @@ class QwenImageEditService(BaseModelService[List[str]]):
 
 def register():
     registry.register(QWEN_IMAGE_EDIT_PLUS_MODEL_INFO, QwenImageEditService)
+    registry.register(QWEN_IMAGE_EDIT_MAX_MODEL_INFO, QwenImageEditService)
 
 
 register()

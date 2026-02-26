@@ -27,7 +27,7 @@ class GenerationResult:
 
 # wan2.6-image 参考图片尺寸限制
 WAN26_IMAGE_MIN_DIM = 384
-WAN26_IMAGE_MAX_DIM = 5000
+WAN26_IMAGE_MAX_DIM = 2048  # API DataInspection 对超大图支持不好，限制到 2048
 
 
 async def validate_and_resize_reference_image(

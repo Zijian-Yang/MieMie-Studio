@@ -1101,7 +1101,7 @@ const VideoStudioPage = () => {
                               }}
                             >
                               {Object.entries(videoModels).map(([key, info]) => (
-                                <Option key={key} value={key}>{info.name}</Option>
+                                <Option key={key} value={key}>{info.name} {key}</Option>
                               ))}
                             </Select>
                           </div>
@@ -1481,7 +1481,7 @@ const VideoStudioPage = () => {
                               }}
                             >
                               {Object.entries(textToVideoModels).map(([key, info]) => (
-                                <Option key={key} value={key}>{info.name}</Option>
+                                <Option key={key} value={key}>{info.name} {key}</Option>
                               ))}
                             </Select>
                             <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
@@ -1700,7 +1700,7 @@ const VideoStudioPage = () => {
                               }}
                             >
                               {Object.entries(keyframeToVideoModels).map(([key, info]) => (
-                                <Option key={key} value={key}>{info.name}</Option>
+                                <Option key={key} value={key}>{info.name} {key}</Option>
                               ))}
                             </Select>
                             <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
@@ -2349,7 +2349,7 @@ const VideoStudioPage = () => {
                             }}
                           >
                             {Object.entries(videoModels).map(([key, info]) => (
-                              <Option key={key} value={key}>{info.name}</Option>
+                              <Option key={key} value={key}>{info.name} {key}</Option>
                             ))}
                           </Select>
                         ) : editTaskType === 'reference_to_video' ? (
@@ -2363,7 +2363,7 @@ const VideoStudioPage = () => {
                             }}
                           >
                             {Object.entries(refVideoModels).map(([key, info]) => (
-                              <Option key={key} value={key}>{info.name}</Option>
+                              <Option key={key} value={key}>{info.name} {key}</Option>
                             ))}
                           </Select>
                         ) : (
@@ -2380,7 +2380,7 @@ const VideoStudioPage = () => {
                             }}
                           >
                             {Object.entries(textToVideoModels).map(([key, info]) => (
-                              <Option key={key} value={key}>{info.name}</Option>
+                              <Option key={key} value={key}>{info.name} {key}</Option>
                             ))}
                           </Select>
                         )}

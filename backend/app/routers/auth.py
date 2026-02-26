@@ -7,7 +7,7 @@ from typing import Optional
 
 from app.models.user import (
     UserLoginRequest, UserRegisterRequest, 
-    UserResponse, LoginResponse
+    UserResponse, LoginResponse, ChangePasswordRequest
 )
 from app.services.user_service import get_user_service
 
@@ -90,4 +90,34 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="登录已过期，请重新登录")
     
     return service.to_response(user)
+
+
+@router.post("/change-password")
+async def change_password(
+    request: ChangePasswordRequest,
+    authorization: Optional[str] = Header(None)
+):
+    """修改密码"""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="未登录")
+    
+    # 解析 Bearer token
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    
+    service = get_user_service()
+    user = service.get_user_by_token(token)
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="登录已过期，请重新登录")
+    
+    success, message = service.change_password(
+        user_id=user.id,
+        old_password=request.old_password,
+        new_password=request.new_password
+    )
+    
+    if not success:
+        raise HTTPException(status_code=400, detail=message)
+    
+    return {"success": True, "message": message}
 

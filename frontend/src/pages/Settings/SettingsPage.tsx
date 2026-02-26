@@ -8,13 +8,15 @@ import {
   CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined,
   InfoCircleOutlined, CloudUploadOutlined, ApiOutlined
 } from '@ant-design/icons'
-import { settingsApi, ConfigResponse } from '../../services/api'
+import { settingsApi, authApi, ConfigResponse } from '../../services/api'
 
 const SettingsPage = () => {
   const [form] = Form.useForm()
+  const [passwordForm] = Form.useForm()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testingOSS, setTestingOSS] = useState(false)
+  const [changingPassword, setChangingPassword] = useState(false)
   const [config, setConfig] = useState<ConfigResponse | null>(null)
   const [selectedLLMModel, setSelectedLLMModel] = useState<string>('')
   const [enableThinking, setEnableThinking] = useState(false)
@@ -169,6 +171,36 @@ const SettingsPage = () => {
       message.error('测试连接失败')
     } finally {
       setTestingOSS(false)
+    }
+  }
+
+  // 修改密码
+  const handleChangePassword = async () => {
+    try {
+      const values = await passwordForm.validateFields()
+      
+      if (values.new_password !== values.confirm_password) {
+        message.error('两次输入的新密码不一致')
+        return
+      }
+      
+      setChangingPassword(true)
+      const result = await authApi.changePassword(values.old_password, values.new_password)
+      
+      if (result.success) {
+        message.success(result.message)
+        passwordForm.resetFields()
+      }
+    } catch (error: any) {
+      if (error?.message) {
+        message.error(error.message)
+      } else if (error?.errorFields) {
+        // 表单验证错误，不需要额外处理
+      } else {
+        message.error('修改密码失败')
+      }
+    } finally {
+      setChangingPassword(false)
     }
   }
 
@@ -590,6 +622,63 @@ const SettingsPage = () => {
             loading={testingOSS}
           >
             测试连接
+          </Button>
+        </Form>
+      </Card>
+
+      {/* 账户安全 */}
+      <Card 
+        title="账户安全" 
+        style={{ marginBottom: 24, background: '#1a1a1a', borderColor: '#333' }}
+        headStyle={{ borderBottom: '1px solid #333' }}
+      >
+        <Form
+          form={passwordForm}
+          layout="vertical"
+        >
+          <Form.Item
+            name="old_password"
+            label="当前密码"
+            rules={[{ required: true, message: '请输入当前密码' }]}
+          >
+            <Input.Password placeholder="输入当前密码" style={{ maxWidth: 300 }} />
+          </Form.Item>
+
+          <Form.Item
+            name="new_password"
+            label="新密码"
+            rules={[
+              { required: true, message: '请输入新密码' },
+              { min: 4, message: '密码长度至少为 4 位' }
+            ]}
+          >
+            <Input.Password placeholder="输入新密码" style={{ maxWidth: 300 }} />
+          </Form.Item>
+
+          <Form.Item
+            name="confirm_password"
+            label="确认新密码"
+            rules={[
+              { required: true, message: '请确认新密码' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('new_password') === value) {
+                    return Promise.resolve()
+                  }
+                  return Promise.reject(new Error('两次输入的密码不一致'))
+                },
+              }),
+            ]}
+          >
+            <Input.Password placeholder="再次输入新密码" style={{ maxWidth: 300 }} />
+          </Form.Item>
+
+          <Button
+            type="primary"
+            onClick={handleChangePassword}
+            loading={changingPassword}
+          >
+            修改密码
           </Button>
         </Form>
       </Card>

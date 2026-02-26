@@ -153,6 +153,42 @@ class UserService:
             last_login=user.last_login
         )
     
+    def change_password(self, user_id: str, old_password: str, new_password: str) -> tuple[bool, str]:
+        """
+        修改用户密码
+        
+        Args:
+            user_id: 用户 ID
+            old_password: 旧密码
+            new_password: 新密码
+            
+        Returns:
+            (success, message) 成功返回 (True, "密码修改成功")，失败返回 (False, 错误信息)
+        """
+        users = self._load_users()
+        
+        user_data = users.get(user_id)
+        if not user_data:
+            return False, "用户不存在"
+        
+        # 验证旧密码
+        if user_data.get('password') != old_password:
+            return False, "原密码错误"
+        
+        # 验证新密码
+        if len(new_password) < 4:
+            return False, "新密码长度至少为 4 位"
+        
+        if new_password == old_password:
+            return False, "新密码不能与原密码相同"
+        
+        # 更新密码
+        user_data['password'] = new_password
+        users[user_id] = user_data
+        self._save_users(users)
+        
+        return True, "密码修改成功"
+    
     def _ensure_user_data_dir(self, user_id: str):
         """确保用户数据目录存在"""
         user_data_dir = self.data_dir / "users" / user_id
