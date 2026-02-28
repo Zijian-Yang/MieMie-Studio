@@ -64,7 +64,8 @@ from .llm import qwen
 # 图像模型（按版本排序，新版本在前）
 from .image import wan26_t2i, wan26_image  # 万相2.6
 from .image import wan25_t2i, wan25_i2i    # 万相2.5
-from .image import qwen_image_edit          # 通义千问
+from .image import qwen_image_edit          # 通义千问图像编辑
+from .image import qwen_image               # 通义千问文生图
 
 # 视频模型（按版本排序，新版本在前）
 from .video import wan26_t2v, wan26_i2v, wan26_r2v  # 万相2.6

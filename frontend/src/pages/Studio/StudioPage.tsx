@@ -220,6 +220,10 @@ const StudioPage = () => {
       const isQwenModel = values.model?.startsWith('qwen-image-edit')
       const refCount = references.length
       
+      if (isQwenModel && refCount === 0) {
+        message.warning('qwen-image-edit 系列模型需要 1-3 张参考图作为输入')
+        return
+      }
       const needsReferences = !isTextToImage && !isWan26Image && !isQwenModel
       if (needsReferences && refCount === 0) {
         message.warning('请先添加参考素材')
@@ -372,7 +376,19 @@ const StudioPage = () => {
     }
   }, [selectedTask, isCreating, form, safeSetState])
   
-  const handleFormValuesChange = useCallback(() => {
+  const handleFormValuesChange = useCallback((changedValues: any) => {
+    // 模型切换时自动调整关联参数
+    if (changedValues.model) {
+      const model = changedValues.model
+      if (model === 'qwen-image-max' || model === 'qwen-image-plus') {
+        form.setFieldsValue({ n: 1, size: '1664*928' })
+      } else if (model === 'wan2.6-image') {
+        form.setFieldsValue({ n: 4 })
+      } else if (model?.startsWith('qwen-image-edit')) {
+        form.setFieldsValue({ n: 4 })
+      }
+    }
+    
     if (isCreating || !selectedTask) return
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current)
@@ -380,7 +396,7 @@ const StudioPage = () => {
     autoSaveTimerRef.current = setTimeout(() => {
       autoSaveTask()
     }, 800)
-  }, [isCreating, selectedTask, autoSaveTask])
+  }, [isCreating, selectedTask, autoSaveTask, form])
   
   useEffect(() => {
     return () => {
@@ -406,8 +422,8 @@ const StudioPage = () => {
     })
     const refCount = formReferences.length
     
-    // 图生图模型需要参考素材（wan2.6-image 支持无参考图模式）
-    const needsReferences = !isTextToImage && !isWan26Image
+    // 图生图模型需要参考素材（wan2.6-image 和 qwen 有各自的验证）
+    const needsReferences = !isTextToImage && !isWan26Image && !isQwenModel
     if (needsReferences && refCount === 0) {
       message.warning('请先添加参考素材')
       return
@@ -437,6 +453,10 @@ const StudioPage = () => {
     
     // 验证 qwen-image-edit 系列的参数
     if (isQwenModel) {
+      if (refCount === 0) {
+        message.warning('qwen-image-edit 系列模型需要 1-3 张参考图作为输入')
+        return
+      }
       if (refCount > 3) {
         message.warning('qwen-image-edit 系列最多支持3张输入图片')
         return
@@ -1122,6 +1142,7 @@ const StudioPage = () => {
                     extra={(() => {
                       const model = watchedModel || selectedTask?.model
                       if (model?.startsWith('qwen-image-edit')) return '最多6张'
+                      if (model === 'qwen-image-max' || model === 'qwen-image-plus') return '固定1张，用并发组数控制总量'
                       if (model === 'wan2.5-i2i-preview') return '最多4张'
                       return ''
                     })()}
@@ -1130,9 +1151,14 @@ const StudioPage = () => {
                       min={1} 
                       max={(() => {
                         const model = watchedModel || selectedTask?.model
+                        if (model === 'qwen-image-max' || model === 'qwen-image-plus') return 1
                         if (model?.startsWith('qwen-image-edit')) return 6
                         if (model === 'wan2.5-i2i-preview') return 4
                         return 4
+                      })()}
+                      disabled={(() => {
+                        const model = watchedModel || selectedTask?.model
+                        return model === 'qwen-image-max' || model === 'qwen-image-plus'
                       })()}
                       style={{ width: '100%' }} 
                     />

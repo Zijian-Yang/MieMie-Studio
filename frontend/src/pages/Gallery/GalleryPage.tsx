@@ -171,6 +171,46 @@ const GalleryPage = () => {
     }
   }
 
+  // 粘贴图片上传
+  useEffect(() => {
+    if (!projectId || !ossEnabled) return
+    
+    const handlePaste = async (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+      
+      const imageFiles: File[] = []
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          const file = items[i].getAsFile()
+          if (file) imageFiles.push(file)
+        }
+      }
+      
+      if (imageFiles.length === 0) return
+      e.preventDefault()
+      
+      const hide = message.loading(`正在上传粘贴的 ${imageFiles.length} 张图片...`, 0)
+      try {
+        const result = await galleryApi.uploadFiles(projectId, imageFiles)
+        hide()
+        if (result.success_count > 0) {
+          safeSetState(setImages, (prev: GalleryImage[]) => [...result.images, ...prev])
+          message.success(`粘贴上传成功：${result.success_count} 张图片`)
+        }
+        if (result.error_count > 0) {
+          message.warning(`${result.error_count} 张图片上传失败`)
+        }
+      } catch {
+        hide()
+        message.error('粘贴上传失败')
+      }
+    }
+    
+    document.addEventListener('paste', handlePaste)
+    return () => document.removeEventListener('paste', handlePaste)
+  }, [projectId, ossEnabled, safeSetState])
+
   // 打开上传弹窗
   const openUploadModal = () => {
     setFileList([])
@@ -195,6 +235,7 @@ const GalleryPage = () => {
           </h1>
           <p style={{ color: '#888', margin: '4px 0 0', fontSize: 13 }}>
             {currentProject?.name} - 共 {images.length} 张图片
+            {ossEnabled && <span style={{ marginLeft: 8, color: '#555' }}>· 支持 Ctrl+V 粘贴图片</span>}
           </p>
         </div>
         <Space>
