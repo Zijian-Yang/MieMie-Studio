@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { 
   Card, Form, Input, Button, Select, message, Spin, Alert, Divider, 
-  Switch, InputNumber, Slider, Tooltip, Space, Row, Col 
+  Switch, InputNumber, Slider, Tooltip, Space, Row, Col, theme
 } from 'antd'
 import { 
   SaveOutlined, EyeInvisibleOutlined, EyeOutlined, 
@@ -11,6 +11,7 @@ import {
 import { settingsApi, authApi, ConfigResponse } from '../../services/api'
 
 const SettingsPage = () => {
+  const { token } = theme.useToken()
   const [form] = Form.useForm()
   const [passwordForm] = Form.useForm()
   const [loading, setLoading] = useState(true)
@@ -216,7 +217,7 @@ const SettingsPage = () => {
 
   return (
     <div style={{ padding: 24, maxWidth: 900 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 24, color: '#e0e0e0' }}>
+      <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 24, color: token.colorText }}>
         设置
       </h1>
 
@@ -237,18 +238,18 @@ const SettingsPage = () => {
       {/* API Key 设置 */}
       <Card 
         title="百炼 DashScope API Key" 
-        style={{ marginBottom: 24, background: '#242424', borderColor: '#333' }}
+        style={{ marginBottom: 24 }}
       >
         <Alert
           message={
             config?.is_api_key_set ? (
               <span>
-                <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
+                <CheckCircleOutlined style={{ color: token.colorSuccess, marginRight: 8 }} />
                 API Key 已设置：{config.api_key_masked}
               </span>
             ) : (
               <span>
-                <CloseCircleOutlined style={{ color: '#ff4d4f', marginRight: 8 }} />
+                <CloseCircleOutlined style={{ color: token.colorError, marginRight: 8 }} />
                 尚未设置 API Key
               </span>
             )
@@ -282,7 +283,7 @@ const SettingsPage = () => {
       {/* API 地域设置 */}
       <Card 
         title="API 地域" 
-        style={{ marginBottom: 24, background: '#242424', borderColor: '#333' }}
+        style={{ marginBottom: 24 }}
       >
         <Form form={form} layout="vertical">
           <Form.Item
@@ -305,10 +306,10 @@ const SettingsPage = () => {
       {/* 文本模型配置 */}
       <Card 
         title="文本模型配置" 
-        style={{ marginBottom: 24, background: '#242424', borderColor: '#333' }}
+        style={{ marginBottom: 24 }}
         extra={
           <Tooltip title="用于剧本生成、角色提取等文本处理任务">
-            <InfoCircleOutlined style={{ color: '#888' }} />
+            <InfoCircleOutlined style={{ color: token.colorTextSecondary }} />
           </Tooltip>
         }
       >
@@ -324,7 +325,7 @@ const SettingsPage = () => {
                   label: (
                     <span>
                       {info.name}
-                      <span style={{ color: '#888', marginLeft: 8, fontSize: 12 }}>
+                      <span style={{ color: token.colorTextSecondary, marginLeft: 8, fontSize: 12 }}>
                         (最大输出: {info.max_output_tokens?.toLocaleString()}
                         {info.supports_thinking ? ', 支持深度思考' : ''})
                       </span>
@@ -343,7 +344,7 @@ const SettingsPage = () => {
               <Space>
                 最大输出长度
                 <Tooltip title={`当前模型最大支持 ${maxTokensLimit.toLocaleString()} tokens`}>
-                  <QuestionCircleOutlined style={{ color: '#888' }} />
+                  <QuestionCircleOutlined style={{ color: token.colorTextSecondary }} />
                 </Tooltip>
               </Space>
             }
@@ -368,7 +369,7 @@ const SettingsPage = () => {
                     返回格式
                     {enableThinking && (
                       <Tooltip title="深度思考模式下不支持 JSON 模式">
-                        <InfoCircleOutlined style={{ color: '#faad14' }} />
+                        <InfoCircleOutlined style={{ color: token.colorWarning }} />
                       </Tooltip>
                     )}
                   </Space>
@@ -405,7 +406,7 @@ const SettingsPage = () => {
                   <Space>
                     Top P
                     <Tooltip title="核采样参数，控制输出的多样性，值越小输出越确定">
-                      <QuestionCircleOutlined style={{ color: '#888' }} />
+                      <QuestionCircleOutlined style={{ color: token.colorTextSecondary }} />
                     </Tooltip>
                   </Space>
                 }
@@ -420,7 +421,7 @@ const SettingsPage = () => {
                   <Space>
                     Temperature
                     <Tooltip title="温度参数，值越高输出越随机，值越低输出越确定">
-                      <QuestionCircleOutlined style={{ color: '#888' }} />
+                      <QuestionCircleOutlined style={{ color: token.colorTextSecondary }} />
                     </Tooltip>
                   </Space>
                 }
@@ -434,7 +435,7 @@ const SettingsPage = () => {
           {currentModelSupportsThinking() && (
             <>
               <Divider style={{ margin: '16px 0' }}>
-                <span style={{ color: '#888', fontSize: 12 }}>深度思考设置</span>
+                <span style={{ color: token.colorTextSecondary, fontSize: 12 }}>深度思考设置</span>
               </Divider>
 
               <Alert
@@ -462,7 +463,7 @@ const SettingsPage = () => {
                       <Space>
                         思考预算
                         <Tooltip title="深度思考时的最大 token 预算">
-                          <QuestionCircleOutlined style={{ color: '#888' }} />
+                          <QuestionCircleOutlined style={{ color: token.colorTextSecondary }} />
                         </Tooltip>
                       </Space>
                     }
@@ -489,10 +490,10 @@ const SettingsPage = () => {
             阿里云 OSS 配置
           </Space>
         }
-        style={{ marginBottom: 24, background: '#242424', borderColor: '#333' }}
+        style={{ marginBottom: 24 }}
         extra={
           <Tooltip title="OSS 用于存储生成的图片和视频，确保链接不会过期">
-            <InfoCircleOutlined style={{ color: '#888' }} />
+            <InfoCircleOutlined style={{ color: token.colorTextSecondary }} />
           </Tooltip>
         }
       >
@@ -500,13 +501,13 @@ const SettingsPage = () => {
           message={
             config?.oss.is_configured ? (
               <span>
-                <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
+                <CheckCircleOutlined style={{ color: token.colorSuccess, marginRight: 8 }} />
                 OSS 已配置：{config.oss.bucket_name}
                 {config.oss.enabled ? ' (已启用)' : ' (未启用)'}
               </span>
             ) : (
               <span>
-                <CloseCircleOutlined style={{ color: '#ff4d4f', marginRight: 8 }} />
+                <CloseCircleOutlined style={{ color: token.colorError, marginRight: 8 }} />
                 OSS 尚未配置
               </span>
             )
@@ -547,7 +548,7 @@ const SettingsPage = () => {
                   <Space>
                     Access Key ID
                     {config?.oss.access_key_id_masked && (
-                      <span style={{ color: '#888', fontSize: 12 }}>
+                      <span style={{ color: token.colorTextSecondary, fontSize: 12 }}>
                         (当前: {config.oss.access_key_id_masked})
                       </span>
                     )}
@@ -568,7 +569,7 @@ const SettingsPage = () => {
                   <Space>
                     Access Key Secret
                     {config?.oss.access_key_secret_masked && (
-                      <span style={{ color: '#888', fontSize: 12 }}>
+                      <span style={{ color: token.colorTextSecondary, fontSize: 12 }}>
                         (当前: {config.oss.access_key_secret_masked})
                       </span>
                     )}
@@ -629,8 +630,8 @@ const SettingsPage = () => {
       {/* 账户安全 */}
       <Card 
         title="账户安全" 
-        style={{ marginBottom: 24, background: '#1a1a1a', borderColor: '#333' }}
-        headStyle={{ borderBottom: '1px solid #333' }}
+        style={{ marginBottom: 24 }}
+        headStyle={{ borderBottom: `1px solid ${token.colorBorder}` }}
       >
         <Form
           form={passwordForm}

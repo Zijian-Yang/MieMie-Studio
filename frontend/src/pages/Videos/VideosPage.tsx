@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { 
   Card, Button, Modal, Form, Input, Empty, Spin, message, 
   Image, Tag, Tooltip, Divider, Upload, Space,
-  Select, Switch, InputNumber, Row, Col, Alert
+  Select, Switch, InputNumber, Row, Col, Alert, theme
 } from 'antd'
 import { 
   PlayCircleOutlined, ReloadOutlined, VideoCameraOutlined,
@@ -19,6 +19,7 @@ const { TextArea } = Input
 const { Option } = Select
 
 const VideosPage = () => {
+  const { token } = theme.useToken()
   const { projectId } = useParams<{ projectId: string }>()
   const { currentProject, fetchProject } = useProjectStore()
   const {
@@ -357,11 +358,11 @@ const VideosPage = () => {
       content: (
         <div>
           <p>将把所有分镜已保存的视频按顺序拼接成一个完整视频，并保存到视频库。</p>
-          <p style={{ color: '#888' }}>
+          <p style={{ color: token.colorTextSecondary }}>
             共 {shots.length} 个分镜，其中 {shotsWithVideo.length} 个已保存视频
           </p>
           {shotsWithVideo.length < shots.length && (
-            <p style={{ color: '#faad14' }}>
+            <p style={{ color: token.colorWarning }}>
               注意：{shots.length - shotsWithVideo.length} 个分镜尚未保存视频，将被跳过
             </p>
           )}
@@ -389,7 +390,7 @@ const VideosPage = () => {
             content: (
               <div>
                 <p>视频已成功导出并保存到视频库</p>
-                <p style={{ color: '#888' }}>
+                <p style={{ color: token.colorTextSecondary }}>
                   共拼接 {result.shot_count} 个分镜视频
                 </p>
               </div>
@@ -593,10 +594,10 @@ const VideosPage = () => {
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: '#e0e0e0' }}>
+          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: token.colorText }}>
             视频生成
           </h1>
-          <p style={{ color: '#888', margin: '4px 0 0', fontSize: 13 }}>
+          <p style={{ color: token.colorTextSecondary, margin: '4px 0 0', fontSize: 13 }}>
             {currentProject?.name} - 共 {shots.length} 个分镜
           </p>
         </div>
@@ -622,8 +623,8 @@ const VideosPage = () => {
             loading={exporting}
             disabled={shots.filter(s => s.video_url).length === 0}
             style={{ 
-              background: shots.filter(s => s.video_url).length > 0 ? '#52c41a' : undefined,
-              borderColor: shots.filter(s => s.video_url).length > 0 ? '#52c41a' : undefined,
+              background: shots.filter(s => s.video_url).length > 0 ? token.colorSuccess : undefined,
+              borderColor: shots.filter(s => s.video_url).length > 0 ? token.colorSuccess : undefined,
               color: shots.filter(s => s.video_url).length > 0 ? '#fff' : undefined
             }}
           >
@@ -633,8 +634,8 @@ const VideosPage = () => {
       </div>
       
       {/* 当前设置预览 */}
-      <Card size="small" style={{ marginBottom: 16, background: '#1a1a1a' }}>
-        <div style={{ display: 'flex', gap: 24, fontSize: 12, color: '#888' }}>
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 24, fontSize: 12, color: token.colorTextSecondary }}>
           <span>
             <strong>模型：</strong>
             {getCurrentModelInfo()?.name || (videoModel || systemVideoConfig.model)}
@@ -705,9 +706,9 @@ const VideosPage = () => {
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center',
-                        background: '#242424'
+                        background: token.colorBgContainer
                       }}>
-                        <VideoCameraOutlined style={{ fontSize: 24, color: '#444' }} />
+                        <VideoCameraOutlined style={{ fontSize: 24, color: token.colorBorderSecondary }} />
                       </div>
                     )}
                     
@@ -732,7 +733,7 @@ const VideosPage = () => {
                       <span style={{ fontWeight: 500 }}>镜头 {shot.shot_number}</span>
                       {getStatusTag(video)}
                     </div>
-                    <div style={{ color: '#888', fontSize: 11 }}>
+                    <div style={{ color: token.colorTextSecondary, fontSize: 11 }}>
                       {shot.duration || 5}秒
                     </div>
                   </div>
@@ -756,7 +757,7 @@ const VideosPage = () => {
               <h4 style={{ marginBottom: 12 }}>首帧预览</h4>
               <div style={{ 
                 aspectRatio: '16/9',
-                background: '#1a1a1a',
+                background: token.colorBgLayout,
                 borderRadius: 8,
                 overflow: 'hidden',
                 marginBottom: 12
@@ -777,9 +778,9 @@ const VideosPage = () => {
                       flexDirection: 'column',
                       alignItems: 'center', 
                       justifyContent: 'center',
-                      color: '#666'
+                      color: token.colorTextTertiary
                     }}>
-                      <VideoCameraOutlined style={{ fontSize: 48, color: '#444', marginBottom: 8 }} />
+                      <VideoCameraOutlined style={{ fontSize: 48, color: token.colorBorderSecondary, marginBottom: 8 }} />
                       <span style={{ fontSize: 12 }}>请先生成首帧图</span>
                     </div>
                   )
@@ -792,7 +793,7 @@ const VideosPage = () => {
                   const shotVideos = videos.filter(v => v.shot_id === selectedShot.id)
                   const processingCount = shotVideos.filter(v => v.task?.status === 'processing').length
                   return shotVideos.length > 0 && (
-                    <span style={{ fontWeight: 'normal', fontSize: 12, color: '#888', marginLeft: 8 }}>
+                    <span style={{ fontWeight: 'normal', fontSize: 12, color: token.colorTextSecondary, marginLeft: 8 }}>
                       ({shotVideos.length} 个视频{processingCount > 0 && `，${processingCount} 个生成中`})
                     </span>
                   )
@@ -808,7 +809,7 @@ const VideosPage = () => {
                   return (
                     <div style={{ 
                       aspectRatio: '16/9',
-                      background: '#1a1a1a',
+                      background: token.colorBgLayout,
                       borderRadius: 8,
                       overflow: 'hidden',
                       marginBottom: 12,
@@ -816,9 +817,9 @@ const VideosPage = () => {
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#666'
+                      color: token.colorTextTertiary
                     }}>
-                      <PlayCircleOutlined style={{ fontSize: 48, color: '#444', marginBottom: 8 }} />
+                      <PlayCircleOutlined style={{ fontSize: 48, color: token.colorBorderSecondary, marginBottom: 8 }} />
                       <span style={{ fontSize: 12 }}>视频待生成</span>
                     </div>
                   )
@@ -859,11 +860,11 @@ const VideosPage = () => {
                             justifyContent: 'center'
                           }}>
                             <Spin size="large" />
-                            <span style={{ fontSize: 12, color: '#888', marginTop: 12 }}>视频生成中...</span>
+                            <span style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 12 }}>视频生成中...</span>
                           </div>
                         ) : (
                           <div style={{ padding: 40 }}>
-                            <PlayCircleOutlined style={{ fontSize: 48, color: '#444' }} />
+                            <PlayCircleOutlined style={{ fontSize: 48, color: token.colorBorderSecondary }} />
                           </div>
                         )}
                       </div>
@@ -885,10 +886,10 @@ const VideosPage = () => {
                               width: 80,
                               height: 80,
                               flexShrink: 0,
-                              background: '#1a1a1a',
+                              background: token.colorBgLayout,
                               borderRadius: 6,
                               overflow: 'hidden',
-                              border: selectedVideo?.id === video.id ? '2px solid #1890ff' : '2px solid #333',
+                              border: selectedVideo?.id === video.id ? `2px solid ${token.colorPrimary}` : `2px solid ${token.colorBorder}`,
                               cursor: 'pointer'
                             }}
                             onClick={() => setSelectedVideo(video)}
@@ -918,7 +919,7 @@ const VideosPage = () => {
                                 alignItems: 'center', 
                                 justifyContent: 'center'
                               }}>
-                                <PlayCircleOutlined style={{ fontSize: 20, color: '#444' }} />
+                                <PlayCircleOutlined style={{ fontSize: 20, color: token.colorBorderSecondary }} />
                               </div>
                             )}
                             {/* 序号标签 */}
@@ -942,7 +943,7 @@ const VideosPage = () => {
                                 right: 2,
                                 width: 8,
                                 height: 8,
-                                background: '#1890ff',
+                                background: token.colorPrimary,
                                 borderRadius: '50%',
                                 animation: 'pulse 1s infinite'
                               }} />
@@ -982,11 +983,11 @@ const VideosPage = () => {
                             alignItems: 'center'
                           }}>
                             <Spin size="large" />
-                            <span style={{ fontSize: 12, color: '#888', marginTop: 12 }}>视频生成中...</span>
+                            <span style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 12 }}>视频生成中...</span>
                           </div>
                         ) : (
                           <div style={{ padding: 40 }}>
-                            <PlayCircleOutlined style={{ fontSize: 48, color: '#444' }} />
+                            <PlayCircleOutlined style={{ fontSize: 48, color: token.colorBorderSecondary }} />
                           </div>
                         )}
                       </div>
@@ -1027,8 +1028,8 @@ const VideosPage = () => {
               
               <Divider />
               
-              <Card size="small" title="分镜信息参考" style={{ background: '#1a1a1a', marginBottom: 16 }}>
-                <div style={{ fontSize: 12, color: '#888' }}>
+              <Card size="small" title="分镜信息参考" style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12, color: token.colorTextSecondary }}>
                   <p><strong>镜头设计：</strong>{selectedShot.shot_design || '未设置'}</p>
                   <p><strong>景别：</strong>{selectedShot.scene_type || '未设置'}</p>
                   <p><strong>角色：</strong>{selectedShot.characters?.join(', ') || '无'}</p>
@@ -1039,10 +1040,10 @@ const VideosPage = () => {
               </Card>
               
               {/* 视频生成参数 */}
-              <Card size="small" title="视频生成参数" style={{ background: '#1a1a1a', marginBottom: 16 }}>
+              <Card size="small" title="视频生成参数" style={{ marginBottom: 16 }}>
                 <Row gutter={[12, 12]}>
                   <Col span={12}>
-                    <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>模型</div>
+                    <div style={{ marginBottom: 4, color: token.colorTextSecondary, fontSize: 12 }}>模型</div>
                     <Select
                       style={{ width: '100%' }}
                       size="small"
@@ -1071,7 +1072,7 @@ const VideosPage = () => {
                     </Select>
                   </Col>
                   <Col span={12}>
-                    <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>分辨率</div>
+                    <div style={{ marginBottom: 4, color: token.colorTextSecondary, fontSize: 12 }}>分辨率</div>
                     <Select
                       style={{ width: '100%' }}
                       size="small"
@@ -1084,7 +1085,7 @@ const VideosPage = () => {
                     </Select>
                   </Col>
                   <Col span={12}>
-                    <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>时长</div>
+                    <div style={{ marginBottom: 4, color: token.colorTextSecondary, fontSize: 12 }}>时长</div>
                     {getCurrentModelInfo()?.duration_range ? (
                       <InputNumber
                         style={{ width: '100%' }}
@@ -1109,7 +1110,7 @@ const VideosPage = () => {
                     )}
                   </Col>
                   <Col span={12}>
-                    <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>随机种子</div>
+                    <div style={{ marginBottom: 4, color: token.colorTextSecondary, fontSize: 12 }}>随机种子</div>
                     <InputNumber
                       style={{ width: '100%' }}
                       size="small"
@@ -1125,7 +1126,7 @@ const VideosPage = () => {
                 {getCurrentModelInfo()?.supports_shot_type && (
                   <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
                     <Col span={24}>
-                      <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>镜头类型</div>
+                      <div style={{ marginBottom: 4, color: token.colorTextSecondary, fontSize: 12 }}>镜头类型</div>
                       <Select
                         style={{ width: '100%' }}
                         size="small"
@@ -1176,8 +1177,8 @@ const VideosPage = () => {
               </Card>
               
               {/* 音频上传占位 */}
-              <Card size="small" title="音频配置（开发中）" style={{ background: '#1a1a1a', marginBottom: 16 }}>
-                <div style={{ color: '#666', fontSize: 12, marginBottom: 12 }}>
+              <Card size="small" title="音频配置（开发中）" style={{ marginBottom: 16 }}>
+                <div style={{ color: token.colorTextTertiary, fontSize: 12, marginBottom: 12 }}>
                   后续版本将支持配音和音效上传
                 </div>
                 <Space direction="vertical" style={{ width: '100%' }}>
@@ -1200,7 +1201,7 @@ const VideosPage = () => {
                   background: 'rgba(255, 165, 0, 0.1)', 
                   borderRadius: 8,
                   marginBottom: 12,
-                  color: '#faad14'
+                  color: token.colorWarning
                 }}>
                   请先在"分镜首帧"页面生成该镜头的首帧图
                 </div>
@@ -1253,8 +1254,8 @@ const VideosPage = () => {
                     }}
                     block
                     style={{ 
-                      background: selectedShot.selected_video_id === selectedVideo?.id ? '#52c41a' : undefined,
-                      borderColor: selectedShot.selected_video_id === selectedVideo?.id ? '#52c41a' : undefined,
+                      background: selectedShot.selected_video_id === selectedVideo?.id ? token.colorSuccess : undefined,
+                      borderColor: selectedShot.selected_video_id === selectedVideo?.id ? token.colorSuccess : undefined,
                       color: selectedShot.selected_video_id === selectedVideo?.id ? '#fff' : undefined
                     }}
                   >
@@ -1268,10 +1269,10 @@ const VideosPage = () => {
                 <div style={{ 
                   marginTop: 16, 
                   padding: '8px 12px', 
-                  background: '#1a1a1a', 
+                  background: token.colorBgLayout, 
                   borderRadius: 6,
                   fontSize: 11,
-                  color: '#666',
+                  color: token.colorTextTertiary,
                   fontFamily: 'monospace'
                 }}>
                   {selectedVideo.task.task_id && (
@@ -1306,14 +1307,14 @@ const VideosPage = () => {
         width={600}
       >
         <div style={{ marginBottom: 16 }}>
-          <div style={{ color: '#888', fontSize: 12, marginBottom: 16 }}>
+          <div style={{ color: token.colorTextSecondary, fontSize: 12, marginBottom: 16 }}>
             这里的设置会覆盖系统设置页面中的默认配置，仅对当前页面的视频生成生效。
           </div>
           
           <Row gutter={16}>
             <Col span={12}>
               <div style={{ marginBottom: 16 }}>
-                <div style={{ marginBottom: 8, color: '#e0e0e0' }}>视频模型</div>
+                <div style={{ marginBottom: 8, color: token.colorText }}>视频模型</div>
                 <Select
                   style={{ width: '100%' }}
                   value={videoModel || systemVideoConfig.model}
@@ -1341,7 +1342,7 @@ const VideosPage = () => {
                   ))}
                 </Select>
                 {getCurrentModelInfo()?.description && (
-                  <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+                  <div style={{ fontSize: 11, color: token.colorTextTertiary, marginTop: 4 }}>
                     {getCurrentModelInfo()?.description}
                   </div>
                 )}
@@ -1349,7 +1350,7 @@ const VideosPage = () => {
             </Col>
             <Col span={12}>
               <div style={{ marginBottom: 16 }}>
-                <div style={{ marginBottom: 8, color: '#e0e0e0' }}>视频分辨率</div>
+                <div style={{ marginBottom: 8, color: token.colorText }}>视频分辨率</div>
                 <Select
                   style={{ width: '100%' }}
                   value={videoResolution || systemVideoConfig.resolution}
@@ -1366,7 +1367,7 @@ const VideosPage = () => {
           <Row gutter={16}>
             <Col span={12}>
               <div style={{ marginBottom: 16 }}>
-                <div style={{ marginBottom: 8, color: '#e0e0e0' }}>视频时长</div>
+                <div style={{ marginBottom: 8, color: token.colorText }}>视频时长</div>
                 {getCurrentModelInfo()?.duration_range ? (
                   <InputNumber
                     style={{ width: '100%' }}
@@ -1388,7 +1389,7 @@ const VideosPage = () => {
                   </Select>
                 )}
                 {getCurrentModelInfo()?.duration_range && (
-                  <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+                  <div style={{ fontSize: 11, color: token.colorTextTertiary, marginTop: 4 }}>
                     支持 {getCurrentModelInfo()?.duration_range?.[0]}-{getCurrentModelInfo()?.duration_range?.[1]} 秒连续时长
                   </div>
                 )}
@@ -1396,7 +1397,7 @@ const VideosPage = () => {
             </Col>
             <Col span={12}>
               <div style={{ marginBottom: 16 }}>
-                <div style={{ marginBottom: 8, color: '#e0e0e0' }}>
+                <div style={{ marginBottom: 8, color: token.colorText }}>
                   {getCurrentModelInfo()?.supports_audio_toggle ? '有声视频' : '自动生成音频'}
                 </div>
                 <Switch
@@ -1405,10 +1406,10 @@ const VideosPage = () => {
                   disabled={!getCurrentModelInfo()?.supports_audio}
                 />
                 {!getCurrentModelInfo()?.supports_audio && (
-                  <span style={{ marginLeft: 8, color: '#888' }}>（当前模型不支持）</span>
+                  <span style={{ marginLeft: 8, color: token.colorTextSecondary }}>（当前模型不支持）</span>
                 )}
                 {getCurrentModelInfo()?.supports_audio_toggle && (
-                  <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+                  <div style={{ fontSize: 11, color: token.colorTextTertiary, marginTop: 4 }}>
                     {videoAudio !== false ? '输出有声视频' : '输出无声视频（费用更低）'}
                   </div>
                 )}
@@ -1421,7 +1422,7 @@ const VideosPage = () => {
             <Row gutter={16}>
               <Col span={24}>
                 <div style={{ marginBottom: 16 }}>
-                  <div style={{ marginBottom: 8, color: '#e0e0e0' }}>镜头类型</div>
+                  <div style={{ marginBottom: 8, color: token.colorText }}>镜头类型</div>
                   <Select
                     style={{ width: '100%' }}
                     value={videoShotType || getCurrentModelInfo()?.default_shot_type || 'single'}
@@ -1430,7 +1431,7 @@ const VideosPage = () => {
                     <Option value="single">单镜头 - 一个连续镜头</Option>
                     <Option value="multi">多镜头叙事 - 多个切换镜头</Option>
                   </Select>
-                  <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+                  <div style={{ fontSize: 11, color: token.colorTextTertiary, marginTop: 4 }}>
                     单镜头输出连续画面，多镜头叙事输出多个切换镜头（需开启智能改写才生效）
                   </div>
                 </div>
@@ -1441,7 +1442,7 @@ const VideosPage = () => {
           <Row gutter={16}>
             <Col span={12}>
               <div style={{ marginBottom: 16 }}>
-                <div style={{ marginBottom: 8, color: '#e0e0e0' }}>生成组数</div>
+                <div style={{ marginBottom: 8, color: token.colorText }}>生成组数</div>
                 <InputNumber
                   style={{ width: '100%' }}
                   min={1}
@@ -1449,14 +1450,14 @@ const VideosPage = () => {
                   value={videoGroupCount}
                   onChange={(v) => setVideoGroupCount(v || 1)}
                 />
-                <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+                <div style={{ fontSize: 11, color: token.colorTextTertiary, marginTop: 4 }}>
                   每个分镜生成的视频数量
                 </div>
               </div>
             </Col>
             <Col span={12}>
               <div style={{ marginBottom: 16 }}>
-                <div style={{ marginBottom: 8, color: '#e0e0e0' }}>随机种子</div>
+                <div style={{ marginBottom: 8, color: token.colorText }}>随机种子</div>
                 <InputNumber
                   style={{ width: '100%' }}
                   min={0}
@@ -1471,19 +1472,19 @@ const VideosPage = () => {
           <Row gutter={16}>
             <Col span={12}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ color: '#e0e0e0' }}>智能改写</span>
+                <span style={{ color: token.colorText }}>智能改写</span>
                 <Switch
                   checked={videoPromptExtend !== null ? videoPromptExtend : systemVideoConfig.prompt_extend}
                   onChange={setVideoPromptExtend}
                 />
               </div>
-              <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: token.colorTextTertiary, marginTop: 4 }}>
                 自动优化和扩展提示词
               </div>
             </Col>
             <Col span={12}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ color: '#e0e0e0' }}>添加水印</span>
+                <span style={{ color: token.colorText }}>添加水印</span>
                 <Switch
                   checked={videoWatermark !== null ? videoWatermark : systemVideoConfig.watermark}
                   onChange={setVideoWatermark}
@@ -1521,7 +1522,7 @@ const VideosPage = () => {
               <div
                 key={video.id}
                 style={{
-                  background: '#1a1a1a',
+                  background: token.colorBgLayout,
                   borderRadius: 8,
                   overflow: 'hidden',
                   cursor: 'pointer',
@@ -1530,7 +1531,7 @@ const VideosPage = () => {
                 }}
                 onClick={() => handleSelectFromLibrary(video)}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.borderColor = '#1890ff'
+                  (e.currentTarget as HTMLDivElement).style.borderColor = token.colorPrimary
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLDivElement).style.borderColor = 'transparent'
@@ -1560,7 +1561,7 @@ const VideosPage = () => {
                   }}>
                     {video.name}
                   </div>
-                  <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
+                  <div style={{ fontSize: 11, color: token.colorTextSecondary, marginTop: 4 }}>
                     {video.duration ? `${video.duration}秒` : ''}
                   </div>
                 </div>

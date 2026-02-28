@@ -97,7 +97,7 @@ export default function AppLayout() {
     <Layout className={styles.layout}>
       <Sider width={260} className={styles.sider}>
         <div className={styles.logo}>
-          <Title level={4} style={{ margin: 0, color: '#fff' }}>
+          <Title level={4} style={{ margin: 0 }}>
             🎬 AI 视频平台
           </Title>
         </div>

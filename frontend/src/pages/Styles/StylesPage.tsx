@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { 
   Button, Modal, Form, Input, Empty, Spin, message, 
   Radio, Tooltip, Space, Popconfirm, Image, Alert, Progress,
-  InputNumber, Select, Card, Tag, Tabs, List
+  InputNumber, Select, Card, Tag, Tabs, List, theme
 } from 'antd'
 import { 
   PlusOutlined, ReloadOutlined, DeleteOutlined, 
@@ -18,6 +18,7 @@ import { useGenerationStore } from '../../stores/generationStore'
 const { TextArea } = Input
 
 const StylesPage = () => {
+  const { token } = theme.useToken()
   const { projectId } = useParams<{ projectId: string }>()
   const { currentProject, fetchProject } = useProjectStore()
   const { 
@@ -337,8 +338,8 @@ const StylesPage = () => {
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: '#e0e0e0' }}>风格管理</h1>
-          <p style={{ color: '#888', margin: '4px 0 0', fontSize: 13 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: token.colorText }}>风格管理</h1>
+          <p style={{ color: token.colorTextSecondary, margin: '4px 0 0', fontSize: 13 }}>
             {currentProject?.name} - 共 {styles.length} 个风格（在角色/场景/道具模块中选择使用）
           </p>
         </div>
@@ -354,7 +355,7 @@ const StylesPage = () => {
             </>
           )}
           {styles.length > 0 && (
-            <Popconfirm title="确定删除所有风格？" description="此操作不可恢复" icon={<ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />} onConfirm={deleteAllStyles} okText="删除" cancelText="取消" okButtonProps={{ danger: true }}>
+            <Popconfirm title="确定删除所有风格？" description="此操作不可恢复" icon={<ExclamationCircleOutlined style={{ color: token.colorError }} />} onConfirm={deleteAllStyles} okText="删除" cancelText="取消" okButtonProps={{ danger: true }}>
               <Button danger icon={<DeleteOutlined />} disabled={batchGenerating}>删除所有</Button>
             </Popconfirm>
           )}
@@ -381,9 +382,9 @@ const StylesPage = () => {
               <div key={style.id} className="asset-card" onClick={() => openStyleModal(style)} style={{ opacity: isGeneratingThis ? 0.7 : 1 }}>
                 <div className="asset-card-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                   {style.style_type === 'image' ? (
-                    thumbnailUrl ? <Image src={thumbnailUrl} alt={style.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} /> : <PictureOutlined style={{ fontSize: 48, color: '#444' }} />
+                    thumbnailUrl ? <Image src={thumbnailUrl} alt={style.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} /> : <PictureOutlined style={{ fontSize: 48, color: token.colorTextQuaternary }} />
                   ) : (
-                    <FileTextOutlined style={{ fontSize: 48, color: '#666' }} />
+                    <FileTextOutlined style={{ fontSize: 48, color: token.colorTextTertiary }} />
                   )}
                   {isGeneratingThis && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spin /></div>}
                   <div style={{ position: 'absolute', top: 8, left: 8 }}>
@@ -478,7 +479,7 @@ const StylesPage = () => {
                     const key = `${selectedStyle.id}-${groupIndex}`
                     const isGeneratingThis = generatingGroups.has(key)
                     return (
-                      <div key={groupIndex} style={{ marginBottom: 12, padding: 12, border: isCurrentGroup ? '2px solid #e5a84b' : '1px solid #333', borderRadius: 8, background: isCurrentGroup ? 'rgba(229, 168, 75, 0.1)' : '#1a1a1a' }}>
+                      <div key={groupIndex} style={{ marginBottom: 12, padding: 12, border: isCurrentGroup ? `2px solid ${token.colorWarning}` : `1px solid ${token.colorBorder}`, borderRadius: 8, background: isCurrentGroup ? token.colorFillQuaternary : token.colorBgLayout }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                           <Space>
                             <Radio checked={isCurrentGroup} onChange={() => selectGroupForStyle(selectedStyle.id, groupIndex)}>第 {groupIndex + 1} 组</Radio>
@@ -486,8 +487,8 @@ const StylesPage = () => {
                           </Space>
                           <Button size="small" icon={<ReloadOutlined />} onClick={() => generateImages(selectedStyle.id, groupIndex)} loading={isGeneratingThis} disabled={generatingAll || (generatingGroups.size > 0 && !isGeneratingThis) || batchGenerating}>{group?.url ? '重新生成' : '生成'}</Button>
                         </div>
-                        <div style={{ aspectRatio: '16/9', background: '#242424', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {isGeneratingThis ? <Spin /> : group?.url ? <Image src={group.url} alt="风格" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <PictureOutlined style={{ fontSize: 32, color: '#444' }} />}
+                        <div style={{ aspectRatio: '16/9', background: token.colorBgContainer, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {isGeneratingThis ? <Spin /> : group?.url ? <Image src={group.url} alt="风格" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <PictureOutlined style={{ fontSize: 32, color: token.colorTextQuaternary }} />}
                         </div>
                       </div>
                     )

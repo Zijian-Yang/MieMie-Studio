@@ -14,7 +14,7 @@
  */
 
 import React from 'react'
-import { Select, Space, Tag, Tooltip } from 'antd'
+import { Select, Space, Tag, theme, Tooltip } from 'antd'
 import { InfoCircleOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { useModelRegistryStore } from '../../stores/modelRegistryStore'
 import { SizeOption } from '../../services/api'
@@ -62,6 +62,7 @@ const SizeSelector: React.FC<SizeSelectorProps> = ({
   style,
   size,
 }) => {
+  const { token } = theme.useToken()
   const { getSizeOptions, validateSize, getModel } = useModelRegistryStore()
   
   // 获取尺寸选项
@@ -148,7 +149,7 @@ const SizeSelector: React.FC<SizeSelectorProps> = ({
                     </Tag>
                   )}
                   {showPixelInfo && (
-                    <span style={{ fontSize: 11, color: '#888' }}>
+                    <span style={{ fontSize: 11, color: token.colorTextSecondary }}>
                       {formatPixels(pixels)} px
                     </span>
                   )}
@@ -161,16 +162,16 @@ const SizeSelector: React.FC<SizeSelectorProps> = ({
       
       {/* 显示选中尺寸的详细信息 */}
       {selectedSize && showPixelInfo && (
-        <div style={{ marginTop: 4, fontSize: 12, color: '#888' }}>
+        <div style={{ marginTop: 4, fontSize: 12, color: token.colorTextSecondary }}>
           <Space size={8}>
             <span>{selectedSize.width} × {selectedSize.height}</span>
             <span>({formatPixels(selectedSize.width * selectedSize.height)} 像素)</span>
             {validation.valid ? (
-              <span style={{ color: '#52c41a' }}>
+              <span style={{ color: token.colorSuccess }}>
                 <CheckCircleOutlined /> 符合要求
               </span>
             ) : (
-              <span style={{ color: '#ff4d4f' }}>
+              <span style={{ color: token.colorError }}>
                 <CloseCircleOutlined /> {validation.message}
               </span>
             )}
@@ -180,7 +181,7 @@ const SizeSelector: React.FC<SizeSelectorProps> = ({
       
       {/* 显示尺寸约束提示 */}
       {model?.size_constraints && (
-        <div style={{ marginTop: 4, fontSize: 11, color: '#999' }}>
+        <div style={{ marginTop: 4, fontSize: 11, color: token.colorTextTertiary }}>
           <Tooltip title={`总像素范围: ${model.size_constraints.min_pixels?.toLocaleString() || '无'} - ${model.size_constraints.max_pixels?.toLocaleString() || '无'}`}>
             <InfoCircleOutlined style={{ marginRight: 4 }} />
             像素约束: {formatPixels(model.size_constraints.min_pixels || 0)} - {formatPixels(model.size_constraints.max_pixels || 0)}
@@ -190,7 +191,7 @@ const SizeSelector: React.FC<SizeSelectorProps> = ({
       
       {/* 验证错误提示 */}
       {showValidation && !validation.valid && (
-        <div style={{ marginTop: 4, color: '#ff4d4f', fontSize: 12 }}>
+        <div style={{ marginTop: 4, color: token.colorError, fontSize: 12 }}>
           ⚠️ {validation.message}
         </div>
       )}

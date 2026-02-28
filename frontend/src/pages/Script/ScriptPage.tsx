@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { 
   Card, Button, Switch, Select, Input, Upload, message, Spin, 
   Radio, Empty, Tooltip, Space, Modal, Form, List, Tag, Tabs, Table,
-  InputNumber, Image, Popconfirm, Collapse
+  InputNumber, Image, Popconfirm, Collapse, theme
 } from 'antd'
 import { 
   UploadOutlined, ClearOutlined, SaveOutlined, 
@@ -47,6 +47,7 @@ const formValuesToProjectConfig = (values: any): ProjectLLMConfig => {
 }
 
 const ScriptPage = () => {
+  const { token } = theme.useToken()
   const { projectId } = useParams<{ projectId: string }>()
   const { currentProject, fetchProject } = useProjectStore()
   
@@ -647,10 +648,10 @@ const ScriptPage = () => {
       {/* 页面标题 */}
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: '#e0e0e0' }}>
+          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: token.colorText }}>
             分镜脚本
           </h1>
-          <p style={{ color: '#888', margin: '4px 0 0', fontSize: 13 }}>
+          <p style={{ color: token.colorTextSecondary, margin: '4px 0 0', fontSize: 13 }}>
             {currentProject?.name}
           </p>
         </div>
@@ -720,8 +721,8 @@ const ScriptPage = () => {
               style={{ 
                 flex: 1, 
                 resize: 'none',
-                background: '#1a1a1a',
-                borderColor: '#333'
+                background: token.colorBgLayout,
+                borderColor: token.colorBorder
               }}
             />
           </Card>
@@ -738,7 +739,7 @@ const ScriptPage = () => {
                 bodyStyle={{ padding: 12 }}
               >
                 <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: '#888', fontSize: 13 }}>自定义提示词</span>
+                  <span style={{ color: token.colorTextSecondary, fontSize: 13 }}>自定义提示词</span>
                   <Space>
                     <Button 
                       size="small" 
@@ -763,7 +764,7 @@ const ScriptPage = () => {
                   value={customPrompt}
                   onChange={(e) => setCustomPrompt(e.target.value)}
                   rows={2}
-                  style={{ background: '#1a1a1a', borderColor: '#333' }}
+                  style={{ background: token.colorBgLayout, borderColor: token.colorBorder }}
                 />
                 <div style={{ marginTop: 12, display: 'flex', gap: 8, justifyContent: 'space-between' }}>
                   <Space>
@@ -801,7 +802,7 @@ const ScriptPage = () => {
                     style={{
                       flex: 1,
                       minWidth: 0,
-                      border: column.selected ? '1px solid #e5a84b' : '1px solid #333'
+                      border: column.selected ? `1px solid ${token.colorPrimary}` : `1px solid ${token.colorBorder}`
                     }}
                   >
                     <div className="compare-column-header">
@@ -824,7 +825,7 @@ const ScriptPage = () => {
                             icon={<SettingOutlined />}
                             onClick={() => openConfigModal(column.model)}
                             style={{ 
-                              color: hasProjectConfig(column.model) ? '#e5a84b' : '#888'
+                              color: hasProjectConfig(column.model) ? token.colorPrimary : token.colorTextSecondary
                             }}
                           />
                         </Tooltip>
@@ -911,7 +912,7 @@ const ScriptPage = () => {
                 fontFamily: 'inherit',
                 fontSize: 12,
                 lineHeight: 1.6,
-                color: '#ccc'
+                color: token.colorTextSecondary
               }}>
                 {getCurrentScriptContent()}
               </pre>
@@ -931,7 +932,7 @@ const ScriptPage = () => {
           activeKey={showStoryboard ? ['storyboard'] : []}
           onChange={(keys) => setShowStoryboard(keys.includes('storyboard'))}
           expandIcon={({ isActive }) => <CaretRightOutlined rotate={isActive ? 90 : 0} />}
-          style={{ background: '#1f1f1f', border: '1px solid #333' }}
+          style={{ background: token.colorBgLayout, border: `1px solid ${token.colorBorder}` }}
           items={[{
             key: 'storyboard',
             label: (
@@ -1143,7 +1144,7 @@ const ScriptPage = () => {
             <SettingOutlined />
             {configModalModel} 参数配置
             {hasProjectConfig(configModalModel) && (
-              <span style={{ fontSize: 12, color: '#e5a84b' }}>(已自定义)</span>
+              <span style={{ fontSize: 12, color: token.colorPrimary }}>(已自定义)</span>
             )}
           </Space>
         }
@@ -1179,9 +1180,9 @@ const ScriptPage = () => {
             />
           </Form>
         )}
-        <div style={{ marginTop: 16, padding: 12, background: '#1a1a1a', borderRadius: 6 }}>
-          <p style={{ margin: 0, color: '#888', fontSize: 12 }}>
-            💡 这些配置仅对当前项目中使用 <strong style={{ color: '#e5a84b' }}>{configModalModel}</strong> 模型时生效。
+        <div style={{ marginTop: 16, padding: 12, background: token.colorBgLayout, borderRadius: 6 }}>
+          <p style={{ margin: 0, color: token.colorTextSecondary, fontSize: 12 }}>
+            💡 这些配置仅对当前项目中使用 <strong style={{ color: token.colorPrimary }}>{configModalModel}</strong> 模型时生效。
           </p>
         </div>
       </Modal>
@@ -1262,11 +1263,11 @@ const ScriptPage = () => {
                   }
                   description={
                     <div>
-                      <div style={{ color: '#888', fontSize: 12 }}>
+                      <div style={{ color: token.colorTextSecondary, fontSize: 12 }}>
                         {new Date(version.createdAt).toLocaleString('zh-CN')}
                       </div>
                       {version.description && (
-                        <div style={{ color: '#aaa', fontSize: 12, marginTop: 4 }}>
+                        <div style={{ color: token.colorTextSecondary, fontSize: 12, marginTop: 4 }}>
                           {version.description}
                         </div>
                       )}
@@ -1326,16 +1327,16 @@ const ScriptPage = () => {
                   }
                   description={
                     <div>
-                      <div style={{ color: '#888', fontSize: 12 }}>
+                      <div style={{ color: token.colorTextSecondary, fontSize: 12 }}>
                         {new Date(version.createdAt).toLocaleString('zh-CN')}
                       </div>
                       {version.description && (
-                        <div style={{ color: '#aaa', fontSize: 12, marginTop: 4 }}>
+                        <div style={{ color: token.colorTextSecondary, fontSize: 12, marginTop: 4 }}>
                           {version.description}
                         </div>
                       )}
                       <div style={{ 
-                        color: '#666', 
+                        color: token.colorTextTertiary, 
                         fontSize: 11, 
                         marginTop: 8,
                         maxHeight: 60,

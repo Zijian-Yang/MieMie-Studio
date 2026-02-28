@@ -27,7 +27,7 @@
  */
 
 import React from 'react'
-import { Select, Space, Tag, Tooltip } from 'antd'
+import { Select, Space, Tag, theme, Tooltip } from 'antd'
 import {
   ThunderboltOutlined,
   ClockCircleOutlined,
@@ -150,6 +150,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   allowClear = false,
   size,
 }) => {
+  const { token } = theme.useToken()
+
   // 如果没有传入 models，则从 store 获取
   const store = useModelRegistry({ 
     disableAutoFetch: !!propModels 
@@ -227,7 +229,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
           >
             <div>
               <div style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>{model.name} <span style={{ color: '#888', fontWeight: 400 }}>{model.id}</span></span>
+                <span>{model.name} <span style={{ color: token.colorTextSecondary, fontWeight: 400 }}>{model.id}</span></span>
                 {model.recommended && (
                   <Tag color="gold" style={{ margin: 0 }}>
                     <StarOutlined /> 推荐
@@ -240,7 +242,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
                 )}
               </div>
               {showDescription && model.description && (
-                <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 2 }}>
                   {model.description}
                 </div>
               )}
@@ -261,7 +263,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
       
       {/* 废弃提示 */}
       {selectedModel?.deprecated && (
-        <div style={{ marginTop: 8, color: '#ff4d4f', fontSize: 12 }}>
+        <div style={{ marginTop: 8, color: token.colorError, fontSize: 12 }}>
           ⚠️ {selectedModel.deprecated_message || '该模型已废弃，建议选择其他模型'}
         </div>
       )}

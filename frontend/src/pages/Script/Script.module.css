@@ -11,14 +11,10 @@
 }
 
 .toggleCard {
-  background: var(--color-bg-container);
-  border-color: var(--color-border);
   margin-bottom: 16px;
 }
 
 .inputCard {
-  background: var(--color-bg-container);
-  border-color: var(--color-border);
   margin-bottom: 16px;
 }
 
@@ -30,20 +26,12 @@
 }
 
 .textarea {
-  background: var(--color-bg-elevated) !important;
-  border-color: var(--color-border) !important;
   font-family: "JetBrains Mono", "SF Mono", Monaco, monospace;
   font-size: 14px;
   line-height: 1.6;
 }
 
-.textarea:focus {
-  border-color: var(--color-primary) !important;
-}
-
 .aiCard {
-  background: var(--color-bg-container);
-  border-color: var(--color-border);
   margin-bottom: 16px;
 }
 
@@ -55,16 +43,12 @@
 }
 
 .promptEditor {
-  background: var(--color-bg-elevated);
-  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 16px;
 }
 
 .promptTextarea {
-  background: var(--color-bg-container) !important;
-  border-color: var(--color-border) !important;
   font-size: 13px;
 }
 
@@ -78,8 +62,6 @@
 .column {
   flex: 1;
   min-width: 350px;
-  background: var(--color-bg-elevated);
-  border: 1px solid var(--color-border);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -89,8 +71,6 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-bg-spotlight);
 }
 
 .streamOutput {
@@ -115,13 +95,10 @@
 }
 
 .previewCard {
-  background: var(--color-bg-container);
-  border-color: var(--color-border);
   margin-bottom: 16px;
 }
 
 .preview {
-  background: var(--color-bg-elevated);
   border-radius: 8px;
   padding: 16px;
   margin: 0;
@@ -134,10 +111,7 @@
   overflow-y: auto;
 }
 
-.scenesCard {
-  background: var(--color-bg-container);
-  border-color: var(--color-border);
-}
+.scenesCard {}
 
 .sceneDetail {
   display: grid;
@@ -154,4 +128,3 @@
   flex-shrink: 0;
   min-width: 70px;
 }
-

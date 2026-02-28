@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { 
   Button, Modal, Form, Input, Empty, Spin, message, 
   Radio, Tooltip, Space, Popconfirm, Image, Alert, Progress,
-  InputNumber, Switch, Select, Tag, Card
+  InputNumber, Switch, Select, Tag, Card, theme
 } from 'antd'
 import { 
   PlusOutlined, ReloadOutlined, DeleteOutlined, 
@@ -17,6 +17,7 @@ import { useGenerationStore } from '../../stores/generationStore'
 const { TextArea } = Input
 
 const PropsPage = () => {
+  const { token } = theme.useToken()
   const { projectId } = useParams<{ projectId: string }>()
   const { currentProject, fetchProject } = useProjectStore()
   const { 
@@ -394,8 +395,8 @@ const PropsPage = () => {
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: '#e0e0e0' }}>道具管理</h1>
-          <p style={{ color: '#888', margin: '4px 0 0', fontSize: 13 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: token.colorText }}>道具管理</h1>
+          <p style={{ color: token.colorTextSecondary, margin: '4px 0 0', fontSize: 13 }}>
             {currentProject?.name} - 共 {props.length} 个道具
             {propUseStyle && propSelectedStyleId && (
               <Tag color="blue" style={{ marginLeft: 8 }}>
@@ -413,7 +414,7 @@ const PropsPage = () => {
               ) : (
                 <Button type="primary" icon={<ThunderboltOutlined />} onClick={generateAllPropsImages} disabled={extracting}>一键生成所有道具</Button>
               )}
-              <Popconfirm title="确定删除所有道具？" description="此操作不可恢复" icon={<ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />} onConfirm={deleteAllProps} okText="删除" cancelText="取消" okButtonProps={{ danger: true }}>
+              <Popconfirm title="确定删除所有道具？" description="此操作不可恢复" icon={<ExclamationCircleOutlined style={{ color: token.colorError }} />} onConfirm={deleteAllProps} okText="删除" cancelText="取消" okButtonProps={{ danger: true }}>
                 <Button danger icon={<DeleteOutlined />} disabled={batchGenerating}>删除所有</Button>
               </Popconfirm>
             </>
@@ -439,7 +440,7 @@ const PropsPage = () => {
             return (
               <div key={prop.id} className="asset-card" onClick={() => openPropModal(prop)} style={{ opacity: isGeneratingThis ? 0.7 : 1 }}>
                 <div className="asset-card-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                  {thumbnailUrl ? <Image src={thumbnailUrl} alt={prop.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} /> : <AppstoreOutlined style={{ fontSize: 48, color: '#444' }} />}
+                  {thumbnailUrl ? <Image src={thumbnailUrl} alt={prop.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} /> : <AppstoreOutlined style={{ fontSize: 48, color: token.colorTextQuaternary }} />}
                   {isGeneratingThis && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spin /></div>}
                 </div>
                 <div className="asset-card-info"><div className="asset-card-name">{prop.name}</div><div className="asset-card-desc">{prop.description || '暂无描述'}</div></div>
@@ -463,7 +464,7 @@ const PropsPage = () => {
                 const key = `${selectedProp.id}-${groupIndex}`
                 const isGeneratingThis = generatingGroups.has(key)
                 return (
-                  <div key={groupIndex} style={{ marginBottom: 12, padding: 12, border: isSelected ? '2px solid #e5a84b' : '1px solid #333', borderRadius: 8, background: isSelected ? 'rgba(229, 168, 75, 0.1)' : '#1a1a1a' }}>
+                  <div key={groupIndex} style={{ marginBottom: 12, padding: 12, border: isSelected ? `2px solid ${token.colorWarning}` : `1px solid ${token.colorBorder}`, borderRadius: 8, background: isSelected ? token.colorFillQuaternary : token.colorBgLayout }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                       <Radio checked={isSelected} onChange={() => selectGroup(selectedProp.id, groupIndex)}>第 {groupIndex + 1} 组</Radio>
                       <Space size={4}>
@@ -471,8 +472,8 @@ const PropsPage = () => {
                         <Button size="small" icon={<ReloadOutlined />} onClick={() => generateImages(selectedProp.id, groupIndex)} loading={isGeneratingThis} disabled={generatingAll || (generatingGroups.size > 0 && !isGeneratingThis) || batchGenerating}>{group?.url ? '重新生成' : '生成'}</Button>
                       </Space>
                     </div>
-                    <div style={{ aspectRatio: '1', background: '#242424', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {isGeneratingThis ? <Spin /> : group?.url ? <Image src={group.url} alt="道具" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <AppstoreOutlined style={{ fontSize: 32, color: '#444' }} />}
+                    <div style={{ aspectRatio: '1', background: token.colorBgContainer, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {isGeneratingThis ? <Spin /> : group?.url ? <Image src={group.url} alt="道具" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <AppstoreOutlined style={{ fontSize: 32, color: token.colorTextQuaternary }} />}
                     </div>
                   </div>
                 )
@@ -484,7 +485,7 @@ const PropsPage = () => {
                 <Form.Item name="description" label="道具描述（说明用）"><TextArea rows={2} placeholder="用于说明，不参与生图" /></Form.Item>
                 <Form.Item name="common_prompt" label="通用提示词"><TextArea rows={2} /></Form.Item>
                 <Form.Item name="prop_prompt" label="道具提示词（用于生图）"><TextArea rows={2} placeholder="描述道具本身，不要包含角色和场景" /></Form.Item>
-                <Form.Item name="negative_prompt" label={<Space>负向提示词<Tooltip title="用于指定图片中不希望出现的元素"><span style={{ color: '#888', fontSize: 12 }}>(?)</span></Tooltip></Space>} extra="指定不希望出现在生成图片中的元素">
+                <Form.Item name="negative_prompt" label={<Space>负向提示词<Tooltip title="用于指定图片中不希望出现的元素"><span style={{ color: token.colorTextSecondary, fontSize: 12 }}>(?)</span></Tooltip></Space>} extra="指定不希望出现在生成图片中的元素">
                   <TextArea rows={2} placeholder="例如：人物, 文字, 水印, 模糊" />
                 </Form.Item>
               </Form>
@@ -543,8 +544,8 @@ const PropsPage = () => {
                     />
                   )}
                   {getSelectedStyle() && (
-                    <div style={{ padding: 8, background: '#1a1a1a', borderRadius: 4, fontSize: 12, color: '#888' }}>
-                      当前风格: <strong style={{ color: '#e0e0e0' }}>{getSelectedStyle()?.name}</strong>
+                    <div style={{ padding: 8, background: token.colorBgLayout, borderRadius: 4, fontSize: 12, color: token.colorTextSecondary }}>
+                      当前风格: <strong style={{ color: token.colorText }}>{getSelectedStyle()?.name}</strong>
                       {getSelectedStyle()?.style_type === 'image' ? ' (图片风格 - 使用图生图模型)' : ' (文本风格 - 使用文生图模型)'}
                     </div>
                   )}
@@ -556,10 +557,10 @@ const PropsPage = () => {
                 <div style={{ 
                   marginTop: 16, 
                   padding: '8px 12px', 
-                  background: '#1a1a1a', 
+                  background: token.colorBgLayout, 
                   borderRadius: 6,
                   fontSize: 11,
-                  color: '#666',
+                  color: token.colorTextTertiary,
                   fontFamily: 'monospace'
                 }}>
                   {selectedProp.last_task_id && (
@@ -610,7 +611,7 @@ const PropsPage = () => {
             {/* 尺寸设置 */}
             {availableImageModels[t2iModel || '']?.common_sizes && (
               <div style={{ marginBottom: 12 }}>
-                <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>常用比例</div>
+                <div style={{ marginBottom: 4, color: token.colorTextSecondary, fontSize: 12 }}>常用比例</div>
                 <Space wrap size={4}>
                   {availableImageModels[t2iModel || '']?.common_sizes?.map((size: any, idx: number) => (
                     <Button
@@ -782,10 +783,10 @@ const PropsPage = () => {
                   style={{
                     position: 'relative',
                     cursor: 'pointer',
-                    border: isSelected ? '2px solid #e5a84b' : '1px solid #333',
+                    border: isSelected ? `2px solid ${token.colorWarning}` : `1px solid ${token.colorBorder}`,
                     borderRadius: 8,
                     overflow: 'hidden',
-                    background: '#1a1a1a'
+                    background: token.colorBgLayout
                   }}
                 >
                   <Image
@@ -799,8 +800,8 @@ const PropsPage = () => {
                       position: 'absolute',
                       top: 4,
                       right: 4,
-                      background: '#e5a84b',
-                      color: '#000',
+                      background: token.colorWarning,
+                      color: token.colorText,
                       borderRadius: '50%',
                       width: 24,
                       height: 24,

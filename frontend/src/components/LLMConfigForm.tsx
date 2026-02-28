@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { 
   Form, Select, Slider, Switch, InputNumber, Tooltip, Space, Row, Col, 
-  Divider, Alert 
+  Divider, Alert, theme 
 } from 'antd'
 import { QuestionCircleOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import type { FormInstance } from 'antd'
@@ -28,6 +28,7 @@ const LLMConfigForm = ({
   compact = false,
   hideModelSelect = false
 }: LLMConfigFormProps) => {
+  const { token } = theme.useToken()
   const [enableThinking, setEnableThinking] = useState(false)
 
   // 检查当前选中的模型是否支持深度思考
@@ -93,7 +94,7 @@ const LLMConfigForm = ({
                 label: (
                   <span>
                     {info.name}
-                    <span style={{ color: '#888', marginLeft: 8, fontSize: 12 }}>
+                    <span style={{ color: token.colorTextSecondary, marginLeft: 8, fontSize: 12 }}>
                       (最大输出: {info.max_output_tokens?.toLocaleString()}
                       {info.supports_thinking ? ', 支持深度思考' : ''})
                     </span>
@@ -113,7 +114,7 @@ const LLMConfigForm = ({
           <Space>
             最大输出长度
             <Tooltip title={`当前模型最大支持 ${maxTokensLimit.toLocaleString()} tokens`}>
-              <QuestionCircleOutlined style={{ color: '#888' }} />
+              <QuestionCircleOutlined style={{ color: token.colorTextSecondary }} />
             </Tooltip>
           </Space>
         }
@@ -141,7 +142,7 @@ const LLMConfigForm = ({
                 返回格式
                 {enableThinking && (
                   <Tooltip title="深度思考模式下不支持 JSON 模式">
-                    <InfoCircleOutlined style={{ color: '#faad14' }} />
+                    <InfoCircleOutlined style={{ color: token.colorWarning }} />
                   </Tooltip>
                 )}
               </Space>
@@ -178,7 +179,7 @@ const LLMConfigForm = ({
               <Space>
                 Top P
                 <Tooltip title="核采样参数，控制输出的多样性，值越小输出越确定">
-                  <QuestionCircleOutlined style={{ color: '#888' }} />
+                  <QuestionCircleOutlined style={{ color: token.colorTextSecondary }} />
                 </Tooltip>
               </Space>
             }
@@ -193,7 +194,7 @@ const LLMConfigForm = ({
               <Space>
                 Temperature
                 <Tooltip title="温度参数，值越高输出越随机，值越低输出越确定">
-                  <QuestionCircleOutlined style={{ color: '#888' }} />
+                  <QuestionCircleOutlined style={{ color: token.colorTextSecondary }} />
                 </Tooltip>
               </Space>
             }
@@ -207,7 +208,7 @@ const LLMConfigForm = ({
       {currentModelSupportsThinking() && (
         <>
           <Divider style={{ margin: '12px 0' }}>
-            <span style={{ color: '#888', fontSize: 12 }}>深度思考设置</span>
+            <span style={{ color: token.colorTextSecondary, fontSize: 12 }}>深度思考设置</span>
           </Divider>
 
           {!compact && (
@@ -237,7 +238,7 @@ const LLMConfigForm = ({
                   <Space>
                     思考预算
                     <Tooltip title="深度思考时的最大 token 预算">
-                      <QuestionCircleOutlined style={{ color: '#888' }} />
+                      <QuestionCircleOutlined style={{ color: token.colorTextSecondary }} />
                     </Tooltip>
                   </Space>
                 }

@@ -2,19 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 全局样式 */
-:root {
-  --studio-bg: #1a1a1a;
-  --studio-panel: #242424;
-  --studio-border: #333333;
-  --studio-hover: #2a2a2a;
-  --studio-active: #3a3a3a;
-  --studio-text: #e0e0e0;
-  --studio-text-secondary: #888888;
-  --studio-accent: #e5a84b;
-  --studio-accent-hover: #f0b85c;
-}
-
 * {
   margin: 0;
   padding: 0;
@@ -33,12 +20,6 @@ html, body {
   width: 100%;
 }
 
-body {
-  background-color: var(--studio-bg);
-  color: var(--studio-text);
-  font-family: 'SF Pro Display', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-}
-
 /* 滚动条样式 */
 ::-webkit-scrollbar {
   width: 8px;
@@ -46,34 +27,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--studio-bg);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--studio-border);
+  background: rgba(128, 128, 128, 0.3);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #444444;
-}
-
-/* Ant Design 覆盖 */
-.ant-layout {
-  background: var(--studio-bg) !important;
-}
-
-.ant-layout-sider {
-  background: var(--studio-bg) !important;
-}
-
-.ant-menu-dark {
-  background: transparent !important;
-}
-
-.ant-card {
-  background: var(--studio-panel) !important;
-  border-color: var(--studio-border) !important;
+  background: rgba(128, 128, 128, 0.5);
 }
 
 /* 流式输出动画 */
@@ -85,25 +48,12 @@ body {
 .streaming-cursor::after {
   content: '▌';
   animation: blink 1s infinite;
-  color: var(--studio-accent);
 }
 
-/* 分镜卡片样式 */
+/* 分镜卡片 */
 .shot-card {
-  background: var(--studio-panel);
-  border: 1px solid var(--studio-border);
   border-radius: 8px;
   transition: all 0.2s ease;
-}
-
-.shot-card:hover {
-  border-color: var(--studio-accent);
-  box-shadow: 0 0 0 1px var(--studio-accent);
-}
-
-.shot-card.selected {
-  border-color: var(--studio-accent);
-  background: var(--studio-hover);
 }
 
 /* 图片网格 */
@@ -123,15 +73,6 @@ body {
   transition: all 0.2s ease;
 }
 
-.workflow-step:hover {
-  background: var(--studio-hover);
-}
-
-.workflow-step.active {
-  background: var(--studio-active);
-  border-left: 3px solid var(--studio-accent);
-}
-
 .workflow-step.completed {
   opacity: 0.7;
 }
@@ -144,8 +85,6 @@ body {
 
 /* 编辑器面板 */
 .editor-panel {
-  background: var(--studio-panel);
-  border: 1px solid var(--studio-border);
   border-radius: 8px;
   padding: 16px;
 }
@@ -161,15 +100,12 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: var(--studio-panel);
-  border: 1px solid var(--studio-border);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .compare-column-header {
   padding: 12px 16px;
-  border-bottom: 1px solid var(--studio-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -183,8 +119,6 @@ body {
 
 /* 角色/场景卡片 */
 .asset-card {
-  background: var(--studio-panel);
-  border: 1px solid var(--studio-border);
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
@@ -193,15 +127,13 @@ body {
 
 .asset-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  border-color: var(--studio-accent);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .asset-card-image {
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
-  background: var(--studio-bg);
 }
 
 .asset-card-info {
@@ -215,10 +147,10 @@ body {
 
 .asset-card-desc {
   font-size: 12px;
-  color: var(--studio-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  opacity: 0.65;
 }
 
 /* 三视图选择器 */
@@ -235,15 +167,6 @@ body {
   border: 2px solid transparent;
   cursor: pointer;
   transition: all 0.2s ease;
-}
-
-.view-image:hover {
-  border-color: var(--studio-accent);
-}
-
-.view-image.selected {
-  border-color: var(--studio-accent);
-  box-shadow: 0 0 0 2px rgba(229, 168, 75, 0.3);
 }
 
 .view-image img {
@@ -264,27 +187,15 @@ body {
   position: relative;
   flex-shrink: 0;
   width: 160px;
-  background: var(--studio-panel);
-  border: 1px solid var(--studio-border);
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.timeline-item:hover {
-  border-color: var(--studio-accent);
-}
-
-.timeline-item.active {
-  border-color: var(--studio-accent);
-  box-shadow: 0 0 0 1px var(--studio-accent);
-}
-
 .timeline-item-preview {
   width: 100%;
   aspect-ratio: 16/9;
-  background: var(--studio-bg);
   object-fit: cover;
 }
 
@@ -292,4 +203,3 @@ body {
   padding: 8px;
   font-size: 12px;
 }
-

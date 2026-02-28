@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { 
   Card, Button, Modal, Form, Input, Empty, Spin, message, 
   Radio, Tooltip, Space, Popconfirm, Image, Alert, Progress,
-  InputNumber, Switch, Select, Tag, Divider
+  InputNumber, Switch, Select, Tag, Divider, theme
 } from 'antd'
 import { 
   PlusOutlined, ReloadOutlined, DeleteOutlined, 
@@ -18,6 +18,7 @@ import { useGenerationStore } from '../../stores/generationStore'
 const { TextArea } = Input
 
 const CharactersPage = () => {
+  const { token } = theme.useToken()
   const { projectId } = useParams<{ projectId: string }>()
   const { currentProject, fetchProject } = useProjectStore()
   const { 
@@ -506,10 +507,10 @@ const CharactersPage = () => {
       {/* 页面标题 */}
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: '#e0e0e0' }}>
+          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: token.colorText }}>
             角色管理
           </h1>
-          <p style={{ color: '#888', margin: '4px 0 0', fontSize: 13 }}>
+          <p style={{ color: token.colorTextSecondary, margin: '4px 0 0', fontSize: 13 }}>
             {currentProject?.name} - 共 {characters.length} 个角色
             {characterUseStyle && characterSelectedStyleId && (
               <Tag color="blue" style={{ marginLeft: 8 }}>
@@ -548,7 +549,7 @@ const CharactersPage = () => {
               <Popconfirm
                 title="确定删除所有角色？"
                 description="此操作不可恢复"
-                icon={<ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />}
+                icon={<ExclamationCircleOutlined style={{ color: token.colorError }} />}
                 onConfirm={deleteAllCharacters}
                 okText="删除"
                 cancelText="取消"
@@ -638,7 +639,7 @@ const CharactersPage = () => {
                       preview={false}
                     />
                   ) : (
-                    <UserOutlined style={{ fontSize: 48, color: '#444' }} />
+                    <UserOutlined style={{ fontSize: 48, color: token.colorBorderSecondary }} />
                   )}
                   {isGeneratingThis && (
                     <div style={{
@@ -708,9 +709,9 @@ const CharactersPage = () => {
                     style={{
                       marginBottom: 16,
                       padding: 12,
-                      border: isSelected ? '2px solid #e5a84b' : '1px solid #333',
+                      border: isSelected ? `2px solid ${token.colorPrimary}` : `1px solid ${token.colorBorder}`,
                       borderRadius: 8,
-                      background: isSelected ? 'rgba(229, 168, 75, 0.1)' : '#1a1a1a'
+                      background: isSelected ? 'rgba(229, 168, 75, 0.1)' : token.colorBgLayout
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -742,7 +743,7 @@ const CharactersPage = () => {
                     
                     <div 
                       style={{ 
-                        background: '#242424',
+                        background: token.colorBgContainer,
                         borderRadius: 8,
                         overflow: 'hidden',
                         aspectRatio: '3/1',
@@ -760,7 +761,7 @@ const CharactersPage = () => {
                           style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                         />
                       ) : (
-                        <div style={{ color: '#666', textAlign: 'center' }}>
+                        <div style={{ color: token.colorTextTertiary, textAlign: 'center' }}>
                           <UserOutlined style={{ fontSize: 32, marginBottom: 8 }} />
                           <div style={{ fontSize: 12 }}>点击"生成"创建三视图</div>
                         </div>
@@ -798,7 +799,7 @@ const CharactersPage = () => {
                     <Space>
                       负向提示词
                       <Tooltip title="用于指定图片中不希望出现的元素">
-                        <span style={{ color: '#888', fontSize: 12 }}>(?)</span>
+                        <span style={{ color: token.colorTextSecondary, fontSize: 12 }}>(?)</span>
                       </Tooltip>
                     </Space>
                   }
@@ -862,8 +863,8 @@ const CharactersPage = () => {
                     />
                   )}
                   {getSelectedStyle() && (
-                    <div style={{ padding: 8, background: '#1a1a1a', borderRadius: 4, fontSize: 12, color: '#888' }}>
-                      当前风格: <strong style={{ color: '#e0e0e0' }}>{getSelectedStyle()?.name}</strong>
+                    <div style={{ padding: 8, background: token.colorBgLayout, borderRadius: 4, fontSize: 12, color: token.colorTextSecondary }}>
+                      当前风格: <strong style={{ color: token.colorText }}>{getSelectedStyle()?.name}</strong>
                       {getSelectedStyle()?.style_type === 'image' ? ' (图片风格 - 使用图生图模型)' : ' (文本风格 - 使用文生图模型)'}
                     </div>
                   )}
@@ -876,7 +877,7 @@ const CharactersPage = () => {
                 title={<><SoundOutlined /> 角色音色</>}
                 style={{ marginTop: 16 }}
               >
-                <p style={{ color: '#888', marginBottom: 12 }}>
+                <p style={{ color: token.colorTextSecondary, marginBottom: 12 }}>
                   此功能即将上线，敬请期待
                 </p>
                 <Space direction="vertical" style={{ width: '100%' }}>
@@ -892,10 +893,10 @@ const CharactersPage = () => {
                 <div style={{ 
                   marginTop: 16, 
                   padding: '8px 12px', 
-                  background: '#1a1a1a', 
+                  background: token.colorBgLayout, 
                   borderRadius: 6,
                   fontSize: 11,
-                  color: '#666',
+                  color: token.colorTextTertiary,
                   fontFamily: 'monospace'
                 }}>
                   {selectedCharacter.last_task_id && (
@@ -976,7 +977,7 @@ const CharactersPage = () => {
             {/* 尺寸设置 */}
             {availableImageModels[t2iModel || '']?.common_sizes && (
               <div style={{ marginBottom: 12 }}>
-                <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>常用比例</div>
+                <div style={{ marginBottom: 4, color: token.colorTextSecondary, fontSize: 12 }}>常用比例</div>
                 <Space wrap size={4}>
                   {availableImageModels[t2iModel || '']?.common_sizes?.map((size: any, idx: number) => (
                     <Button
@@ -1165,10 +1166,10 @@ const CharactersPage = () => {
                   style={{
                     position: 'relative',
                     cursor: 'pointer',
-                    border: isSelected ? '2px solid #e5a84b' : '1px solid #333',
+                    border: isSelected ? `2px solid ${token.colorPrimary}` : `1px solid ${token.colorBorder}`,
                     borderRadius: 8,
                     overflow: 'hidden',
-                    background: '#1a1a1a'
+                    background: token.colorBgLayout
                   }}
                 >
                   <Image
@@ -1182,7 +1183,7 @@ const CharactersPage = () => {
                       position: 'absolute',
                       top: 4,
                       right: 4,
-                      background: '#e5a84b',
+                      background: token.colorPrimary,
                       color: '#000',
                       borderRadius: '50%',
                       width: 24,

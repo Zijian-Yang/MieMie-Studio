@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { Card, Button, List, Modal, Input, Upload, Tabs, message, Popconfirm, Space, Empty } from 'antd'
+import { Card, Button, List, Modal, Input, Upload, Tabs, message, Popconfirm, Space, Empty, theme } from 'antd'
 import { PlusOutlined, DeleteOutlined, UploadOutlined, LinkOutlined, SoundOutlined } from '@ant-design/icons'
 import type { UploadFile } from 'antd/es/upload/interface'
 import { audioApi, settingsApi, AudioItem } from '../../services/api'
@@ -10,6 +10,7 @@ const { Dragger } = Upload
 const { TextArea } = Input
 
 const AudioLibraryPage = () => {
+  const { token } = theme.useToken()
   const { projectId } = useParams<{ projectId: string }>()
   const { fetchProject } = useProjectStore()
   
@@ -184,10 +185,9 @@ const AudioLibraryPage = () => {
             )}
           </Space>
         }
-        style={{ background: '#1a1a1a', borderColor: '#333' }}
       >
         {!ossEnabled && (
-          <div style={{ marginBottom: 16, padding: 12, background: '#2a2a2a', borderRadius: 8, color: '#faad14' }}>
+          <div style={{ marginBottom: 16, padding: 12, background: token.colorBgElevated, borderRadius: 8, color: token.colorWarning }}>
             请先在设置中配置并启用 OSS，才能上传音频文件
           </div>
         )}
@@ -203,7 +203,6 @@ const AudioLibraryPage = () => {
               <List.Item>
                 <Card
                   size="small"
-                  style={{ background: '#242424', borderColor: '#333' }}
                   actions={[
                     <Button type="link" size="small" onClick={() => handleEdit(audio)}>编辑</Button>,
                     <Popconfirm title="确定删除？" onConfirm={() => handleDelete(audio)}>
@@ -212,12 +211,12 @@ const AudioLibraryPage = () => {
                   ]}
                 >
                   <div style={{ textAlign: 'center', marginBottom: 8 }}>
-                    <SoundOutlined style={{ fontSize: 32, color: '#1890ff' }} />
+                    <SoundOutlined style={{ fontSize: 32, color: token.colorPrimary }} />
                   </div>
                   <div style={{ fontWeight: 500, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {audio.name}
                   </div>
-                  <div style={{ fontSize: 12, color: '#888' }}>
+                  <div style={{ fontSize: 12, color: token.colorTextSecondary }}>
                     {audio.file_type.toUpperCase()} · {formatFileSize(audio.file_size)}
                   </div>
                   <audio 
@@ -263,7 +262,7 @@ const AudioLibraryPage = () => {
                     accept=".mp3,.wav,.m4a,.aac,.ogg,.flac"
                   >
                     <p className="ant-upload-drag-icon">
-                      <SoundOutlined style={{ fontSize: 48, color: '#1890ff' }} />
+                      <SoundOutlined style={{ fontSize: 48, color: token.colorPrimary }} />
                     </p>
                     <p className="ant-upload-text">点击或拖拽音频文件到此区域</p>
                     <p className="ant-upload-hint">支持 MP3、WAV、M4A、AAC、OGG、FLAC 格式</p>
@@ -341,4 +340,3 @@ const AudioLibraryPage = () => {
 }
 
 export default AudioLibraryPage
-

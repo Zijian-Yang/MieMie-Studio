@@ -123,7 +123,7 @@ export default function Projects() {
         {projects.length === 0 ? (
           <Card className={styles.emptyCard}>
             <Empty
-              image={<FolderOutlined style={{ fontSize: 64, color: 'var(--color-text-tertiary)' }} />}
+              image={<FolderOutlined style={{ fontSize: 64, opacity: 0.35 }} />}
               description={
                 <div>
                   <Text style={{ fontSize: 16 }}>还没有任何项目</Text>

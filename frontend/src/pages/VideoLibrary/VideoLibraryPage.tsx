@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { Card, Button, List, Modal, Input, Upload, Tabs, message, Popconfirm, Space, Empty } from 'antd'
+import { Card, Button, List, Modal, Input, Upload, Tabs, message, Popconfirm, Space, Empty, theme } from 'antd'
 import { PlusOutlined, DeleteOutlined, UploadOutlined, LinkOutlined, PlayCircleOutlined, PictureOutlined } from '@ant-design/icons'
 import type { UploadFile } from 'antd/es/upload/interface'
 import { videoLibraryApi, settingsApi, VideoLibraryItem } from '../../services/api'
@@ -10,6 +10,7 @@ const { Dragger } = Upload
 const { TextArea } = Input
 
 const VideoLibraryPage = () => {
+  const { token } = theme.useToken()
   const { projectId } = useParams<{ projectId: string }>()
   const { fetchProject } = useProjectStore()
   
@@ -205,10 +206,9 @@ const VideoLibraryPage = () => {
             )}
           </Space>
         }
-        style={{ background: '#1a1a1a', borderColor: '#333' }}
       >
         {!ossEnabled && (
-          <div style={{ marginBottom: 16, padding: 12, background: '#2a2a2a', borderRadius: 8, color: '#faad14' }}>
+          <div style={{ marginBottom: 16, padding: 12, background: token.colorBgElevated, borderRadius: 8, color: token.colorWarning }}>
             请先在设置中配置并启用 OSS，才能上传视频文件
           </div>
         )}
@@ -224,12 +224,11 @@ const VideoLibraryPage = () => {
               <List.Item>
                 <Card
                   size="small"
-                  style={{ background: '#242424', borderColor: '#333' }}
                   cover={
                     <div 
                       style={{ 
                         height: 120, 
-                        background: '#1a1a1a', 
+                        background: token.colorBgLayout, 
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center',
@@ -264,7 +263,7 @@ const VideoLibraryPage = () => {
                       }}
                       className="video-play-overlay"
                       >
-                        <PlayCircleOutlined style={{ fontSize: 48, color: '#fff' }} />
+                        <PlayCircleOutlined style={{ fontSize: 48, color: token.colorPrimary }} />
                       </div>
                     </div>
                   }
@@ -279,7 +278,7 @@ const VideoLibraryPage = () => {
                   <div style={{ fontWeight: 500, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {video.name}
                   </div>
-                  <div style={{ fontSize: 12, color: '#888' }}>
+                  <div style={{ fontSize: 12, color: token.colorTextSecondary }}>
                     {video.file_type.toUpperCase()} · {formatFileSize(video.file_size)}
                     {video.duration && ` · ${video.duration}秒`}
                   </div>
@@ -321,7 +320,7 @@ const VideoLibraryPage = () => {
                     accept=".mp4,.mov,.avi,.webm,.mkv"
                   >
                     <p className="ant-upload-drag-icon">
-                      <PlayCircleOutlined style={{ fontSize: 48, color: '#1890ff' }} />
+                      <PlayCircleOutlined style={{ fontSize: 48, color: token.colorPrimary }} />
                     </p>
                     <p className="ant-upload-text">点击或拖拽视频文件到此区域</p>
                     <p className="ant-upload-hint">支持 MP4、MOV、AVI、WebM、MKV 格式</p>
@@ -439,4 +438,3 @@ const VideoLibraryPage = () => {
 }
 
 export default VideoLibraryPage
-

@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { 
   Card, Button, Modal, Form, Input, Empty, Spin, message, 
   Image, Progress, Tooltip, Space, InputNumber, Select, Popconfirm,
-  Tag, Tabs, Divider, Switch, Checkbox
+  Tag, Tabs, Divider, Switch, Checkbox, theme
 } from 'antd'
 import { 
   PlayCircleOutlined, ReloadOutlined, PictureOutlined, SettingOutlined,
@@ -45,6 +45,7 @@ interface SortableShotCardProps {
 }
 
 const SortableShotCard = ({ shot, frameUrl, isGenerating, onClick }: SortableShotCardProps) => {
+  const { token } = theme.useToken()
   const {
     attributes,
     listeners,
@@ -86,7 +87,7 @@ const SortableShotCard = ({ shot, frameUrl, isGenerating, onClick }: SortableSho
         }}
         title="拖拽调整顺序"
       >
-        <DragOutlined style={{ color: '#e5a84b', fontSize: 14 }} />
+        <DragOutlined style={{ color: token.colorPrimary, fontSize: 14 }} />
       </div>
       
       <div 
@@ -101,7 +102,7 @@ const SortableShotCard = ({ shot, frameUrl, isGenerating, onClick }: SortableSho
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'center',
-            background: '#242424'
+            background: token.colorBgContainer
           }}>
             <Spin />
           </div>
@@ -119,9 +120,9 @@ const SortableShotCard = ({ shot, frameUrl, isGenerating, onClick }: SortableSho
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'center',
-            background: '#242424'
+            background: token.colorBgContainer
           }}>
-            <PictureOutlined style={{ fontSize: 24, color: '#444' }} />
+            <PictureOutlined style={{ fontSize: 24, color: token.colorBorderSecondary }} />
           </div>
         )}
       </div>
@@ -130,7 +131,7 @@ const SortableShotCard = ({ shot, frameUrl, isGenerating, onClick }: SortableSho
           <span>镜头 {shot.shot_number}</span>
           {frameUrl && <Tag color="green" style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px' }}>已生成</Tag>}
         </div>
-        <div style={{ color: '#888', fontSize: 11 }}>
+        <div style={{ color: token.colorTextSecondary, fontSize: 11 }}>
           {shot.scene_type || '未设置'} · {shot.duration || 5}秒
         </div>
       </div>
@@ -139,6 +140,7 @@ const SortableShotCard = ({ shot, frameUrl, isGenerating, onClick }: SortableSho
 }
 
 const FramesPage = () => {
+  const { token } = theme.useToken()
   const { projectId } = useParams<{ projectId: string }>()
   const { currentProject, fetchProject } = useProjectStore()
   const {
@@ -670,7 +672,7 @@ const FramesPage = () => {
             {s.style_type === 'image' && getStyleImageUrl(s) ? (
               <img src={getStyleImageUrl(s)!} alt="" style={{ width: 24, height: 24, objectFit: 'cover', borderRadius: 4 }} />
             ) : (
-              <div style={{ width: 24, height: 24, background: '#333', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>T</div>
+              <div style={{ width: 24, height: 24, background: token.colorBorder, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>T</div>
             )}
             <span>{s.name}</span>
             <Tag color={s.style_type === 'image' ? 'blue' : 'green'} style={{ fontSize: 10 }}>
@@ -1031,17 +1033,17 @@ const FramesPage = () => {
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: '#e0e0e0' }}>
+          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: token.colorText }}>
             分镜首帧
           </h1>
-          <p style={{ color: '#888', margin: '4px 0 0', fontSize: 13 }}>
+          <p style={{ color: token.colorTextSecondary, margin: '4px 0 0', fontSize: 13 }}>
             {currentProject?.name} - 共 {shots.length} 个分镜（可拖拽调整顺序）
           </p>
         </div>
         <Space>
           <Tooltip title="使用分镜关联的角色/场景/道具进行多图生图">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#1a1a1a', padding: '4px 12px', borderRadius: 6 }}>
-              <span style={{ fontSize: 12, color: '#888' }}>素材参照</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: token.colorBgLayout, padding: '4px 12px', borderRadius: 6 }}>
+              <span style={{ fontSize: 12, color: token.colorTextSecondary }}>素材参照</span>
               <Switch size="small" checked={useReferences} onChange={setUseReferences} />
             </div>
           </Tooltip>
@@ -1051,7 +1053,7 @@ const FramesPage = () => {
           <Popconfirm
             title="确定删除所有镜头？"
             description="将同时删除所有关联的首帧和视频，此操作不可恢复"
-            icon={<ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />}
+            icon={<ExclamationCircleOutlined style={{ color: token.colorError }} />}
             onConfirm={deleteAllShots}
             okText="删除所有"
             cancelText="取消"
@@ -1088,7 +1090,7 @@ const FramesPage = () => {
             percent={batchProgress.total > 0 ? Math.round((batchProgress.current / batchProgress.total) * 100) : 0} 
             status="active" 
           />
-          <p style={{ textAlign: 'center', marginTop: 8, color: '#888' }}>
+          <p style={{ textAlign: 'center', marginTop: 8, color: token.colorTextSecondary }}>
             正在生成第 {batchProgress.current}/{batchProgress.total} 个首帧...
           </p>
         </Card>
@@ -1216,7 +1218,7 @@ const FramesPage = () => {
                       <Popconfirm
                         title="确定删除此镜头？"
                         description="将同时删除关联的首帧和视频，此操作不可恢复"
-                        icon={<ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />}
+                        icon={<ExclamationCircleOutlined style={{ color: token.colorError }} />}
                         onConfirm={deleteCurrentShot}
                         okText="删除"
                         cancelText="取消"
@@ -1266,7 +1268,7 @@ const FramesPage = () => {
                       {selectedGroupsForGallery.size > 0 && (
                         <div style={{ marginBottom: 12, padding: 8, background: '#1a3a1a', borderRadius: 6 }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <span style={{ fontSize: 12, color: '#52c41a' }}>已选择 {selectedGroupsForGallery.size} 张图片</span>
+                            <span style={{ fontSize: 12, color: token.colorSuccess }}>已选择 {selectedGroupsForGallery.size} 张图片</span>
                             <Button 
                               type="primary" 
                               size="small" 
@@ -1293,9 +1295,9 @@ const FramesPage = () => {
                             style={{ 
                               marginBottom: 12, 
                               padding: 12, 
-                              border: isSelected ? '2px solid #52c41a' : isCurrentGroup ? '2px solid #1890ff' : '1px solid #333', 
+                              border: isSelected ? `2px solid ${token.colorSuccess}` : isCurrentGroup ? `2px solid ${token.colorPrimary}` : `1px solid ${token.colorBorder}`, 
                               borderRadius: 8, 
-                              background: isSelected ? 'rgba(82, 196, 26, 0.1)' : isCurrentGroup ? 'rgba(24, 144, 255, 0.1)' : '#1a1a1a' 
+                              background: isSelected ? 'rgba(82, 196, 26, 0.1)' : isCurrentGroup ? 'rgba(24, 144, 255, 0.1)' : token.colorBgLayout 
                             }}
                           >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -1332,7 +1334,7 @@ const FramesPage = () => {
                             </div>
                             <div style={{ 
                               aspectRatio: '16/9', 
-                              background: '#242424', 
+                              background: token.colorBgContainer, 
                               borderRadius: 4, 
                               display: 'flex', 
                               alignItems: 'center', 
@@ -1348,7 +1350,7 @@ const FramesPage = () => {
                                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                 />
                               ) : (
-                                <PictureOutlined style={{ fontSize: 32, color: '#444' }} />
+                                <PictureOutlined style={{ fontSize: 32, color: token.colorBorderSecondary }} />
                               )}
                             </div>
                           </div>
@@ -1358,14 +1360,14 @@ const FramesPage = () => {
 
                     <div style={{ flex: 1 }}>
                       {/* 素材选择（统一下拉栏） */}
-                      <Card size="small" title="选择参考素材" style={{ background: '#1a1a1a', marginBottom: 16 }}>
+                      <Card size="small" title="选择参考素材" style={{ marginBottom: 16 }}>
                         <div style={{ marginBottom: 8 }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                            <span style={{ fontSize: 12, color: '#888' }}>使用素材参照（多图生图）</span>
+                            <span style={{ fontSize: 12, color: token.colorTextSecondary }}>使用素材参照（多图生图）</span>
                             <Switch size="small" checked={useReferences} onChange={setUseReferences} />
                           </div>
                           {useReferences && (
-                            <div style={{ fontSize: 11, color: '#666', marginBottom: 8 }}>
+                            <div style={{ fontSize: 11, color: token.colorTextTertiary, marginBottom: 8 }}>
                               选择素材的顺序决定了API中图片URL的顺序，提示词中可用"第一个图"、"第二个图"等引用
                             </div>
                           )}
@@ -1456,9 +1458,9 @@ const FramesPage = () => {
                                       <div 
                                         style={{ 
                                           position: 'relative', 
-                                          border: '2px solid #1890ff', 
+                                          border: `2px solid ${token.colorPrimary}`, 
                                           borderRadius: 4,
-                                          background: '#242424'
+                                          background: token.colorBgContainer
                                         }}
                                       >
                                         <div style={{
@@ -1467,7 +1469,7 @@ const FramesPage = () => {
                                           left: -8,
                                           width: 20,
                                           height: 20,
-                                          background: '#1890ff',
+                                          background: token.colorPrimary,
                                           borderRadius: '50%',
                                           display: 'flex',
                                           alignItems: 'center',
@@ -1482,7 +1484,7 @@ const FramesPage = () => {
                                           <img src={url} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 2 }} />
                                         ) : (
                                           <div style={{ width: 56, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            <PictureOutlined style={{ color: '#666' }} />
+                                            <PictureOutlined style={{ color: token.colorTextTertiary }} />
                                           </div>
                                         )}
                                         <div
@@ -1519,7 +1521,7 @@ const FramesPage = () => {
                             )}
                             
                             {selectedReferences.length === 0 && (
-                              <div style={{ color: '#666', fontSize: 12 }}>
+                              <div style={{ color: token.colorTextTertiary, fontSize: 12 }}>
                                 暂无选择素材，系统已根据分镜信息自动匹配
                               </div>
                             )}
@@ -1538,7 +1540,7 @@ const FramesPage = () => {
                             )}
                           </div>
                         }
-                        style={{ marginTop: 12, background: 'transparent', border: '1px solid #333' }}
+                        style={{ marginTop: 12 }}
                       >
                         <Select
                           style={{ width: '100%' }}
@@ -1567,9 +1569,9 @@ const FramesPage = () => {
                             <div style={{ 
                               marginTop: 12, 
                               padding: 12, 
-                              background: '#1a1a1a', 
+                              background: token.colorBgLayout, 
                               borderRadius: 8,
-                              border: '1px solid #333'
+                              border: `1px solid ${token.colorBorder}`
                             }}>
                               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                                 {style.style_type === 'image' && getStyleImageUrl(style) && (
@@ -1585,12 +1587,12 @@ const FramesPage = () => {
                                     {style.style_type === 'image' ? '图片风格' : '文本风格'}
                                   </Tag>
                                   {style.style_type === 'text' && style.text_style_content && (
-                                    <div style={{ marginTop: 6, fontSize: 11, color: '#888' }}>
+                                    <div style={{ marginTop: 6, fontSize: 11, color: token.colorTextSecondary }}>
                                       {style.text_style_content.slice(0, 80)}...
                                     </div>
                                   )}
                                   {style.style_type === 'image' && style.style_prompt && (
-                                    <div style={{ marginTop: 6, fontSize: 11, color: '#888' }}>
+                                    <div style={{ marginTop: 6, fontSize: 11, color: token.colorTextSecondary }}>
                                       {style.style_prompt.slice(0, 80)}...
                                     </div>
                                   )}
@@ -1600,7 +1602,7 @@ const FramesPage = () => {
                           )
                         })()}
                         
-                        <div style={{ marginTop: 8, fontSize: 11, color: '#666' }}>
+                        <div style={{ marginTop: 8, fontSize: 11, color: token.colorTextTertiary }}>
                           图片风格：作为最后一个参考图片。文本风格：嵌入提示词尾部。
                         </div>
                       </Card>
@@ -1620,9 +1622,9 @@ const FramesPage = () => {
                       <Card 
                         size="small" 
                         title="生成设置" 
-                        style={{ background: '#1a1a1a', marginBottom: 12 }}
+                        style={{ marginBottom: 12 }}
                         extra={
-                          <span style={{ fontSize: 11, color: '#666' }}>
+                          <span style={{ fontSize: 11, color: token.colorTextTertiary }}>
                             {(() => {
                               const modelType = getModelType(frameModel)
                               if (modelType === 'multi') return 'wan2.6-image 多功能'
@@ -1634,7 +1636,7 @@ const FramesPage = () => {
                       >
                         <>
                           <div style={{ marginBottom: 12 }}>
-                            <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>生成模型</div>
+                            <div style={{ marginBottom: 4, color: token.colorTextSecondary, fontSize: 12 }}>生成模型</div>
                             <ModelSelector
                               category={['text_to_image', 'image_to_image']}
                               value={frameModel}
@@ -1644,14 +1646,14 @@ const FramesPage = () => {
                               showDescription={false}
                               loading={modelsLoading}
                             />
-                            <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+                            <div style={{ fontSize: 11, color: token.colorTextTertiary, marginTop: 4 }}>
                               {getModelInfo(frameModel)?.description}
                             </div>
                           </div>
                           
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                             <div>
-                              <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>生图数量</div>
+                              <div style={{ marginBottom: 4, color: token.colorTextSecondary, fontSize: 12 }}>生图数量</div>
                               <InputNumber
                                 style={{ width: '100%' }}
                                 size="small"
@@ -1660,14 +1662,14 @@ const FramesPage = () => {
                                 value={frameN}
                                 onChange={(v) => setFrameN(v || 1)}
                               />
-                              <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+                              <div style={{ fontSize: 11, color: token.colorTextTertiary, marginTop: 2 }}>
                                 最多 {getMaxN(frameModel)} 张
                               </div>
                             </div>
                               
                             {supportsSize(frameModel) && frameN === 1 && (
                               <div>
-                                <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>输出尺寸</div>
+                                <div style={{ marginBottom: 4, color: token.colorTextSecondary, fontSize: 12 }}>输出尺寸</div>
                                 <SizeSelector
                                   modelId={frameModel}
                                   value={frameSize || undefined}
@@ -1688,7 +1690,7 @@ const FramesPage = () => {
                                   checked={framePromptExtend}
                                   onChange={setFramePromptExtend}
                                 />
-                                <span style={{ fontSize: 12, color: '#888' }}>智能改写</span>
+                                <span style={{ fontSize: 12, color: token.colorTextSecondary }}>智能改写</span>
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <Switch
@@ -1696,7 +1698,7 @@ const FramesPage = () => {
                                   checked={frameWatermark}
                                   onChange={setFrameWatermark}
                                 />
-                                <span style={{ fontSize: 12, color: '#888' }}>水印</span>
+                                <span style={{ fontSize: 12, color: token.colorTextSecondary }}>水印</span>
                               </div>
                               {/* wan2.6-image 专用：图文混合模式 */}
                               {supportsInterleave(frameModel) && (
@@ -1707,14 +1709,14 @@ const FramesPage = () => {
                                     onChange={setFrameEnableInterleave}
                                   />
                                   <Tooltip title="开启后会生成图文混合内容，n固定为1">
-                                    <span style={{ fontSize: 12, color: '#888' }}>图文混合</span>
+                                    <span style={{ fontSize: 12, color: token.colorTextSecondary }}>图文混合</span>
                                   </Tooltip>
                                 </div>
                               )}
                             </div>
                             
                             <div style={{ marginTop: 12 }}>
-                              <div style={{ marginBottom: 4, color: '#888', fontSize: 12 }}>随机种子（可选）</div>
+                              <div style={{ marginBottom: 4, color: token.colorTextSecondary, fontSize: 12 }}>随机种子（可选）</div>
                               <InputNumber
                                 style={{ width: '100%' }}
                                 size="small"
@@ -1732,10 +1734,10 @@ const FramesPage = () => {
                             </div>
                           )}
                           {getModelType(frameModel) === 'multi' && (
-                            <div style={{ color: '#666', fontSize: 11, marginTop: 8 }}>
+                            <div style={{ color: token.colorTextTertiary, fontSize: 11, marginTop: 8 }}>
                               💡 wan2.6-image 支持无参考图（文生图）或 1-3 张参考图
                               {frameEnableInterleave && (
-                                <div style={{ color: '#52c41a', marginTop: 4 }}>
+                                <div style={{ color: token.colorSuccess, marginTop: 4 }}>
                                   ✨ 图文混合模式：生成图文并茂的内容，生图数量固定为 1
                                 </div>
                               )}
@@ -1744,8 +1746,8 @@ const FramesPage = () => {
                         </>
                       </Card>
                       
-                      <Card size="small" title="分镜信息参考" style={{ background: '#1a1a1a' }}>
-                        <div style={{ fontSize: 12, color: '#888' }}>
+                      <Card size="small" title="分镜信息参考">
+                        <div style={{ fontSize: 12, color: token.colorTextSecondary }}>
                           <p><strong>景别：</strong>{selectedShot.scene_type || '未设置'}</p>
                           <p><strong>场景：</strong>{selectedShot.scene_setting || '未设置'}</p>
                           <p><strong>角色：</strong>{selectedShot.characters?.join(', ') || '无'}</p>
@@ -1761,10 +1763,10 @@ const FramesPage = () => {
                         <div style={{ 
                           marginTop: 12, 
                           padding: '8px 12px', 
-                          background: '#1a1a1a', 
+                          background: token.colorBgLayout, 
                           borderRadius: 6,
                           fontSize: 11,
-                          color: '#666',
+                          color: token.colorTextTertiary,
                           fontFamily: 'monospace'
                         }}>
                           {selectedFrame.last_task_id && (
@@ -1868,9 +1870,9 @@ const FramesPage = () => {
             return (
               <div style={{ 
                 padding: 12, 
-                background: '#1a1a1a', 
+                background: token.colorBgLayout, 
                 borderRadius: 8,
-                border: '1px solid #333',
+                border: `1px solid ${token.colorBorder}`,
                 marginTop: -8
               }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
@@ -1887,12 +1889,12 @@ const FramesPage = () => {
                       {style.style_type === 'image' ? '图片风格' : '文本风格'}
                     </Tag>
                     {style.style_type === 'text' && style.text_style_content && (
-                      <div style={{ marginTop: 6, fontSize: 12, color: '#888' }}>
+                      <div style={{ marginTop: 6, fontSize: 12, color: token.colorTextSecondary }}>
                         {style.text_style_content.slice(0, 100)}...
                       </div>
                     )}
                     {style.style_type === 'image' && style.style_prompt && (
-                      <div style={{ marginTop: 6, fontSize: 12, color: '#888' }}>
+                      <div style={{ marginTop: 6, fontSize: 12, color: token.colorTextSecondary }}>
                         {style.style_prompt.slice(0, 100)}...
                       </div>
                     )}
@@ -1910,7 +1912,7 @@ const FramesPage = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <PictureOutlined />
             <span>从图库选择图片</span>
-            <span style={{ color: '#888', fontSize: 13 }}>
+            <span style={{ color: token.colorTextSecondary, fontSize: 13 }}>
               - 镜头 {selectedShot?.shot_number}
             </span>
           </div>
@@ -1927,7 +1929,7 @@ const FramesPage = () => {
           />
         ) : (
           <div>
-            <p style={{ color: '#888', marginBottom: 16 }}>
+            <p style={{ color: token.colorTextSecondary, marginBottom: 16 }}>
               点击选择一张图片作为镜头 {selectedShot?.shot_number} 的首帧
             </p>
             <div style={{ 
@@ -1947,9 +1949,9 @@ const FramesPage = () => {
                     overflow: 'hidden',
                     border: '2px solid transparent',
                     transition: 'all 0.2s',
-                    background: '#1a1a1a'
+                    background: token.colorBgLayout
                   }}
-                  onMouseOver={(e) => e.currentTarget.style.borderColor = '#1890ff'}
+                  onMouseOver={(e) => e.currentTarget.style.borderColor = token.colorPrimary}
                   onMouseOut={(e) => e.currentTarget.style.borderColor = 'transparent'}
                 >
                   <div style={{ aspectRatio: '16/9', overflow: 'hidden' }}>
@@ -1972,7 +1974,7 @@ const FramesPage = () => {
                     {img.description && (
                       <div style={{ 
                         fontSize: 11, 
-                        color: '#888', 
+                        color: token.colorTextSecondary, 
                         overflow: 'hidden', 
                         textOverflow: 'ellipsis', 
                         whiteSpace: 'nowrap' 

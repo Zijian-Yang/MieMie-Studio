@@ -1,10 +1,11 @@
 import { useParams } from 'react-router-dom'
-import { Card, Empty, Space } from 'antd'
+import { Card, Empty, Space, theme } from 'antd'
 import { AudioOutlined } from '@ant-design/icons'
 import { useProjectStore } from '../../stores/projectStore'
 import { useEffect } from 'react'
 
 const AudioStudioPage = () => {
+  const { token } = theme.useToken()
   const { projectId } = useParams<{ projectId: string }>()
   const { fetchProject } = useProjectStore()
 
@@ -23,13 +24,12 @@ const AudioStudioPage = () => {
             音频工作室
           </Space>
         }
-        style={{ background: '#1a1a1a', borderColor: '#333' }}
       >
         <Empty
           description={
             <div>
               <div>功能开发中</div>
-              <div style={{ color: '#888', marginTop: 8 }}>
+              <div style={{ color: token.colorTextSecondary, marginTop: 8 }}>
                 音频工作室将支持语音合成、音频编辑等功能
               </div>
             </div>
@@ -41,4 +41,3 @@ const AudioStudioPage = () => {
 }
 
 export default AudioStudioPage
-

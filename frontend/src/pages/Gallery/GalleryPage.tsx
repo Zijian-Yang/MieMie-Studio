@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { 
   Button, Modal, Form, Input, Empty, Spin, message, 
-  Image, Space, Popconfirm, Card, Tag, Tooltip, Upload, Tabs
+  Image, Space, Popconfirm, Card, Tag, Tooltip, Upload, Tabs, theme
 } from 'antd'
 import type { UploadFile, RcFile } from 'antd/es/upload/interface'
 import { 
@@ -17,6 +17,7 @@ const { TextArea } = Input
 const { Dragger } = Upload
 
 const GalleryPage = () => {
+  const { token } = theme.useToken()
   const { projectId } = useParams<{ projectId: string }>()
   const { currentProject, fetchProject } = useProjectStore()
   
@@ -230,12 +231,12 @@ const GalleryPage = () => {
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: '#e0e0e0' }}>
+          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: token.colorText }}>
             图库
           </h1>
-          <p style={{ color: '#888', margin: '4px 0 0', fontSize: 13 }}>
+          <p style={{ color: token.colorTextSecondary, margin: '4px 0 0', fontSize: 13 }}>
             {currentProject?.name} - 共 {images.length} 张图片
-            {ossEnabled && <span style={{ marginLeft: 8, color: '#555' }}>· 支持 Ctrl+V 粘贴图片</span>}
+            {ossEnabled && <span style={{ marginLeft: 8, color: token.colorTextQuaternary }}>· 支持 Ctrl+V 粘贴图片</span>}
           </p>
         </div>
         <Space>
@@ -253,7 +254,7 @@ const GalleryPage = () => {
             <Popconfirm 
               title="确定删除所有图片？" 
               description="此操作不可恢复"
-              icon={<ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />}
+              icon={<ExclamationCircleOutlined style={{ color: token.colorError }} />}
               onConfirm={deleteAllImages}
               okText="删除"
               cancelText="取消"
@@ -373,12 +374,12 @@ const GalleryPage = () => {
                     disabled={uploading}
                   >
                     <p className="ant-upload-drag-icon">
-                      <InboxOutlined style={{ color: '#1890ff', fontSize: 48 }} />
+                      <InboxOutlined style={{ color: token.colorPrimary, fontSize: 48 }} />
                     </p>
-                    <p className="ant-upload-text" style={{ color: '#e0e0e0' }}>
+                    <p className="ant-upload-text" style={{ color: token.colorText }}>
                       点击或拖拽图片到此区域上传
                     </p>
-                    <p className="ant-upload-hint" style={{ color: '#888' }}>
+                    <p className="ant-upload-hint" style={{ color: token.colorTextSecondary }}>
                       支持 PNG、JPG、GIF、WebP 格式，可多选
                     </p>
                   </Dragger>
@@ -410,7 +411,7 @@ const GalleryPage = () => {
               ),
               children: (
                 <div>
-                  <div style={{ marginBottom: 12, color: '#888', fontSize: 12 }}>
+                  <div style={{ marginBottom: 12, color: token.colorTextSecondary, fontSize: 12 }}>
                     输入图片URL，每行一个。图片将下载后上传到OSS保存。
                   </div>
                   <TextArea
@@ -461,13 +462,13 @@ const GalleryPage = () => {
                 alt={selectedImage.name}
                 style={{ width: '100%', borderRadius: 8 }}
               />
-              <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
+              <div style={{ marginTop: 8, fontSize: 12, color: token.colorTextSecondary }}>
                 创建时间: {new Date(selectedImage.created_at).toLocaleString()}
               </div>
               {selectedImage.prompt_used && (
                 <div style={{ marginTop: 8 }}>
-                  <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>生成提示词:</div>
-                  <div style={{ fontSize: 11, color: '#666', background: '#1a1a1a', padding: 8, borderRadius: 4, maxHeight: 100, overflow: 'auto' }}>
+                  <div style={{ fontSize: 12, color: token.colorTextSecondary, marginBottom: 4 }}>生成提示词:</div>
+                  <div style={{ fontSize: 11, color: token.colorTextTertiary, background: token.colorBgLayout, padding: 8, borderRadius: 4, maxHeight: 100, overflow: 'auto' }}>
                     {selectedImage.prompt_used}
                   </div>
                 </div>
@@ -494,4 +495,3 @@ const GalleryPage = () => {
 }
 
 export default GalleryPage
-

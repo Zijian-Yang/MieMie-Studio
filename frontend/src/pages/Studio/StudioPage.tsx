@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { 
   Button, Modal, Form, Input, Empty, Spin, message, 
   Image, Space, Popconfirm, Card, Tag, Tooltip, Select,
-  InputNumber, Checkbox, Tabs, Radio, Progress, Switch
+  InputNumber, Checkbox, Tabs, Radio, Progress, Switch, theme
 } from 'antd'
 import { 
   PlusOutlined, DeleteOutlined, EditOutlined, PictureOutlined,
@@ -51,6 +51,7 @@ const formatSizeLabel = (size: string | { width: number; height: number; label?:
 }
 
 const StudioPage = () => {
+  const { token } = theme.useToken()
   const { projectId } = useParams<{ projectId: string }>()
   const { currentProject, fetchProject } = useProjectStore()
   
@@ -668,7 +669,7 @@ const StudioPage = () => {
               {c.image_groups?.[c.selected_group_index]?.front_url ? (
                 <img src={c.image_groups[c.selected_group_index].front_url} alt="" style={{ width: 24, height: 24, objectFit: 'cover', borderRadius: 4 }} />
               ) : (
-                <div style={{ width: 24, height: 24, background: '#333', borderRadius: 4 }} />
+                <div style={{ width: 24, height: 24, background: token.colorBorder, borderRadius: 4 }} />
               )}
               <span>{c.name}</span>
             </div>
@@ -687,7 +688,7 @@ const StudioPage = () => {
               {s.image_groups?.[s.selected_group_index]?.url ? (
                 <img src={s.image_groups[s.selected_group_index].url} alt="" style={{ width: 24, height: 24, objectFit: 'cover', borderRadius: 4 }} />
               ) : (
-                <div style={{ width: 24, height: 24, background: '#333', borderRadius: 4 }} />
+                <div style={{ width: 24, height: 24, background: token.colorBorder, borderRadius: 4 }} />
               )}
               <span>{s.name}</span>
             </div>
@@ -706,7 +707,7 @@ const StudioPage = () => {
               {p.image_groups?.[p.selected_group_index]?.url ? (
                 <img src={p.image_groups[p.selected_group_index].url} alt="" style={{ width: 24, height: 24, objectFit: 'cover', borderRadius: 4 }} />
               ) : (
-                <div style={{ width: 24, height: 24, background: '#333', borderRadius: 4 }} />
+                <div style={{ width: 24, height: 24, background: token.colorBorder, borderRadius: 4 }} />
               )}
               <span>{p.name}</span>
             </div>
@@ -744,7 +745,7 @@ const StudioPage = () => {
             {s.style_type === 'image' && getStyleImageUrl(s) ? (
               <img src={getStyleImageUrl(s)!} alt="" style={{ width: 24, height: 24, objectFit: 'cover', borderRadius: 4 }} />
             ) : (
-              <div style={{ width: 24, height: 24, background: '#333', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>T</div>
+              <div style={{ width: 24, height: 24, background: token.colorBorder, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>T</div>
             )}
             <span>{s.name}</span>
             <Tag color={s.style_type === 'image' ? 'blue' : 'green'} style={{ fontSize: 10 }}>
@@ -784,10 +785,10 @@ const StudioPage = () => {
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: '#e0e0e0' }}>
+          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: token.colorText }}>
             图片工作室
           </h1>
-          <p style={{ color: '#888', margin: '4px 0 0', fontSize: 13 }}>
+          <p style={{ color: token.colorTextSecondary, margin: '4px 0 0', fontSize: 13 }}>
             {currentProject?.name} - 共 {tasks.length} 个任务
           </p>
         </div>
@@ -796,7 +797,7 @@ const StudioPage = () => {
             <Popconfirm 
               title="确定删除所有任务？" 
               description="此操作不可恢复"
-              icon={<ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />}
+              icon={<ExclamationCircleOutlined style={{ color: token.colorError }} />}
               onConfirm={deleteAllTasks}
               okText="删除"
               cancelText="取消"
@@ -845,9 +846,9 @@ const StudioPage = () => {
                       display: 'flex', 
                       alignItems: 'center', 
                       justifyContent: 'center',
-                      background: '#242424'
+                      background: token.colorBgContainer
                     }}>
-                      <PictureOutlined style={{ fontSize: 48, color: '#444' }} />
+                      <PictureOutlined style={{ fontSize: 48, color: token.colorBorderSecondary }} />
                     </div>
                   )}
                   <div style={{ position: 'absolute', top: 8, left: 8 }}>
@@ -861,7 +862,7 @@ const StudioPage = () => {
                   <div className="asset-card-name">{task.name}</div>
                   <div className="asset-card-desc">
                     {task.status === 'failed' && task.error_message
-                      ? <span style={{ color: '#ff4d4f' }}>{task.error_message.length > 40 ? task.error_message.slice(0, 40) + '...' : task.error_message}</span>
+                      ? <span style={{ color: token.colorError }}>{task.error_message.length > 40 ? task.error_message.slice(0, 40) + '...' : task.error_message}</span>
                       : task.images.length > 0 ? `${task.images.length} 张图片` : '暂无图片'}
                   </div>
                 </div>
@@ -896,7 +897,7 @@ const StudioPage = () => {
                   <Form.Item 
                     name="references"
                     extra={
-                      <span style={{ color: '#888', fontSize: 12 }}>
+                      <span style={{ color: token.colorTextSecondary, fontSize: 12 }}>
                         按顺序选择参考素材，可在提示词中使用"第一个图"、"第二个图"等引用不同素材
                       </span>
                     }
@@ -915,7 +916,7 @@ const StudioPage = () => {
                   <Form.Item 
                     name="style_id"
                     extra={
-                      <span style={{ color: '#888', fontSize: 12 }}>
+                      <span style={{ color: token.colorTextSecondary, fontSize: 12 }}>
                         图片风格：作为最后一个参考图加入。文本风格：描述嵌入提示词尾部
                       </span>
                     }
@@ -936,9 +937,9 @@ const StudioPage = () => {
                     return (
                       <div style={{ 
                         padding: 12, 
-                        background: '#1a1a1a', 
+                        background: token.colorBgLayout, 
                         borderRadius: 8,
-                        border: '1px solid #333',
+                        border: `1px solid ${token.colorBorder}`,
                         marginBottom: 16
                       }}>
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
@@ -955,7 +956,7 @@ const StudioPage = () => {
                               {style.style_type === 'image' ? '图片风格' : '文本风格'}
                             </Tag>
                             {style.style_type === 'text' && style.text_style_content && (
-                              <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
+                              <div style={{ marginTop: 8, fontSize: 12, color: token.colorTextSecondary }}>
                                 {style.text_style_content.slice(0, 100)}...
                               </div>
                             )}
@@ -967,13 +968,13 @@ const StudioPage = () => {
                   
                   <div style={{ 
                     padding: 16, 
-                    background: '#1a1a1a', 
+                    background: token.colorBgLayout, 
                     borderRadius: 8,
                     textAlign: 'center',
-                    color: '#666',
+                    color: token.colorTextTertiary,
                     marginTop: 16
                   }}>
-                    <PictureOutlined style={{ fontSize: 48, marginBottom: 12, color: '#444' }} />
+                    <PictureOutlined style={{ fontSize: 48, marginBottom: 12, color: token.colorBorderSecondary }} />
                     <div>填写右侧配置后点击创建任务</div>
                     <div style={{ fontSize: 12, marginTop: 4 }}>创建后可生成图片</div>
                   </div>
@@ -1004,10 +1005,10 @@ const StudioPage = () => {
                       borderRadius: 8,
                       marginBottom: 12
                     }}>
-                      <div style={{ color: '#ff4d4f', fontWeight: 500, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ color: token.colorError, fontWeight: 500, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
                         <CloseCircleOutlined /> 生成失败
                       </div>
-                      <div style={{ color: '#ff7875', fontSize: 13, wordBreak: 'break-all' }}>
+                      <div style={{ color: token.colorError, fontSize: 13, wordBreak: 'break-all' }}>
                         {selectedTask.error_message}
                       </div>
                     </div>
@@ -1019,7 +1020,7 @@ const StudioPage = () => {
                       name="references"
                       label="参考素材"
                       extra={
-                        <span style={{ color: '#888', fontSize: 12 }}>
+                        <span style={{ color: token.colorTextSecondary, fontSize: 12 }}>
                           按顺序选择参考素材，可在提示词中使用"第一个图"、"第二个图"等引用不同素材
                         </span>
                       }
@@ -1047,10 +1048,10 @@ const StudioPage = () => {
                             style={{ 
                               position: 'relative',
                               aspectRatio: '1',
-                              background: '#1a1a1a',
+                              background: token.colorBgLayout,
                               borderRadius: 8,
                               overflow: 'hidden',
-                              border: selectedImages.has(image.id) ? '2px solid #1890ff' : '2px solid transparent'
+                              border: selectedImages.has(image.id) ? `2px solid ${token.colorPrimary}` : '2px solid transparent'
                             }}
                           >
                             {image.url ? (
@@ -1062,7 +1063,7 @@ const StudioPage = () => {
                               />
                             ) : (
                               <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <PictureOutlined style={{ fontSize: 32, color: '#444' }} />
+                                <PictureOutlined style={{ fontSize: 32, color: token.colorBorderSecondary }} />
                               </div>
                             )}
                             <div 
@@ -1093,10 +1094,10 @@ const StudioPage = () => {
                           borderRadius: 8,
                           marginBottom: 12
                         }}>
-                          <div style={{ color: '#ff4d4f', fontWeight: 500, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{ color: token.colorError, fontWeight: 500, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
                             <CloseCircleOutlined /> 生成失败
                           </div>
-                          <div style={{ color: '#ff7875', fontSize: 13, wordBreak: 'break-all' }}>
+                          <div style={{ color: token.colorError, fontSize: 13, wordBreak: 'break-all' }}>
                             {selectedTask.error_message}
                           </div>
                         </div>
@@ -1192,7 +1193,7 @@ const StudioPage = () => {
                   <div style={{ 
                     marginBottom: 16
                   }}>
-                    <div style={{ marginBottom: 8, color: '#888', fontSize: 12 }}>
+                    <div style={{ marginBottom: 8, color: token.colorTextSecondary, fontSize: 12 }}>
                       文生图模型参数
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
@@ -1247,7 +1248,7 @@ const StudioPage = () => {
                         <Switch checkedChildren="开" unCheckedChildren="关" />
                       </Form.Item>
                     </div>
-                    <div style={{ marginTop: 8, color: '#666', fontSize: 11 }}>
+                    <div style={{ marginTop: 8, color: token.colorTextTertiary, fontSize: 11 }}>
                       提示：文生图模型不需要参考图片，只需要输入提示词
                     </div>
                   </div>
@@ -1258,7 +1259,7 @@ const StudioPage = () => {
                   <div style={{ 
                     marginBottom: 16
                   }}>
-                    <div style={{ marginBottom: 8, color: '#888', fontSize: 12 }}>
+                    <div style={{ marginBottom: 8, color: token.colorTextSecondary, fontSize: 12 }}>
                       Wan2.6 图像生成参数
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
@@ -1357,9 +1358,9 @@ const StudioPage = () => {
                         />
                       </Form.Item>
                     </div>
-                    <div style={{ marginTop: 8, padding: '8px', background: '#252525', borderRadius: 4, fontSize: 11 }}>
-                      <div style={{ color: '#888', marginBottom: 4 }}>📝 模式说明：</div>
-                      <div style={{ color: '#666' }}>
+                    <div style={{ marginTop: 8, padding: '8px', background: token.colorBgElevated, borderRadius: 4, fontSize: 11 }}>
+                      <div style={{ color: token.colorTextSecondary, marginBottom: 4 }}>📝 模式说明：</div>
+                      <div style={{ color: token.colorTextTertiary }}>
                         {watchedEnableInterleave ? (
                           <>• <strong>图文混合模式</strong>：根据提示词生成图文并茂的内容，支持0-1张参考图</>
                         ) : (
@@ -1367,11 +1368,11 @@ const StudioPage = () => {
                         )}
                       </div>
                       {!watchedEnableInterleave && (
-                        <div style={{ color: '#d89614', marginTop: 4 }}>
+                        <div style={{ color: token.colorWarning, marginTop: 4 }}>
                           ⚠️ 参考图模式下必须选择至少1张参考图
                         </div>
                       )}
-                      <div style={{ color: '#555', marginTop: 4 }}>
+                      <div style={{ color: token.colorTextQuaternary, marginTop: 4 }}>
                         参考图要求：宽高 384-5000px，格式 JPEG/PNG/BMP/WEBP，≤10MB
                       </div>
                     </div>
@@ -1384,7 +1385,7 @@ const StudioPage = () => {
                   const qwenModelInfo = availableModels[currentQwenModel]
                   return (
                     <div style={{ marginBottom: 16 }}>
-                      <div style={{ marginBottom: 8, color: '#888', fontSize: 12 }}>
+                      <div style={{ marginBottom: 8, color: token.colorTextSecondary, fontSize: 12 }}>
                         {qwenModelInfo?.name || currentQwenModel} 参数
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
@@ -1441,14 +1442,14 @@ const StudioPage = () => {
                           <Switch />
                         </Form.Item>
                       </div>
-                      <div style={{ marginTop: 8, padding: '8px', background: '#252525', borderRadius: 4, fontSize: 11 }}>
-                        <div style={{ color: '#666' }}>
+                      <div style={{ marginTop: 8, padding: '8px', background: token.colorBgElevated, borderRadius: 4, fontSize: 11 }}>
+                        <div style={{ color: token.colorTextTertiary }}>
                           • 支持1-3张输入图片，1张为单图编辑，2-3张为多图融合
                         </div>
-                        <div style={{ color: '#666', marginTop: 2 }}>
+                        <div style={{ color: token.colorTextTertiary, marginTop: 2 }}>
                           • 多图时用"图1"、"图2"、"图3"指代不同图片，输出比例以最后一张为准
                         </div>
-                        <div style={{ color: '#555', marginTop: 2 }}>
+                        <div style={{ color: token.colorTextQuaternary, marginTop: 2 }}>
                           输入图建议：384-3072px，格式 JPG/PNG/BMP/WEBP/TIFF，≤10MB
                         </div>
                       </div>
@@ -1503,10 +1504,10 @@ const StudioPage = () => {
                 <div style={{ 
                   marginTop: 16, 
                   padding: '8px 12px', 
-                  background: '#1a1a1a', 
+                  background: token.colorBgLayout, 
                   borderRadius: 6,
                   fontSize: 11,
-                  color: '#666',
+                  color: token.colorTextTertiary,
                   fontFamily: 'monospace'
                 }}>
                   {selectedTask.last_task_id && (

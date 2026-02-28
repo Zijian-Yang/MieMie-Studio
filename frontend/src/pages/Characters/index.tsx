@@ -232,7 +232,7 @@ export default function Characters() {
             <Empty
               image={
                 <UserOutlined
-                  style={{ fontSize: 64, color: 'var(--color-text-tertiary)' }}
+                  style={{ fontSize: 64, opacity: 0.35 }}
                 />
               }
               description={

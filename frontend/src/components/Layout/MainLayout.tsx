@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Outlet, useNavigate, useLocation, useParams } from 'react-router-dom'
-import { Layout, Menu, Button, Tooltip, Avatar, Dropdown, message } from 'antd'
-// Note: We use a plain div instead of Layout.Content for better scrolling behavior
+import { Layout, Menu, Button, Tooltip, Avatar, Dropdown, message, theme } from 'antd'
 import {
   FolderOutlined,
   FileTextOutlined,
@@ -20,12 +19,13 @@ import {
   PlayCircleOutlined,
   AudioOutlined,
   LogoutOutlined,
+  SunOutlined,
+  MoonOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { useAuthStore } from '../../stores/authStore'
+import { useThemeStore } from '../../stores/themeStore'
 import { authApi } from '../../services/api'
-
-// Using plain div instead of Content for proper scrolling
 
 const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false)
@@ -33,27 +33,27 @@ const MainLayout = () => {
   const location = useLocation()
   const { projectId } = useParams()
   const { user, logout } = useAuthStore()
+  const { mode, toggleTheme } = useThemeStore()
+  const { token } = theme.useToken()
 
-  // 处理登出
   const handleLogout = async () => {
     try {
       await authApi.logout()
     } catch (e) {
-      // 忽略错误
+      // ignore
     }
     logout()
     message.success('已退出登录')
     navigate('/login')
   }
 
-  // 用户下拉菜单
   const userMenuItems: MenuProps['items'] = [
     {
       key: 'user-info',
       label: (
         <div style={{ padding: '4px 0' }}>
           <div style={{ fontWeight: 500 }}>{user?.display_name}</div>
-          <div style={{ fontSize: 12, color: '#888' }}>@{user?.username}</div>
+          <div style={{ fontSize: 12, color: token.colorTextSecondary }}>@{user?.username}</div>
         </div>
       ),
       disabled: true,
@@ -67,114 +67,34 @@ const MainLayout = () => {
     },
   ]
 
-  // 工作流程菜单项
+  const sectionTitleStyle = { color: token.colorTextTertiary, fontSize: 12 }
+
   const workflowItems: MenuProps['items'] = projectId ? [
-    {
-      key: 'divider-workflow',
-      type: 'divider',
-    },
-    {
-      key: 'workflow-title',
-      label: <span style={{ color: '#888', fontSize: 12 }}>工作流程</span>,
-      disabled: true,
-    },
-    {
-      key: `/project/${projectId}/script`,
-      icon: <FileTextOutlined />,
-      label: '分镜脚本',
-    },
-    {
-      key: `/project/${projectId}/styles`,
-      icon: <FormatPainterOutlined />,
-      label: '风格',
-    },
-    {
-      key: `/project/${projectId}/characters`,
-      icon: <UserOutlined />,
-      label: '角色',
-    },
-    {
-      key: `/project/${projectId}/scenes`,
-      icon: <PictureOutlined />,
-      label: '场景',
-    },
-    {
-      key: `/project/${projectId}/props`,
-      icon: <AppstoreOutlined />,
-      label: '道具',
-    },
-    {
-      key: `/project/${projectId}/frames`,
-      icon: <PlaySquareOutlined />,
-      label: '分镜首帧',
-    },
-    {
-      key: `/project/${projectId}/videos`,
-      icon: <VideoCameraOutlined />,
-      label: '视频生成',
-    },
-    {
-      key: 'divider-tools',
-      type: 'divider',
-    },
-    {
-      key: 'tools-title',
-      label: <span style={{ color: '#888', fontSize: 12 }}>素材工具</span>,
-      disabled: true,
-    },
-    {
-      key: `/project/${projectId}/gallery`,
-      icon: <DatabaseOutlined />,
-      label: '图库',
-    },
-    {
-      key: `/project/${projectId}/studio`,
-      icon: <ExperimentOutlined />,
-      label: '图片工作室',
-    },
-    {
-      key: `/project/${projectId}/audio-library`,
-      icon: <SoundOutlined />,
-      label: '音频库',
-    },
-    {
-      key: `/project/${projectId}/audio-studio`,
-      icon: <AudioOutlined />,
-      label: '音频工作室',
-    },
-    {
-      key: `/project/${projectId}/video-library`,
-      icon: <PlayCircleOutlined />,
-      label: '视频库',
-    },
-    {
-      key: `/project/${projectId}/video-studio`,
-      icon: <VideoCameraOutlined />,
-      label: '视频工作室',
-    },
-    {
-      key: `/project/${projectId}/text-library`,
-      icon: <FileTextOutlined />,
-      label: '文本库',
-    },
+    { key: 'divider-workflow', type: 'divider' },
+    { key: 'workflow-title', label: <span style={sectionTitleStyle}>工作流程</span>, disabled: true },
+    { key: `/project/${projectId}/script`, icon: <FileTextOutlined />, label: '分镜脚本' },
+    { key: `/project/${projectId}/styles`, icon: <FormatPainterOutlined />, label: '风格' },
+    { key: `/project/${projectId}/characters`, icon: <UserOutlined />, label: '角色' },
+    { key: `/project/${projectId}/scenes`, icon: <PictureOutlined />, label: '场景' },
+    { key: `/project/${projectId}/props`, icon: <AppstoreOutlined />, label: '道具' },
+    { key: `/project/${projectId}/frames`, icon: <PlaySquareOutlined />, label: '分镜首帧' },
+    { key: `/project/${projectId}/videos`, icon: <VideoCameraOutlined />, label: '视频生成' },
+    { key: 'divider-tools', type: 'divider' },
+    { key: 'tools-title', label: <span style={sectionTitleStyle}>素材工具</span>, disabled: true },
+    { key: `/project/${projectId}/gallery`, icon: <DatabaseOutlined />, label: '图库' },
+    { key: `/project/${projectId}/studio`, icon: <ExperimentOutlined />, label: '图片工作室' },
+    { key: `/project/${projectId}/audio-library`, icon: <SoundOutlined />, label: '音频库' },
+    { key: `/project/${projectId}/audio-studio`, icon: <AudioOutlined />, label: '音频工作室' },
+    { key: `/project/${projectId}/video-library`, icon: <PlayCircleOutlined />, label: '视频库' },
+    { key: `/project/${projectId}/video-studio`, icon: <VideoCameraOutlined />, label: '视频工作室' },
+    { key: `/project/${projectId}/text-library`, icon: <FileTextOutlined />, label: '文本库' },
   ] : []
 
   const menuItems: MenuProps['items'] = [
-    {
-      key: '/projects',
-      icon: <FolderOutlined />,
-      label: '项目',
-    },
+    { key: '/projects', icon: <FolderOutlined />, label: '项目' },
     ...workflowItems,
-    {
-      key: 'divider-settings',
-      type: 'divider',
-    },
-    {
-      key: '/settings',
-      icon: <SettingOutlined />,
-      label: '设置',
-    },
+    { key: 'divider-settings', type: 'divider' },
+    { key: '/settings', icon: <SettingOutlined />, label: '设置' },
   ]
 
   const handleMenuClick: MenuProps['onClick'] = (e) => {
@@ -183,13 +103,13 @@ const MainLayout = () => {
     }
   }
 
-  // 获取当前选中的菜单项
   const selectedKey = location.pathname
-
   const siderWidth = collapsed ? 64 : 220
 
+  const siderBg = mode === 'dark' ? '#141414' : token.colorBgContainer
+
   return (
-    <Layout style={{ minHeight: '100vh', background: '#1a1a1a' }}>
+    <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
       {/* 固定侧边栏 */}
       <div
         style={{
@@ -201,8 +121,8 @@ const MainLayout = () => {
           left: 0,
           top: 0,
           zIndex: 100,
-          background: '#141414',
-          borderRight: '1px solid #333',
+          background: siderBg,
+          borderRight: `1px solid ${token.colorBorderSecondary}`,
           display: 'flex',
           flexDirection: 'column',
           transition: 'width 0.2s',
@@ -217,15 +137,15 @@ const MainLayout = () => {
             alignItems: 'center',
             justifyContent: collapsed ? 'center' : 'flex-start',
             padding: collapsed ? 0 : '0 20px',
-            borderBottom: '1px solid #333',
+            borderBottom: `1px solid ${token.colorBorderSecondary}`,
           }}
         >
           {collapsed ? (
-            <VideoCameraOutlined style={{ fontSize: 24, color: '#e5a84b' }} />
+            <VideoCameraOutlined style={{ fontSize: 24, color: token.colorPrimary }} />
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <VideoCameraOutlined style={{ fontSize: 24, color: '#e5a84b' }} />
-              <span style={{ fontSize: 16, fontWeight: 600, color: '#e0e0e0' }}>
+              <VideoCameraOutlined style={{ fontSize: 24, color: token.colorPrimary }} />
+              <span style={{ fontSize: 16, fontWeight: 600, color: token.colorText }}>
                 淸水Studio
               </span>
             </div>
@@ -239,20 +159,17 @@ const MainLayout = () => {
               type="text"
               icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
               onClick={() => setCollapsed(!collapsed)}
-              style={{
-                width: '100%',
-                color: '#888',
-              }}
+              style={{ width: '100%', color: token.colorTextSecondary }}
             />
           </Tooltip>
         </div>
 
-        {/* 菜单 - 可滚动区域 */}
-        <div 
-          style={{ 
+        {/* 菜单 */}
+        <div
+          style={{
             flex: '1 1 0%',
             minHeight: 0,
-            overflowY: 'auto', 
+            overflowY: 'auto',
             overflowX: 'hidden',
             paddingBottom: 20,
           }}
@@ -264,69 +181,115 @@ const MainLayout = () => {
             items={menuItems}
             onClick={handleMenuClick}
             inlineCollapsed={collapsed}
-            style={{
-              border: 'none',
-              background: 'transparent',
-            }}
+            style={{ border: 'none', background: 'transparent' }}
           />
         </div>
 
-        {/* 用户信息区域 */}
-        <div 
-          style={{ 
+        {/* 用户信息区域 + 主题切换 */}
+        <div
+          style={{
             flexShrink: 0,
-            borderTop: '1px solid #333',
+            borderTop: `1px solid ${token.colorBorderSecondary}`,
             padding: collapsed ? '12px 8px' : '12px 16px',
           }}
         >
-          <Dropdown menu={{ items: userMenuItems }} placement="topRight" trigger={['click']}>
-            <div 
-              style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 10,
-                cursor: 'pointer',
-                padding: '8px',
-                borderRadius: 8,
-                transition: 'background 0.2s',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-            >
-              <Avatar 
-                size={collapsed ? 32 : 36} 
-                style={{ 
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  flexShrink: 0,
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            {/* 用户信息（可点击展开菜单） */}
+            <Dropdown menu={{ items: userMenuItems }} placement="topRight" trigger={['click']}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  cursor: 'pointer',
+                  padding: '8px',
+                  borderRadius: 8,
+                  transition: 'background 0.2s',
+                  flex: 1,
+                  minWidth: 0,
                 }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = token.colorFillQuaternary)
+                }
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
               >
-                {user?.display_name?.[0]?.toUpperCase() || 'U'}
-              </Avatar>
-              {!collapsed && (
-                <div style={{ overflow: 'hidden' }}>
-                  <div style={{ 
-                    color: '#e0e0e0', 
-                    fontWeight: 500, 
-                    fontSize: 14,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}>
-                    {user?.display_name}
+                <Avatar
+                  size={collapsed ? 32 : 36}
+                  style={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    flexShrink: 0,
+                  }}
+                >
+                  {user?.display_name?.[0]?.toUpperCase() || 'U'}
+                </Avatar>
+                {!collapsed && (
+                  <div style={{ overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        color: token.colorText,
+                        fontWeight: 500,
+                        fontSize: 14,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {user?.display_name}
+                    </div>
+                    <div
+                      style={{
+                        color: token.colorTextSecondary,
+                        fontSize: 12,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      @{user?.username}
+                    </div>
                   </div>
-                  <div style={{ 
-                    color: '#888', 
-                    fontSize: 12,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}>
-                    @{user?.username}
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
+            </Dropdown>
+
+            {/* 主题切换按钮 */}
+            {!collapsed && (
+              <Tooltip title={mode === 'dark' ? '切换到日间模式' : '切换到夜间模式'}>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={mode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
+                  onClick={toggleTheme}
+                  style={{
+                    flexShrink: 0,
+                    color: token.colorTextSecondary,
+                    fontSize: 16,
+                  }}
+                />
+              </Tooltip>
+            )}
+          </div>
+
+          {/* 折叠态：独立的主题切换按钮 */}
+          {collapsed && (
+            <div style={{ marginTop: 8, textAlign: 'center' }}>
+              <Tooltip title={mode === 'dark' ? '日间模式' : '夜间模式'} placement="right">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={mode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
+                  onClick={toggleTheme}
+                  style={{ color: token.colorTextSecondary, fontSize: 16 }}
+                />
+              </Tooltip>
             </div>
-          </Dropdown>
+          )}
         </div>
       </div>
 
@@ -335,36 +298,28 @@ const MainLayout = () => {
         style={{
           marginLeft: siderWidth,
           minHeight: '100vh',
-          background: '#1a1a1a',
+          background: token.colorBgLayout,
           transition: 'margin-left 0.2s',
         }}
       >
         <Outlet />
       </div>
 
-      {/* 滚动条样式 */}
       <style>{`
         .sidebar-menu-scroll {
           scrollbar-width: thin;
-          scrollbar-color: #444 transparent;
+          scrollbar-color: ${token.colorBorderSecondary} transparent;
         }
-        .sidebar-menu-scroll::-webkit-scrollbar {
-          width: 6px;
-        }
-        .sidebar-menu-scroll::-webkit-scrollbar-track {
-          background: transparent;
-        }
+        .sidebar-menu-scroll::-webkit-scrollbar { width: 6px; }
+        .sidebar-menu-scroll::-webkit-scrollbar-track { background: transparent; }
         .sidebar-menu-scroll::-webkit-scrollbar-thumb {
-          background: #444;
+          background: ${token.colorBorderSecondary};
           border-radius: 3px;
         }
         .sidebar-menu-scroll::-webkit-scrollbar-thumb:hover {
-          background: #555;
+          background: ${token.colorTextQuaternary};
         }
-        .sidebar-menu-scroll .ant-menu {
-          height: auto !important;
-          overflow: visible !important;
-        }
+        .sidebar-menu-scroll .ant-menu { height: auto !important; overflow: visible !important; }
         .sidebar-menu-scroll .ant-menu-inline .ant-menu-item,
         .sidebar-menu-scroll .ant-menu-inline .ant-menu-submenu-title {
           margin-inline: 4px;
@@ -376,4 +331,3 @@ const MainLayout = () => {
 }
 
 export default MainLayout
-

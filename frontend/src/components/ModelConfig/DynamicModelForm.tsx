@@ -14,6 +14,7 @@ import {
   Select,
   Collapse,
   Space,
+  theme,
   Tooltip,
   Button,
   Row,
@@ -157,6 +158,8 @@ const ParameterField: React.FC<{
   allValues: Record<string, any>
   readOnly?: boolean
 }> = ({ param, value, onChange, allValues, readOnly }) => {
+  const { token } = theme.useToken()
+
   // 检查依赖条件
   if (param.constraint?.depends_on) {
     const dependValue = allValues[param.constraint.depends_on]
@@ -175,10 +178,10 @@ const ParameterField: React.FC<{
   const label = (
     <Space>
       {param.label}
-      {param.required && <span style={{ color: '#ff4d4f' }}>*</span>}
+      {param.required && <span style={{ color: token.colorError }}>*</span>}
       {param.description && (
         <Tooltip title={param.description}>
-          <QuestionCircleOutlined style={{ color: '#888' }} />
+          <QuestionCircleOutlined style={{ color: token.colorTextSecondary }} />
         </Tooltip>
       )}
     </Space>
@@ -256,7 +259,7 @@ const ParameterField: React.FC<{
               <Option key={opt.value} value={opt.value}>
                 {opt.label}
                 {opt.description && (
-                  <span style={{ color: '#888', marginLeft: 8 }}>
+                  <span style={{ color: token.colorTextSecondary, marginLeft: 8 }}>
                     {opt.description}
                   </span>
                 )}
@@ -339,6 +342,7 @@ const DynamicModelForm: React.FC<DynamicModelFormProps> = ({
   excludeParams = [],
   readOnly = false,
 }) => {
+  const { token } = theme.useToken()
   const [showAdvancedPanel, setShowAdvancedPanel] = useState(showAdvanced)
   const [formValues, setFormValues] = useState<Record<string, any>>({})
   
@@ -384,8 +388,8 @@ const DynamicModelForm: React.FC<DynamicModelFormProps> = ({
         <div style={{ 
           marginBottom: 12, 
           fontWeight: 500, 
-          color: '#e0e0e0',
-          borderBottom: '1px solid #333',
+          color: token.colorText,
+          borderBottom: `1px solid ${token.colorBorder}`,
           paddingBottom: 8,
         }}>
           {GROUP_LABELS[group] || group}
@@ -418,7 +422,7 @@ const DynamicModelForm: React.FC<DynamicModelFormProps> = ({
           ghost
           activeKey={showAdvancedPanel ? ['advanced'] : []}
           onChange={(keys) => setShowAdvancedPanel(keys.includes('advanced'))}
-          style={{ marginTop: 16, background: '#1a1a1a' }}
+          style={{ marginTop: 16, background: token.colorBgLayout }}
         >
           <Panel
             header={

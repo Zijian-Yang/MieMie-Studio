@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { Card, Button, List, Modal, Input, message, Popconfirm, Space, Empty, Tag, Select, Tooltip, Timeline } from 'antd'
+import { Card, Button, List, Modal, Input, message, Popconfirm, Space, Empty, Tag, Select, Tooltip, Timeline, theme } from 'antd'
 import { PlusOutlined, DeleteOutlined, EditOutlined, CopyOutlined, HistoryOutlined, FileTextOutlined } from '@ant-design/icons'
 import { textLibraryApi, TextLibraryItem, TextItemVersion } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
@@ -8,6 +8,7 @@ import { useProjectStore } from '../../stores/projectStore'
 const { TextArea } = Input
 
 const TextLibraryPage = () => {
+  const { token } = theme.useToken()
   const { projectId } = useParams<{ projectId: string }>()
   const { fetchProject } = useProjectStore()
   
@@ -188,7 +189,6 @@ const TextLibraryPage = () => {
             )}
           </Space>
         }
-        style={{ background: '#1a1a1a', borderColor: '#333' }}
       >
         {texts.length === 0 ? (
           <Empty description="暂无文本" />
@@ -198,7 +198,7 @@ const TextLibraryPage = () => {
             loading={loading}
             renderItem={(text) => (
               <List.Item
-                style={{ background: '#242424', marginBottom: 8, padding: 16, borderRadius: 8 }}
+                style={{ background: token.colorBgContainer, marginBottom: 8, padding: 16, borderRadius: 8 }}
                 actions={[
                   <Tooltip title="复制">
                     <Button type="text" icon={<CopyOutlined />} onClick={() => handleCopy(text)} />
@@ -228,7 +228,7 @@ const TextLibraryPage = () => {
                       maxHeight: 80, 
                       overflow: 'hidden', 
                       textOverflow: 'ellipsis',
-                      color: '#888',
+                      color: token.colorTextSecondary,
                       whiteSpace: 'pre-wrap'
                     }}>
                       {text.content}
@@ -348,11 +348,11 @@ const TextLibraryPage = () => {
             items={selectedText.versions.slice().reverse().map((version, index) => ({
               color: index === 0 ? 'green' : 'gray',
               children: (
-                <div style={{ background: '#242424', padding: 12, borderRadius: 8, marginBottom: 8 }}>
+                <div style={{ background: token.colorBgContainer, padding: 12, borderRadius: 8, marginBottom: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                     <Space>
                       <strong>{version.description || `版本 ${selectedText.versions.length - index}`}</strong>
-                      <span style={{ color: '#888', fontSize: 12 }}>
+                      <span style={{ color: token.colorTextSecondary, fontSize: 12 }}>
                         {new Date(version.created_at).toLocaleString()}
                       </span>
                     </Space>
@@ -366,7 +366,7 @@ const TextLibraryPage = () => {
                   <div style={{ 
                     maxHeight: 100, 
                     overflow: 'auto', 
-                    background: '#1a1a1a', 
+                    background: token.colorBgLayout, 
                     padding: 8, 
                     borderRadius: 4,
                     fontSize: 12,
@@ -387,4 +387,3 @@ const TextLibraryPage = () => {
 }
 
 export default TextLibraryPage
-

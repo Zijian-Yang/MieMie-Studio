@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { Card, Button, List, Modal, Input, Select, InputNumber, Switch, message, Popconfirm, Space, Empty, Spin, Row, Col, Tabs, Tag, Form } from 'antd'
+import { Card, Button, List, Modal, Input, Select, InputNumber, Switch, message, Popconfirm, Space, Empty, Spin, Row, Col, Tabs, Tag, Form, theme } from 'antd'
 import { PlusOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, VideoCameraOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons'
 import { videoStudioApi, galleryApi, audioApi, videoLibraryApi, settingsApi, VideoStudioTask, GalleryImage, AudioItem, VideoLibraryItem, VideoModelInfo, RefVideoModelInfo, TextToVideoModelInfo, KeyframeToVideoModelInfo } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
@@ -19,6 +19,7 @@ interface ReferenceItem {
 }
 
 const VideoStudioPage = () => {
+  const { token } = theme.useToken()
   const { projectId } = useParams<{ projectId: string }>()
   const { fetchProject } = useProjectStore()
   
@@ -534,7 +535,6 @@ const VideoStudioPage = () => {
             )}
           </Space>
         }
-        style={{ background: '#1a1a1a', borderColor: '#333' }}
       >
         {tasks.length === 0 ? (
           <Empty description="暂无任务" />
@@ -547,12 +547,11 @@ const VideoStudioPage = () => {
               <List.Item>
                 <Card
                   size="small"
-                  style={{ background: '#242424', borderColor: '#333' }}
                   cover={
                     <div 
                       style={{ 
                         height: 120, 
-                        background: '#1a1a1a', 
+                        background: token.colorBgLayout, 
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center',
@@ -568,7 +567,7 @@ const VideoStudioPage = () => {
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                         />
                       ) : (
-                        <PlayCircleOutlined style={{ fontSize: 48, color: '#1890ff' }} />
+                        <PlayCircleOutlined style={{ fontSize: 48, color: token.colorPrimary }} />
                       )}
                       {task.status === 'processing' && (
                         <div style={{ 
@@ -599,7 +598,7 @@ const VideoStudioPage = () => {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     {getStatusTag(task.status)}
-                    <span style={{ fontSize: 12, color: '#888' }}>
+                    <span style={{ fontSize: 12, color: token.colorTextSecondary }}>
                       {task.video_urls.length}/{task.group_count}
                     </span>
                   </div>
@@ -771,7 +770,7 @@ const VideoStudioPage = () => {
                                   <Space>
                                     <VideoCameraOutlined />
                                     {video.name}
-                                    {video.duration && <span style={{ color: '#888' }}>({video.duration}s)</span>}
+                                    {video.duration && <span style={{ color: token.colorTextSecondary }}>({video.duration}s)</span>}
                                   </Space>
                                 </Option>
                               ))}
@@ -821,7 +820,7 @@ const VideoStudioPage = () => {
                       {/* 已选素材队列 */}
                       <div style={{ 
                         padding: '12px', 
-                        background: '#1a1a1a', 
+                        background: token.colorBgLayout, 
                         borderRadius: 8,
                         marginBottom: 16 
                       }}>
@@ -830,7 +829,7 @@ const VideoStudioPage = () => {
                             已选素材队列
                             <span style={{ 
                               marginLeft: 8, 
-                              color: referenceItems.length >= 5 ? '#ff4d4f' : '#52c41a',
+                              color: referenceItems.length >= 5 ? token.colorError : token.colorSuccess,
                               fontSize: 12,
                               fontWeight: 'normal'
                             }}>
@@ -845,7 +844,7 @@ const VideoStudioPage = () => {
                         </div>
                         
                         {referenceItems.length === 0 ? (
-                          <div style={{ color: '#666', textAlign: 'center', padding: '20px 0' }}>
+                          <div style={{ color: token.colorTextTertiary, textAlign: 'center', padding: '20px 0' }}>
                             请从上方选择参考视频或图片
                           </div>
                         ) : (
@@ -855,7 +854,7 @@ const VideoStudioPage = () => {
                                 key={item.id}
                                 style={{ 
                                   width: 110,
-                                  background: '#2a2a2a',
+                                  background: token.colorBgElevated,
                                   borderRadius: 8,
                                   overflow: 'hidden',
                                   position: 'relative'
@@ -865,7 +864,7 @@ const VideoStudioPage = () => {
                                 <div style={{ 
                                   width: '100%', 
                                   height: 70, 
-                                  background: '#333',
+                                  background: token.colorBorder,
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center'
@@ -874,7 +873,7 @@ const VideoStudioPage = () => {
                                     item.thumbnail ? (
                                       <img src={item.thumbnail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     ) : (
-                                      <VideoCameraOutlined style={{ fontSize: 24, color: '#666' }} />
+                                      <VideoCameraOutlined style={{ fontSize: 24, color: token.colorTextTertiary }} />
                                     )
                                   ) : (
                                     <img src={item.thumbnail || item.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -908,7 +907,7 @@ const VideoStudioPage = () => {
                                 <div style={{ padding: '6px 8px' }}>
                                   <div style={{ 
                                     fontSize: 11, 
-                                    color: '#ccc',
+                                    color: token.colorText,
                                     overflow: 'hidden',
                                     textOverflow: 'ellipsis',
                                     whiteSpace: 'nowrap',
@@ -965,8 +964,8 @@ const VideoStudioPage = () => {
                           </div>
                         )}
                         
-                        <div style={{ marginTop: 12, fontSize: 12, color: '#888' }}>
-                          提示词中使用 <code style={{ background: '#333', padding: '0 4px', borderRadius: 2 }}>character1</code>, <code style={{ background: '#333', padding: '0 4px', borderRadius: 2 }}>character2</code>... 按上述顺序引用角色
+                        <div style={{ marginTop: 12, fontSize: 12, color: token.colorTextSecondary }}>
+                          提示词中使用 <code style={{ background: token.colorBorder, padding: '0 4px', borderRadius: 2 }}>character1</code>, <code style={{ background: token.colorBorder, padding: '0 4px', borderRadius: 2 }}>character2</code>... 按上述顺序引用角色
                         </div>
                       </div>
                     </>
@@ -1029,7 +1028,7 @@ const VideoStudioPage = () => {
                           </div>
                         </Col>
                       </Row>
-                      <div style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>
+                      <div style={{ fontSize: 12, color: token.colorTextSecondary, marginBottom: 16 }}>
                         首尾帧图片要求：JPEG/JPG/PNG/BMP/WEBP格式，尺寸360-2000像素，最大10MB。输出视频宽高比以首帧为准。
                       </div>
                     </>
@@ -1118,7 +1117,7 @@ const VideoStudioPage = () => {
                                 <Option key={res.value} value={res.value}>{res.label}</Option>
                               ))}
                             </Select>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               分辨率直接影响费用：1080P {'>'} 720P {'>'} 480P
                             </div>
                           </div>
@@ -1150,7 +1149,7 @@ const VideoStudioPage = () => {
                                 ))}
                               </Select>
                             )}
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               时长直接影响费用，按秒计费
                               {currentModelInfo?.duration_range && ` (${currentModelInfo.duration_range[0]}-${currentModelInfo.duration_range[1]}秒)`}
                             </div>
@@ -1180,7 +1179,7 @@ const VideoStudioPage = () => {
                               />
                               <span>智能改写</span>
                             </Space>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               使用大模型优化提示词
                             </div>
                           </div>
@@ -1194,7 +1193,7 @@ const VideoStudioPage = () => {
                               />
                               <span>添加水印</span>
                             </Space>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               右下角"AI生成"标识
                             </div>
                           </div>
@@ -1217,10 +1216,10 @@ const VideoStudioPage = () => {
                       {currentModelInfo?.supports_audio && (
                         <div style={{ 
                           padding: 12, 
-                          background: '#1a1a1a', 
+                          background: token.colorBgLayout, 
                           borderRadius: 8, 
                           marginTop: 8,
-                          border: '1px solid #333'
+                          border: `1px solid ${token.colorBorder}`
                         }}>
                           <div style={{ marginBottom: 12, fontWeight: 500 }}>🔊 音频设置</div>
                           
@@ -1243,7 +1242,7 @@ const VideoStudioPage = () => {
                                 </Option>
                               ))}
                             </Select>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               传入音频后，视频将与音频内容对齐（如口型、节奏）
                             </div>
                           </div>
@@ -1259,7 +1258,7 @@ const VideoStudioPage = () => {
                                 />
                                 <span>有声视频</span>
                               </Space>
-                              <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                                 {audioUrl 
                                   ? '已选择自定义音频'
                                   : autoAudio 
@@ -1278,7 +1277,7 @@ const VideoStudioPage = () => {
                                 />
                                 <span>自动生成音频</span>
                               </Space>
-                              <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                              <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                                 {audioUrl 
                                   ? '已选择自定义音频，此选项无效'
                                   : autoAudio 
@@ -1295,11 +1294,11 @@ const VideoStudioPage = () => {
                       {currentModelInfo?.supports_shot_type && (
                         <div style={{ 
                           padding: 12, 
-                          background: '#1a1a1a', 
+                          background: token.colorBgLayout, 
                           borderRadius: 8, 
                           marginTop: 8,
                         }}>
-                          <div style={{ marginBottom: 8, fontWeight: 500, color: '#e5a84b' }}>
+                          <div style={{ marginBottom: 8, fontWeight: 500, color: token.colorPrimary }}>
                             🎬 镜头类型设置
                           </div>
                           <div>
@@ -1312,7 +1311,7 @@ const VideoStudioPage = () => {
                               <Option value="single">单镜头 - 一个连续镜头</Option>
                               <Option value="multi">多镜头叙事 - 多个切换镜头</Option>
                             </Select>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               {shotType === 'single' 
                                 ? '输出一个连续的镜头画面' 
                                 : '输出多个切换的镜头，适合故事叙述（需开启智能改写）'
@@ -1338,7 +1337,7 @@ const VideoStudioPage = () => {
                             >
                               <Option value="wan2.6-r2v">{currentRefVideoModelInfo?.name || '万相2.6 参考生视频'}</Option>
                             </Select>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               {currentRefVideoModelInfo?.description || '参考视频/图像的角色形象生成新视频'}
                             </div>
                           </div>
@@ -1362,7 +1361,7 @@ const VideoStudioPage = () => {
                                 ))}
                               </Select.OptGroup>
                             </Select>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               分辨率直接影响费用：1080P {'>'} 720P
                             </div>
                           </div>
@@ -1381,7 +1380,7 @@ const VideoStudioPage = () => {
                               onChange={(v) => setDuration(v || 5)}
                               addonAfter="秒"
                             />
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               时长直接影响费用，按秒计费
                             </div>
                           </div>
@@ -1412,7 +1411,7 @@ const VideoStudioPage = () => {
                               <Option value="single">单镜头 - 一个连续镜头</Option>
                               <Option value="multi">多镜头叙事 - 多个切换镜头</Option>
                             </Select>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               {shotType === 'single' 
                                 ? '输出一个连续的镜头画面' 
                                 : '输出多个切换的镜头，保持角色一致性'
@@ -1421,7 +1420,7 @@ const VideoStudioPage = () => {
                           </div>
                         </Col>
                         <Col span={12}>
-                          <div style={{ fontSize: 12, color: '#888', paddingTop: 24 }}>
+                          <div style={{ fontSize: 12, color: token.colorTextSecondary, paddingTop: 24 }}>
                             音频说明：参考视频时可自动提取音色，也可通过提示词描述声音效果
                           </div>
                         </Col>
@@ -1437,7 +1436,7 @@ const VideoStudioPage = () => {
                               />
                               <span>添加水印</span>
                             </Space>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               右下角"AI生成"标识
                             </div>
                           </div>
@@ -1484,7 +1483,7 @@ const VideoStudioPage = () => {
                                 <Option key={key} value={key}>{info.name} {key}</Option>
                               ))}
                             </Select>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               {textToVideoModels[model]?.description}
                             </div>
                           </div>
@@ -1519,7 +1518,7 @@ const VideoStudioPage = () => {
                                 </Select.OptGroup>
                               )}
                             </Select>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               分辨率直接影响费用：1080P {'>'} 720P {'>'} 480P
                             </div>
                           </div>
@@ -1539,7 +1538,7 @@ const VideoStudioPage = () => {
                                 <Option key={d} value={d}>{d} 秒</Option>
                               ))}
                             </Select>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               时长直接影响费用，按秒计费
                             </div>
                           </div>
@@ -1570,7 +1569,7 @@ const VideoStudioPage = () => {
                               <Option value="single">单镜头 - 一个连续镜头</Option>
                               <Option value="multi">多镜头叙事 - 多个切换镜头</Option>
                             </Select>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               {shotType === 'single' 
                                 ? '输出一个连续的镜头画面' 
                                 : '输出多个切换的镜头，适合故事叙述（需开启智能改写）'
@@ -1588,7 +1587,7 @@ const VideoStudioPage = () => {
                               />
                               <span>自动生成音频</span>
                             </Space>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               {audioUrl 
                                 ? '已选择自定义音频，此选项无效'
                                 : autoAudio 
@@ -1610,7 +1609,7 @@ const VideoStudioPage = () => {
                               />
                               <span>智能改写</span>
                             </Space>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               使用大模型优化提示词
                             </div>
                           </div>
@@ -1624,7 +1623,7 @@ const VideoStudioPage = () => {
                               />
                               <span>添加水印</span>
                             </Space>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               右下角"AI生成"标识
                             </div>
                           </div>
@@ -1647,10 +1646,10 @@ const VideoStudioPage = () => {
                       {/* 音频设置 */}
                       <div style={{ 
                         padding: 12, 
-                        background: '#1a1a1a', 
+                        background: token.colorBgLayout, 
                         borderRadius: 8, 
                         marginTop: 8,
-                        border: '1px solid #333'
+                        border: `1px solid ${token.colorBorder}`
                       }}>
                         <div style={{ marginBottom: 12, fontWeight: 500 }}>🔊 音频设置</div>
                         
@@ -1673,7 +1672,7 @@ const VideoStudioPage = () => {
                               </Option>
                             ))}
                           </Select>
-                          <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                          <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                             传入音频后，视频将与音频内容对齐（如口型、节奏）
                           </div>
                         </div>
@@ -1703,7 +1702,7 @@ const VideoStudioPage = () => {
                                 <Option key={key} value={key}>{info.name} {key}</Option>
                               ))}
                             </Select>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               {keyframeToVideoModels[model]?.description}
                             </div>
                           </div>
@@ -1720,7 +1719,7 @@ const VideoStudioPage = () => {
                                 <Option key={res} value={res}>{res}</Option>
                               ))}
                             </Select>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               分辨率直接影响费用：1080P {'>'} 720P {'>'} 480P
                             </div>
                           </div>
@@ -1732,7 +1731,7 @@ const VideoStudioPage = () => {
                           <div style={{ marginBottom: 16 }}>
                             <div style={{ marginBottom: 8 }}>时长</div>
                             <Input value="5 秒（固定）" disabled />
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               首尾帧生视频固定生成5秒视频
                             </div>
                           </div>
@@ -1761,7 +1760,7 @@ const VideoStudioPage = () => {
                               />
                               <span>智能改写</span>
                             </Space>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               使用大模型优化提示词
                             </div>
                           </div>
@@ -1775,7 +1774,7 @@ const VideoStudioPage = () => {
                               />
                               <span>添加水印</span>
                             </Space>
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               右下角"AI生成"标识
                             </div>
                           </div>
@@ -1797,13 +1796,13 @@ const VideoStudioPage = () => {
                       
                       <div style={{ 
                         padding: 12, 
-                        background: '#1a1a1a', 
+                        background: token.colorBgLayout, 
                         borderRadius: 8, 
                         marginTop: 8,
-                        border: '1px solid #333'
+                        border: `1px solid ${token.colorBorder}`
                       }}>
                         <div style={{ fontWeight: 500, marginBottom: 8 }}>💡 使用提示</div>
-                        <ul style={{ fontSize: 12, color: '#888', paddingLeft: 16, margin: 0 }}>
+                        <ul style={{ fontSize: 12, color: token.colorTextSecondary, paddingLeft: 16, margin: 0 }}>
                           <li>首尾帧生视频会生成从首帧平滑过渡到尾帧的5秒视频</li>
                           <li>输出视频的宽高比将以首帧图像为准</li>
                           <li>提示词可选，用于描述中间过渡过程（如运镜、动作变化）</li>
@@ -1855,7 +1854,7 @@ const VideoStudioPage = () => {
             <div style={{ marginBottom: 16 }}>
               <Space>
                 {getStatusTag(selectedTask.status)}
-                <span style={{ color: '#888' }}>
+                <span style={{ color: token.colorTextSecondary }}>
                   {selectedTask.model} · {selectedTask.resolution} · {selectedTask.duration}秒
                 </span>
               </Space>
@@ -1864,14 +1863,14 @@ const VideoStudioPage = () => {
             {selectedTask.status === 'processing' && (
               <div style={{ textAlign: 'center', padding: 40 }}>
                 <Spin size="large" />
-                <div style={{ marginTop: 16, color: '#888' }}>
+                <div style={{ marginTop: 16, color: token.colorTextSecondary }}>
                   正在生成视频... ({selectedTask.video_urls.length}/{selectedTask.group_count})
                 </div>
               </div>
             )}
             
             {selectedTask.status === 'failed' && (
-              <div style={{ padding: 20, background: '#2a1818', borderRadius: 8, color: '#ff4d4f' }}>
+              <div style={{ padding: 20, background: '#2a1818', borderRadius: 8, color: token.colorError }}>
                 生成失败: {selectedTask.error_message || '未知错误'}
               </div>
             )}
@@ -1908,7 +1907,7 @@ const VideoStudioPage = () => {
             {selectedTask.prompt && (
               <div style={{ marginTop: 16 }}>
                 <div style={{ fontWeight: 500, marginBottom: 8 }}>提示词</div>
-                <div style={{ background: '#242424', padding: 12, borderRadius: 8 }}>
+                <div style={{ background: token.colorBgContainer, padding: 12, borderRadius: 8 }}>
                   {selectedTask.prompt}
                 </div>
               </div>
@@ -1919,10 +1918,10 @@ const VideoStudioPage = () => {
               <div style={{ 
                 marginTop: 16, 
                 padding: '8px 12px', 
-                background: '#1a1a1a', 
+                background: token.colorBgLayout, 
                 borderRadius: 6,
                 fontSize: 11,
-                color: '#666',
+                color: token.colorTextTertiary,
                 fontFamily: 'monospace'
               }}>
                 {selectedTask.task_ids?.length > 0 && (
@@ -1969,7 +1968,7 @@ const VideoStudioPage = () => {
                   </Form.Item>
                   
                   {/* 任务类型标识（只读） */}
-                  <div style={{ marginBottom: 16, padding: '8px 12px', background: '#1f1f1f', borderRadius: 4 }}>
+                  <div style={{ marginBottom: 16, padding: '8px 12px', background: token.colorBgLayout, borderRadius: 4 }}>
                     <Tag color={
                       editTaskType === 'image_to_video' ? 'blue' : 
                       editTaskType === 'reference_to_video' ? 'green' : 
@@ -2049,7 +2048,7 @@ const VideoStudioPage = () => {
                                   <Space>
                                     <VideoCameraOutlined />
                                     {video.name}
-                                    {video.duration && <span style={{ color: '#888' }}>({video.duration}s)</span>}
+                                    {video.duration && <span style={{ color: token.colorTextSecondary }}>({video.duration}s)</span>}
                                   </Space>
                                 </Option>
                               ))}
@@ -2099,7 +2098,7 @@ const VideoStudioPage = () => {
                       {/* 已选素材队列 */}
                       <div style={{ 
                         padding: '12px', 
-                        background: '#1a1a1a', 
+                        background: token.colorBgLayout, 
                         borderRadius: 8,
                         marginBottom: 16 
                       }}>
@@ -2108,7 +2107,7 @@ const VideoStudioPage = () => {
                             已选素材队列
                             <span style={{ 
                               marginLeft: 8, 
-                              color: editReferenceItems.length >= 5 ? '#ff4d4f' : '#52c41a',
+                              color: editReferenceItems.length >= 5 ? token.colorError : token.colorSuccess,
                               fontSize: 12,
                               fontWeight: 'normal'
                             }}>
@@ -2123,7 +2122,7 @@ const VideoStudioPage = () => {
                         </div>
                         
                         {editReferenceItems.length === 0 ? (
-                          <div style={{ color: '#666', textAlign: 'center', padding: '20px 0' }}>
+                          <div style={{ color: token.colorTextTertiary, textAlign: 'center', padding: '20px 0' }}>
                             请从上方选择参考视频或图片
                           </div>
                         ) : (
@@ -2133,7 +2132,7 @@ const VideoStudioPage = () => {
                                 key={item.id}
                                 style={{ 
                                   width: 110,
-                                  background: '#2a2a2a',
+                                  background: token.colorBgElevated,
                                   borderRadius: 8,
                                   overflow: 'hidden',
                                   position: 'relative'
@@ -2143,7 +2142,7 @@ const VideoStudioPage = () => {
                                 <div style={{ 
                                   width: '100%', 
                                   height: 70, 
-                                  background: '#333',
+                                  background: token.colorBorder,
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center'
@@ -2152,7 +2151,7 @@ const VideoStudioPage = () => {
                                     item.thumbnail ? (
                                       <img src={item.thumbnail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     ) : (
-                                      <VideoCameraOutlined style={{ fontSize: 24, color: '#666' }} />
+                                      <VideoCameraOutlined style={{ fontSize: 24, color: token.colorTextTertiary }} />
                                     )
                                   ) : (
                                     <img src={item.thumbnail || item.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -2186,7 +2185,7 @@ const VideoStudioPage = () => {
                                 <div style={{ padding: '6px 8px' }}>
                                   <div style={{ 
                                     fontSize: 11, 
-                                    color: '#ccc',
+                                    color: token.colorText,
                                     overflow: 'hidden',
                                     textOverflow: 'ellipsis',
                                     whiteSpace: 'nowrap',
@@ -2243,8 +2242,8 @@ const VideoStudioPage = () => {
                           </div>
                         )}
                         
-                        <div style={{ marginTop: 12, fontSize: 12, color: '#888' }}>
-                          提示词中使用 <code style={{ background: '#333', padding: '0 4px', borderRadius: 2 }}>character1</code>, <code style={{ background: '#333', padding: '0 4px', borderRadius: 2 }}>character2</code>... 按上述顺序引用角色
+                        <div style={{ marginTop: 12, fontSize: 12, color: token.colorTextSecondary }}>
+                          提示词中使用 <code style={{ background: token.colorBorder, padding: '0 4px', borderRadius: 2 }}>character1</code>, <code style={{ background: token.colorBorder, padding: '0 4px', borderRadius: 2 }}>character2</code>... 按上述顺序引用角色
                         </div>
                       </div>
                     </>
@@ -2307,7 +2306,7 @@ const VideoStudioPage = () => {
                           </div>
                         </Col>
                       </Row>
-                      <div style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>
+                      <div style={{ fontSize: 12, color: token.colorTextSecondary, marginBottom: 16 }}>
                         首尾帧图片要求：JPEG/JPG/PNG/BMP/WEBP格式，尺寸360-2000像素，最大10MB。
                       </div>
                     </>
@@ -2510,7 +2509,7 @@ const VideoStudioPage = () => {
                               checked={editT2vPromptExtend} 
                               onChange={setEditT2vPromptExtend}
                             />
-                            <span style={{ color: '#888', fontSize: 12 }}>使用大模型优化提示词</span>
+                            <span style={{ color: token.colorTextSecondary, fontSize: 12 }}>使用大模型优化提示词</span>
                           </Space>
                         </div>
                       )}
@@ -2531,10 +2530,10 @@ const VideoStudioPage = () => {
                   {(getEditModelInfo()?.supports_audio || editModel?.includes('wan2.5') || editModel?.includes('wan2.6')) && (
                     <div style={{ 
                       padding: 12, 
-                      background: '#1a1a1a', 
+                      background: token.colorBgLayout, 
                       borderRadius: 8, 
                       marginTop: 8,
-                      border: '1px solid #333'
+                      border: `1px solid ${token.colorBorder}`
                     }}>
                       <div style={{ marginBottom: 12, fontWeight: 500 }}>🔊 音频设置（仅 wan2.5 支持）</div>
                       
@@ -2556,7 +2555,7 @@ const VideoStudioPage = () => {
                             </Option>
                           ))}
                         </Select>
-                        <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                        <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                           传入音频后，视频将与音频内容对齐
                         </div>
                       </div>
@@ -2567,7 +2566,7 @@ const VideoStudioPage = () => {
                           <span>自动生成音频</span>
                         </Space>
                       </Form.Item>
-                      <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                      <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                         {editAudioUrl 
                           ? '已选择自定义音频，此选项无效'
                           : '开启后模型将自动生成匹配的背景音'
@@ -2580,19 +2579,19 @@ const VideoStudioPage = () => {
                   {(getEditModelInfo()?.supports_shot_type || editModel?.includes('wan2.6')) && (
                     <div style={{ 
                       padding: 12, 
-                      background: '#1a1a1a', 
+                      background: token.colorBgLayout, 
                       borderRadius: 8, 
                       marginTop: 8,
-                      border: '1px solid #e5a84b'
+                      border: `1px solid ${token.colorPrimary}`
                     }}>
-                      <div style={{ marginBottom: 12, fontWeight: 500, color: '#e5a84b' }}>🎬 镜头类型设置（仅 wan2.6 支持）</div>
+                      <div style={{ marginBottom: 12, fontWeight: 500, color: token.colorPrimary }}>🎬 镜头类型设置（仅 wan2.6 支持）</div>
                       <Form.Item name="shot_type" label="镜头类型" style={{ marginBottom: 0 }}>
                         <Select>
                           <Option value="single">单镜头 - 一个连续镜头</Option>
                           <Option value="multi">多镜头叙事 - 多个切换镜头</Option>
                         </Select>
                       </Form.Item>
-                      <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                      <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                         单镜头输出连续画面，多镜头叙事输出多个切换镜头（需开启智能改写）
                       </div>
                     </div>
