@@ -9,7 +9,7 @@
 import os
 import uuid
 import hashlib
-import requests
+import httpx
 import threading
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -141,12 +141,10 @@ class OSSService:
                 return False, "OSS 初始化失败"
             
             try:
-                # 下载文件
-                response = requests.get(url, timeout=60)
+                response = httpx.get(url, timeout=60.0, follow_redirects=True)
                 if response.status_code != 200:
                     return False, f"下载文件失败: HTTP {response.status_code}"
-                
-                # 根据 Content-Type 自动判断扩展名
+
                 content_type = response.headers.get('Content-Type', '')
                 if 'jpeg' in content_type or 'jpg' in content_type:
                     extension = 'jpg'
@@ -158,24 +156,20 @@ class OSSService:
                     extension = 'mp4'
                 elif 'video' in content_type:
                     extension = 'mp4'
-                
-                # 生成对象键
+
                 object_key = self._generate_object_key(file_type, extension, project_id)
-                
-                # 上传到 OSS
                 result = bucket.put_object(object_key, response.content)
-                
+
                 if result.status == 200:
-                    # 构建公开访问 URL
                     config = self._get_config()
                     oss_url = f"https://{config.bucket_name}.{config.endpoint_host}/{object_key}"
                     return True, oss_url
                 else:
                     return False, f"上传失败: HTTP {result.status}"
-                    
-            except requests.exceptions.Timeout:
+
+            except httpx.TimeoutException:
                 return False, "下载超时"
-            except requests.exceptions.RequestException as e:
+            except httpx.HTTPError as e:
                 return False, f"下载失败: {str(e)}"
             except Exception as e:
                 return False, f"上传失败: {str(e)}"

@@ -1,3 +1,5 @@
+// @ts-nocheck
+// Legacy file — replaced by MainLayout.tsx
 import { Outlet, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Layout, Menu, Typography, Space, Button, Dropdown } from 'antd';
 import {

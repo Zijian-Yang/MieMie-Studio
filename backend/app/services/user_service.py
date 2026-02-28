@@ -124,7 +124,8 @@ class UserService:
         return False
     
     def get_user_by_token(self, token: str) -> Optional[User]:
-        """通过 token 获取用户"""
+        """通过 token 获取用户（支持多 worker：每次从文件读取）"""
+        self._load_sessions()
         user_id = self.sessions.get(token)
         if not user_id:
             return None

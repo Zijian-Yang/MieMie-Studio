@@ -26,7 +26,7 @@
  */
 
 import { useEffect } from 'react'
-import { useModelRegistryStore, ModelCategory } from '../stores/modelRegistryStore'
+import { useModelRegistryStore } from '../stores/modelRegistryStore'
 
 interface UseModelRegistryOptions {
   /** 是否只加载图像模型 */

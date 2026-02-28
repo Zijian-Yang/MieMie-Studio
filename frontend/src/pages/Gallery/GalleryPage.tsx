@@ -2,11 +2,11 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { 
   Button, Modal, Form, Input, Empty, Spin, message, 
-  Image, Space, Popconfirm, Card, Tag, Tooltip, Upload, Tabs, theme
+  Image, Space, Popconfirm, Tag, Tooltip, Upload, Tabs, theme
 } from 'antd'
 import type { UploadFile, RcFile } from 'antd/es/upload/interface'
 import { 
-  DeleteOutlined, EditOutlined, PictureOutlined,
+  DeleteOutlined, EditOutlined,
   ExclamationCircleOutlined, EyeOutlined, UploadOutlined,
   InboxOutlined, LinkOutlined, CloudUploadOutlined
 } from '@ant-design/icons'
@@ -34,9 +34,9 @@ const GalleryPage = () => {
   
   const isMountedRef = useRef(true)
 
-  const safeSetState = useCallback(<T,>(setter: React.Dispatch<React.SetStateAction<T>>, value: T | ((prev: T) => T)) => {
+  const safeSetState = useCallback((setter: (v: any) => void, value: unknown) => {
     if (isMountedRef.current) {
-      setter(value as any)
+      setter(value)
     }
   }, [])
 

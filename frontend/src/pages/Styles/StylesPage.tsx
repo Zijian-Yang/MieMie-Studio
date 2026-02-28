@@ -2,13 +2,13 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { 
   Button, Modal, Form, Input, Empty, Spin, message, 
-  Radio, Tooltip, Space, Popconfirm, Image, Alert, Progress,
-  InputNumber, Select, Card, Tag, Tabs, List, theme
+  Radio, Space, Popconfirm, Image, Alert, Progress,
+  InputNumber, Select, Tag, List, theme
 } from 'antd'
 import { 
   PlusOutlined, ReloadOutlined, DeleteOutlined, 
-  FormatPainterOutlined, ThunderboltOutlined, SettingOutlined,
-  ExclamationCircleOutlined, StopOutlined, CheckCircleOutlined,
+  ThunderboltOutlined, SettingOutlined,
+  ExclamationCircleOutlined, StopOutlined,
   FileTextOutlined, PictureOutlined, SaveOutlined, HistoryOutlined
 } from '@ant-design/icons'
 import { stylesApi, Style, ImageStylePreset, TextStylePreset, TextStyleVersion } from '../../services/api'
@@ -52,9 +52,9 @@ const StylesPage = () => {
   const shouldStopRef = useRef(false)
   const isMountedRef = useRef(true)
 
-  const safeSetState = useCallback(<T,>(setter: React.Dispatch<React.SetStateAction<T>>, value: T | ((prev: T) => T)) => {
+  const safeSetState = useCallback((setter: (v: any) => void, value: unknown) => {
     if (isMountedRef.current) {
-      setter(value as any)
+      setter(value)
     }
   }, [])
 
@@ -283,7 +283,7 @@ const StylesPage = () => {
   // 选择图片风格使用哪组图片（不是全局选中，只是为该风格指定使用的图片组）
   const selectGroupForStyle = async (styleId: string, groupIndex: number) => {
     try {
-      const updated = await stylesApi.update(styleId, { selected_group_index: groupIndex })
+      await stylesApi.update(styleId, { selected_group_index: groupIndex })
       safeSetState(setStyles, (prev: Style[]) => prev.map(s => 
         s.id === styleId ? { ...s, selected_group_index: groupIndex } : s
       ))

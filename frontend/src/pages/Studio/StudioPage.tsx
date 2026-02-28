@@ -2,21 +2,20 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { 
   Button, Modal, Form, Input, Empty, Spin, message, 
-  Image, Space, Popconfirm, Card, Tag, Tooltip, Select,
-  InputNumber, Checkbox, Tabs, Radio, Progress, Switch, theme
+  Image, Space, Popconfirm, Tag, Select,
+  InputNumber, Checkbox, Switch, theme
 } from 'antd'
 import { 
-  PlusOutlined, DeleteOutlined, EditOutlined, PictureOutlined,
+  PlusOutlined, DeleteOutlined, PictureOutlined,
   ExclamationCircleOutlined, ThunderboltOutlined, SaveOutlined,
   CheckCircleOutlined, CloseCircleOutlined, SyncOutlined
 } from '@ant-design/icons'
 import { 
   studioApi, galleryApi, charactersApi, scenesApi, propsApi, stylesApi,
-  StudioTask, GalleryImage, Character, Scene, Prop, ReferenceItem, Style
+  StudioTask, GalleryImage, Character, Scene, Prop, Style
 } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 import { useModelRegistry } from '../../hooks/useModelRegistry'
-import { ModelSelector, SizeSelector } from '../../components/ModelConfig'
 
 const { TextArea } = Input
 
@@ -59,7 +58,6 @@ const StudioPage = () => {
   const [loading, setLoading] = useState(true)
   const [selectedTask, setSelectedTask] = useState<StudioTask | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isGenerating, setIsGenerating] = useState(false)
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set())
   const [form] = Form.useForm()
   
@@ -70,6 +68,9 @@ const StudioPage = () => {
   // 自动保存防抖定时器
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const autoSavingRef = useRef(false)
+
+  // 轮询基础设施（参照 VideoStudioPage）
+  const pollingRef = useRef<Set<string>>(new Set())
   
   // 素材选择
   const [characters, setCharacters] = useState<Character[]>([])
@@ -79,7 +80,7 @@ const StudioPage = () => {
   const [styles, setStyles] = useState<Style[]>([])
   
   // 使用统一的模型注册中心
-  const { models: registryModels, loading: modelsLoading, getImageModels, getSizeOptions } = useModelRegistry()
+  const { models: registryModels } = useModelRegistry()
   
   // 兼容旧代码：将 registryModels 格式化为旧的 availableModels 格式
   const availableModels = useMemo(() => {
@@ -102,15 +103,55 @@ const StudioPage = () => {
   
   const isMountedRef = useRef(true)
 
-  const safeSetState = useCallback(<T,>(setter: React.Dispatch<React.SetStateAction<T>>, value: T | ((prev: T) => T)) => {
+  const safeSetState = useCallback((setter: (v: any) => void, value: unknown) => {
     if (isMountedRef.current) {
-      setter(value as any)
+      setter(value)
     }
   }, [])
 
   useEffect(() => {
     isMountedRef.current = true
-    return () => { isMountedRef.current = false }
+    return () => {
+      isMountedRef.current = false
+      pollingRef.current.clear()
+    }
+  }, [])
+
+  const startPolling = useCallback((taskId: string) => {
+    if (pollingRef.current.has(taskId)) return
+    pollingRef.current.add(taskId)
+
+    const poll = async () => {
+      if (!pollingRef.current.has(taskId) || !isMountedRef.current) return
+
+      try {
+        const updatedTask = await studioApi.get(taskId)
+        if (!isMountedRef.current) return
+
+        setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t))
+        setSelectedTask(prev => prev?.id === taskId ? updatedTask : prev)
+
+        if (updatedTask.status === 'completed' || updatedTask.status === 'failed') {
+          pollingRef.current.delete(taskId)
+          if (updatedTask.status === 'completed') {
+            const validCount = updatedTask.images?.filter((img: any) => img.url).length || 0
+            if (updatedTask.error_message) {
+              message.warning(updatedTask.error_message)
+            } else {
+              message.success(`图片生成完成（${validCount} 张）`)
+            }
+          } else {
+            message.error(`生成失败: ${updatedTask.error_message || '未知错误'}`)
+          }
+        } else {
+          setTimeout(poll, 3000)
+        }
+      } catch {
+        pollingRef.current.delete(taskId)
+      }
+    }
+
+    setTimeout(poll, 2000)
   }, [])
 
   useEffect(() => {
@@ -135,7 +176,13 @@ const StudioPage = () => {
         safeSetState(setProps, propsRes.props)
         safeSetState(setGalleryImages, galleryRes.images)
         safeSetState(setStyles, stylesRes.styles)
-        // 模型配置现在通过 useModelRegistry hook 自动获取
+
+        // 恢复正在生成中的任务的轮询
+        tasksRes.tasks.forEach((task: StudioTask) => {
+          if (task.status === 'generating') {
+            startPolling(task.id)
+          }
+        })
       } catch (error) {
         message.error('加载失败')
       } finally {
@@ -143,7 +190,7 @@ const StudioPage = () => {
       }
     }
     loadData()
-  }, [projectId, fetchProject, safeSetState])
+  }, [projectId, fetchProject, safeSetState, startPolling])
 
   // 新建模式状态
   const [isCreating, setIsCreating] = useState(false)
@@ -235,8 +282,6 @@ const StudioPage = () => {
         return
       }
       
-      safeSetState(setIsGenerating, true)
-      
       // 1. 创建任务
       const task = await studioApi.create({
         project_id: projectId,
@@ -261,7 +306,7 @@ const StudioPage = () => {
       setIsCreating(false)
       setSelectedTask(task)
       
-      // 2. 立即开始生成
+      // 2. 启动后台生成（立即返回）
       const generateParams: any = {
         prompt: finalPrompt,
         negative_prompt: finalNegativePrompt,
@@ -296,12 +341,13 @@ const StudioPage = () => {
       }
       
       const result = await studioApi.generate(task.id, generateParams)
+      // 后端立即返回 generating 状态，启动轮询跟踪进度
       safeSetState(setTasks, (prev: StudioTask[]) => prev.map(t => t.id === result.task.id ? result.task : t))
       setSelectedTask(result.task)
-      message.success('图片生成完成')
+      startPolling(task.id)
+      message.info('已开始生成，可继续创建其他任务')
     } catch (error: any) {
       message.error(error?.message || '生成失败')
-      // 重新获取任务数据以获取后端保存的失败状态和错误信息
       if (createdTask) {
         try {
           const updatedTask = await studioApi.get(createdTask.id)
@@ -309,8 +355,6 @@ const StudioPage = () => {
           setSelectedTask(updatedTask)
         } catch {}
       }
-    } finally {
-      safeSetState(setIsGenerating, false)
     }
   }
 
@@ -494,40 +538,34 @@ const StudioPage = () => {
       console.error('保存任务失败:', error)
     }
     
-    safeSetState(setIsGenerating, true)
     try {
       const generateParams: any = {
         prompt: values.prompt,
         negative_prompt: values.negative_prompt,
-        n: values.n || (isWan26Image ? 4 : 1),  // wan2.6-image 默认4张
-        group_count: values.group_count || 3  // 默认3组并发
+        n: values.n || (isWan26Image ? 4 : 1),
+        group_count: values.group_count || 3
       }
       
-      // 文生图模型参数
       if (isTextToImage) {
-        generateParams.prompt_extend = values.prompt_extend !== false  // 默认 true
+        generateParams.prompt_extend = values.prompt_extend !== false
         generateParams.watermark = values.watermark || false
         if (values.seed) generateParams.seed = values.seed
         if (values.size) generateParams.size = values.size
       }
       
-      // wan2.6-image 模型参数
       if (isWan26Image) {
         const enableInterleave = values.enable_interleave || false
-        generateParams.prompt_extend = enableInterleave ? false : (values.prompt_extend !== false)  // 图文混合模式下不生效
+        generateParams.prompt_extend = enableInterleave ? false : (values.prompt_extend !== false)
         generateParams.watermark = values.watermark || false
         if (values.seed) generateParams.seed = values.seed
         if (values.size) generateParams.size = values.size
         generateParams.enable_interleave = enableInterleave
-        
-        // 图文混合模式下固定n=1，并传递max_images
         if (enableInterleave) {
           generateParams.n = 1
           generateParams.max_images = values.max_images || 5
         }
       }
       
-      // qwen-image-edit 系列专用参数
       if (isQwenModel) {
         if (values.size) generateParams.size = values.size
         generateParams.prompt_extend = values.prompt_extend !== false
@@ -537,20 +575,17 @@ const StudioPage = () => {
       }
       
       const result = await studioApi.generate(selectedTask.id, generateParams)
-      
       safeSetState(setTasks, (prev: StudioTask[]) => prev.map(t => t.id === result.task.id ? result.task : t))
       setSelectedTask(result.task)
-      message.success('图片生成完成')
+      startPolling(selectedTask.id)
+      message.info('已开始生成')
     } catch (error: any) {
       message.error(error?.message || '图片生成失败')
-      // 重新获取任务数据以获取后端保存的失败状态和错误信息
       try {
         const updatedTask = await studioApi.get(selectedTask.id)
         safeSetState(setTasks, (prev: StudioTask[]) => prev.map(t => t.id === updatedTask.id ? updatedTask : t))
         setSelectedTask(updatedTask)
       } catch {}
-    } finally {
-      safeSetState(setIsGenerating, false)
     }
   }
 
@@ -615,30 +650,6 @@ const StudioPage = () => {
     }
   }
 
-  // 获取素材的显示图片
-  const getItemImage = (type: string, id: string): string | undefined => {
-    if (type === 'character') {
-      const char = characters.find(c => c.id === id)
-      if (char?.image_groups?.[char.selected_group_index]) {
-        return char.image_groups[char.selected_group_index].front_url
-      }
-    } else if (type === 'scene') {
-      const scene = scenes.find(s => s.id === id)
-      if (scene?.image_groups?.[scene.selected_group_index]) {
-        return scene.image_groups[scene.selected_group_index].url
-      }
-    } else if (type === 'prop') {
-      const prop = props.find(p => p.id === id)
-      if (prop?.image_groups?.[prop.selected_group_index]) {
-        return prop.image_groups[prop.selected_group_index].url
-      }
-    } else if (type === 'gallery') {
-      const img = galleryImages.find(i => i.id === id)
-      return img?.url
-    }
-    return undefined
-  }
-
   // 风格选择状态
   const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null)
   
@@ -650,12 +661,6 @@ const StudioPage = () => {
     return null
   }
   
-  // 获取选中的风格
-  const getSelectedStyle = () => {
-    if (!selectedStyleId) return null
-    return styles.find(s => s.id === selectedStyleId) || null
-  }
-
   // 构建素材选择选项（不包含风格）
   const buildReferenceOptions = () => {
     const options: { label: string, options: { label: React.ReactNode, value: string }[] }[] = []
@@ -1464,7 +1469,6 @@ const StudioPage = () => {
                       type="primary" 
                       icon={<ThunderboltOutlined />} 
                       onClick={createAndGenerate}
-                      loading={isGenerating}
                       block
                     >
                       开始生成
@@ -1479,10 +1483,11 @@ const StudioPage = () => {
                       type="primary" 
                       icon={<ThunderboltOutlined />} 
                       onClick={generateImages}
-                      loading={isGenerating}
+                      loading={selectedTask.status === 'generating'}
+                      disabled={selectedTask.status === 'generating'}
                       block
                     >
-                      {selectedTask.images.length > 0 ? '重新生成' : '开始生成'}
+                      {selectedTask.status === 'generating' ? '生成中...' : (selectedTask.images.length > 0 ? '重新生成' : '开始生成')}
                     </Button>
                     <Popconfirm
                       title="确定删除此任务？"

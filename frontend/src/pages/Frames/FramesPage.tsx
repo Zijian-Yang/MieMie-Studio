@@ -6,8 +6,8 @@ import {
   Tag, Tabs, Divider, Switch, Checkbox, theme
 } from 'antd'
 import { 
-  PlayCircleOutlined, ReloadOutlined, PictureOutlined, SettingOutlined,
-  DragOutlined, EditOutlined, DeleteOutlined, StopOutlined, ThunderboltOutlined,
+  ReloadOutlined, PictureOutlined, SettingOutlined,
+  DragOutlined, DeleteOutlined, StopOutlined, ThunderboltOutlined,
   SaveOutlined, PlusOutlined, ExclamationCircleOutlined, ClearOutlined
 } from '@ant-design/icons'
 import {
@@ -27,7 +27,7 @@ import {
   horizontalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { framesApi, scriptsApi, galleryApi, charactersApi, scenesApi, propsApi, stylesApi, settingsApi, Frame, Shot, GalleryImage, Character, Scene, Prop, Style, RegisteredModelInfo } from '../../services/api'
+import { framesApi, scriptsApi, galleryApi, charactersApi, scenesApi, propsApi, stylesApi, Frame, Shot, GalleryImage, Character, Scene, Prop, Style, RegisteredModelInfo } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 import { useGenerationStore } from '../../stores/generationStore'
 import { useModelRegistry } from '../../hooks/useModelRegistry'
@@ -39,7 +39,7 @@ const { Option } = Select
 // 可拖拽的分镜卡片组件
 interface SortableShotCardProps {
   shot: Shot
-  frameUrl: string | null
+  frameUrl: string | null | undefined
   isGenerating: boolean
   onClick: () => void
 }
@@ -192,10 +192,7 @@ const FramesPage = () => {
   const [frameEnableInterleave, setFrameEnableInterleave] = useState<boolean>(false)  // wan2.6-image 图文混合模式
   
   // 使用统一的模型注册中心获取模型配置
-  const { models: registryModels, loading: modelsLoading, getImageModels, getSizeOptions } = useModelRegistry()
-  
-  // 获取图像模型列表（文生图 + 图生图）
-  const imageModels = getImageModels()
+  const { models: registryModels, loading: modelsLoading } = useModelRegistry()
   
   // 辅助函数：获取模型信息
   const getModelInfo = (modelId: string): RegisteredModelInfo | undefined => {
@@ -231,12 +228,6 @@ const FramesPage = () => {
     return model?.capabilities?.supports_interleave || false
   }
   
-  // 辅助函数：判断是否支持参考图
-  const supportsReferences = (modelId: string): boolean => {
-    const model = getModelInfo(modelId)
-    return model?.capabilities?.supports_reference_images || false
-  }
-  
   const shouldStopRef = useRef(false)
   const isMountedRef = useRef(true)
 
@@ -252,9 +243,9 @@ const FramesPage = () => {
     })
   )
 
-  const safeSetState = useCallback(<T,>(setter: React.Dispatch<React.SetStateAction<T>>, value: T | ((prev: T) => T)) => {
+  const safeSetState = useCallback((setter: (v: any) => void, value: unknown) => {
     if (isMountedRef.current) {
-      setter(value as any)
+      setter(value)
     }
   }, [])
 
@@ -629,7 +620,7 @@ const FramesPage = () => {
   // 获取风格图片URL
   const getStyleImageUrl = (style: Style): string | null => {
     if (style.style_type === 'image' && style.image_groups?.[style.selected_group_index]?.url) {
-      return style.image_groups[style.selected_group_index].url
+      return style.image_groups[style.selected_group_index].url ?? null
     }
     return null
   }
@@ -638,13 +629,13 @@ const FramesPage = () => {
   const getReferenceImageUrl = (ref: {type: 'character' | 'scene' | 'prop', id: string}): string | null => {
     if (ref.type === 'character') {
       const char = characters.find(c => c.id === ref.id)
-      return char ? getCharacterImageUrl(char) : null
+      return char ? getCharacterImageUrl(char) ?? null : null
     } else if (ref.type === 'scene') {
       const scene = scenes.find(s => s.id === ref.id)
-      return scene ? getSceneImageUrl(scene) : null
+      return scene ? getSceneImageUrl(scene) ?? null : null
     } else {
       const prop = props.find(p => p.id === ref.id)
-      return prop ? getPropImageUrl(prop) : null
+      return prop ? getPropImageUrl(prop) ?? null : null
     }
   }
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Button, Modal, Form, Input, Empty, Spin, message, Popconfirm, theme } from 'antd'
-import { PlusOutlined, DeleteOutlined, EditOutlined, FolderOpenOutlined } from '@ant-design/icons'
+import { PlusOutlined, DeleteOutlined, FolderOpenOutlined } from '@ant-design/icons'
 import { useProjectStore } from '../../stores/projectStore'
 import dayjs from 'dayjs'
 

@@ -1,3 +1,5 @@
+// @ts-nocheck
+// Legacy file — replaced by ProjectsPage.tsx
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {

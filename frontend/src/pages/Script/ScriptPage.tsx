@@ -2,18 +2,18 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { 
   Card, Button, Switch, Select, Input, Upload, message, Spin, 
-  Radio, Empty, Tooltip, Space, Modal, Form, List, Tag, Tabs, Table,
-  InputNumber, Image, Popconfirm, Collapse, theme
+  Radio, Empty, Tooltip, Space, Modal, Form, List, Tag, Table,
+  Image, Popconfirm, Collapse, theme
 } from 'antd'
 import { 
   UploadOutlined, ClearOutlined, SaveOutlined, 
   PlayCircleOutlined, PlusOutlined, MinusOutlined,
   FileTextOutlined, SettingOutlined, HistoryOutlined,
   BookOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined,
-  CaretRightOutlined, VideoCameraOutlined, PictureOutlined, UserOutlined
+  CaretRightOutlined, UserOutlined
 } from '@ant-design/icons'
 import type { UploadProps } from 'antd'
-import { scriptsApi, generateScriptStream, projectsApi, settingsApi, ConfigResponse, ProjectLLMConfig, Shot, framesApi, videosApi, Frame, Video, Character, Scene, Prop, charactersApi, scenesApi, propsApi } from '../../services/api'
+import { scriptsApi, generateScriptStream, projectsApi, settingsApi, ConfigResponse, ProjectLLMConfig, Shot, framesApi, videosApi, Character, charactersApi, scenesApi, propsApi } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 import { useScriptStore, ScriptVersion, PromptVersion, Column } from '../../stores/scriptStore'
 import LLMConfigForm from '../../components/LLMConfigForm'
@@ -58,7 +58,7 @@ const ScriptPage = () => {
   const [defaultPrompt, setDefaultPrompt] = useState('')
   const [availableModels, setAvailableModels] = useState<{key: string, name: string}[]>([])
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const [saving, _setSaving] = useState(false)
   const [parsing, setParsing] = useState(false)
   
   // 全局设置和项目配置
@@ -80,11 +80,7 @@ const ScriptPage = () => {
   // 剧本看板状态
   const [showStoryboard, setShowStoryboard] = useState(true)
   const [shots, setShots] = useState<Shot[]>([])
-  const [frames, setFrames] = useState<Frame[]>([])
-  const [videos, setVideos] = useState<Video[]>([])
   const [characters, setCharacters] = useState<Character[]>([])
-  const [scenes, setScenes] = useState<Scene[]>([])
-  const [props, setProps] = useState<Prop[]>([])
   const [editingShotId, setEditingShotId] = useState<string | null>(null)
   const [shotForm] = Form.useForm()
   
@@ -231,7 +227,7 @@ const ScriptPage = () => {
       if (!projectId) return
       try {
         // 加载分镜、首帧、视频、角色、场景、道具
-        const [shotsData, framesData, videosData, charsData, scenesData, propsData] = await Promise.all([
+        const [shotsData, , , charsData] = await Promise.all([
           currentProject?.script?.shots ? Promise.resolve({ shots: currentProject.script.shots }) : scriptsApi.get(projectId).then(s => ({ shots: s?.shots || [] })),
           framesApi.list(projectId),
           videosApi.list(projectId),
@@ -240,11 +236,7 @@ const ScriptPage = () => {
           propsApi.list(projectId),
         ])
         setShots(shotsData.shots || currentProject?.script?.shots || [])
-        setFrames(framesData.frames || [])
-        setVideos(videosData.videos || [])
         setCharacters(charsData.characters || [])
-        setScenes(scenesData.scenes || [])
-        setProps(propsData.props || [])
       } catch (error) {
         console.error('加载剧本看板数据失败:', error)
       }
@@ -277,29 +269,8 @@ const ScriptPage = () => {
     }
   }
 
-  // 获取分镜关联的首帧
-  const getFrameForShot = (shotId: string) => {
-    return frames.find(f => f.shot_id === shotId)
-  }
-
-  // 获取分镜关联的视频
-  const getVideoForShot = (shotId: string) => {
-    return videos.find(v => v.shot_id === shotId)
-  }
-
-  // 根据名称获取角色
   const getCharacterByName = (name: string) => {
     return characters.find(c => c.name === name)
-  }
-
-  // 根据名称获取场景
-  const getSceneByName = (name: string) => {
-    return scenes.find(s => s.name === name)
-  }
-
-  // 根据名称获取道具
-  const getPropByName = (name: string) => {
-    return props.find(p => p.name === name)
   }
 
   // 文件上传配置
@@ -310,7 +281,7 @@ const ScriptPage = () => {
       if (!projectId) return false
       
       try {
-        const result = await scriptsApi.upload(projectId, file)
+        const result = await scriptsApi.upload(projectId, file) as any
         setOriginalContent(result.content)
         message.success(`文件 ${file.name} 上传成功`)
       } catch (error) {
@@ -622,9 +593,8 @@ const ScriptPage = () => {
       })
       
       // 然后解析分镜
-      const result = await scriptsApi.parseShots(projectId)
+      const result = await scriptsApi.parseShots(projectId) as any
       
-      // 刷新项目以获取更新后的分镜数据
       await fetchProject(projectId)
       
       message.success(`成功解析出 ${result.shots?.length || 0} 个分镜，可前往"分镜首帧"页面查看`)
@@ -896,7 +866,7 @@ const ScriptPage = () => {
                 <BookOutlined />
                 当前剧本
                 {selectedScriptVersionId && (
-                  <Tag color="gold" size="small">
+                  <Tag color="gold">
                     {scriptVersions.find(v => v.id === selectedScriptVersionId)?.name || '已选版本'}
                   </Tag>
                 )}

@@ -194,10 +194,11 @@ export interface RefVideoConfig {
 export interface TextToVideoModelInfo {
   name: string
   description?: string
-  resolutions_480p?: VideoResolutionOption[]  // 480P档位的分辨率
-  resolutions_720p?: VideoResolutionOption[]  // 720P档位的分辨率
-  resolutions_1080p?: VideoResolutionOption[]  // 1080P档位的分辨率
-  default_size: string  // 默认分辨率（宽*高）
+  resolutions?: VideoResolutionOption[]
+  resolutions_480p?: VideoResolutionOption[]
+  resolutions_720p?: VideoResolutionOption[]
+  resolutions_1080p?: VideoResolutionOption[]
+  default_size: string
   durations: number[]  // 支持的时长列表
   default_duration: number
   prompt_max_length?: number  // 提示词最大长度
@@ -235,11 +236,13 @@ export interface KeyframeToVideoModelInfo {
 export interface RefVideoModelInfo {
   name: string
   description?: string
-  resolutions_720p: VideoResolutionOption[]  // 720P档位的分辨率
-  resolutions_1080p: VideoResolutionOption[]  // 1080P档位的分辨率
-  default_size: string  // 默认分辨率（宽*高）
-  min_duration?: number  // 最小时长（秒）
-  max_duration?: number  // 最大时长（秒）
+  resolutions?: VideoResolutionOption[]
+  resolutions_720p: VideoResolutionOption[]
+  resolutions_1080p: VideoResolutionOption[]
+  default_size: string
+  default_resolution?: string
+  min_duration?: number
+  max_duration?: number
   default_duration: number
   supports_shot_type: boolean
   default_shot_type: string
@@ -651,8 +654,9 @@ export const charactersApi = {
     negative_prompt?: string
     use_style?: boolean
     style_id?: string
-    // 文生图模型参数
     model?: string
+    width?: number
+    height?: number
     prompt_extend?: boolean
     watermark?: boolean
     seed?: number
@@ -664,8 +668,9 @@ export const charactersApi = {
     group_count?: number
     use_style?: boolean
     style_id?: string
-    // 文生图模型参数
     model?: string
+    width?: number
+    height?: number
     prompt_extend?: boolean
     watermark?: boolean
     seed?: number
@@ -725,8 +730,9 @@ export const scenesApi = {
     negative_prompt?: string
     use_style?: boolean
     style_id?: string
-    // 文生图模型参数
     model?: string
+    width?: number
+    height?: number
     prompt_extend?: boolean
     watermark?: boolean
     seed?: number
@@ -738,8 +744,9 @@ export const scenesApi = {
     group_count?: number
     use_style?: boolean
     style_id?: string
-    // 文生图模型参数
     model?: string
+    width?: number
+    height?: number
     prompt_extend?: boolean
     watermark?: boolean
     seed?: number
@@ -799,8 +806,9 @@ export const propsApi = {
     negative_prompt?: string
     use_style?: boolean
     style_id?: string
-    // 文生图模型参数
     model?: string
+    width?: number
+    height?: number
     prompt_extend?: boolean
     watermark?: boolean
     seed?: number
@@ -812,8 +820,9 @@ export const propsApi = {
     group_count?: number
     use_style?: boolean
     style_id?: string
-    // 文生图模型参数
     model?: string
+    width?: number
+    height?: number
     prompt_extend?: boolean
     watermark?: boolean
     seed?: number
@@ -1167,8 +1176,14 @@ export const studioApi = {
     model?: string
     prompt?: string
     negative_prompt?: string
-    n?: number  // 每次请求生成的图片数量
-    group_count?: number  // 并发请求数
+    n?: number
+    group_count?: number
+    size?: string
+    prompt_extend?: boolean
+    watermark?: boolean
+    seed?: number
+    enable_interleave?: boolean
+    max_images?: number
     references?: Array<{ type: string, id: string }>
   }) => api.post<any, StudioTask>('/studio', data),
   update: (id: string, data: Partial<StudioTask>) => api.put<any, StudioTask>(`/studio/${id}`, data),
@@ -1392,8 +1407,7 @@ export const videoStudioApi = {
   create: (data: {
     project_id: string
     name?: string
-    task_type?: 'image_to_video' | 'reference_to_video' | 'text_to_video'  // 任务类型
-    // 图生视频参数
+    task_type?: 'image_to_video' | 'reference_to_video' | 'text_to_video' | 'keyframe_to_video'
     mode?: string
     first_frame_url?: string  // 图生视频需要
     last_frame_url?: string
@@ -1422,7 +1436,7 @@ export const videoStudioApi = {
   update: (id: string, data: { 
     name?: string
     selected_video_url?: string
-    task_type?: 'image_to_video' | 'reference_to_video' | 'text_to_video'  // 任务类型
+    task_type?: 'image_to_video' | 'reference_to_video' | 'text_to_video' | 'keyframe_to_video'
     prompt?: string
     negative_prompt?: string
     model?: string

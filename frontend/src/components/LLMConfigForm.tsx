@@ -5,7 +5,7 @@ import {
 } from 'antd'
 import { QuestionCircleOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import type { FormInstance } from 'antd'
-import type { LLMModelInfo, LLMConfig } from '../services/api'
+import type { LLMModelInfo } from '../services/api'
 
 interface LLMConfigFormProps {
   form: FormInstance

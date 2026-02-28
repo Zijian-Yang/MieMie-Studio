@@ -80,9 +80,9 @@ const PropsPage = () => {
   const shouldStopRef = useRef(false)
   const isMountedRef = useRef(true)
 
-  const safeSetState = useCallback(<T,>(setter: React.Dispatch<React.SetStateAction<T>>, value: T | ((prev: T) => T)) => {
+  const safeSetState = useCallback((setter: (v: any) => void, value: unknown) => {
     if (isMountedRef.current) {
-      setter(value as any)
+      setter(value)
     }
   }, [])
 

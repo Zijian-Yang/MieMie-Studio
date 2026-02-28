@@ -4,20 +4,27 @@
 支持的模型：
 - wan2.5-i2i-preview: 万相图生图（风格迁移）
 - qwen-image-edit-plus/max: 通义千问图像编辑（单图编辑/多图融合）
+
+架构说明：
+- /generate 端点通过 asyncio.create_task() 在后台执行生成，立即返回 generating 状态
+- 前端通过轮询 GET /{task_id} 获取生成进度和结果
+- 底层 API 差异由各 generate_with_* 函数内部处理
 """
 
 import asyncio
+import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List, Any, Tuple
 
 from app.models.studio import StudioTask, StudioTaskImage, ReferenceItem
 from app.models.gallery import GalleryImage
-from app.services.storage import storage_service
+from app.services.storage import storage_service, set_current_user, get_current_user_id
 from app.services.dashscope.image_to_image import ImageToImageService
 from app.services.oss import oss_service
-from app.config import get_config
-from app.models_registry import registry
+from app.config import get_config, set_user_config_dir, get_user_config_dir
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -191,31 +198,16 @@ async def update_studio_task(task_id: str, request: TaskUpdateRequest):
 
 @router.post("/{task_id}/generate")
 async def generate_task_images(task_id: str, request: TaskGenerateRequest):
-    """生成任务图片
-    
-    支持的模型：
-    - 图生图模型：wan2.5-i2i-preview, qwen-image-edit-plus, qwen-image-edit-max
-    - 文生图模型：wan2.6-t2i, wan2.5-t2i-preview
-    
-    多图生图说明：
-    - 参考图片按用户选择的顺序传递给 API
-    - 用户可以在 prompt 中使用"第一个图"、"第二个图"等引用不同的参考图
-    - 例如："第一个图中的人和第二个图中的人在第三个图的场景中坐着"
-    
-    qwen-image-edit-plus/max 特点：
-    - 1张图片：单图编辑模式
-    - 2-3张图片：多图融合模式
-    - 支持一次输出1-6张图片
-    
-    文生图特点：
-    - 不需要参考图片，只需要提示词
+    """启动图片生成（立即返回，后台执行）
+
+    前端通过轮询 GET /{task_id} 获取生成进度和结果。
     """
     from app.config import IMAGE_MODELS
-    
+
     task = storage_service.get_studio_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
-    
+
     # 更新任务参数
     if request.prompt:
         task.prompt = request.prompt
@@ -225,8 +217,6 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
         task.n = request.n
     if request.group_count is not None:
         task.group_count = request.group_count
-    
-    # 保存高级生成参数到任务（持久化）
     if request.size is not None:
         task.size = request.size
     if request.prompt_extend is not None:
@@ -239,40 +229,83 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
         task.enable_interleave = request.enable_interleave
     if request.max_images is not None:
         task.max_images = request.max_images
-    
-    config = get_config()
+
     model_name = task.model or "wan2.5-i2i-preview"
-    
-    # 检查是否是文生图模型（在 IMAGE_MODELS 中但不是图生图类型）
     is_text_to_image = model_name in IMAGE_MODELS
-    
-    # 收集参考图片URL
     ref_urls = [ref.url for ref in task.references if ref.url]
-    
+
+    # --- 同步验证（在返回前完成）---
+    enable_interleave = request.enable_interleave if hasattr(request, 'enable_interleave') else False
+    if model_name == "wan2.6-image" and not enable_interleave and not ref_urls:
+        raise HTTPException(
+            status_code=400,
+            detail="wan2.6-image 在非图文混合模式下需要参考图，请添加参考素材或开启图文混合模式"
+        )
+    if not is_text_to_image and model_name not in (
+        "wan2.6-image", "qwen-image-max", "qwen-image-plus",
+        "qwen-image-edit-plus", "qwen-image-edit-max"
+    ) and not ref_urls:
+        raise HTTPException(status_code=400, detail="该模型需要参考素材图片")
+
+    # 设置生成状态
     task.status = "generating"
     task.images = []
+    task.error_message = None
     storage_service.save_studio_task(task)
-    
-    # 使用任务中保存的参数（如果请求中没有指定，则使用任务保存的值）
+
+    # 捕获用户上下文（后台任务需要）
+    user_id = get_current_user_id()
+    user_config_dir = get_user_config_dir()
+    config = get_config()
+
     size = request.size if request.size is not None else task.size
     prompt_extend = request.prompt_extend if request.prompt_extend is not None else task.prompt_extend
     watermark = request.watermark if request.watermark is not None else task.watermark
     seed = request.seed if request.seed is not None else task.seed
-    
+    max_images = request.max_images if hasattr(request, 'max_images') else 5
+
+    # 后台执行生成，立即返回
+    asyncio.create_task(_background_generate(
+        task=task,
+        model_name=model_name,
+        is_text_to_image=is_text_to_image,
+        ref_urls=ref_urls,
+        config=config,
+        user_id=user_id,
+        user_config_dir=user_config_dir,
+        size=size,
+        prompt_extend=prompt_extend,
+        watermark=watermark,
+        seed=seed,
+        enable_interleave=enable_interleave,
+        max_images=max_images,
+    ))
+
+    return {"task": task}
+
+
+async def _background_generate(
+    task: StudioTask,
+    model_name: str,
+    is_text_to_image: bool,
+    ref_urls: List[str],
+    config,
+    user_id: Optional[str],
+    user_config_dir: Optional[str],
+    size: Optional[str],
+    prompt_extend: bool,
+    watermark: bool,
+    seed: Optional[int],
+    enable_interleave: bool,
+    max_images: int,
+):
+    """后台生成任务——由 asyncio.create_task 调度，不阻塞请求。"""
+    # 恢复用户上下文，使 storage_service / get_config 使用正确的用户目录
+    set_current_user(user_id)
+    set_user_config_dir(user_config_dir)
+
     try:
-        # 根据模型选择不同的生成方式
         if model_name == "wan2.6-image":
-            # 使用 wan2.6-image 模型（支持参考图和纯文生图）
-            enable_interleave = request.enable_interleave if hasattr(request, 'enable_interleave') else False
-            max_images = request.max_images if hasattr(request, 'max_images') else 5
-            
-            # wan2.6-image 在非图文混合模式下必须有参考图
-            if not enable_interleave and not ref_urls:
-                raise HTTPException(
-                    status_code=400, 
-                    detail="wan2.6-image 在非图文混合模式下需要参考图，请添加参考素材或开启图文混合模式"
-                )
-            
             images = await generate_with_wan26_image(
                 task=task,
                 ref_urls=ref_urls if ref_urls else None,
@@ -281,23 +314,20 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
                 watermark=watermark,
                 seed=seed,
                 enable_interleave=enable_interleave,
-                max_images=max_images
+                max_images=max_images,
             )
         elif is_text_to_image:
-            # 使用文生图模型
             images, last_task_id, last_request_id = await generate_with_text_to_image(
                 task=task,
                 model_name=model_name,
                 prompt_extend=prompt_extend,
                 watermark=watermark,
                 seed=seed,
-                size=request.size
+                size=size,
             )
-            # 保存追踪ID
             task.last_task_id = last_task_id
             task.last_request_id = last_request_id
         elif model_name in ("qwen-image-max", "qwen-image-plus"):
-            # 千问文生图（同步调用，n=1，通过 group_count 并发）
             images = await generate_with_qwen_image(
                 task=task,
                 api_key=config.dashscope_api_key,
@@ -306,10 +336,9 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
                 size=size,
                 prompt_extend=prompt_extend,
                 watermark=watermark,
-                seed=seed
+                seed=seed,
             )
         elif model_name in ("qwen-image-edit-plus", "qwen-image-edit-max"):
-            # 使用通义千问图像编辑模型（plus/max 共用接口）
             images = await generate_with_qwen_image_edit(
                 task=task,
                 ref_urls=ref_urls,
@@ -319,44 +348,40 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
                 size=size,
                 prompt_extend=prompt_extend,
                 watermark=watermark,
-                seed=seed
+                seed=seed,
             )
         else:
-            # 使用万相图生图模型（需要参考图）
-            if not ref_urls:
-                raise HTTPException(status_code=400, detail="该模型需要参考素材图片")
-            images = await generate_with_wanx_i2i(
-                task=task,
-                ref_urls=ref_urls
-            )
-        
+            images = await generate_with_wanx_i2i(task=task, ref_urls=ref_urls)
+
         task.images = images
-        
-        # 检查是否有有效的生成结果，收集具体错误信息
+
         valid_images = [img for img in images if img.url]
         group_errors = getattr(task, '_group_errors', [])
         error_detail = ""
         if group_errors:
             unique_errors = list(set(group_errors))
             error_detail = unique_errors[0] if len(unique_errors) == 1 else "; ".join(unique_errors[:3])
-        
+
         if not valid_images and images:
             task.status = "failed"
             task.error_message = error_detail or "所有生成任务均失败，请检查参数或参考图后重试"
         elif len(valid_images) < len(images):
             task.status = "completed"
-            task.error_message = f"部分生成失败（{len(valid_images)}/{len(images)} 张成功）: {error_detail}" if error_detail else f"部分生成失败：{len(valid_images)}/{len(images)} 张成功"
+            task.error_message = (
+                f"部分生成失败（{len(valid_images)}/{len(images)} 张成功）: {error_detail}"
+                if error_detail
+                else f"部分生成失败：{len(valid_images)}/{len(images)} 张成功"
+            )
         else:
             task.status = "completed"
             task.error_message = None
-        
-        storage_service.save_studio_task(task)
-        return {"task": task}
+
     except Exception as e:
+        logger.error(f"后台生成失败 [{task.id}]: {e}", exc_info=True)
         task.status = "failed"
         task.error_message = str(e)
+    finally:
         storage_service.save_studio_task(task)
-        raise HTTPException(status_code=500, detail=f"图片生成失败: {str(e)}")
 
 
 async def generate_with_text_to_image(
@@ -799,9 +824,8 @@ async def generate_with_qwen_image(
             )]
     
     # 并发生成 group_count 组（每组 1 张图）
-    import asyncio as _asyncio
     group_tasks = [generate_single(i) for i in range(task.group_count)]
-    results = await _asyncio.gather(*group_tasks)
+    results = await asyncio.gather(*group_tasks)
     
     for group_images in results:
         all_images.extend(group_images)

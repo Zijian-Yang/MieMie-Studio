@@ -158,7 +158,7 @@ const VideoLibraryPage = () => {
     
     setExtractingFrame(true)
     try {
-      const result = await videoLibraryApi.extractLastFrame(selectedVideo.id)
+      await videoLibraryApi.extractLastFrame(selectedVideo.id)
       message.success('尾帧已保存到图库')
     } catch (error: any) {
       message.error(error.message || '提取尾帧失败')

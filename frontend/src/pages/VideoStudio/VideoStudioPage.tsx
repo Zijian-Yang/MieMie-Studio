@@ -183,15 +183,12 @@ const VideoStudioPage = () => {
     setCreating(true)
     try {
       // 获取当前文生视频模型
-      const t2vModel = taskType === 'text_to_video' ? (model || 'wan2.6-t2v') : undefined
-      const t2vModelInfo = t2vModel ? textToVideoModels[t2vModel] : undefined
-      
       // 确定使用的模型
       let taskModel = model
       if (taskType === 'reference_to_video') {
         taskModel = 'wan2.6-r2v'
       } else if (taskType === 'text_to_video') {
-        taskModel = t2vModel || 'wan2.6-t2v'
+        taskModel = model || 'wan2.6-t2v'
       } else if (taskType === 'keyframe_to_video') {
         taskModel = model || 'wan2.2-kf2v-flash'
       }
@@ -500,8 +497,6 @@ const VideoStudioPage = () => {
     return modelInfo?.resolutions || []
   }
 
-  const isWan25OrNewer = model.includes('wan2.5') || model.includes('wan2.6')
-  const isWan26 = model.includes('wan2.6')
   const currentModelInfo = videoModels[model]
   const currentRefVideoModelInfo = refVideoModels['wan2.6-r2v']  // 目前只有一个参考生视频模型
 
@@ -655,15 +650,15 @@ const VideoStudioPage = () => {
                           setModel('wan2.6-t2v')
                           setFirstFrameUrl('')
                           setLastFrameUrl('')
-                          setReferenceVideoUrls([])
+                          setReferenceItems([])
                         } else if (v === 'keyframe_to_video') {
                           setModel('wan2.2-kf2v-flash')
-                          setReferenceVideoUrls([])
+                          setReferenceItems([])
                           setAudioUrl('')
-                          setResolution('720P')  // 默认720P
+                          setResolution('720P')
                         } else {
                           setModel('wan2.5-i2v-preview')
-                          setReferenceVideoUrls([])
+                          setReferenceItems([])
                           setLastFrameUrl('')
                         }
                       }}
@@ -1914,7 +1909,7 @@ const VideoStudioPage = () => {
             )}
             
             {/* 追踪ID显示 */}
-            {(selectedTask.task_ids?.length > 0 || selectedTask.request_ids?.length > 0) && (
+            {((selectedTask.task_ids?.length ?? 0) > 0 || (selectedTask.request_ids?.length ?? 0) > 0) && (
               <div style={{ 
                 marginTop: 16, 
                 padding: '8px 12px', 
@@ -1924,11 +1919,11 @@ const VideoStudioPage = () => {
                 color: token.colorTextTertiary,
                 fontFamily: 'monospace'
               }}>
-                {selectedTask.task_ids?.length > 0 && (
-                  <div>Task ID: {selectedTask.task_ids[selectedTask.task_ids.length - 1]}</div>
+                {(selectedTask.task_ids?.length ?? 0) > 0 && (
+                  <div>Task ID: {selectedTask.task_ids![selectedTask.task_ids!.length - 1]}</div>
                 )}
-                {selectedTask.request_ids?.length > 0 && (
-                  <div>Request ID: {selectedTask.request_ids[selectedTask.request_ids.length - 1]}</div>
+                {(selectedTask.request_ids?.length ?? 0) > 0 && (
+                  <div>Request ID: {selectedTask.request_ids![selectedTask.request_ids!.length - 1]}</div>
                 )}
               </div>
             )}

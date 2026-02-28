@@ -17,7 +17,7 @@
 
 import asyncio
 import time
-import requests
+import httpx
 from typing import Optional, List
 from http import HTTPStatus
 import dashscope
@@ -190,16 +190,17 @@ class ImageToImageService:
             payload["parameters"]["seed"] = final_seed
 
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=60)
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(url, headers=headers, json=payload)
             result = response.json()
-            
+
             if response.status_code != 200:
                 error_msg = result.get("message", result.get("error", {}).get("message", str(result)))
                 raise Exception(f"API错误 ({response.status_code}): {error_msg}")
-                
-        except requests.exceptions.Timeout:
+
+        except httpx.TimeoutException:
             raise Exception("请求超时")
-        except requests.exceptions.RequestException as e:
+        except httpx.HTTPError as e:
             raise Exception(f"请求失败: {str(e)}")
         
         if "output" not in result or "task_id" not in result["output"]:
@@ -227,13 +228,13 @@ class ImageToImageService:
                 raise Exception("图片生成任务超时")
             
             try:
-                status_response = requests.get(
-                    status_url, 
-                    headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=30
-                )
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    status_response = await client.get(
+                        status_url,
+                        headers={"Authorization": f"Bearer {self.api_key}"},
+                    )
                 status_result = status_response.json()
-            except requests.exceptions.RequestException as e:
+            except httpx.HTTPError as e:
                 raise Exception(f"查询任务失败: {str(e)}")
             
             task_status = status_result.get("output", {}).get("task_status", "")

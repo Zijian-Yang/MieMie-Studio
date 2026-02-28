@@ -2,9 +2,11 @@
 AI 视频生成平台 - FastAPI 后端入口
 """
 
-from fastapi import FastAPI
+import os
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse, FileResponse
 from pathlib import Path
 
 # 初始化日志系统（必须在导入其他模块之前）
@@ -18,6 +20,12 @@ from app.routers import (
 )
 from app.middleware.auth import AuthMiddleware
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
+
 # 创建 FastAPI 应用
 app = FastAPI(
     title="AI 视频生成平台",
@@ -25,10 +33,13 @@ app = FastAPI(
     version="1.0.0"
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # 配置 CORS（必须在 AuthMiddleware 之前）
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 开发环境允许所有来源
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -63,17 +74,37 @@ app.include_router(video_studio.router, prefix="/api/video-studio", tags=["视�
 app.include_router(models.router, prefix="/api/models", tags=["模型配置"])
 
 
-@app.get("/")
-async def root():
-    """API 根路径"""
-    return {
-        "message": "AI 视频生成平台 API",
-        "version": "1.0.0",
-        "docs": "/docs"
-    }
-
-
 @app.get("/api/health")
 async def health_check():
     """健康检查"""
     return {"status": "ok"}
+
+
+# ──────────────────────────────────────
+# 生产模式：由 FastAPI 服务前端静态文件
+# ──────────────────────────────────────
+SERVE_FRONTEND = os.environ.get("MIEMIE_SERVE_FRONTEND", "").lower() in ("true", "1", "yes")
+FRONTEND_DIST = Path(__file__).parent.parent.parent / "frontend" / "dist"
+
+if SERVE_FRONTEND and FRONTEND_DIST.exists():
+    _static_dir = FRONTEND_DIST / "_static"
+    if _static_dir.exists():
+        app.mount("/_static", StaticFiles(directory=str(_static_dir)), name="frontend_static")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        """SPA 回退：非 API 路径全部返回 index.html"""
+        if full_path:
+            file_path = FRONTEND_DIST / full_path
+            if file_path.exists() and file_path.is_file():
+                return FileResponse(str(file_path))
+        return FileResponse(str(FRONTEND_DIST / "index.html"))
+else:
+    @app.get("/")
+    async def root():
+        """API 根路径（开发模式）"""
+        return {
+            "message": "AI 视频生成平台 API",
+            "version": "1.0.0",
+            "docs": "/docs"
+        }

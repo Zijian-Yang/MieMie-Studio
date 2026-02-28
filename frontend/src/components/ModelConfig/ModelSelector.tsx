@@ -30,10 +30,8 @@ import React from 'react'
 import { Select, Space, Tag, theme, Tooltip } from 'antd'
 import {
   ThunderboltOutlined,
-  ClockCircleOutlined,
   SoundOutlined,
   PictureOutlined,
-  VideoCameraOutlined,
   StarOutlined,
 } from '@ant-design/icons'
 import { useModelRegistry } from '../../hooks/useModelRegistry'

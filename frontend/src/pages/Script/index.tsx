@@ -1,3 +1,5 @@
+// @ts-nocheck
+// Legacy file — replaced by ScriptPage.tsx
 import { useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {

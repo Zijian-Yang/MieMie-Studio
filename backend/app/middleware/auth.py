@@ -8,6 +8,7 @@
 """
 
 import logging
+import os
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
@@ -21,21 +22,28 @@ from app.logger import set_log_user_context
 
 logger = logging.getLogger(__name__)
 
-# 不需要认证的路径
+# 不需要认证的路径前缀
 PUBLIC_PATHS = [
-    "/",
     "/docs",
     "/redoc",
     "/openapi.json",
     "/api/health",
     "/api/auth/login",
     "/api/auth/register",
-    "/assets",  # 静态资源
+    "/assets",      # 后端静态资源
+    "/_static",     # 前端构建产物
 ]
+
+SERVE_FRONTEND = os.environ.get("MIEMIE_SERVE_FRONTEND", "").lower() in ("true", "1", "yes")
 
 
 def is_public_path(path: str) -> bool:
     """检查路径是否公开（不需要认证）"""
+    if path == "/":
+        return True
+    # 生产模式下，所有非 /api 路径都是前端静态资源或 SPA 路由
+    if SERVE_FRONTEND and not path.startswith("/api"):
+        return True
     for public_path in PUBLIC_PATHS:
         if path == public_path or path.startswith(public_path + "/"):
             return True

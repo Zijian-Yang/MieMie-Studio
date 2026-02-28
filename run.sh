@@ -1,16 +1,15 @@
 #!/bin/bash
 #
-# MieMie-Studio 启动管理脚本
-# 用法: ./run.sh [命令]
+# MieMie-Studio 控制面板
 #
-# 命令:
-#   start     - 启动前后端服务
-#   stop      - 停止所有服务
-#   restart   - 重启所有服务
-#   status    - 查看服务状态
-#   logs      - 查看日志
-#   install   - 安装依赖
-#   help      - 显示帮助
+# 用法:
+#   ./run.sh              - 打开交互式控制面板（推荐）
+#   ./run.sh [命令]       - 直接执行命令（适用于脚本/自动化）
+#
+# 命令行模式:
+#   start [--prod]  stop  restart [--prod]  status  logs  install
+#   update [--auto]  auto-update [enable|disable|status]  rollback
+#   version  help
 #
 
 set -e
@@ -20,6 +19,9 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
 NC='\033[0m' # No Color
 
 # 项目路径
@@ -36,6 +38,9 @@ FRONTEND_SESSION="miemie-studio-frontend"
 LOG_DIR="$PROJECT_DIR/logs"
 BACKEND_LOG="$LOG_DIR/backend.log"
 FRONTEND_LOG="$LOG_DIR/frontend.log"
+
+# 运行模式：dev (默认) 或 prod
+RUN_MODE="${MIEMIE_MODE:-dev}"
 
 # ======================
 # 工具函数
@@ -137,8 +142,14 @@ backend_deps_installed() {
     if ! venv_exists; then
         return 1
     fi
-    # 检查关键包是否安装
     "$VENV_DIR/bin/pip" show fastapi &> /dev/null
+}
+
+backend_prod_deps_installed() {
+    if ! venv_exists; then
+        return 1
+    fi
+    "$VENV_DIR/bin/pip" show gunicorn &> /dev/null && "$VENV_DIR/bin/pip" show slowapi &> /dev/null
 }
 
 frontend_deps_installed() {
@@ -279,12 +290,33 @@ start_backend() {
     # 清空旧日志（避免混淆）
     > "$BACKEND_LOG"
     
-    log_info "启动后端服务..."
-    screen -dmS "$BACKEND_SESSION" bash -c "
-        cd '$BACKEND_DIR'
-        source '$VENV_DIR/bin/activate'
-        uvicorn app.main:app --reload --host 0.0.0.0 --port $BACKEND_PORT 2>&1 | tee -a '$BACKEND_LOG'
-    "
+    log_info "启动后端服务 (模式: $RUN_MODE)..."
+    if [ "$RUN_MODE" = "prod" ]; then
+        if ! backend_prod_deps_installed; then
+            log_info "检测到生产模式依赖缺失，正在安装 gunicorn / slowapi ..."
+            "$VENV_DIR/bin/pip" install -r "$PROJECT_DIR/requirements.txt" -q
+        fi
+        screen -dmS "$BACKEND_SESSION" bash -c "
+            cd '$BACKEND_DIR'
+            source '$VENV_DIR/bin/activate'
+            export MIEMIE_SERVE_FRONTEND=true
+            gunicorn app.main:app \
+                -w \${MIEMIE_WORKERS:-4} \
+                -k uvicorn.workers.UvicornWorker \
+                --bind 0.0.0.0:$BACKEND_PORT \
+                --timeout 300 \
+                --graceful-timeout 30 \
+                --access-logfile '$BACKEND_LOG' \
+                --error-logfile '$BACKEND_LOG' \
+                2>&1 | tee -a '$BACKEND_LOG'
+        "
+    else
+        screen -dmS "$BACKEND_SESSION" bash -c "
+            cd '$BACKEND_DIR'
+            source '$VENV_DIR/bin/activate'
+            uvicorn app.main:app --reload --host 0.0.0.0 --port $BACKEND_PORT 2>&1 | tee -a '$BACKEND_LOG'
+        "
+    fi
     
     sleep 2
     if is_backend_running; then
@@ -295,7 +327,36 @@ start_backend() {
     fi
 }
 
+build_frontend() {
+    # 确保依赖已安装
+    if ! frontend_deps_installed; then
+        install_frontend_deps
+    fi
+
+    log_info "构建前端生产版本..."
+    mkdir -p "$LOG_DIR"
+    > "$FRONTEND_LOG"
+    cd "$FRONTEND_DIR"
+    set +e
+    npm run build 2>&1 | tee -a "$FRONTEND_LOG"
+    local build_exit=${PIPESTATUS[0]}
+    set -e
+    cd "$PROJECT_DIR"
+    if [ $build_exit -ne 0 ]; then
+        log_error "前端构建失败（退出码: $build_exit），请检查日志"
+        return 1
+    fi
+    log_success "前端构建完成"
+}
+
 start_frontend() {
+    # 生产模式下不需要独立前端服务器（由后端提供）
+    if [ "$RUN_MODE" = "prod" ]; then
+        build_frontend || return 1
+        log_success "前端已构建，由后端统一服务 (http://localhost:$BACKEND_PORT)"
+        return 0
+    fi
+
     if is_frontend_running; then
         log_warn "前端服务已在运行"
         return 0
@@ -317,7 +378,7 @@ start_frontend() {
     # 清空旧日志（避免混淆）
     > "$FRONTEND_LOG"
     
-    log_info "启动前端服务..."
+    log_info "启动前端开发服务器..."
     screen -dmS "$FRONTEND_SESSION" bash -c "
         cd '$FRONTEND_DIR'
         npm run dev -- --host --port $FRONTEND_PORT 2>&1 | tee -a '$FRONTEND_LOG'
@@ -334,19 +395,23 @@ start_frontend() {
 
 start_all() {
     check_screen
-    log_info "启动 MieMie-Studio..."
+    log_info "启动 MieMie-Studio (模式: $RUN_MODE)..."
     echo ""
     start_backend || return 1
     start_frontend || return 1
     echo ""
     log_success "MieMie-Studio 启动完成!"
     echo ""
-    echo "  后端: http://localhost:$BACKEND_PORT"
-    echo "  前端: http://localhost:$FRONTEND_PORT"
-    echo "  API文档: http://localhost:$BACKEND_PORT/docs"
-    echo ""
-    echo "使用 './run.sh logs' 查看日志"
-    echo "使用 './run.sh stop' 停止服务"
+    echo -e "  ${DIM}──────────────────────────────────────────────${NC}"
+    echo -e "  访问地址:"
+    if [ "$RUN_MODE" = "prod" ]; then
+        echo -e "  ${BOLD}应用页面${NC}  http://localhost:$BACKEND_PORT"
+    else
+        echo -e "  ${BOLD}前端页面${NC}  http://localhost:$FRONTEND_PORT"
+        echo -e "  ${BOLD}后端接口${NC}  http://localhost:$BACKEND_PORT"
+        echo -e "  ${BOLD}API 文档${NC}  http://localhost:$BACKEND_PORT/docs"
+    fi
+    echo -e "  ${DIM}──────────────────────────────────────────────${NC}"
 }
 
 # ======================
@@ -436,54 +501,70 @@ stop_all() {
 
 show_status() {
     echo ""
-    echo "========== MieMie-Studio 状态 =========="
+    echo -e "  ${BOLD}服务状态${NC}"
+    echo -e "  ${DIM}──────────────────────────────────────────────${NC}"
     echo ""
     
     # 后端状态
     local backend_port_pid=$(get_port_pid $BACKEND_PORT)
     if is_backend_running; then
-        echo -e "  后端: ${GREEN}运行中${NC} (screen: $BACKEND_SESSION, 端口: $BACKEND_PORT)"
+        echo -e "  后端服务    ${GREEN}● 运行中${NC}   端口 $BACKEND_PORT"
     elif [ -n "$backend_port_pid" ]; then
-        echo -e "  后端: ${YELLOW}异常${NC} (screen 已退出但端口 $BACKEND_PORT 仍被 PID $backend_port_pid 占用)"
+        echo -e "  后端服务    ${YELLOW}▲ 异常${NC}     screen 已退出但端口 $BACKEND_PORT 仍被 PID $backend_port_pid 占用"
     else
-        echo -e "  后端: ${RED}未运行${NC}"
+        echo -e "  后端服务    ${RED}○ 未运行${NC}"
     fi
     
     # 前端状态
-    local frontend_port_pid=$(get_port_pid $FRONTEND_PORT)
-    if is_frontend_running; then
-        echo -e "  前端: ${GREEN}运行中${NC} (screen: $FRONTEND_SESSION, 端口: $FRONTEND_PORT)"
-    elif [ -n "$frontend_port_pid" ]; then
-        echo -e "  前端: ${YELLOW}异常${NC} (screen 已退出但端口 $FRONTEND_PORT 仍被 PID $frontend_port_pid 占用)"
+    if [ "$RUN_MODE" = "prod" ]; then
+        if [ -d "$FRONTEND_DIR/dist" ] && [ -f "$FRONTEND_DIR/dist/index.html" ]; then
+            echo -e "  前端服务    ${GREEN}● 已构建${NC}   由后端统一服务"
+        else
+            echo -e "  前端服务    ${YELLOW}○ 未构建${NC}   需要先启动生产模式"
+        fi
     else
-        echo -e "  前端: ${RED}未运行${NC}"
+        local frontend_port_pid=$(get_port_pid $FRONTEND_PORT)
+        if is_frontend_running; then
+            echo -e "  前端服务    ${GREEN}● 运行中${NC}   端口 $FRONTEND_PORT"
+        elif [ -n "$frontend_port_pid" ]; then
+            echo -e "  前端服务    ${YELLOW}▲ 异常${NC}     screen 已退出但端口 $FRONTEND_PORT 仍被 PID $frontend_port_pid 占用"
+        else
+            echo -e "  前端服务    ${RED}○ 未运行${NC}"
+        fi
     fi
     
     echo ""
-    
-    # 环境状态
-    echo "---------- 环境检查 ----------"
+    echo -e "  ${BOLD}环境检查${NC}"
+    echo -e "  ${DIM}──────────────────────────────────────────────${NC}"
+    echo ""
     
     if venv_exists; then
-        echo -e "  虚拟环境: ${GREEN}已创建${NC}"
+        echo -e "  Python 环境   ${GREEN}✓ 已就绪${NC}"
     else
-        echo -e "  虚拟环境: ${YELLOW}未创建${NC}"
+        echo -e "  Python 环境   ${YELLOW}✗ 未创建${NC}  ${DIM}请先运行安装依赖${NC}"
     fi
     
     if backend_deps_installed; then
-        echo -e "  后端依赖: ${GREEN}已安装${NC}"
+        echo -e "  后端依赖      ${GREEN}✓ 已安装${NC}"
     else
-        echo -e "  后端依赖: ${YELLOW}未安装${NC}"
+        echo -e "  后端依赖      ${YELLOW}✗ 未安装${NC}  ${DIM}请先运行安装依赖${NC}"
     fi
     
     if frontend_deps_installed; then
-        echo -e "  前端依赖: ${GREEN}已安装${NC}"
+        echo -e "  前端依赖      ${GREEN}✓ 已安装${NC}"
     else
-        echo -e "  前端依赖: ${YELLOW}未安装${NC}"
+        echo -e "  前端依赖      ${YELLOW}✗ 未安装${NC}  ${DIM}请先运行安装依赖${NC}"
+    fi
+    
+    # 自动更新状态
+    echo ""
+    if crontab -l 2>/dev/null | grep -q "$AUTO_UPDATE_CRON_TAG"; then
+        echo -e "  自动更新      ${GREEN}✓ 已开启${NC}  ${DIM}每日 03:00${NC}"
+    else
+        echo -e "  自动更新      ${DIM}未开启${NC}"
     fi
     
     echo ""
-    echo "========================================"
 }
 
 # ======================
@@ -530,50 +611,65 @@ show_logs() {
 # ======================
 
 update_project() {
-    log_info "检查更新..."
-    
+    local is_auto=false
+    for arg in "$@"; do
+        if [ "$arg" = "--auto" ]; then
+            is_auto=true
+        fi
+    done
+
+    log_info "检查更新... $(date '+%Y-%m-%d %H:%M:%S')"
+
+    # 备份用户数据
+    mkdir -p "$BACKUP_DIR"
+    if [ -d "$PROJECT_DIR/backend/data" ]; then
+        local backup_name="pre_update_$(date +%Y%m%d_%H%M%S)"
+        cp -r "$PROJECT_DIR/backend/data" "$BACKUP_DIR/$backup_name"
+        log_info "数据已备份: $BACKUP_DIR/$backup_name"
+        # 保留最近 10 个备份
+        ls -dt "$BACKUP_DIR"/pre_update_* 2>/dev/null | tail -n +11 | xargs rm -rf 2>/dev/null
+    fi
+
     # 检查是否有未提交的更改
     if ! git diff --quiet 2>/dev/null; then
-        log_warn "检测到本地有未提交的更改"
-        echo ""
-        echo "本地修改的文件:"
-        git diff --name-only
-        echo ""
-        read -p "是否暂存本地更改并继续更新? (y/N): " confirm
-        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-            log_info "更新已取消"
-            return 0
+        if $is_auto; then
+            log_info "自动更新：暂存本地更改..."
+            git stash
+        else
+            log_warn "检测到本地有未提交的更改"
+            echo ""
+            echo "本地修改的文件:"
+            git diff --name-only
+            echo ""
+            read -p "是否暂存本地更改并继续更新? (y/N): " confirm
+            if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+                log_info "更新已取消"
+                return 0
+            fi
+            log_info "暂存本地更改..."
+            git stash
         fi
-        log_info "暂存本地更改..."
-        git stash
     fi
-    
-    # 获取远程更新
+
     log_info "获取最新代码..."
     git fetch origin
-    
-    # 检查是否有更新
+
     LOCAL=$(git rev-parse HEAD)
     REMOTE=$(git rev-parse origin/main 2>/dev/null || git rev-parse origin/master)
-    
+
     if [ "$LOCAL" = "$REMOTE" ]; then
         log_success "已是最新版本"
-        # 恢复暂存的更改
         git stash pop 2>/dev/null || true
         return 0
     fi
-    
-    # 显示更新内容
-    echo ""
+
     log_info "发现新版本，更新内容:"
     git log --oneline HEAD..origin/main 2>/dev/null || git log --oneline HEAD..origin/master
     echo ""
-    
-    # 拉取更新
+
     log_info "正在更新..."
     git pull origin main 2>/dev/null || git pull origin master
-    
-    # 恢复暂存的更改
+
     if git stash list | grep -q "stash@{0}"; then
         log_info "恢复本地更改..."
         git stash pop || {
@@ -581,28 +677,162 @@ update_project() {
             log_info "使用 'git stash pop' 查看暂存的更改"
         }
     fi
-    
-    # 检查是否需要更新依赖
+
     log_info "检查依赖更新..."
-    
-    # 检查 requirements.txt 是否有变化
     if git diff HEAD~1 --name-only | grep -q "requirements.txt"; then
         log_info "检测到 Python 依赖变化，更新中..."
         "$VENV_DIR/bin/pip" install -r "$PROJECT_DIR/requirements.txt"
     fi
-    
-    # 检查 package.json 是否有变化
     if git diff HEAD~1 --name-only | grep -q "frontend/package.json"; then
         log_info "检测到前端依赖变化，更新中..."
         cd "$FRONTEND_DIR"
         npm install
         cd "$PROJECT_DIR"
     fi
-    
+
     log_success "更新完成！"
+
+    # 自动模式下自动重启服务
+    if $is_auto; then
+        if is_backend_running || is_frontend_running; then
+            log_info "自动更新：重启服务..."
+            stop_all
+            sleep 2
+            start_all
+        fi
+    else
+        echo ""
+        log_info "如果服务正在运行，建议重启以应用更新："
+        echo "  ./run.sh restart"
+    fi
+}
+
+# ======================
+# 自动更新管理
+# ======================
+
+AUTO_UPDATE_CRON_TAG="miemie-studio-auto-update"
+UPDATE_LOG="$LOG_DIR/update.log"
+BACKUP_DIR="$PROJECT_DIR/backups"
+
+auto_update_manage() {
+    local action="${1:-status}"
+
+    case "$action" in
+        enable)
+            auto_update_enable
+            ;;
+        disable)
+            auto_update_disable
+            ;;
+        status)
+            auto_update_status
+            ;;
+        *)
+            log_error "未知操作: $action"
+            echo "用法: ./run.sh auto-update [enable|disable|status]"
+            ;;
+    esac
+}
+
+auto_update_enable() {
+    local cron_cmd="0 3 * * * cd '$PROJECT_DIR' && '$PROJECT_DIR/run.sh' update --auto >> '$UPDATE_LOG' 2>&1"
+
+    # 检查是否已存在
+    if crontab -l 2>/dev/null | grep -q "$AUTO_UPDATE_CRON_TAG"; then
+        log_warn "自动更新已启用"
+        return 0
+    fi
+
+    # 添加 cron 任务
+    (crontab -l 2>/dev/null; echo "$cron_cmd # $AUTO_UPDATE_CRON_TAG") | crontab -
+    mkdir -p "$LOG_DIR"
+    log_success "自动更新已启用（每日凌晨 3:00 执行）"
+    echo "  更新日志: $UPDATE_LOG"
+}
+
+auto_update_disable() {
+    if ! crontab -l 2>/dev/null | grep -q "$AUTO_UPDATE_CRON_TAG"; then
+        log_info "自动更新未启用"
+        return 0
+    fi
+
+    crontab -l 2>/dev/null | grep -v "$AUTO_UPDATE_CRON_TAG" | crontab -
+    log_success "自动更新已禁用"
+}
+
+auto_update_status() {
     echo ""
-    log_info "如果服务正在运行，建议重启以应用更新："
-    echo "  ./run.sh restart"
+    echo "========== 自动更新状态 =========="
+    echo ""
+    if crontab -l 2>/dev/null | grep -q "$AUTO_UPDATE_CRON_TAG"; then
+        echo -e "  状态: ${GREEN}已启用${NC} (每日 03:00)"
+        echo "  Cron: $(crontab -l 2>/dev/null | grep "$AUTO_UPDATE_CRON_TAG" | sed "s/ # $AUTO_UPDATE_CRON_TAG//")"
+    else
+        echo -e "  状态: ${RED}未启用${NC}"
+    fi
+    if [ -f "$UPDATE_LOG" ]; then
+        echo ""
+        echo "  最近一次更新日志:"
+        tail -5 "$UPDATE_LOG" | sed 's/^/    /'
+    fi
+    echo ""
+    echo "==================================="
+}
+
+# ======================
+# 版本回滚
+# ======================
+
+rollback_version() {
+    if [ ! -d ".git" ]; then
+        log_error "非 Git 仓库，无法回滚"
+        return 1
+    fi
+
+    # 获取最近的提交列表
+    echo ""
+    echo "最近 10 次提交:"
+    echo ""
+    git log --oneline -10
+    echo ""
+
+    # 获取上一个版本
+    local prev_commit
+    prev_commit=$(git rev-parse HEAD~1 2>/dev/null)
+    if [ -z "$prev_commit" ]; then
+        log_error "无法获取上一个版本"
+        return 1
+    fi
+
+    local prev_short
+    prev_short=$(git rev-parse --short HEAD~1)
+    local curr_short
+    curr_short=$(git rev-parse --short HEAD)
+
+    echo "当前版本: $curr_short"
+    echo "回滚目标: $prev_short"
+    echo ""
+    read -p "确认回滚到 $prev_short ? (y/N): " confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        log_info "回滚已取消"
+        return 0
+    fi
+
+    # 备份数据
+    log_info "备份用户数据..."
+    mkdir -p "$BACKUP_DIR"
+    local backup_name="backup_$(date +%Y%m%d_%H%M%S)"
+    if [ -d "$PROJECT_DIR/backend/data" ]; then
+        cp -r "$PROJECT_DIR/backend/data" "$BACKUP_DIR/$backup_name"
+        log_success "数据已备份到 $BACKUP_DIR/$backup_name"
+    fi
+
+    log_info "回滚到 $prev_short ..."
+    git checkout "$prev_commit" -- .
+    git checkout HEAD -- backend/data 2>/dev/null || true
+
+    log_success "回滚完成！建议重启服务: ./run.sh restart"
 }
 
 # ======================
@@ -611,16 +841,16 @@ update_project() {
 
 clean_project() {
     echo ""
-    echo "========== 清理选项 =========="
+    echo -e "  ${BOLD}清理与重置${NC}"
     echo ""
-    echo "1) 清理日志文件"
-    echo "2) 清理 Python 缓存 (__pycache__)"
-    echo "3) 重置前端依赖 (删除 node_modules 并重新安装)"
-    echo "4) 重置后端依赖 (删除 venv 并重新创建)"
-    echo "5) 全部清理并重新安装"
-    echo "0) 取消"
+    echo -e "  ${GREEN}1${NC})  清理日志文件        ${DIM}— 删除运行日志，释放磁盘空间${NC}"
+    echo -e "  ${GREEN}2${NC})  清理 Python 缓存    ${DIM}— 删除 __pycache__，排查导入问题${NC}"
+    echo -e "  ${GREEN}3${NC})  重置前端依赖        ${DIM}— 删除 node_modules 并重新安装${NC}"
+    echo -e "  ${GREEN}4${NC})  重置后端依赖        ${DIM}— 删除虚拟环境并重新创建${NC}"
+    echo -e "  ${YELLOW}5${NC})  全部清理并重新安装  ${DIM}— 以上全部执行，耗时较长${NC}"
+    echo -e "  ${RED}0${NC})  返回"
     echo ""
-    read -p "请选择 [0-5]: " choice
+    read -p "  请选择 [0-5]: " choice
     
     case "$choice" in
         1)
@@ -661,7 +891,6 @@ clean_project() {
             log_success "清理完成，依赖已重新安装"
             ;;
         0|*)
-            log_info "已取消"
             ;;
     esac
 }
@@ -672,25 +901,25 @@ clean_project() {
 
 show_version() {
     echo ""
-    echo "========== MieMie-Studio =========="
+    echo -e "  ${BOLD}MieMie-Studio${NC}"
+    echo -e "  ${DIM}──────────────────────────────────────────────${NC}"
     echo ""
     
-    # 获取版本信息
     if [ -d ".git" ]; then
-        COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
-        DATE=$(git log -1 --format=%cd --date=short 2>/dev/null || echo "unknown")
-        echo "  版本: $COMMIT ($BRANCH)"
-        echo "  更新日期: $DATE"
+        local commit branch date
+        commit=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        branch=$(git branch --show-current 2>/dev/null || echo "unknown")
+        date=$(git log -1 --format=%cd --date=short 2>/dev/null || echo "unknown")
+        echo -e "  版本      ${CYAN}$commit${NC} (${branch})"
+        echo -e "  更新日期  $date"
     else
-        echo "  版本: 未知 (非 Git 仓库)"
+        echo "  版本      未知（非 Git 仓库）"
     fi
     
     echo ""
-    echo "  项目地址: https://github.com/Zijian-Yang/MieMie-Studio"
-    echo "  许可证: GPL v3"
+    echo -e "  项目地址  ${BLUE}https://github.com/Zijian-Yang/MieMie-Studio${NC}"
+    echo -e "  许可证    GPL v3"
     echo ""
-    echo "==================================="
 }
 
 # ======================
@@ -725,40 +954,281 @@ attach_session() {
 }
 
 # ======================
-# 帮助信息
+# 交互式菜单系统
+# ======================
+
+print_header() {
+    clear
+    echo ""
+    echo -e "${BOLD}${CYAN}  ╔═══════════════════════════════════════════════╗${NC}"
+    echo -e "${BOLD}${CYAN}  ║         MieMie-Studio  控制面板              ║${NC}"
+    echo -e "${BOLD}${CYAN}  ╚═══════════════════════════════════════════════╝${NC}"
+    echo ""
+
+    # 状态栏
+    local be_status fe_status
+    if is_backend_running; then
+        be_status="${GREEN}● 运行中${NC}"
+    else
+        be_status="${RED}● 未运行${NC}"
+    fi
+    if [ "$RUN_MODE" = "prod" ]; then
+        if [ -d "$FRONTEND_DIR/dist" ] && [ -f "$FRONTEND_DIR/dist/index.html" ]; then
+            fe_status="${GREEN}● 已构建${NC}"
+        else
+            fe_status="${YELLOW}○ 未构建${NC}"
+        fi
+    else
+        if is_frontend_running; then
+            fe_status="${GREEN}● 运行中${NC}"
+        else
+            fe_status="${RED}● 未运行${NC}"
+        fi
+    fi
+    echo -e "  后端 $be_status    前端 $fe_status    模式: ${YELLOW}$RUN_MODE${NC}"
+    echo ""
+    echo -e "  ${DIM}──────────────────────────────────────────────${NC}"
+    echo ""
+}
+
+wait_key() {
+    echo ""
+    read -p "  按回车键返回主菜单..." _
+}
+
+menu_main() {
+    while true; do
+        print_header
+
+        echo -e "  ${BOLD}请输入编号选择操作:${NC}"
+        echo ""
+        echo -e "  ${GREEN}1${NC})  启动服务        ${DIM}— 启动前后端，首次使用选这个${NC}"
+        echo -e "  ${GREEN}2${NC})  停止服务        ${DIM}— 关闭所有正在运行的服务${NC}"
+        echo -e "  ${GREEN}3${NC})  重启服务        ${DIM}— 先停止再启动，更新代码后需要重启${NC}"
+        echo -e "  ${GREEN}4${NC})  查看状态        ${DIM}— 检查服务和环境是否正常${NC}"
+        echo -e "  ${GREEN}5${NC})  查看日志        ${DIM}— 查看后端或前端运行日志${NC}"
+        echo ""
+        echo -e "  ${BLUE}6${NC})  更新到最新版本  ${DIM}— 从 GitHub 拉取作者发布的最新代码${NC}"
+        echo -e "  ${BLUE}7${NC})  自动更新设置    ${DIM}— 开启后每天自动检查并更新${NC}"
+        echo -e "  ${BLUE}8${NC})  版本回滚        ${DIM}— 更新后遇到问题？回退到上一个版本${NC}"
+        echo ""
+        echo -e "  ${YELLOW}9${NC})  安装/维护       ${DIM}— 安装依赖、清理缓存、重置环境${NC}"
+        echo -e "  ${YELLOW}v${NC})  版本信息        ${DIM}— 查看当前版本号和项目信息${NC}"
+        echo -e "  ${RED}0${NC})  退出"
+        echo ""
+        read -p "  请输入 [0-9/v]: " choice
+
+        case "$choice" in
+            1) menu_start ;;
+            2)
+                echo ""
+                stop_all
+                wait_key
+                ;;
+            3) menu_restart ;;
+            4)
+                show_status
+                wait_key
+                ;;
+            5) menu_logs ;;
+            6)
+                echo ""
+                update_project
+                wait_key
+                ;;
+            7) menu_auto_update ;;
+            8)
+                rollback_version
+                wait_key
+                ;;
+            9) menu_maintenance ;;
+            v|V)
+                show_version
+                wait_key
+                ;;
+            0|q|Q)
+                echo ""
+                echo -e "  ${DIM}再见！${NC}"
+                echo ""
+                exit 0
+                ;;
+            *)
+                ;;
+        esac
+    done
+}
+
+menu_start() {
+    print_header
+    echo -e "  ${BOLD}选择启动模式:${NC}"
+    echo ""
+    echo -e "  ${GREEN}1${NC})  开发模式  ${DIM}— 日常使用推荐，支持代码热更新${NC}"
+    echo -e "  ${GREEN}2${NC})  生产模式  ${DIM}— 部署到服务器时使用，性能更好更稳定${NC}"
+    echo -e "  ${RED}0${NC})  返回"
+    echo ""
+    read -p "  请选择 [0-2]: " choice
+
+    case "$choice" in
+        1)
+            RUN_MODE="dev"
+            echo ""
+            start_all
+            wait_key
+            ;;
+        2)
+            RUN_MODE="prod"
+            echo ""
+            start_all
+            wait_key
+            ;;
+        *) ;;
+    esac
+}
+
+menu_restart() {
+    print_header
+    echo -e "  ${BOLD}选择重启模式:${NC}"
+    echo ""
+    echo -e "  ${GREEN}1${NC})  开发模式重启"
+    echo -e "  ${GREEN}2${NC})  生产模式重启"
+    echo -e "  ${RED}0${NC})  返回"
+    echo ""
+    read -p "  请选择 [0-2]: " choice
+
+    case "$choice" in
+        1)
+            RUN_MODE="dev"
+            echo ""
+            stop_all
+            sleep 2
+            start_all
+            wait_key
+            ;;
+        2)
+            RUN_MODE="prod"
+            echo ""
+            stop_all
+            sleep 2
+            start_all
+            wait_key
+            ;;
+        *) ;;
+    esac
+}
+
+menu_logs() {
+    print_header
+    echo -e "  ${BOLD}查看哪个服务的日志？${NC}"
+    echo ""
+    echo -e "  ${GREEN}1${NC})  后端日志    ${DIM}— Python/FastAPI 服务的输出${NC}"
+    echo -e "  ${GREEN}2${NC})  前端日志    ${DIM}— React/Vite 开发服务器的输出${NC}"
+    echo -e "  ${GREEN}3${NC})  连接后端终端  ${DIM}— 实时查看后端进程（按 Ctrl+A 再按 D 退出）${NC}"
+    echo -e "  ${RED}0${NC})  返回"
+    echo ""
+    read -p "  请选择 [0-3]: " choice
+
+    case "$choice" in
+        1) show_logs "backend" ;;
+        2) show_logs "frontend" ;;
+        3) attach_session "backend" ;;
+        *) ;;
+    esac
+}
+
+menu_auto_update() {
+    print_header
+    echo -e "  ${BOLD}自动更新管理${NC}"
+    echo -e "  ${DIM}开启后，系统每天凌晨 3:00 自动检查 GitHub 上的新版本。${NC}"
+    echo -e "  ${DIM}更新过程会自动备份你的数据，不会丢失任何内容。${NC}"
+    echo ""
+
+    if crontab -l 2>/dev/null | grep -q "$AUTO_UPDATE_CRON_TAG"; then
+        echo -e "  当前状态: ${GREEN}已开启${NC}"
+    else
+        echo -e "  当前状态: ${YELLOW}未开启${NC}"
+    fi
+    echo ""
+    echo -e "  ${GREEN}1${NC})  开启自动更新"
+    echo -e "  ${GREEN}2${NC})  关闭自动更新"
+    echo -e "  ${GREEN}3${NC})  查看更新日志"
+    echo -e "  ${RED}0${NC})  返回"
+    echo ""
+    read -p "  请选择 [0-3]: " choice
+
+    case "$choice" in
+        1)
+            echo ""
+            auto_update_enable
+            wait_key
+            ;;
+        2)
+            echo ""
+            auto_update_disable
+            wait_key
+            ;;
+        3)
+            echo ""
+            if [ -f "$UPDATE_LOG" ]; then
+                echo "  最近更新日志（最后 20 行）:"
+                echo ""
+                tail -20 "$UPDATE_LOG" | sed 's/^/    /'
+            else
+                log_info "暂无更新日志"
+            fi
+            wait_key
+            ;;
+        *) ;;
+    esac
+}
+
+menu_maintenance() {
+    print_header
+    echo -e "  ${BOLD}安装与维护${NC}"
+    echo ""
+    echo -e "  ${GREEN}1${NC})  安装全部依赖    ${DIM}— 首次使用或依赖缺失时选择${NC}"
+    echo -e "  ${GREEN}2${NC})  清理与重置      ${DIM}— 清理日志、缓存，或重新安装依赖${NC}"
+    echo -e "  ${RED}0${NC})  返回"
+    echo ""
+    read -p "  请选择 [0-2]: " choice
+
+    case "$choice" in
+        1)
+            echo ""
+            install_all_deps
+            wait_key
+            ;;
+        2)
+            clean_project
+            wait_key
+            ;;
+        *) ;;
+    esac
+}
+
+# ======================
+# 命令行帮助（非交互模式）
 # ======================
 
 show_help() {
     echo ""
-    echo "MieMie-Studio 管理脚本"
+    echo "MieMie-Studio 控制面板"
     echo ""
-    echo "用法: ./run.sh [命令] [参数]"
+    echo "用法:"
+    echo "  ./run.sh              打开交互式控制面板（推荐）"
+    echo "  ./run.sh [命令]       直接执行命令"
     echo ""
-    echo "服务管理:"
-    echo "  start              启动前后端服务"
-    echo "  stop               停止所有服务"
-    echo "  restart            重启所有服务"
-    echo "  status             查看服务状态"
-    echo ""
-    echo "依赖管理:"
-    echo "  install            安装所有依赖"
-    echo "  update             更新项目到最新版本"
-    echo "  clean              清理缓存/重置依赖"
-    echo ""
-    echo "调试工具:"
-    echo "  logs [service]     查看日志 (backend/frontend/all)"
-    echo "  attach [service]   连接到 screen 会话 (backend/frontend)"
-    echo ""
-    echo "其他:"
-    echo "  version            显示版本信息"
-    echo "  help               显示此帮助信息"
-    echo ""
-    echo "示例:"
-    echo "  ./run.sh start          # 启动服务"
-    echo "  ./run.sh status         # 查看状态"
-    echo "  ./run.sh update         # 更新到最新版本"
-    echo "  ./run.sh logs backend   # 查看后端日志"
-    echo "  ./run.sh attach backend # 连接到后端终端"
+    echo "命令:"
+    echo "  start [--prod]       启动服务（--prod 为生产模式）"
+    echo "  stop                 停止所有服务"
+    echo "  restart [--prod]     重启服务"
+    echo "  status               查看服务状态"
+    echo "  logs [backend|frontend]  查看日志"
+    echo "  install              安装所有依赖"
+    echo "  update [--auto]      更新到最新版本"
+    echo "  auto-update [enable|disable|status]"
+    echo "  rollback             回滚到上一个版本"
+    echo "  clean                清理缓存/重置依赖"
+    echo "  version              版本信息"
     echo ""
 }
 
@@ -768,8 +1238,22 @@ show_help() {
 
 main() {
     cd "$PROJECT_DIR"
-    
-    case "${1:-help}" in
+
+    # 检查 --prod 标志
+    for arg in "$@"; do
+        if [ "$arg" = "--prod" ]; then
+            RUN_MODE="prod"
+        fi
+    done
+
+    # 无参数时进入交互式菜单
+    if [ $# -eq 0 ]; then
+        menu_main
+        exit 0
+    fi
+
+    # 有参数时使用命令行模式（兼容脚本/cron 调用）
+    case "$1" in
         start)
             start_all
             ;;
@@ -788,7 +1272,15 @@ main() {
             install_all_deps
             ;;
         update)
-            update_project
+            shift
+            update_project "$@"
+            ;;
+        auto-update)
+            shift
+            auto_update_manage "$@"
+            ;;
+        rollback)
+            rollback_version
             ;;
         clean)
             clean_project

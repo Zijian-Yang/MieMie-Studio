@@ -1,3 +1,5 @@
+// @ts-nocheck
+// Legacy store — replaced by stores/projectStore.ts and stores/generationStore.ts
 import { create } from 'zustand';
 import type { Project, Character, Scene, Prop, ScriptScene } from '../types';
 import { projectsApi } from '../services/api';

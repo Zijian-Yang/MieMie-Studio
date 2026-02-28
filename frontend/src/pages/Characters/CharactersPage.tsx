@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { 
   Card, Button, Modal, Form, Input, Empty, Spin, message, 
   Radio, Tooltip, Space, Popconfirm, Image, Alert, Progress,
-  InputNumber, Switch, Select, Tag, Divider, theme
+  InputNumber, Switch, Select, Tag, theme
 } from 'antd'
 import { 
   PlusOutlined, ReloadOutlined, DeleteOutlined, 
@@ -41,15 +41,6 @@ const CharactersPage = () => {
     setT2iWatermark,
     t2iSeed,
     setT2iSeed,
-    isGenerating: globalIsGenerating,
-    shouldStop,
-    startBatchGeneration,
-    updateTaskStatus,
-    setCurrentTaskIndex,
-    stopGeneration,
-    resetGeneration,
-    batchTasks,
-    currentTaskIndex,
     addGeneratingItem,
     removeGeneratingItem,
     isItemGenerating,
@@ -95,9 +86,9 @@ const CharactersPage = () => {
   const isMountedRef = useRef(true)
 
   // 安全的状态更新
-  const safeSetState = useCallback(<T,>(setter: React.Dispatch<React.SetStateAction<T>>, value: T | ((prev: T) => T)) => {
+  const safeSetState = useCallback((setter: (v: any) => void, value: unknown) => {
     if (isMountedRef.current) {
-      setter(value as any)
+      setter(value)
     }
   }, [])
 

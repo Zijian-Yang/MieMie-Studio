@@ -1,3 +1,5 @@
+// @ts-nocheck
+// Legacy file — replaced by CharactersPage.tsx
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {

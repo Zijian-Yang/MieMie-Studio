@@ -334,8 +334,11 @@ class QwenImageEditService(BaseModelService[List[str]]):
         if seed is not None:
             call_params["seed"] = seed
         
-        # 调用 API（同步调用）
-        response = MultiModalConversation.call(
+        # DashScope SDK 的 MultiModalConversation.call 是同步阻塞调用，
+        # 通过 asyncio.to_thread 在线程池中执行，避免阻塞事件循环
+        import asyncio
+        response = await asyncio.to_thread(
+            MultiModalConversation.call,
             api_key=self._api_key,
             **call_params
         )

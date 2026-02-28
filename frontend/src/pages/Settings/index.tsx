@@ -1,3 +1,5 @@
+// @ts-nocheck
+// Legacy file — replaced by SettingsPage.tsx
 import { useState, useEffect } from 'react';
 import {
   Card,

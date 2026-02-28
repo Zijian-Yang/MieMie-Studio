@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { 
   Card, Button, Modal, Form, Input, Empty, Spin, message, 
   Image, Tag, Tooltip, Divider, Upload, Space,
-  Select, Switch, InputNumber, Row, Col, Alert, theme
+  Select, Switch, InputNumber, Row, Col, theme
 } from 'antd'
 import { 
   PlayCircleOutlined, ReloadOutlined, VideoCameraOutlined,
