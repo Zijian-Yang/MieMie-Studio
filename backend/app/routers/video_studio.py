@@ -7,18 +7,23 @@
 4. 首尾帧生视频（keyframe_to_video）：基于首帧和尾帧图片生成平滑过渡视频
 """
 
+import asyncio
+import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 
 from app.models.media import VideoStudioTask
-from app.services.storage import storage_service
+from app.services.storage import storage_service, get_current_user_id, set_current_user
 from app.services.dashscope.image_to_video import ImageToVideoService
 from app.services.dashscope.reference_to_video import ReferenceToVideoService
 from app.services.dashscope.text_to_video import TextToVideoService
 from app.services.dashscope.keyframe_to_video import KeyframeToVideoService
 from app.services.oss import oss_service
+from app.config import set_user_config_dir, get_user_config_dir
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -231,93 +236,17 @@ async def create_task(request: VideoStudioTaskCreateRequest):
         status="processing"
     )
     
-    try:
-        # 为每组创建生成任务
-        for i in range(request.group_count):
-            if request.task_type == "image_to_video":
-                # 图生视频任务
-                i2v_service = ImageToVideoService()
-                
-                if request.mode == "first_frame":
-                    api_task_id = await i2v_service.create_task(
-                        image_url=request.first_frame_url,
-                        prompt=request.prompt,
-                        model=request.model,
-                        resolution=request.resolution,
-                        duration=request.duration,
-                        prompt_extend=request.prompt_extend,
-                        watermark=request.watermark,
-                        seed=request.seed + i if request.seed else None,
-                        audio_url=request.audio_url,
-                        audio=request.auto_audio if not request.audio_url else None,
-                        negative_prompt=request.negative_prompt if request.negative_prompt else None,
-                        shot_type=request.shot_type
-                    )
-                    task.task_ids.append(api_task_id)
-                else:
-                    raise HTTPException(status_code=400, detail="首尾帧模式暂不支持")
-            
-            elif request.task_type == "reference_to_video":
-                # 参考生视频任务（支持视频和图片作为参考素材）
-                r2v_service = ReferenceToVideoService()
-                
-                api_task_id = await r2v_service.create_task(
-                    reference_urls=request.reference_video_urls,  # 包含视频和图片URL
-                    prompt=request.prompt,
-                    model=request.model,
-                    size=request.size,
-                    duration=request.duration,
-                    shot_type=request.shot_type,
-                    watermark=request.watermark,
-                    seed=request.seed + i if request.seed else None,
-                    negative_prompt=request.negative_prompt if request.negative_prompt else None,
-                )
-                task.task_ids.append(api_task_id)
-            
-            elif request.task_type == "text_to_video":
-                # 文生视频任务
-                t2v_service = TextToVideoService()
-                
-                api_task_id = await t2v_service.create_task(
-                    prompt=request.prompt,
-                    model=request.model,
-                    size=request.size,
-                    duration=request.duration,
-                    prompt_extend=request.t2v_prompt_extend,
-                    shot_type=request.shot_type,
-                    watermark=request.watermark,
-                    seed=request.seed + i if request.seed else None,
-                    audio_url=request.audio_url,
-                    negative_prompt=request.negative_prompt if request.negative_prompt else None,
-                )
-                task.task_ids.append(api_task_id)
-            
-            elif request.task_type == "keyframe_to_video":
-                # 首尾帧生视频任务
-                kf2v_service = KeyframeToVideoService()
-                
-                api_task_id = await kf2v_service.create_task(
-                    first_frame_url=request.first_frame_url,
-                    last_frame_url=request.last_frame_url,
-                    prompt=request.prompt if request.prompt else None,
-                    model=request.model,
-                    resolution=request.resolution,
-                    prompt_extend=request.prompt_extend,
-                    watermark=request.watermark,
-                    seed=request.seed + i if request.seed else None,
-                    negative_prompt=request.negative_prompt if request.negative_prompt else None,
-                )
-                task.task_ids.append(api_task_id)
-        
-        storage_service.save_video_studio_task(task)
-        
-        return {"task": task}
-        
-    except Exception as e:
-        task.status = "failed"
-        task.error_message = str(e)
-        storage_service.save_video_studio_task(task)
-        raise HTTPException(status_code=500, detail=f"创建任务失败: {str(e)}")
+    # 先保存任务（processing 状态），立即返回
+    storage_service.save_video_studio_task(task)
+
+    # 捕获用户上下文（后台任务需要）
+    user_id = get_current_user_id()
+    user_config_dir = get_user_config_dir()
+
+    # 后台执行 API 调用，不阻塞请求
+    asyncio.create_task(_background_create_video_tasks(task, request, user_id, user_config_dir))
+
+    return {"task": task}
 
 
 @router.get("/{task_id}/status")
@@ -496,130 +425,40 @@ async def regenerate_task(task_id: str):
     task.error_message = None
     task.task_ids = []
     task.updated_at = datetime.now()
-    
-    import asyncio
-    
-    if task_type == "reference_to_video" or task.model == "wan2.6-r2v":
-        # 参考生视频任务（支持视频和图片作为参考素材）
-        r2v_service = ReferenceToVideoService()
-        
-        async def generate_one_r2v(idx: int):
-            current_seed = task.seed + idx if task.seed is not None else None
-            return await r2v_service.create_task(
-                reference_urls=task.reference_video_urls,  # 包含视频和图片URL
-                prompt=task.prompt,
-                model=task.model,
-                size=task.size,
-                duration=task.duration,
-                shot_type=task.shot_type,
-                watermark=task.watermark,
-                seed=current_seed,
-                negative_prompt=task.negative_prompt,
-            )
-        
-        try:
-            task_ids = await asyncio.gather(*[generate_one_r2v(i) for i in range(task.group_count)])
-            task.task_ids = list(task_ids)
-            storage_service.save_video_studio_task(task)
-            return {"task": task, "task_ids": task_ids}
-        except Exception as e:
-            task.status = "failed"
-            task.error_message = str(e)
-            storage_service.save_video_studio_task(task)
-            raise HTTPException(status_code=500, detail=str(e))
-    
-    elif task_type == "text_to_video":
-        # 文生视频任务
-        t2v_service = TextToVideoService()
-        
-        async def generate_one_t2v(idx: int):
-            current_seed = task.seed + idx if task.seed is not None else None
-            # 获取t2v_prompt_extend，如果没有则默认True
-            t2v_prompt_extend = getattr(task, 't2v_prompt_extend', True)
-            return await t2v_service.create_task(
-                prompt=task.prompt,
-                model=task.model,
-                size=task.size,
-                duration=task.duration,
-                prompt_extend=t2v_prompt_extend,
-                shot_type=task.shot_type,
-                watermark=task.watermark,
-                seed=current_seed,
-                audio_url=task.audio_url,
-                negative_prompt=task.negative_prompt,
-            )
-        
-        try:
-            task_ids = await asyncio.gather(*[generate_one_t2v(i) for i in range(task.group_count)])
-            task.task_ids = list(task_ids)
-            storage_service.save_video_studio_task(task)
-            return {"task": task, "task_ids": task_ids}
-        except Exception as e:
-            task.status = "failed"
-            task.error_message = str(e)
-            storage_service.save_video_studio_task(task)
-            raise HTTPException(status_code=500, detail=str(e))
-    
-    elif task_type == "keyframe_to_video":
-        # 首尾帧生视频任务
-        kf2v_service = KeyframeToVideoService()
-        
-        async def generate_one_kf2v(idx: int):
-            current_seed = task.seed + idx if task.seed is not None else None
-            return await kf2v_service.create_task(
-                first_frame_url=task.first_frame_url,
-                last_frame_url=task.last_frame_url,
-                prompt=task.prompt if task.prompt else None,
-                model=task.model,
-                resolution=task.resolution,
-                prompt_extend=task.prompt_extend,
-                watermark=task.watermark,
-                seed=current_seed,
-                negative_prompt=task.negative_prompt if task.negative_prompt else None,
-            )
-        
-        try:
-            task_ids = await asyncio.gather(*[generate_one_kf2v(i) for i in range(task.group_count)])
-            task.task_ids = list(task_ids)
-            storage_service.save_video_studio_task(task)
-            return {"task": task, "task_ids": task_ids}
-        except Exception as e:
-            task.status = "failed"
-            task.error_message = str(e)
-            storage_service.save_video_studio_task(task)
-            raise HTTPException(status_code=500, detail=str(e))
-    
-    else:
-        # 图生视频任务
-        i2v_service = ImageToVideoService()
-        
-        async def generate_one_i2v(idx: int):
-            current_seed = task.seed + idx if task.seed is not None else None
-            return await i2v_service.create_task(
-                image_url=task.first_frame_url,
-                prompt=task.prompt,
-                model=task.model,
-                resolution=task.resolution,
-                duration=task.duration,
-                prompt_extend=task.prompt_extend,
-                watermark=task.watermark,
-                seed=current_seed,
-                audio_url=task.audio_url,
-                audio=task.auto_audio if not task.audio_url else None,
-                negative_prompt=task.negative_prompt,
-                shot_type=task.shot_type,
-            )
-        
-        try:
-            task_ids = await asyncio.gather(*[generate_one_i2v(i) for i in range(task.group_count)])
-            task.task_ids = list(task_ids)
-            storage_service.save_video_studio_task(task)
-            return {"task": task, "task_ids": task_ids}
-        except Exception as e:
-            task.status = "failed"
-            task.error_message = str(e)
-            storage_service.save_video_studio_task(task)
-            raise HTTPException(status_code=500, detail=str(e))
+    storage_service.save_video_studio_task(task)
+
+    # 捕获用户上下文
+    user_id = get_current_user_id()
+    user_config_dir = get_user_config_dir()
+
+    # 构造一个伪 request 用于复用后台函数
+    regen_request = VideoStudioTaskCreateRequest(
+        project_id=task.project_id,
+        name=task.name,
+        task_type=task_type,
+        mode=task.mode,
+        first_frame_url=task.first_frame_url,
+        last_frame_url=task.last_frame_url,
+        reference_video_urls=task.reference_video_urls or [],
+        audio_url=task.audio_url,
+        prompt=task.prompt,
+        negative_prompt=task.negative_prompt,
+        model=task.model,
+        resolution=task.resolution,
+        duration=task.duration,
+        prompt_extend=task.prompt_extend,
+        watermark=task.watermark,
+        seed=task.seed,
+        auto_audio=task.auto_audio,
+        shot_type=task.shot_type,
+        size=task.size,
+        t2v_prompt_extend=getattr(task, 't2v_prompt_extend', True),
+        group_count=task.group_count,
+    )
+
+    asyncio.create_task(_background_create_video_tasks(task, regen_request, user_id, user_config_dir))
+
+    return {"task": task}
 
 
 @router.post("/{task_id}/save-to-library")
@@ -666,4 +505,108 @@ async def delete_all_tasks(project_id: str):
     for task in tasks:
         storage_service.delete_video_studio_task(task.id)
     return {"message": f"已删除 {len(tasks)} 个任务"}
+
+
+# ──────────────────────────────────────
+# 后台任务处理（asyncio.create_task 调度）
+# ──────────────────────────────────────
+
+async def _background_create_video_tasks(
+    task: VideoStudioTask,
+    request: VideoStudioTaskCreateRequest,
+    user_id: Optional[str],
+    user_config_dir: Optional[str],
+):
+    """后台创建视频 API 任务——由 asyncio.create_task 调度，不阻塞请求"""
+    # 恢复用户上下文（后台协程运行在不同的上下文中）
+    set_current_user(user_id)
+    if user_config_dir:
+        set_user_config_dir(user_config_dir)
+
+    try:
+        task_ids = await _submit_api_tasks(task, request)
+        task.task_ids = list(task_ids)
+        task.updated_at = datetime.now()
+        storage_service.save_video_studio_task(task)
+        logger.info(f"[视频工作室] 任务 {task.id} 已提交 {len(task_ids)} 个 API 任务")
+    except Exception as e:
+        logger.error(f"[视频工作室] 任务 {task.id} 提交失败: {e}")
+        task.status = "failed"
+        task.error_message = str(e)
+        task.updated_at = datetime.now()
+        storage_service.save_video_studio_task(task)
+
+
+async def _submit_api_tasks(
+    task: VideoStudioTask,
+    request: VideoStudioTaskCreateRequest,
+) -> list:
+    """并发提交所有 group 的 API 任务，返回 task_id 列表"""
+
+    async def create_one(idx: int) -> str:
+        current_seed = request.seed + idx if request.seed is not None else None
+
+        if request.task_type == "image_to_video":
+            svc = ImageToVideoService()
+            return await svc.create_task(
+                image_url=request.first_frame_url,
+                prompt=request.prompt,
+                model=request.model,
+                resolution=request.resolution,
+                duration=request.duration,
+                prompt_extend=request.prompt_extend,
+                watermark=request.watermark,
+                seed=current_seed,
+                audio_url=request.audio_url,
+                audio=request.auto_audio if not request.audio_url else None,
+                negative_prompt=request.negative_prompt or None,
+                shot_type=request.shot_type,
+            )
+
+        elif request.task_type == "reference_to_video":
+            svc = ReferenceToVideoService()
+            return await svc.create_task(
+                reference_urls=request.reference_video_urls,
+                prompt=request.prompt,
+                model=request.model,
+                size=request.size,
+                duration=request.duration,
+                shot_type=request.shot_type,
+                watermark=request.watermark,
+                seed=current_seed,
+                negative_prompt=request.negative_prompt or None,
+            )
+
+        elif request.task_type == "text_to_video":
+            svc = TextToVideoService()
+            return await svc.create_task(
+                prompt=request.prompt,
+                model=request.model,
+                size=request.size,
+                duration=request.duration,
+                prompt_extend=request.t2v_prompt_extend,
+                shot_type=request.shot_type,
+                watermark=request.watermark,
+                seed=current_seed,
+                audio_url=request.audio_url,
+                negative_prompt=request.negative_prompt or None,
+            )
+
+        elif request.task_type == "keyframe_to_video":
+            svc = KeyframeToVideoService()
+            return await svc.create_task(
+                first_frame_url=request.first_frame_url,
+                last_frame_url=request.last_frame_url,
+                prompt=request.prompt or None,
+                model=request.model,
+                resolution=request.resolution,
+                prompt_extend=request.prompt_extend,
+                watermark=request.watermark,
+                seed=current_seed,
+                negative_prompt=request.negative_prompt or None,
+            )
+
+        raise ValueError(f"不支持的任务类型: {request.task_type}")
+
+    return list(await asyncio.gather(*[create_one(i) for i in range(request.group_count)]))
 

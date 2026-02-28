@@ -5,11 +5,17 @@
 import json
 import uuid
 import hashlib
+import logging
 from pathlib import Path
 from typing import Optional, Dict
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.models.user import User, UserResponse
+
+logger = logging.getLogger(__name__)
+
+# Token 有效期（天）
+TOKEN_EXPIRE_DAYS = 7
 
 
 class UserService:
@@ -41,20 +47,50 @@ class UserService:
             json.dump(users, f, ensure_ascii=False, indent=2)
     
     def _load_sessions(self):
-        """加载会话（从文件恢复）"""
+        """加载会话（从文件恢复），自动兼容旧格式并清理过期 token"""
         sessions_file = self.data_dir / "sessions.json"
         if sessions_file.exists():
             try:
                 with open(sessions_file, 'r', encoding='utf-8') as f:
-                    self.sessions = json.load(f)
-            except:
+                    raw = json.load(f)
+                # 兼容旧格式 {token: user_id} -> {token: {user_id, created_at}}
+                migrated = False
+                for token, val in list(raw.items()):
+                    if isinstance(val, str):
+                        raw[token] = {"user_id": val, "created_at": datetime.now().isoformat()}
+                        migrated = True
+                self.sessions = raw
+                if migrated:
+                    self._save_sessions()
+                self._cleanup_expired_sessions()
+            except Exception:
                 self.sessions = {}
+        else:
+            self.sessions = {}
     
     def _save_sessions(self):
         """保存会话到文件"""
         sessions_file = self.data_dir / "sessions.json"
         with open(sessions_file, 'w', encoding='utf-8') as f:
             json.dump(self.sessions, f, ensure_ascii=False, indent=2)
+    
+    def _cleanup_expired_sessions(self):
+        """清理过期的会话"""
+        now = datetime.now()
+        expired = []
+        for token, session in self.sessions.items():
+            created_str = session.get("created_at", "")
+            try:
+                created_at = datetime.fromisoformat(created_str)
+                if now - created_at > timedelta(days=TOKEN_EXPIRE_DAYS):
+                    expired.append(token)
+            except (ValueError, TypeError):
+                expired.append(token)
+        if expired:
+            for token in expired:
+                del self.sessions[token]
+            self._save_sessions()
+            logger.info(f"已清理 {len(expired)} 个过期会话")
     
     def _generate_token(self, user_id: str) -> str:
         """生成简单的会话 token"""
@@ -106,9 +142,12 @@ class UserService:
                 users[user_id] = user_data
                 self._save_users(users)
                 
-                # 生成 token
+                # 生成 token（带过期时间）
                 token = self._generate_token(user_id)
-                self.sessions[token] = user_id
+                self.sessions[token] = {
+                    "user_id": user_id,
+                    "created_at": datetime.now().isoformat()
+                }
                 self._save_sessions()
                 
                 return token, User(**user_data)
@@ -124,9 +163,27 @@ class UserService:
         return False
     
     def get_user_by_token(self, token: str) -> Optional[User]:
-        """通过 token 获取用户（支持多 worker：每次从文件读取）"""
+        """通过 token 获取用户（支持多 worker：每次从文件读取，含过期检查）"""
         self._load_sessions()
-        user_id = self.sessions.get(token)
+        session = self.sessions.get(token)
+        if not session:
+            return None
+        
+        # 兼容旧格式（字符串）
+        if isinstance(session, str):
+            user_id = session
+        else:
+            user_id = session.get("user_id")
+            created_str = session.get("created_at", "")
+            try:
+                created_at = datetime.fromisoformat(created_str)
+                if datetime.now() - created_at > timedelta(days=TOKEN_EXPIRE_DAYS):
+                    del self.sessions[token]
+                    self._save_sessions()
+                    return None
+            except (ValueError, TypeError):
+                pass
+        
         if not user_id:
             return None
         
