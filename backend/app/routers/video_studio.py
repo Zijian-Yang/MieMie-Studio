@@ -268,6 +268,11 @@ async def get_task_status(task_id: str):
         print(f"[视频工作室状态查询] 任务已完成，无需轮询")
         return {"task": task}
     
+    # 后台任务还没提交完 API 任务（task_ids 为空），保持 processing
+    if not task.task_ids:
+        print(f"[视频工作室状态查询] API 任务尚未提交完成，等待中...")
+        return {"task": task}
+    
     all_succeeded = True
     all_finished = True
     video_urls = []
@@ -324,13 +329,16 @@ async def get_task_status(task_id: str):
     task.video_urls = video_urls
     
     if all_finished:
-        if all_succeeded and len(video_urls) == len(task.task_ids):
+        if not video_urls and not task.task_ids:
+            pass
+        elif all_succeeded and video_urls and len(video_urls) == len(task.task_ids):
             task.status = "succeeded"
             print(f"[视频工作室状态查询] 所有任务成功完成！共 {len(video_urls)} 个视频")
         else:
             task.status = "failed"
             if not task.error_message:
-                task.error_message = "部分视频生成失败"
+                failed_count = len(task.task_ids) - len(video_urls)
+                task.error_message = f"视频生成失败（{failed_count}/{len(task.task_ids)} 个失败）"
             print(f"[视频工作室状态查询] 任务失败: {task.error_message}")
     else:
         print(f"[视频工作室状态查询] 任务进行中，已完成 {len(video_urls)}/{len(task.task_ids)}")

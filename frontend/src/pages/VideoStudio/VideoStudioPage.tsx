@@ -453,14 +453,12 @@ const VideoStudioPage = () => {
   const handleRegenerate = async (task: VideoStudioTask) => {
     try {
       setRegenerating(true)
-      const { task: updatedTask, task_ids } = await videoStudioApi.regenerate(task.id)
+      const { task: updatedTask } = await videoStudioApi.regenerate(task.id)
       setTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t))
       setSelectedTask(updatedTask)
       
-      // 启动轮询
-      task_ids.forEach(() => {
-        startPolling(task.id)
-      })
+      // 启动轮询（后台会异步提交 API 任务）
+      startPolling(task.id)
       
       message.success('已开始重新生成')
     } catch (error: any) {

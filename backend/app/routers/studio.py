@@ -362,7 +362,10 @@ async def _background_generate(
             unique_errors = list(set(group_errors))
             error_detail = unique_errors[0] if len(unique_errors) == 1 else "; ".join(unique_errors[:3])
 
-        if not valid_images and images:
+        if not images:
+            task.status = "failed"
+            task.error_message = error_detail or "未生成任何图片，请检查参数或参考图后重试"
+        elif not valid_images:
             task.status = "failed"
             task.error_message = error_detail or "所有生成任务均失败，请检查参数或参考图后重试"
         elif len(valid_images) < len(images):
