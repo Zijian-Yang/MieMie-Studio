@@ -201,12 +201,12 @@ class QwenImageService(BaseModelService[List[str]]):
         watermark: bool = False,
         seed: Optional[int] = None,
         **kwargs
-    ) -> List[str]:
+    ) -> tuple[list[str], str]:
         """
         生成 1 张图片（同步调用）
 
         Returns:
-            包含一个 URL 的列表
+            (包含一个URL的列表, request_id)
         """
         payload = {
             "model": self.model_info.api_model_name or self.model_info.id,
@@ -247,6 +247,7 @@ class QwenImageService(BaseModelService[List[str]]):
                 raise Exception(f"API 调用失败 ({code}): {msg}")
 
             data = response.json()
+            req_id = data.get("request_id", "")
 
             if "code" in data:
                 raise Exception(f"API 错误 ({data['code']}): {data.get('message', '未知错误')}")
@@ -261,7 +262,7 @@ class QwenImageService(BaseModelService[List[str]]):
             if not urls:
                 raise Exception("API 未返回图片")
 
-            return urls
+            return urls, req_id
 
 
 # ============ 注册模型 ============

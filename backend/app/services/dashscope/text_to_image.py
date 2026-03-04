@@ -672,15 +672,12 @@ class TextToImageService:
         image_urls: Optional[List[str]] = None,
         enable_interleave: bool = False,
         max_images: int = 5
-    ) -> List[str]:
+    ) -> tuple[list[str], str]:
         """
         使用 HTTP 异步接口生成图片（wan2.6-image）
-        支持：
-        - 参考图生图 (enable_interleave=false, 1-3张参考图)
-        - 图文混合输出 (enable_interleave=true, 0-1张参考图)
-        - 纯文生图 (enable_interleave=false/true, 无参考图)
-        
-        注意：参考图片尺寸必须在 384-5000 像素之间，否则会自动调整
+
+        Returns:
+            (图片URL列表, request_id)
         """
         import asyncio
         import json
@@ -763,13 +760,15 @@ class TextToImageService:
                 
                 print(f"[wan2.6-image] 创建任务响应: {json.dumps(result, ensure_ascii=False)[:500]}")
                 
+                req_id = result.get("request_id", "")
+
                 if "output" not in result or "task_id" not in result.get("output", {}):
                     error_code = result.get("code", "Unknown")
                     error_msg = result.get("message", "未知错误")
                     raise Exception(f"创建任务失败: {error_code} - {error_msg}")
                 
                 task_id = result["output"]["task_id"]
-                print(f"[wan2.6-image] 任务已创建，task_id: {task_id}")
+                print(f"[wan2.6-image] 任务已创建，task_id: {task_id}, request_id: {req_id}")
                 
                 # 步骤2：轮询获取结果
                 query_url = f"{self.base_url}/tasks/{task_id}"
@@ -810,9 +809,9 @@ class TextToImageService:
                             for img_url in urls:
                                 oss_url = await oss_service.upload_image_async(img_url, project_id)
                                 oss_urls.append(oss_url)
-                            return oss_urls
+                            return oss_urls, req_id
                         
-                        return urls
+                        return urls, req_id
                     
                     elif task_status == "FAILED":
                         error_code = query_result.get("output", {}).get("code", "Unknown")
@@ -849,22 +848,12 @@ class TextToImageService:
         enable_interleave: bool = False,
         max_images: int = 5,
         project_id: str = ""
-    ) -> List[str]:
+    ) -> tuple[list[str], str]:
         """
         使用 wan2.6-image 生成图片的公开接口
-        
-        Args:
-            prompt: 正向提示词
-            image_urls: 参考图片 URL 列表（最多3张）
-            negative_prompt: 负向提示词
-            n: 生成数量（enable_interleave=false 时 1-4，true 时固定1）
-            size: 输出尺寸
-            prompt_extend: 智能改写（仅 enable_interleave=false 时生效）
-            watermark: 是否添加水印
-            seed: 随机种子
-            enable_interleave: 是否启用图文混合模式
-            max_images: 图文混合模式下最大生成图数（1-5）
-            project_id: 项目ID
+
+        Returns:
+            (图片URL列表, request_id)
         """
         return await self._generate_batch_wan26_image(
             prompt=prompt,

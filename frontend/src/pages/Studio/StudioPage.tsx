@@ -265,14 +265,15 @@ const StudioPage = () => {
       const modelInfo = availableModels[values.model]
       const isTextToImage = modelInfo?.model_type === 'text_to_image'
       const isWan26Image = values.model === 'wan2.6-image'
-      const isQwenModel = values.model?.startsWith('qwen-image-edit')
+      const isQwenEditModel = values.model?.startsWith('qwen-image-edit')
+      const isQwenImage2 = values.model === 'qwen-image-2.0-pro' || values.model === 'qwen-image-2.0'
       const refCount = references.length
       
-      if (isQwenModel && refCount === 0) {
+      if (isQwenEditModel && refCount === 0) {
         message.warning('qwen-image-edit 系列模型需要 1-3 张参考图作为输入')
         return
       }
-      const needsReferences = !isTextToImage && !isWan26Image && !isQwenModel
+      const needsReferences = !isTextToImage && !isWan26Image && !isQwenEditModel && !isQwenImage2
       if (needsReferences && refCount === 0) {
         message.warning('请先添加参考素材')
         return
@@ -332,12 +333,20 @@ const StudioPage = () => {
           generateParams.max_images = values.max_images || 5
         }
       }
-      if (isQwenModel) {
+      if (isQwenEditModel) {
         if (values.size) generateParams.size = values.size
         generateParams.prompt_extend = values.prompt_extend !== false
         generateParams.watermark = values.watermark || false
         if (values.seed) generateParams.seed = values.seed
         if (values.negative_prompt) generateParams.negative_prompt = values.negative_prompt
+      }
+      if (isQwenImage2) {
+        if (values.size) generateParams.size = values.size
+        generateParams.prompt_extend = values.prompt_extend !== false
+        generateParams.watermark = values.watermark || false
+        if (values.seed) generateParams.seed = values.seed
+        if (values.negative_prompt) generateParams.negative_prompt = values.negative_prompt
+        generateParams.n = values.n || 1
       }
       
       const result = await studioApi.generate(task.id, generateParams)
@@ -431,6 +440,8 @@ const StudioPage = () => {
         form.setFieldsValue({ n: 4 })
       } else if (model?.startsWith('qwen-image-edit')) {
         form.setFieldsValue({ n: 4 })
+      } else if (model === 'qwen-image-2.0-pro' || model === 'qwen-image-2.0') {
+        form.setFieldsValue({ n: 1, size: '1024*1024' })
       }
     }
     
@@ -458,7 +469,8 @@ const StudioPage = () => {
     const modelInfo = availableModels[values.model]
     const isTextToImage = modelInfo?.model_type === 'text_to_image'
     const isWan26Image = values.model === 'wan2.6-image'
-    const isQwenModel = values.model?.startsWith('qwen-image-edit')
+    const isQwenEditModel = values.model?.startsWith('qwen-image-edit')
+    const isQwenImage2 = values.model === 'qwen-image-2.0-pro' || values.model === 'qwen-image-2.0'
     
     // 从表单中解析参考图
     const formReferences = (values.references || []).map((ref: string) => {
@@ -467,8 +479,8 @@ const StudioPage = () => {
     })
     const refCount = formReferences.length
     
-    // 图生图模型需要参考素材（wan2.6-image 和 qwen 有各自的验证）
-    const needsReferences = !isTextToImage && !isWan26Image && !isQwenModel
+    // 图生图模型需要参考素材（wan2.6-image、qwen-edit、qwen-image-2.0 有各自的验证）
+    const needsReferences = !isTextToImage && !isWan26Image && !isQwenEditModel && !isQwenImage2
     if (needsReferences && refCount === 0) {
       message.warning('请先添加参考素材')
       return
@@ -497,7 +509,7 @@ const StudioPage = () => {
     }
     
     // 验证 qwen-image-edit 系列的参数
-    if (isQwenModel) {
+    if (isQwenEditModel) {
       if (refCount === 0) {
         message.warning('qwen-image-edit 系列模型需要 1-3 张参考图作为输入')
         return
@@ -506,6 +518,12 @@ const StudioPage = () => {
         message.warning('qwen-image-edit 系列最多支持3张输入图片')
         return
       }
+    }
+
+    // 验证 qwen-image-2.0 系列参考图数量
+    if (isQwenImage2 && refCount > 3) {
+      message.warning('千问图像 2.0 最多支持3张输入图片')
+      return
     }
     
     // 生成前确保最新表单数据已保存（取消待执行的自动保存，立即保存一次）
@@ -566,12 +584,20 @@ const StudioPage = () => {
         }
       }
       
-      if (isQwenModel) {
+      if (isQwenEditModel) {
         if (values.size) generateParams.size = values.size
         generateParams.prompt_extend = values.prompt_extend !== false
         generateParams.watermark = values.watermark || false
         if (values.seed) generateParams.seed = values.seed
         if (values.negative_prompt) generateParams.negative_prompt = values.negative_prompt
+      }
+      if (isQwenImage2) {
+        if (values.size) generateParams.size = values.size
+        generateParams.prompt_extend = values.prompt_extend !== false
+        generateParams.watermark = values.watermark || false
+        if (values.seed) generateParams.seed = values.seed
+        if (values.negative_prompt) generateParams.negative_prompt = values.negative_prompt
+        generateParams.n = values.n || 1
       }
       
       const result = await studioApi.generate(selectedTask.id, generateParams)
@@ -1148,6 +1174,7 @@ const StudioPage = () => {
                     extra={(() => {
                       const model = watchedModel || selectedTask?.model
                       if (model?.startsWith('qwen-image-edit')) return '最多6张'
+                      if (model === 'qwen-image-2.0-pro' || model === 'qwen-image-2.0') return '最多6张'
                       if (model === 'qwen-image-max' || model === 'qwen-image-plus') return '固定1张，用并发组数控制总量'
                       if (model === 'wan2.5-i2i-preview') return '最多4张'
                       return ''
@@ -1159,6 +1186,7 @@ const StudioPage = () => {
                         const model = watchedModel || selectedTask?.model
                         if (model === 'qwen-image-max' || model === 'qwen-image-plus') return 1
                         if (model?.startsWith('qwen-image-edit')) return 6
+                        if (model === 'qwen-image-2.0-pro' || model === 'qwen-image-2.0') return 6
                         if (model === 'wan2.5-i2i-preview') return 4
                         return 4
                       })()}
@@ -1183,9 +1211,12 @@ const StudioPage = () => {
                   </Form.Item>
                 </div>
                 <Form.Item name="prompt" label="生成提示词" extra={
-                  (watchedModel || selectedTask?.model)?.startsWith('qwen-image-edit')
-                    ? '多图时用"图1"、"图2"、"图3"指代不同图片'
-                    : ''
+                  (() => {
+                    const m = watchedModel || selectedTask?.model
+                    if (m?.startsWith('qwen-image-edit')) return '多图时用"图1"、"图2"、"图3"指代不同图片'
+                    if (m === 'qwen-image-2.0-pro' || m === 'qwen-image-2.0') return '无参考图为文生图；有参考图为编辑模式，多图用"图1""图2"指代'
+                    return ''
+                  })()
                 }>
                   <TextArea rows={4} />
                 </Form.Item>
@@ -1461,6 +1492,85 @@ const StudioPage = () => {
                     </div>
                   )
                 })()}
+
+                {/* qwen-image-2.0 系列参数（文生图+图像编辑融合） */}
+                {(() => {
+                  const m = watchedModel || selectedTask?.model
+                  if (m !== 'qwen-image-2.0-pro' && m !== 'qwen-image-2.0') return null
+                  const modelInfo = availableModels[m]
+                  return (
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ marginBottom: 8, color: token.colorTextSecondary, fontSize: 12 }}>
+                        {modelInfo?.name || m} 参数
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                        <Form.Item 
+                          name="size" 
+                          label="输出尺寸"
+                          style={{ marginBottom: 0 }}
+                        >
+                          <Select
+                            placeholder="1024×1024（默认）"
+                            allowClear
+                            options={
+                              modelInfo?.common_sizes?.map((size: any) => ({
+                                value: size.value || (typeof size === 'string' ? size : `${size.width}*${size.height}`),
+                                label: size.label || `${size.width}×${size.height}`
+                              })) || [
+                                { value: '1024*1024', label: '1024×1024 正方形 1:1' },
+                              ]
+                            }
+                          />
+                        </Form.Item>
+                        <Form.Item 
+                          name="seed" 
+                          label="随机种子"
+                          style={{ marginBottom: 0 }}
+                        >
+                          <InputNumber 
+                            min={0} 
+                            max={2147483647} 
+                            style={{ width: '100%' }} 
+                            placeholder="留空为随机"
+                          />
+                        </Form.Item>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <Form.Item 
+                          name="prompt_extend" 
+                          label="智能改写"
+                          valuePropName="checked"
+                          style={{ marginBottom: 0 }}
+                          tooltip="开启后模型优化提示词，对简单描述效果更明显"
+                        >
+                          <Switch defaultChecked />
+                        </Form.Item>
+                        <Form.Item 
+                          name="watermark" 
+                          label="添加水印"
+                          valuePropName="checked"
+                          style={{ marginBottom: 0 }}
+                        >
+                          <Switch />
+                        </Form.Item>
+                      </div>
+                      <div style={{ marginTop: 8, padding: '8px', background: token.colorBgElevated, borderRadius: 4, fontSize: 11 }}>
+                        <div style={{ color: token.colorTextTertiary }}>
+                          • 不添加参考图为文生图模式，添加1-3张参考图为图像编辑模式
+                        </div>
+                        <div style={{ color: token.colorTextTertiary, marginTop: 2 }}>
+                          • 编辑模式下用"图1"、"图2"、"图3"指代不同图片，输出比例以最后一张为准
+                        </div>
+                        <div style={{ color: token.colorTextTertiary, marginTop: 2 }}>
+                          • 单次请求最多生成6张，尺寸范围 512×512 至 2048×2048
+                        </div>
+                        <div style={{ color: token.colorTextQuaternary, marginTop: 2 }}>
+                          输入图建议：384-3072px，格式 JPG/PNG/BMP/WEBP/TIFF/GIF，≤10MB
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
               
               <Space style={{ width: '100%' }} direction="vertical">
                 {isCreating ? (
@@ -1505,7 +1615,11 @@ const StudioPage = () => {
               </Space>
               
               {/* 追踪ID显示 */}
-              {!isCreating && selectedTask && (selectedTask.last_task_id || selectedTask.last_request_id) && (
+              {!isCreating && selectedTask && (
+                (selectedTask.request_ids?.length ?? 0) > 0 ||
+                selectedTask.last_task_id ||
+                selectedTask.last_request_id
+              ) && (
                 <div style={{ 
                   marginTop: 16, 
                   padding: '8px 12px', 
@@ -1515,11 +1629,19 @@ const StudioPage = () => {
                   color: token.colorTextTertiary,
                   fontFamily: 'monospace'
                 }}>
-                  {selectedTask.last_task_id && (
-                    <div>Task ID: {selectedTask.last_task_id}</div>
-                  )}
-                  {selectedTask.last_request_id && (
-                    <div>Request ID: {selectedTask.last_request_id}</div>
+                  {(selectedTask.request_ids?.length ?? 0) > 0 ? (
+                    selectedTask.request_ids!.map((rid, idx) => (
+                      <div key={idx}>Request ID [{idx + 1}]: {rid}</div>
+                    ))
+                  ) : (
+                    <>
+                      {selectedTask.last_task_id && (
+                        <div>Task ID: {selectedTask.last_task_id}</div>
+                      )}
+                      {selectedTask.last_request_id && (
+                        <div>Request ID: {selectedTask.last_request_id}</div>
+                      )}
+                    </>
                   )}
                 </div>
               )}

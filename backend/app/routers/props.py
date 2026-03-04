@@ -320,7 +320,7 @@ async def generate_prop_images(prop_id: str, request: PropGenerateRequest):
         if image_urls:
             # 服务层会自动处理 OSS 上传
             i2i_service = ImageToImageService()
-            url = await i2i_service.generate_with_multi_images(
+            url, _ = await i2i_service.generate_with_multi_images(
                 prompt=final_prompt,
                 image_urls=image_urls,
                 negative_prompt=negative_prompt,
@@ -390,7 +390,7 @@ async def generate_all_prop_images(prop_id: str, request: PropGenerateAllRequest
         if image_urls:
             # 服务层会自动处理 OSS 上传
             i2i_service = ImageToImageService()
-            url = await i2i_service.generate_with_multi_images(
+            url, _ = await i2i_service.generate_with_multi_images(
                 prompt=final_prompt,
                 image_urls=image_urls,
                 negative_prompt=negative_prompt,

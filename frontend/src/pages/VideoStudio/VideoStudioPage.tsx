@@ -1917,12 +1917,12 @@ const VideoStudioPage = () => {
                 color: token.colorTextTertiary,
                 fontFamily: 'monospace'
               }}>
-                {(selectedTask.task_ids?.length ?? 0) > 0 && (
-                  <div>Task ID: {selectedTask.task_ids![selectedTask.task_ids!.length - 1]}</div>
-                )}
-                {(selectedTask.request_ids?.length ?? 0) > 0 && (
-                  <div>Request ID: {selectedTask.request_ids![selectedTask.request_ids!.length - 1]}</div>
-                )}
+                {(selectedTask.task_ids?.length ?? 0) > 0 && selectedTask.task_ids!.map((tid, idx) => (
+                  <div key={`tid-${idx}`}>Task ID [{idx + 1}]: {tid}</div>
+                ))}
+                {(selectedTask.request_ids?.length ?? 0) > 0 && selectedTask.request_ids!.map((rid, idx) => (
+                  <div key={`rid-${idx}`}>Request ID [{idx + 1}]: {rid}</div>
+                ))}
               </div>
             )}
           </div>

@@ -16,7 +16,9 @@ models_registry/
 ├── image/               # 图像模型
 │   ├── __init__.py
 │   ├── wan25_t2i.py     # 文生图
-│   └── wan25_i2i.py     # 图生图
+│   ├── wan25_i2i.py     # 图生图
+│   ├── qwen_image_2.py  # 千问图像2.0（文生图+图像编辑融合）
+│   └── qwen_image_edit.py # 千问图像编辑
 └── video/               # 视频模型
     ├── __init__.py
     ├── wan25_i2v.py     # 图生视频

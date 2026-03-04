@@ -189,7 +189,7 @@ async def generate_frame(request: FrameGenerateRequest):
         # wan2.6-image 多功能模型：支持有/无参考图
         if model == "wan2.6-image":
             t2i_service = TextToImageService()
-            urls = await t2i_service.generate_with_wan26_image(
+            urls, _ = await t2i_service.generate_with_wan26_image(
                 prompt=request.prompt,
                 image_urls=ref_urls if ref_urls else None,
                 negative_prompt=request.negative_prompt,
@@ -211,7 +211,7 @@ async def generate_frame(request: FrameGenerateRequest):
                 service.configure(config.dashscope_api_key, "")
                 
                 # 服务层会自动处理 OSS 上传
-                urls = await service.generate(
+                urls, _ = await service.generate(
                     prompt=request.prompt,
                     images=ref_urls[:3],  # qwen 最多3张参考图
                     negative_prompt=request.negative_prompt,
@@ -225,7 +225,7 @@ async def generate_frame(request: FrameGenerateRequest):
             else:
                 # 使用 wan2.5-i2i-preview 或其他图生图模型
                 i2i_service = ImageToImageService()
-                result = await i2i_service.generate_with_multi_images(
+                result, _ = await i2i_service.generate_with_multi_images(
                     prompt=request.prompt,
                     image_urls=ref_urls,
                     negative_prompt=request.negative_prompt,
@@ -332,7 +332,7 @@ async def generate_frames_batch(request: FrameBatchGenerateRequest):
                 # 使用多图生图（服务层会自动处理 OSS 上传）
                 i2i_service = ImageToImageService()
                 enhanced_prompt = f"参考输入的图片素材，{prompt}"
-                url = await i2i_service.generate_with_multi_images(
+                url, _ = await i2i_service.generate_with_multi_images(
                     prompt=enhanced_prompt,
                     image_urls=ref_urls,
                     project_id=request.project_id

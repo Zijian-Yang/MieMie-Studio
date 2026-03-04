@@ -4,6 +4,7 @@
 支持的模型：
 - wan2.5-i2i-preview: 万相图生图（风格迁移）
 - qwen-image-edit-plus/max: 通义千问图像编辑（单图编辑/多图融合）
+- qwen-image-2.0-pro/2.0: 千问图像2.0（文生图+图像编辑融合）
 
 架构说明：
 - /generate 端点通过 asyncio.create_task() 在后台执行生成，立即返回 generating 状态
@@ -243,7 +244,8 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
         )
     if not is_text_to_image and model_name not in (
         "wan2.6-image", "qwen-image-max", "qwen-image-plus",
-        "qwen-image-edit-plus", "qwen-image-edit-max"
+        "qwen-image-edit-plus", "qwen-image-edit-max",
+        "qwen-image-2.0-pro", "qwen-image-2.0",
     ) and not ref_urls:
         raise HTTPException(status_code=400, detail="该模型需要参考素材图片")
 
@@ -305,8 +307,10 @@ async def _background_generate(
     set_user_config_dir(user_config_dir)
 
     try:
+        request_ids: List[str] = []
+
         if model_name == "wan2.6-image":
-            images = await generate_with_wan26_image(
+            images, request_ids = await generate_with_wan26_image(
                 task=task,
                 ref_urls=ref_urls if ref_urls else None,
                 size=size,
@@ -317,7 +321,7 @@ async def _background_generate(
                 max_images=max_images,
             )
         elif is_text_to_image:
-            images, last_task_id, last_request_id = await generate_with_text_to_image(
+            images, request_ids = await generate_with_text_to_image(
                 task=task,
                 model_name=model_name,
                 prompt_extend=prompt_extend,
@@ -325,10 +329,8 @@ async def _background_generate(
                 seed=seed,
                 size=size,
             )
-            task.last_task_id = last_task_id
-            task.last_request_id = last_request_id
         elif model_name in ("qwen-image-max", "qwen-image-plus"):
-            images = await generate_with_qwen_image(
+            images, request_ids = await generate_with_qwen_image(
                 task=task,
                 api_key=config.dashscope_api_key,
                 base_url=config.base_url,
@@ -339,7 +341,19 @@ async def _background_generate(
                 seed=seed,
             )
         elif model_name in ("qwen-image-edit-plus", "qwen-image-edit-max"):
-            images = await generate_with_qwen_image_edit(
+            images, request_ids = await generate_with_qwen_image_edit(
+                task=task,
+                ref_urls=ref_urls,
+                api_key=config.dashscope_api_key,
+                base_url=config.base_url,
+                model_name=model_name,
+                size=size,
+                prompt_extend=prompt_extend,
+                watermark=watermark,
+                seed=seed,
+            )
+        elif model_name in ("qwen-image-2.0-pro", "qwen-image-2.0"):
+            images, request_ids = await generate_with_qwen_image_2(
                 task=task,
                 ref_urls=ref_urls,
                 api_key=config.dashscope_api_key,
@@ -351,9 +365,10 @@ async def _background_generate(
                 seed=seed,
             )
         else:
-            images = await generate_with_wanx_i2i(task=task, ref_urls=ref_urls)
+            images, request_ids = await generate_with_wanx_i2i(task=task, ref_urls=ref_urls)
 
         task.images = images
+        task.request_ids = request_ids
 
         valid_images = [img for img in images if img.url]
         group_errors = getattr(task, '_group_errors', [])
@@ -394,26 +409,22 @@ async def generate_with_text_to_image(
     watermark: bool = False,
     seed: Optional[int] = None,
     size: Optional[str] = None
-) -> Tuple[List[StudioTaskImage], Optional[str], Optional[str]]:
+) -> Tuple[List[StudioTaskImage], List[str]]:
     """使用文生图模型生成
     
     支持模型：wan2.6-t2i, wan2.5-t2i-preview
     
     Returns:
-        (images, last_task_id, last_request_id)
-    
-    Args:
-        size: 输出尺寸，格式为"宽*高"，如"1280*1280"
+        (images, request_ids)
     """
     from app.services.dashscope.text_to_image import TextToImageService
     
     t2i_service = TextToImageService()
-    n = task.n or 1  # 每次请求生成的图片数量
-    group_count = task.group_count or 3  # 并发请求数
+    n = task.n or 1
+    group_count = task.group_count or 3
     
     print(f"[文生图] 开始生成: n={n}, group_count={group_count}, total={n * group_count}")
     
-    # 解析 size 参数
     width = None
     height = None
     if size:
@@ -425,16 +436,10 @@ async def generate_with_text_to_image(
         except ValueError:
             pass
     
-    # 用于追踪最后一次生成的 task_id 和 request_id
-    last_task_id = None
-    last_request_id = None
+    collected_request_ids: List[str] = []
     
     async def generate_single_group(group_index: int) -> tuple[List[StudioTaskImage], bool, str, str, str]:
-        """生成单组图片（一次请求生成 n 张）
-        
-        Returns:
-            tuple: (图片列表, 是否成功, 错误信息, task_id, request_id)
-        """
+        """Returns: (图片列表, 是否成功, 错误信息, task_id, request_id)"""
         try:
             result = await t2i_service.generate_batch(
                 prompt=task.prompt,
@@ -464,28 +469,21 @@ async def generate_with_text_to_image(
             traceback.print_exc()
             return [], False, error_msg, "", ""
     
-    # 策略：先尝试并发，失败后回退到串行重试
     print(f"[文生图] 开始并发生成 {group_count} 组...")
-    
-    # 第一阶段：并发请求所有组
     group_tasks = [generate_single_group(i) for i in range(group_count)]
     results = await asyncio.gather(*group_tasks)
     
     all_images = []
-    failed_groups = []  # 记录失败的组索引和错误信息
+    failed_groups = []
     
     for i, (images, success, error_msg, tid, rid) in enumerate(results):
         if success:
             all_images.extend(images)
-            # 记录最后成功的 task_id 和 request_id
-            if tid:
-                last_task_id = tid
             if rid:
-                last_request_id = rid
+                collected_request_ids.append(rid)
         else:
             failed_groups.append((i, error_msg))
     
-    # 第二阶段：如果有失败的组，串行重试
     if failed_groups:
         print(f"[文生图] {len(failed_groups)} 个组失败，回退到串行重试...")
         max_retries = 3
@@ -494,7 +492,6 @@ async def generate_with_text_to_image(
             retry_success = False
             
             for retry in range(max_retries):
-                # 等待后重试（指数退避）
                 wait_time = 2 * (retry + 1)
                 print(f"[文生图] 组{group_index} 等待 {wait_time}s 后重试 ({retry + 1}/{max_retries})...")
                 await asyncio.sleep(wait_time)
@@ -503,16 +500,12 @@ async def generate_with_text_to_image(
                 if success:
                     all_images.extend(images)
                     retry_success = True
-                    # 记录最后成功的 task_id 和 request_id
-                    if tid:
-                        last_task_id = tid
                     if rid:
-                        last_request_id = rid
+                        collected_request_ids.append(rid)
                     print(f"[文生图] 组{group_index} 重试成功")
                     break
             
             if not retry_success:
-                # 所有重试都失败，添加空图片占位
                 print(f"[文生图] 组{group_index} 重试全部失败")
                 for i in range(n):
                     all_images.append(StudioTaskImage(
@@ -521,13 +514,12 @@ async def generate_with_text_to_image(
                         prompt_used=task.prompt
                     ))
     
-    # 按 group_index 排序
     all_images.sort(key=lambda img: img.group_index)
     
     success_count = sum(1 for img in all_images if img.url)
     print(f"[文生图] 生成完成: 共 {len(all_images)} 张图片，成功 {success_count} 张")
-    print(f"[文生图] 追踪ID: task_id={last_task_id}, request_id={last_request_id}")
-    return all_images, last_task_id, last_request_id
+    print(f"[文生图] request_ids: {collected_request_ids}")
+    return all_images, collected_request_ids
 
 
 async def generate_with_wan26_image(
@@ -539,36 +531,29 @@ async def generate_with_wan26_image(
     seed: Optional[int] = None,
     enable_interleave: bool = False,
     max_images: int = 5
-) -> List[StudioTaskImage]:
+) -> Tuple[List[StudioTaskImage], List[str]]:
     """使用 wan2.6-image 模型生成
-    
-    支持：
-    - 参考图生图 (ref_urls 不为空, enable_interleave=False)
-    - 纯文生图 (ref_urls 为空)
-    - 图文混合输出 (enable_interleave=True)
-    
-    参数说明：
-    - enable_interleave=False: 参考图模式，n 可选 1-4，默认4
-    - enable_interleave=True: 图文混合模式，n 固定为1，max_images 控制最大生成图数(1-5)
+
+    Returns:
+        (images, request_ids)
     """
     from app.services.dashscope.text_to_image import TextToImageService
     
     t2i_service = TextToImageService()
-    n = task.n or 4  # 参考图模式默认4张
+    n = task.n or 4
     
-    # wan2.6-image 限制
     if enable_interleave:
-        n = 1  # 图文混合模式固定为1
+        n = 1
         prompt_extend = False
     else:
-        n = min(n, 4)  # 参考图模式最多4张
+        n = min(n, 4)
     
     group_errors: List[str] = []
+    collected_request_ids: List[str] = []
     
     async def generate_single_group(group_index: int) -> List[StudioTaskImage]:
-        """生成单组图片"""
         try:
-            urls = await t2i_service.generate_with_wan26_image(
+            urls, rid = await t2i_service.generate_with_wan26_image(
                 prompt=task.prompt,
                 image_urls=ref_urls,
                 negative_prompt=task.negative_prompt or "",
@@ -581,6 +566,8 @@ async def generate_with_wan26_image(
                 max_images=max_images,
                 project_id=task.project_id
             )
+            if rid:
+                collected_request_ids.append(rid)
             
             images = []
             for i, url in enumerate(urls):
@@ -601,7 +588,6 @@ async def generate_with_wan26_image(
                 prompt_used=task.prompt
             ) for i in range(n)]
     
-    # 并发生成 group_count 组
     group_tasks = [generate_single_group(i) for i in range(task.group_count)]
     results = await asyncio.gather(*group_tasks)
     
@@ -611,34 +597,35 @@ async def generate_with_wan26_image(
     
     if group_errors:
         task._group_errors = group_errors
-    return all_images
+    return all_images, collected_request_ids
 
 
 async def generate_with_wanx_i2i(
     task: StudioTask,
     ref_urls: List[str]
-) -> List[StudioTaskImage]:
+) -> Tuple[List[StudioTaskImage], List[str]]:
     """使用万相图生图模型生成
-    
-    n: 每次请求生成的图片数量
-    group_count: 并发请求数
-    总图片数 = n * group_count
+
+    Returns:
+        (images, request_ids)
     """
     i2i_service = ImageToImageService()
     n = task.n or 1
     
     group_errors: List[str] = []
+    collected_request_ids: List[str] = []
     
     async def generate_single_group(group_index: int) -> List[StudioTaskImage]:
-        """生成单组图片（一次请求生成 n 张）"""
         try:
-            urls = await i2i_service.generate_with_multi_images(
+            urls, rid = await i2i_service.generate_with_multi_images(
                 prompt=task.prompt,
                 image_urls=ref_urls,
                 negative_prompt=task.negative_prompt,
                 n=n,
                 project_id=task.project_id
             )
+            if rid:
+                collected_request_ids.append(rid)
             if isinstance(urls, str):
                 urls = [urls]
             
@@ -667,7 +654,7 @@ async def generate_with_wanx_i2i(
     
     if group_errors:
         task._group_errors = group_errors
-    return all_images
+    return all_images, collected_request_ids
 
 
 async def generate_with_qwen_image_edit(
@@ -680,18 +667,11 @@ async def generate_with_qwen_image_edit(
     prompt_extend: bool = True,
     watermark: bool = False,
     seed: Optional[int] = None
-) -> List[StudioTaskImage]:
+) -> Tuple[List[StudioTaskImage], List[str]]:
     """使用通义千问图像编辑模型生成（plus/max 共用）
-    
-    n: 每次请求生成的图片数量（1-6）
-    group_count: 并发请求数
-    总图片数 = n * group_count
-    
-    qwen-image-edit-plus/max 特点：
-    - 支持 1-3 张输入图片
-    - 支持一次输出 1-6 张图片（通过 n 参数）
-    - 支持 size, prompt_extend, watermark, seed, negative_prompt 参数
-    - 不支持异步接口，只有同步调用
+
+    Returns:
+        (images, request_ids)
     """
     from app.models_registry.image.qwen_image_edit import (
         QwenImageEditService, QWEN_IMAGE_EDIT_PLUS_MODEL_INFO, QWEN_IMAGE_EDIT_MAX_MODEL_INFO
@@ -710,11 +690,11 @@ async def generate_with_qwen_image_edit(
     
     all_images = []
     group_errors: List[str] = []
+    collected_request_ids: List[str] = []
     
     async def generate_single_group(group_index: int) -> List[StudioTaskImage]:
-        """生成单组图片（一次请求生成 n 张）"""
         try:
-            urls = await service.generate(
+            urls, rid = await service.generate(
                 prompt=task.prompt,
                 images=ref_urls,
                 negative_prompt=task.negative_prompt,
@@ -725,6 +705,8 @@ async def generate_with_qwen_image_edit(
                 seed=seed,
                 project_id=task.project_id
             )
+            if rid:
+                collected_request_ids.append(rid)
             
             images = []
             for i, url in enumerate(urls):
@@ -751,7 +733,7 @@ async def generate_with_qwen_image_edit(
     
     if group_errors:
         task._group_errors = group_errors
-    return all_images
+    return all_images, collected_request_ids
 
 
 async def generate_with_qwen_image(
@@ -763,11 +745,11 @@ async def generate_with_qwen_image(
     prompt_extend: bool = True,
     watermark: bool = False,
     seed: Optional[int] = None
-) -> List[StudioTaskImage]:
+) -> Tuple[List[StudioTaskImage], List[str]]:
     """使用千问文生图模型生成（max/plus 共用）
-    
-    这两个模型是同步接口，每次只返回 1 张图。
-    通过 group_count 并发调用来批量生成。
+
+    Returns:
+        (images, request_ids)
     """
     from app.models_registry.image.qwen_image import (
         QwenImageService, QWEN_IMAGE_MAX_MODEL_INFO, QWEN_IMAGE_PLUS_MODEL_INFO
@@ -779,10 +761,11 @@ async def generate_with_qwen_image(
     
     all_images = []
     group_errors: List[str] = []
+    collected_request_ids: List[str] = []
     
     async def generate_single(group_index: int) -> List[StudioTaskImage]:
         try:
-            urls = await service.generate(
+            urls, rid = await service.generate(
                 prompt=task.prompt,
                 negative_prompt=task.negative_prompt or "",
                 size=size or "1664*928",
@@ -790,8 +773,9 @@ async def generate_with_qwen_image(
                 watermark=watermark,
                 seed=seed,
             )
+            if rid:
+                collected_request_ids.append(rid)
             
-            # 上传到 OSS 以持久化（API 返回的 URL 24 小时过期）
             final_urls = []
             for url in urls:
                 if oss_service.is_enabled():
@@ -826,7 +810,6 @@ async def generate_with_qwen_image(
                 prompt_used=task.prompt
             )]
     
-    # 并发生成 group_count 组（每组 1 张图）
     group_tasks = [generate_single(i) for i in range(task.group_count)]
     results = await asyncio.gather(*group_tasks)
     
@@ -835,7 +818,106 @@ async def generate_with_qwen_image(
     
     if group_errors:
         task._group_errors = group_errors
-    return all_images
+    return all_images, collected_request_ids
+
+
+async def generate_with_qwen_image_2(
+    task: StudioTask,
+    ref_urls: List[str],
+    api_key: str,
+    base_url: str = "",
+    model_name: str = "qwen-image-2.0-pro",
+    size: Optional[str] = None,
+    prompt_extend: bool = True,
+    watermark: bool = False,
+    seed: Optional[int] = None,
+) -> Tuple[List[StudioTaskImage], List[str]]:
+    """使用千问图像 2.0 模型生成（文生图 + 图像编辑融合）
+
+    Returns:
+        (images, request_ids)
+    """
+    from app.models_registry.image.qwen_image_2 import (
+        QwenImage2Service, QWEN_IMAGE_2_PRO_MODEL_INFO, QWEN_IMAGE_2_MODEL_INFO
+    )
+
+    model_info = (
+        QWEN_IMAGE_2_PRO_MODEL_INFO
+        if model_name == "qwen-image-2.0-pro"
+        else QWEN_IMAGE_2_MODEL_INFO
+    )
+    service = QwenImage2Service(model_info)
+    service.configure(api_key, base_url)
+
+    n = task.n or 1
+    if n > 6:
+        n = 6
+
+    all_images: List[StudioTaskImage] = []
+    group_errors: List[str] = []
+    collected_request_ids: List[str] = []
+
+    images_input = ref_urls if ref_urls else None
+
+    async def generate_single(group_index: int) -> List[StudioTaskImage]:
+        try:
+            urls, rid = await service.generate(
+                prompt=task.prompt,
+                images=images_input,
+                negative_prompt=task.negative_prompt or "",
+                n=n,
+                size=size or "1024*1024",
+                prompt_extend=prompt_extend,
+                watermark=watermark,
+                seed=seed,
+            )
+            if rid:
+                collected_request_ids.append(rid)
+
+            final_urls: list[str] = []
+            for url in urls:
+                if oss_service.is_enabled():
+                    try:
+                        import httpx as _httpx
+                        async with _httpx.AsyncClient(timeout=30.0) as client:
+                            resp = await client.get(url)
+                            if resp.status_code == 200:
+                                success, oss_url = oss_service.upload_from_bytes(
+                                    resp.content, "image", "png", task.project_id
+                                )
+                                if success:
+                                    final_urls.append(oss_url)
+                                    continue
+                    except Exception:
+                        pass
+                final_urls.append(url)
+
+            return [
+                StudioTaskImage(
+                    group_index=group_index, url=u, prompt_used=task.prompt
+                )
+                for u in final_urls
+            ]
+        except Exception as e:
+            import traceback
+            logger.error(f"{model_name} 生成失败: {e}")
+            traceback.print_exc()
+            group_errors.append(str(e))
+            return [
+                StudioTaskImage(
+                    group_index=group_index, url=None, prompt_used=task.prompt
+                )
+            ]
+
+    group_tasks = [generate_single(i) for i in range(task.group_count)]
+    results = await asyncio.gather(*group_tasks)
+
+    for group_images in results:
+        all_images.extend(group_images)
+
+    if group_errors:
+        task._group_errors = group_errors
+    return all_images, collected_request_ids
 
 
 @router.post("/{task_id}/save-to-gallery")

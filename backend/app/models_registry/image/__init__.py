@@ -26,12 +26,16 @@ from . import wan25_i2i
 # 通义千问图像编辑
 from . import qwen_image_edit
 
+# 千问图像 2.0（文生图+图像编辑融合）
+from . import qwen_image_2
+
 # 导出
 from .wan26_t2i import WAN26_T2I_MODEL_INFO, Wan26T2IService
 from .wan26_image import WAN26_IMAGE_MODEL_INFO, Wan26ImageService
 from .wan25_t2i import WAN25_T2I_MODEL_INFO, Wan25T2IService
 from .wan25_i2i import WAN25_I2I_MODEL_INFO, Wan25I2IService
 from .qwen_image_edit import QWEN_IMAGE_EDIT_PLUS_MODEL_INFO, QwenImageEditService
+from .qwen_image_2 import QWEN_IMAGE_2_PRO_MODEL_INFO, QWEN_IMAGE_2_MODEL_INFO, QwenImage2Service
 
 __all__ = [
     # 万相2.6
@@ -47,5 +51,8 @@ __all__ = [
     # 通义千问
     "QWEN_IMAGE_EDIT_PLUS_MODEL_INFO",
     "QwenImageEditService",
+    "QWEN_IMAGE_2_PRO_MODEL_INFO",
+    "QWEN_IMAGE_2_MODEL_INFO",
+    "QwenImage2Service",
 ]
 

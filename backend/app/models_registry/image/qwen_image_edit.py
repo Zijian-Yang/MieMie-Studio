@@ -271,7 +271,7 @@ class QwenImageEditService(BaseModelService[List[str]]):
         seed: Optional[int] = None,
         project_id: str = "",
         **kwargs
-    ) -> List[str]:
+    ) -> tuple[list[str], str]:
         """
         编辑图片或融合多图
         
@@ -287,7 +287,7 @@ class QwenImageEditService(BaseModelService[List[str]]):
             project_id: 项目ID，用于 OSS 上传路径
             
         Returns:
-            生成的图片URL列表（如果启用 OSS，返回 OSS URL）
+            (图片URL列表, request_id)
         """
         # 确保 images 是列表
         if isinstance(images, str):
@@ -343,10 +343,12 @@ class QwenImageEditService(BaseModelService[List[str]]):
             **call_params
         )
         
+        req_id = getattr(response, 'request_id', '') or ''
+
         if response.status_code != 200:
             error_msg = f"API 调用失败: {response.code} - {response.message}"
-            if hasattr(response, 'request_id'):
-                error_msg += f" (request_id: {response.request_id})"
+            if req_id:
+                error_msg += f" (request_id: {req_id})"
             raise Exception(error_msg)
         
         # 提取图片URL
@@ -367,9 +369,9 @@ class QwenImageEditService(BaseModelService[List[str]]):
             for url in urls:
                 oss_url = await oss_service.upload_image_async(url, project_id)
                 oss_urls.append(oss_url)
-            return oss_urls
+            return oss_urls, req_id
         
-        return urls
+        return urls, req_id
     
     async def edit_single_image(
         self,

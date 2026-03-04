@@ -742,6 +742,11 @@ const AudioStudioPage = () => {
                       {task.result_voice_id && <Text type="secondary" copyable={{ text: task.result_voice_id }}>音色ID: {task.result_voice_id}</Text>}
                       {task.error_message && <Text type="danger">{task.error_message}</Text>}
                       <Text type="secondary" style={{ fontSize: 12 }}>{new Date(task.created_at).toLocaleString()}</Text>
+                      {task.request_id && (
+                        <Text type="secondary" style={{ fontSize: 11, fontFamily: 'monospace' }}>
+                          Request ID: {task.request_id}
+                        </Text>
+                      )}
                     </Space>
                   }
                 />

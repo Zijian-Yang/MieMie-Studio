@@ -1156,8 +1156,9 @@ export interface StudioTask {
   enable_interleave?: boolean  // 图文混合模式
   max_images?: number  // 图文混合模式下最大生成图数
   // 追踪ID
-  last_task_id?: string  // DashScope 任务ID
-  last_request_id?: string  // DashScope 请求ID
+  last_task_id?: string
+  last_request_id?: string
+  request_ids?: string[]
   references: ReferenceItem[]
   images: StudioTaskImage[]
   status: 'pending' | 'generating' | 'completed' | 'failed'

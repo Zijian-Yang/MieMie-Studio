@@ -60,9 +60,10 @@ class StudioTask(BaseModel):
     status: str = "pending"  # pending, generating, completed, failed
     error_message: Optional[str] = None
     
-    # 最近一次生成的任务ID（用于追踪）
-    last_task_id: Optional[str] = None  # DashScope 任务ID
-    last_request_id: Optional[str] = None  # DashScope 请求ID
+    # API 追踪ID
+    last_task_id: Optional[str] = None  # DashScope 任务ID（兼容旧数据）
+    last_request_id: Optional[str] = None  # DashScope 请求ID（兼容旧数据）
+    request_ids: List[str] = []  # 所有并发组的 request_id 列表
     
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)

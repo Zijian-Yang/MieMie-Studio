@@ -203,6 +203,8 @@ class ImageToImageService:
         except httpx.HTTPError as e:
             raise Exception(f"请求失败: {str(e)}")
         
+        req_id = result.get("request_id", "")
+
         if "output" not in result or "task_id" not in result["output"]:
             error_msg = result.get("message", str(result))
             raise Exception(f"创建任务失败: {error_msg}")
@@ -210,7 +212,8 @@ class ImageToImageService:
         task_id = result["output"]["task_id"]
         
         # 轮询任务状态
-        return await self._poll_task_multiple(task_id, project_id)
+        urls = await self._poll_task_multiple(task_id, project_id)
+        return urls, req_id
 
     async def _poll_task(self, task_id: str, project_id: str = "") -> str:
         """轮询任务状态直到完成（返回单张图片）"""
