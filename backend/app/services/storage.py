@@ -26,6 +26,7 @@ from app.models.style import Style
 from app.models.gallery import GalleryImage
 from app.models.studio import StudioTask
 from app.models.media import AudioItem, VideoItem, TextItem, VideoStudioTask
+from app.models.audio_studio import AudioStudioTask, VoiceProfile
 
 # 当前用户 ID 的上下文变量
 _current_user_id: ContextVar[Optional[str]] = ContextVar('current_user_id', default=None)
@@ -64,8 +65,10 @@ class StorageService:
         self.video_library_dir = self.data_dir / "video_library"
         self.text_library_dir = self.data_dir / "text_library"
         self.video_studio_dir = self.data_dir / "video_studio"
-        
-        self._lock = threading.RLock()  # 可重入锁，支持并发访问
+        self.audio_studio_dir = self.data_dir / "audio_studio"
+        self.voices_dir = self.data_dir / "voices"
+
+        self._lock = threading.RLock()
         self._ensure_dirs()
     
     def _ensure_dirs(self):
@@ -74,7 +77,8 @@ class StorageService:
             self.projects_dir, self.characters_dir, self.scenes_dir,
             self.props_dir, self.frames_dir, self.videos_dir, self.styles_dir,
             self.gallery_dir, self.studio_dir,
-            self.audio_dir, self.video_library_dir, self.text_library_dir, self.video_studio_dir
+            self.audio_dir, self.video_library_dir, self.text_library_dir, self.video_studio_dir,
+            self.audio_studio_dir, self.voices_dir
         ]:
             dir_path.mkdir(parents=True, exist_ok=True)
     
@@ -537,6 +541,83 @@ class StorageService:
     def delete_video_studio_task(self, task_id: str) -> None:
         """删除视频工作室任务"""
         file_path = self.video_studio_dir / f"{task_id}.json"
+        if file_path.exists():
+            file_path.unlink()
+
+    # ============ Audio Studio ============
+
+    def save_audio_studio_task(self, task: AudioStudioTask) -> None:
+        """保存音频工作室任务（线程安全）"""
+        with self._lock:
+            task.updated_at = datetime.now()
+            file_path = self.audio_studio_dir / f"{task.id}.json"
+            self._write_json_with_lock(file_path, task.model_dump())
+
+    def get_audio_studio_task(self, task_id: str) -> Optional[AudioStudioTask]:
+        """获取音频工作室任务"""
+        file_path = self.audio_studio_dir / f"{task_id}.json"
+        if not file_path.exists():
+            return None
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            return AudioStudioTask(**data)
+
+    def get_audio_studio_tasks(self, project_id: str) -> List[AudioStudioTask]:
+        """获取项目所有音频工作室任务"""
+        tasks = []
+        for file_path in self.audio_studio_dir.glob("*.json"):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if data.get("project_id") == project_id:
+                    tasks.append(AudioStudioTask(**data))
+        return sorted(tasks, key=lambda t: t.created_at, reverse=True)
+
+    def delete_audio_studio_task(self, task_id: str) -> None:
+        """删除音频工作室任务"""
+        file_path = self.audio_studio_dir / f"{task_id}.json"
+        if file_path.exists():
+            file_path.unlink()
+
+    # ============ Voice Profiles ============
+
+    def save_voice_profile(self, profile: VoiceProfile) -> None:
+        """保存音色档案（线程安全）"""
+        with self._lock:
+            profile.updated_at = datetime.now()
+            file_path = self.voices_dir / f"{profile.id}.json"
+            self._write_json_with_lock(file_path, profile.model_dump())
+
+    def get_voice_profile(self, profile_id: str) -> Optional[VoiceProfile]:
+        """获取音色档案"""
+        file_path = self.voices_dir / f"{profile_id}.json"
+        if not file_path.exists():
+            return None
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            return VoiceProfile(**data)
+
+    def get_voice_profiles(self, project_id: str) -> List[VoiceProfile]:
+        """获取项目所有音色档案"""
+        profiles = []
+        for file_path in self.voices_dir.glob("*.json"):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if data.get("project_id") == project_id:
+                    profiles.append(VoiceProfile(**data))
+        return sorted(profiles, key=lambda p: p.created_at, reverse=True)
+
+    def get_voice_profile_by_voice_id(self, voice_id: str) -> Optional[VoiceProfile]:
+        """通过 DashScope voice_id 获取音色档案"""
+        for file_path in self.voices_dir.glob("*.json"):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if data.get("voice_id") == voice_id:
+                    return VoiceProfile(**data)
+        return None
+
+    def delete_voice_profile(self, profile_id: str) -> None:
+        """删除音色档案"""
+        file_path = self.voices_dir / f"{profile_id}.json"
         if file_path.exists():
             file_path.unlink()
 

@@ -1676,4 +1676,113 @@ export const authApi = {
     }),
 }
 
+// ============ 音频工作室 API ============
+
+export interface AudioStudioTask {
+  id: string
+  project_id: string
+  task_type: 'tts' | 'voice_clone' | 'voice_design'
+  name: string
+  // TTS
+  text: string
+  voice: string
+  format: string
+  volume: number
+  speech_rate: number
+  pitch_rate: number
+  seed?: number | null
+  language_hints?: string | null
+  instruction?: string | null
+  enable_ssml: boolean
+  // Voice Clone
+  audio_url?: string | null
+  prefix: string
+  clone_language_hints?: string | null
+  // Voice Design
+  voice_prompt?: string | null
+  preview_text?: string | null
+  design_sample_rate: number
+  design_response_format: string
+  // Results
+  result_audio_url?: string | null
+  result_voice_id?: string | null
+  saved_to_library: boolean
+  // Status
+  status: 'pending' | 'processing' | 'succeeded' | 'failed'
+  error_message?: string | null
+  request_id?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface VoiceProfile {
+  id: string
+  project_id: string
+  voice_id: string
+  name: string
+  source: 'clone' | 'design'
+  target_model: string
+  prefix: string
+  status: 'deploying' | 'ok' | 'undeployed'
+  voice_prompt?: string | null
+  preview_text?: string | null
+  preview_audio_url?: string | null
+  audio_url?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export const audioStudioApi = {
+  list: (projectId: string) =>
+    api.get<any, { tasks: AudioStudioTask[] }>('/audio-studio', { params: { project_id: projectId } }),
+
+  get: (id: string) =>
+    api.get<any, { task: AudioStudioTask }>(`/audio-studio/${id}`),
+
+  delete: (id: string) =>
+    api.delete(`/audio-studio/${id}`),
+
+  createTTS: (data: {
+    project_id: string
+    name?: string
+    text: string
+    voice: string
+    format?: string
+    volume?: number
+    speech_rate?: number
+    pitch_rate?: number
+    seed?: number | null
+    language_hints?: string | null
+    instruction?: string | null
+    enable_ssml?: boolean
+  }) => api.post<any, { task: AudioStudioTask }>('/audio-studio/tts', data),
+
+  createVoiceClone: (data: {
+    project_id: string
+    name?: string
+    audio_url: string
+    prefix: string
+    language_hints?: string | null
+  }) => api.post<any, { task: AudioStudioTask }>('/audio-studio/voice-clone', data),
+
+  createVoiceDesign: (data: {
+    project_id: string
+    name?: string
+    voice_prompt: string
+    preview_text: string
+    prefix: string
+    sample_rate?: number
+    response_format?: string
+  }) => api.post<any, { task: AudioStudioTask }>('/audio-studio/voice-design', data),
+
+  saveToLibrary: (taskId: string) =>
+    api.post<any, { success: boolean }>(`/audio-studio/${taskId}/save-to-library`),
+
+  listVoices: (projectId: string) =>
+    api.get<any, { voices: VoiceProfile[] }>('/audio-studio/voices', { params: { project_id: projectId } }),
+
+  deleteVoice: (profileId: string) =>
+    api.delete(`/audio-studio/voices/${profileId}`),
+}
+
 export default api

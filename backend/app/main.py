@@ -16,7 +16,7 @@ init_logging()
 from app.routers import (
     settings, scripts, characters, scenes, props, frames, videos, projects, 
     styles, gallery, studio, audio, video_library, text_library, video_studio,
-    models, auth
+    audio_studio, models, auth
 )
 from app.middleware.auth import AuthMiddleware
 
@@ -71,6 +71,7 @@ app.include_router(audio.router, prefix="/api/audio", tags=["音频库"])
 app.include_router(video_library.router, prefix="/api/video-library", tags=["视频库"])
 app.include_router(text_library.router, prefix="/api/text-library", tags=["文本库"])
 app.include_router(video_studio.router, prefix="/api/video-studio", tags=["视频工作室"])
+app.include_router(audio_studio.router, prefix="/api/audio-studio", tags=["音频工作室"])
 app.include_router(models.router, prefix="/api/models", tags=["模型配置"])
 
 
