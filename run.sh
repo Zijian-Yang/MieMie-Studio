@@ -154,18 +154,14 @@ check_python() {
     fi
 }
 
-# 确保 python3-venv 模块可用，不可用时自动安装
-ensure_python_venv() {
+# 自动安装 python3-venv / ensurepip 包
+install_python_venv_package() {
     local PYTHON
     PYTHON=$(check_python)
-    if $PYTHON -m venv --help &> /dev/null; then
-        return 0
-    fi
-
-    log_warn "Python venv 模块不可用，尝试自动安装..."
-
     local py_version
-    py_version=$($PYTHON --version 2>&1 | grep -oP '\d+\.\d+')
+    py_version=$($PYTHON --version 2>&1 | grep -oE '[0-9]+\.[0-9]+')
+
+    log_warn "Python venv/ensurepip 模块不可用，正在自动安装..."
 
     local pkg_mgr
     pkg_mgr=$(detect_pkg_manager)
@@ -173,33 +169,25 @@ ensure_python_venv() {
     case "$pkg_mgr" in
         apt)
             local venv_pkg="python${py_version}-venv"
-            log_info "安装 $venv_pkg ..."
+            log_info "执行: apt-get install $venv_pkg ..."
             run_pkg_cmd apt-get update -qq
-            run_pkg_cmd apt-get install -y -qq "$venv_pkg"
+            run_pkg_cmd apt-get install -y "$venv_pkg"
             ;;
         yum|dnf)
             auto_install_package "python3-virtualenv" "Python venv"
             ;;
         brew)
-            log_info "macOS 的 Python 自带 venv 模块，请检查 Python 安装是否完整"
+            log_info "macOS 的 Python 自带 venv，请检查 Python 安装是否完整"
             return 1
             ;;
         pacman)
             auto_install_package "python" "Python (含 venv)"
             ;;
         *)
-            log_error "无法自动安装 python venv，请手动执行: apt install python${py_version}-venv"
+            log_error "无法自动安装，请手动执行: apt install python${py_version}-venv"
             return 1
             ;;
     esac
-
-    if $PYTHON -m venv --help &> /dev/null; then
-        log_success "Python venv 模块已就绪"
-        return 0
-    else
-        log_error "Python venv 模块安装失败，请手动安装"
-        return 1
-    fi
 }
 
 # 自动安装 Node.js（使用 NodeSource 或系统包管理器）
@@ -303,12 +291,41 @@ create_venv() {
         return 0
     fi
 
-    ensure_python_venv || exit 1
+    local PYTHON
+    PYTHON=$(check_python)
 
     log_info "创建虚拟环境..."
-    PYTHON=$(check_python)
-    $PYTHON -m venv "$VENV_DIR"
-    log_success "虚拟环境创建完成"
+
+    # 第一次尝试
+    local venv_output
+    if venv_output=$($PYTHON -m venv "$VENV_DIR" 2>&1); then
+        log_success "虚拟环境创建完成"
+        return 0
+    fi
+
+    # 创建失败——检测是否因为缺少 ensurepip / python3-venv
+    if echo "$venv_output" | grep -qiE "ensurepip|python3.*-venv|venv.*not.*available"; then
+        # 清理失败的半成品目录
+        rm -rf "$VENV_DIR"
+
+        install_python_venv_package || {
+            log_error "虚拟环境创建失败，请根据上方提示手动安装后重试"
+            exit 1
+        }
+
+        # 第二次尝试
+        log_info "重新创建虚拟环境..."
+        if $PYTHON -m venv "$VENV_DIR"; then
+            log_success "虚拟环境创建完成"
+            return 0
+        fi
+    fi
+
+    # 其他原因失败
+    log_error "虚拟环境创建失败:"
+    echo "$venv_output"
+    rm -rf "$VENV_DIR"
+    exit 1
 }
 
 activate_venv() {
