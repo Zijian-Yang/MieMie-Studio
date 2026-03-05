@@ -48,6 +48,7 @@ class AudioStudioTask(BaseModel):
     # === 结果 ===
     result_audio_url: Optional[str] = None  # TTS 结果音频 URL / 设计预览音频 URL
     result_voice_id: Optional[str] = None  # 复刻或设计产生的音色 ID
+    audio_duration: Optional[float] = None  # 生成音频时长（秒）
     saved_to_library: bool = False  # 是否已保存到音频库
 
     # === 状态 ===

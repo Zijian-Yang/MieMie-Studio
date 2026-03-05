@@ -1710,6 +1710,7 @@ export interface AudioStudioTask {
   // Results
   result_audio_url?: string | null
   result_voice_id?: string | null
+  audio_duration?: number | null
   saved_to_library: boolean
   // Status
   status: 'pending' | 'processing' | 'succeeded' | 'failed'

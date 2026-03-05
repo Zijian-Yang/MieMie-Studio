@@ -28,6 +28,28 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _estimate_audio_duration(audio_data: bytes, fmt: str) -> Optional[float]:
+    """从音频二进制数据估算时长（秒）"""
+    try:
+        if fmt.startswith("wav"):
+            import wave, io
+            with wave.open(io.BytesIO(audio_data), "rb") as w:
+                return w.getnframes() / w.getframerate()
+        elif fmt.startswith("pcm"):
+            parts = fmt.split("_")  # e.g. pcm_16000hz_mono_16bit
+            sample_rate = int(parts[1].replace("hz", ""))
+            bits = int(parts[3].replace("bit", ""))
+            channels = 2 if "stereo" in fmt else 1
+            return len(audio_data) / (sample_rate * channels * bits / 8)
+        elif fmt.startswith("mp3"):
+            parts = fmt.split("_")  # e.g. mp3_22050hz_mono_256kbps
+            bitrate = int(parts[3].replace("kbps", "")) * 1000
+            return len(audio_data) * 8 / bitrate
+    except Exception as e:
+        logger.warning(f"[TTS] 计算音频时长失败: {e}")
+    return None
+
+
 # ─── Request Models ──────────────────────────────────────
 
 class TTSCreateRequest(BaseModel):
@@ -191,6 +213,7 @@ async def _background_tts(task: AudioStudioTask, user_id, user_config_dir):
 
         task.result_audio_url = audio_url
         task.request_id = request_id
+        task.audio_duration = _estimate_audio_duration(audio_data, task.format)
         task.status = "succeeded"
 
     except Exception as e:
@@ -369,6 +392,10 @@ async def _background_voice_design(
         task.result_voice_id = voice_id
         task.result_audio_url = preview_url
         task.request_id = request_id
+        if preview_bytes:
+            task.audio_duration = _estimate_audio_duration(
+                preview_bytes, req.response_format or "wav"
+            )
         task.status = "succeeded"
 
         profile = VoiceProfile(

@@ -6,7 +6,7 @@ import {
 } from 'antd'
 import {
   AudioOutlined, SoundOutlined, ScissorOutlined, ExperimentOutlined,
-  PlayCircleOutlined, DeleteOutlined, SaveOutlined, ReloadOutlined,
+  PlayCircleOutlined, PauseCircleOutlined, DeleteOutlined, SaveOutlined, ReloadOutlined,
 } from '@ant-design/icons'
 import {
   audioStudioApi, audioApi,
@@ -203,6 +203,20 @@ const INSTRUCT_VOICE_IDS = new Set(
   SYSTEM_VOICES.flatMap(g => g.voices.filter(v => v.instruct).map(v => v.id))
 )
 
+const SYSTEM_VOICE_NAME_MAP: Record<string, string> = Object.fromEntries(
+  SYSTEM_VOICES.flatMap(g => g.voices.map(v => [v.id, `${v.name}（${v.desc}）`]))
+)
+
+const FORMAT_LABEL_MAP: Record<string, string> = Object.fromEntries(
+  AUDIO_FORMATS.map(f => [f.value, f.label])
+)
+
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = Math.round(seconds % 60)
+  return m > 0 ? `${m}分${s}秒` : `${s}秒`
+}
+
 type VoiceType = 'system_instruct' | 'system_plain' | 'custom'
 
 function getVoiceType(voiceId: string | undefined): VoiceType {
@@ -249,6 +263,33 @@ const AudioStudioPage = () => {
   const pollingRef = useRef<Set<string>>(new Set())
   const isMountedRef = useRef(true)
 
+  const [playingId, setPlayingId] = useState<string | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  const handlePlayPause = useCallback((taskId: string, url: string) => {
+    if (playingId === taskId && audioRef.current) {
+      audioRef.current.pause()
+      setPlayingId(null)
+      return
+    }
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+    }
+    const audio = new Audio(url)
+    audio.onended = () => { setPlayingId(null); audioRef.current = null }
+    audio.onerror = () => { setPlayingId(null); audioRef.current = null }
+    audio.play()
+    audioRef.current = audio
+    setPlayingId(taskId)
+  }, [playingId])
+
+  const getVoiceDisplayName = useCallback((voiceId: string) => {
+    if (SYSTEM_VOICE_NAME_MAP[voiceId]) return SYSTEM_VOICE_NAME_MAP[voiceId]
+    const matched = voices.find(v => v.voice_id === voiceId)
+    return matched ? `${matched.name}（${matched.source === 'clone' ? '复刻' : '设计'}）` : voiceId
+  }, [voices])
+
   const [ttsForm] = Form.useForm()
   const [cloneForm] = Form.useForm()
   const [designForm] = Form.useForm()
@@ -262,6 +303,7 @@ const AudioStudioPage = () => {
     return () => {
       isMountedRef.current = false
       pollingRef.current.clear()
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
     }
   }, [projectId])
 
@@ -671,10 +713,13 @@ const AudioStudioPage = () => {
               <List.Item
                 actions={[
                   v.preview_audio_url && (
-                    <Button size="small" icon={<PlayCircleOutlined />} onClick={() => {
-                      const audio = new Audio(v.preview_audio_url!)
-                      audio.play()
-                    }}>试听</Button>
+                    <Button
+                      size="small"
+                      icon={playingId === `voice-${v.id}` ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+                      onClick={() => handlePlayPause(`voice-${v.id}`, v.preview_audio_url!)}
+                    >
+                      {playingId === `voice-${v.id}` ? '暂停' : '试听'}
+                    </Button>
                   ),
                   <Popconfirm title="确定删除该音色？删除后不可恢复。" onConfirm={() => handleDeleteVoice(v.id)}>
                     <Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
@@ -710,10 +755,13 @@ const AudioStudioPage = () => {
               <List.Item
                 actions={[
                   task.result_audio_url && (
-                    <Button size="small" icon={<PlayCircleOutlined />} onClick={() => {
-                      const audio = new Audio(task.result_audio_url!)
-                      audio.play()
-                    }}>播放</Button>
+                    <Button
+                      size="small"
+                      icon={playingId === task.id ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+                      onClick={() => handlePlayPause(task.id, task.result_audio_url!)}
+                    >
+                      {playingId === task.id ? '暂停' : '播放'}
+                    </Button>
                   ),
                   task.result_audio_url && !task.saved_to_library && (
                     <Button size="small" icon={<SaveOutlined />} onClick={() => handleSaveToLibrary(task.id)}>
@@ -735,10 +783,33 @@ const AudioStudioPage = () => {
                     </Space>
                   }
                   description={
-                    <Space direction="vertical" size={0}>
+                    <Space direction="vertical" size={4}>
                       {task.task_type === 'tts' && <Text type="secondary">文本: {task.text?.slice(0, 80)}{(task.text?.length || 0) > 80 ? '...' : ''}</Text>}
                       {task.task_type === 'voice_clone' && <Text type="secondary">前缀: {task.prefix}</Text>}
                       {task.task_type === 'voice_design' && <Text type="secondary">描述: {task.voice_prompt?.slice(0, 60)}</Text>}
+                      <Space size={[4, 4]} wrap>
+                        {task.task_type === 'tts' && task.voice && (
+                          <Tag color="blue">{getVoiceDisplayName(task.voice)}</Tag>
+                        )}
+                        {task.task_type === 'tts' && task.format && (
+                          <Tag>{FORMAT_LABEL_MAP[task.format] || task.format}</Tag>
+                        )}
+                        {task.task_type === 'tts' && task.speech_rate !== undefined && task.speech_rate !== 1.0 && (
+                          <Tag>语速 {task.speech_rate}x</Tag>
+                        )}
+                        {task.task_type === 'tts' && task.pitch_rate !== undefined && task.pitch_rate !== 1.0 && (
+                          <Tag>音高 {task.pitch_rate}x</Tag>
+                        )}
+                        {task.task_type === 'tts' && task.volume !== undefined && task.volume !== 50 && (
+                          <Tag>音量 {task.volume}</Tag>
+                        )}
+                        {task.task_type === 'tts' && task.enable_ssml && (
+                          <Tag color="purple">SSML</Tag>
+                        )}
+                        {task.audio_duration != null && (
+                          <Tag color="cyan">{formatDuration(task.audio_duration)}</Tag>
+                        )}
+                      </Space>
                       {task.result_voice_id && <Text type="secondary" copyable={{ text: task.result_voice_id }}>音色ID: {task.result_voice_id}</Text>}
                       {task.error_message && <Text type="danger">{task.error_message}</Text>}
                       <Text type="secondary" style={{ fontSize: 12 }}>{new Date(task.created_at).toLocaleString()}</Text>
