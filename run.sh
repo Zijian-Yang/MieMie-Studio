@@ -406,6 +406,7 @@ MIEMIE_CONF="$PROJECT_DIR/.miemie.conf"
 
 # 默认仅本地访问
 LISTEN_HOST="127.0.0.1"
+ALLOWED_DOMAINS=""
 
 # 从配置文件加载持久化设置
 load_config() {
@@ -417,8 +418,9 @@ load_config() {
 # 保存设置到配置文件
 save_config() {
     cat > "$MIEMIE_CONF" << EOF
-# MieMie-Studio 运行配置（自动生成，请勿手动编辑）
+# MieMie-Studio 运行配置（自动生成，勿手动编辑）
 LISTEN_HOST="$LISTEN_HOST"
+ALLOWED_DOMAINS="$ALLOWED_DOMAINS"
 EOF
 }
 
@@ -1278,6 +1280,20 @@ print_header() {
 # 网络访问设置
 # ======================
 
+prompt_restart_if_running() {
+    if is_backend_running || is_frontend_running; then
+        log_warn "设置将在下次启动/重启服务后生效"
+        echo ""
+        read -p "  是否立即重启服务？[y/N]: " restart_choice
+        if [[ "$restart_choice" =~ ^[Yy]$ ]]; then
+            echo ""
+            stop_all
+            sleep 2
+            start_all
+        fi
+    fi
+}
+
 menu_network() {
     print_header
 
@@ -1294,18 +1310,22 @@ menu_network() {
     echo -e "  ${BOLD}网络访问设置${NC}"
     echo -e "  ${DIM}──────────────────────────────────────────────${NC}"
     echo ""
-    echo -e "  当前状态:  公网访问 $current_status"
+    echo -e "  公网访问:  $current_status"
     echo -e "  监听地址:  ${BOLD}$LISTEN_HOST${NC}"
     echo -e "  本机 IP:   ${BOLD}$server_ip${NC}"
-    echo ""
-    echo -e "  ${DIM}开启公网访问后，同一网络内的设备可通过 IP 访问本平台${NC}"
-    echo -e "  ${DIM}关闭后仅允许本机 localhost 访问（更安全）${NC}"
+    if [ -n "$ALLOWED_DOMAINS" ]; then
+        echo -e "  绑定域名:  ${BOLD}$ALLOWED_DOMAINS${NC}"
+    else
+        echo -e "  绑定域名:  ${DIM}无（仅 IP 访问）${NC}"
+    fi
     echo ""
     echo -e "  ${GREEN}1${NC})  开启公网访问    ${DIM}— 监听 0.0.0.0，允许外部 IP 连接${NC}"
     echo -e "  ${GREEN}2${NC})  关闭公网访问    ${DIM}— 监听 127.0.0.1，仅本机可访问${NC}"
+    echo -e "  ${GREEN}3${NC})  绑定域名        ${DIM}— 通过 Nginx 反代域名访问时必须设置${NC}"
+    echo -e "  ${GREEN}4${NC})  清除域名        ${DIM}— 移除已绑定的域名${NC}"
     echo -e "  ${RED}0${NC})  返回"
     echo ""
-    read -p "  请选择 [0-2]: " choice
+    read -p "  请选择 [0-4]: " choice
 
     case "$choice" in
         1)
@@ -1316,17 +1336,7 @@ menu_network() {
             log_info "监听地址: 0.0.0.0"
             log_info "访问链接: http://${server_ip}:$BACKEND_PORT"
             echo ""
-            if is_backend_running || is_frontend_running; then
-                log_warn "设置将在下次启动/重启服务后生效"
-                echo ""
-                read -p "  是否立即重启服务？[y/N]: " restart_choice
-                if [[ "$restart_choice" =~ ^[Yy]$ ]]; then
-                    echo ""
-                    stop_all
-                    sleep 2
-                    start_all
-                fi
-            fi
+            prompt_restart_if_running
             wait_key
             ;;
         2)
@@ -1336,17 +1346,53 @@ menu_network() {
             log_success "公网访问已关闭"
             log_info "监听地址: 127.0.0.1 (仅本机)"
             echo ""
-            if is_backend_running || is_frontend_running; then
-                log_warn "设置将在下次启动/重启服务后生效"
+            prompt_restart_if_running
+            wait_key
+            ;;
+        3)
+            echo ""
+            echo -e "  ${DIM}如果你通过 Nginx 反向代理域名来访问本平台，需要在此绑定域名。${NC}"
+            echo -e "  ${DIM}多个域名用逗号分隔，例如: studio.example.com,app.example.com${NC}"
+            echo ""
+            if [ -n "$ALLOWED_DOMAINS" ]; then
+                echo -e "  当前域名: ${BOLD}$ALLOWED_DOMAINS${NC}"
                 echo ""
-                read -p "  是否立即重启服务？[y/N]: " restart_choice
-                if [[ "$restart_choice" =~ ^[Yy]$ ]]; then
-                    echo ""
-                    stop_all
-                    sleep 2
-                    start_all
-                fi
             fi
+            read -p "  请输入域名: " input_domains
+
+            if [ -z "$input_domains" ]; then
+                log_warn "未输入域名，操作取消"
+            else
+                # 去空格
+                input_domains=$(echo "$input_domains" | tr -d ' ')
+                ALLOWED_DOMAINS="$input_domains"
+                save_config
+                echo ""
+                log_success "域名已绑定: $ALLOWED_DOMAINS"
+
+                # 同时自动开启公网访问
+                if [ "$LISTEN_HOST" != "0.0.0.0" ]; then
+                    LISTEN_HOST="0.0.0.0"
+                    save_config
+                    log_info "已自动开启公网访问"
+                fi
+
+                echo ""
+                local first_domain
+                first_domain=$(echo "$ALLOWED_DOMAINS" | cut -d',' -f1)
+                log_info "访问链接: http://${first_domain}"
+                echo ""
+                prompt_restart_if_running
+            fi
+            wait_key
+            ;;
+        4)
+            ALLOWED_DOMAINS=""
+            save_config
+            echo ""
+            log_success "已清除绑定域名"
+            echo ""
+            prompt_restart_if_running
             wait_key
             ;;
         *) ;;
@@ -1665,15 +1711,52 @@ main() {
                     log_success "公网访问已关闭 (仅 localhost)"
                     log_warn "请重启服务使设置生效"
                     ;;
+                domain)
+                    shift
+                    case "${1:-}" in
+                        set)
+                            if [ -z "${2:-}" ]; then
+                                echo "用法: $0 network domain set <域名>[,<域名2>,...]"
+                                exit 1
+                            fi
+                            ALLOWED_DOMAINS=$(echo "$2" | tr -d ' ')
+                            if [ "$LISTEN_HOST" != "0.0.0.0" ]; then
+                                LISTEN_HOST="0.0.0.0"
+                            fi
+                            save_config
+                            log_success "域名已绑定: $ALLOWED_DOMAINS"
+                            log_warn "请重启服务使设置生效"
+                            ;;
+                        clear)
+                            ALLOWED_DOMAINS=""
+                            save_config
+                            log_success "已清除绑定域名"
+                            log_warn "请重启服务使设置生效"
+                            ;;
+                        *)
+                            if [ -n "$ALLOWED_DOMAINS" ]; then
+                                echo "绑定域名: $ALLOWED_DOMAINS"
+                            else
+                                echo "绑定域名: 无"
+                            fi
+                            echo "用法: $0 network domain [set <域名>|clear]"
+                            ;;
+                    esac
+                    ;;
                 status|"")
                     if [ "$LISTEN_HOST" = "0.0.0.0" ]; then
                         echo "公网访问: 已开启 (http://$(get_server_ip):$BACKEND_PORT)"
                     else
                         echo "公网访问: 已关闭 (仅 localhost)"
                     fi
+                    if [ -n "$ALLOWED_DOMAINS" ]; then
+                        echo "绑定域名: $ALLOWED_DOMAINS"
+                    else
+                        echo "绑定域名: 无"
+                    fi
                     ;;
                 *)
-                    echo "用法: $0 network [on|off|status]"
+                    echo "用法: $0 network [on|off|domain|status]"
                     ;;
             esac
             ;;
