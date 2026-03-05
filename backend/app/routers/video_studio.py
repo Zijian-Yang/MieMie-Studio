@@ -20,6 +20,7 @@ from app.services.dashscope.image_to_video import ImageToVideoService
 from app.services.dashscope.reference_to_video import ReferenceToVideoService
 from app.services.dashscope.text_to_video import TextToVideoService
 from app.services.dashscope.keyframe_to_video import KeyframeToVideoService
+from app.services.dashscope.digital_human import DigitalHumanService
 from app.services.oss import oss_service
 from app.config import set_user_config_dir, get_user_config_dir
 
@@ -192,7 +193,10 @@ async def create_task(request: VideoStudioTaskCreateRequest):
     if request.task_type == "image_to_video":
         if not request.first_frame_url:
             raise HTTPException(status_code=400, detail="图生视频任务需要选择首帧图")
-        if request.mode == "first_last_frame" and not request.last_frame_url:
+        if request.model == "wan2.2-s2v":
+            if not request.audio_url:
+                raise HTTPException(status_code=400, detail="数字人模型需要选择音频")
+        elif request.mode == "first_last_frame" and not request.last_frame_url:
             raise HTTPException(status_code=400, detail="首尾帧模式需要选择尾帧图")
     elif request.task_type == "reference_to_video":
         if not request.reference_video_urls:
@@ -284,24 +288,23 @@ async def get_task_status(task_id: str):
         print(f"\n[视频工作室状态查询] 查询子任务: {api_task_id}")
         try:
             if task_type == "reference_to_video" or task.model == "wan2.6-r2v":
-                # 参考生视频任务使用 HTTP 查询
                 print(f"[视频工作室状态查询] 使用 参考生视频服务 (HTTP)")
                 r2v_service = ReferenceToVideoService()
                 status, video_url = await r2v_service.get_task_status(api_task_id, task.project_id)
             elif task_type == "text_to_video":
-                # 文生视频任务使用 HTTP 查询
                 print(f"[视频工作室状态查询] 使用 文生视频服务 (HTTP)")
                 t2v_service = TextToVideoService()
                 status, video_url = await t2v_service.get_task_status(api_task_id, task.project_id)
             elif task_type == "keyframe_to_video":
-                # 首尾帧生视频任务使用 HTTP 查询
                 print(f"[视频工作室状态查询] 使用 首尾帧生视频服务 (HTTP)")
                 kf2v_service = KeyframeToVideoService()
                 status, video_url = await kf2v_service.get_task_status(api_task_id, task.project_id)
+            elif task.model == "wan2.2-s2v":
+                print(f"[视频工作室状态查询] 使用 数字人视频服务 (HTTP)")
+                s2v_service = DigitalHumanService()
+                status, video_url = await s2v_service.get_task_status(api_task_id, task.project_id)
             else:
-                # 图生视频任务
                 i2v_service = ImageToVideoService()
-                # wan2.6-i2v 模型也使用 HTTP 查询
                 use_http = 'wan2.6' in task.model
                 print(f"[视频工作室状态查询] 使用 图生视频服务 (HTTP={use_http})")
                 status, video_url = await i2v_service.get_task_status(api_task_id, task.project_id, use_http=use_http)
@@ -415,6 +418,8 @@ async def regenerate_task(task_id: str):
     if task_type == "image_to_video":
         if not task.first_frame_url:
             raise HTTPException(status_code=400, detail="任务没有首帧图")
+        if task.model == "wan2.2-s2v" and not task.audio_url:
+            raise HTTPException(status_code=400, detail="数字人模型需要音频")
     elif task_type == "reference_to_video":
         if not task.reference_video_urls:
             raise HTTPException(status_code=400, detail="任务没有参考视频")
@@ -555,6 +560,14 @@ async def _submit_api_tasks(
         current_seed = request.seed + idx if request.seed is not None else None
 
         if request.task_type == "image_to_video":
+            if request.model == "wan2.2-s2v":
+                svc = DigitalHumanService()
+                return await svc.create_task(
+                    image_url=request.first_frame_url,
+                    audio_url=request.audio_url,
+                    model=request.model,
+                    resolution=request.resolution,
+                )
             svc = ImageToVideoService()
             return await svc.create_task(
                 image_url=request.first_frame_url,

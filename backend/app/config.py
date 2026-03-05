@@ -564,7 +564,35 @@ VIDEO_MODELS = {
         "supports_audio": False,  # 不支持音频
         "supports_shot_type": False,
         "image_param": "image_url",  # API 中图片参数名
-    }
+    },
+    "wan2.2-s2v": {
+        "name": "数字人 wan2.2-s2v",
+        "description": "基于单张图片和音频生成口型同步的说话/唱歌/表演视频，支持真人和卡通人物",
+        "resolutions": [
+            {"value": "480P", "label": "480P (标清)"},
+            {"value": "720P", "label": "720P (高清)"},
+        ],
+        "default_resolution": "720P",
+        "supports_prompt": False,
+        "supports_prompt_extend": False,
+        "supports_watermark": False,
+        "supports_seed": False,
+        "supports_negative_prompt": False,
+        "supports_audio": True,
+        "supports_audio_toggle": False,
+        "requires_audio": True,  # 音频为必填项
+        "default_audio": False,  # 不支持自动配音，音频来自用户
+        "supports_shot_type": False,
+        "supports_duration": False,  # 时长由音频决定
+        "image_param": "image_url",
+        # 音频限制
+        "audio_formats": ["wav", "mp3"],
+        "audio_max_size_mb": 15,
+        "audio_max_duration_sec": 20,
+        # 图像限制
+        "image_min_dimension": 400,
+        "image_max_dimension": 7000,
+    },
 }
 
 

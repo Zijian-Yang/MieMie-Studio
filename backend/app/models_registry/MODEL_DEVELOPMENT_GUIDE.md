@@ -22,7 +22,8 @@ models_registry/
 └── video/               # 视频模型
     ├── __init__.py
     ├── wan25_i2v.py     # 图生视频
-    └── wanx21_i2v.py    # 图生视频 Turbo
+    ├── wanx21_i2v.py    # 图生视频 Turbo
+    └── wan22_s2v.py     # 数字人（图片+音频生视频）
 ```
 
 ## 添加新模型的步骤

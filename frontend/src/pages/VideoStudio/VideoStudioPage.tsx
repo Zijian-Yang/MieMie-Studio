@@ -161,6 +161,10 @@ const VideoStudioPage = () => {
       message.warning('请选择首帧图')
       return
     }
+    if (taskType === 'image_to_video' && currentModelInfo?.requires_audio && !audioUrl) {
+      message.warning('数字人模型需要选择音频')
+      return
+    }
     if (taskType === 'reference_to_video' && referenceItems.length === 0) {
       message.warning('请选择参考素材（视频或图片）')
       return
@@ -614,11 +618,11 @@ const VideoStudioPage = () => {
         confirmLoading={creating}
         okButtonProps={{ 
           disabled: taskType === 'image_to_video' 
-            ? !firstFrameUrl 
+            ? (!firstFrameUrl || (currentModelInfo?.requires_audio && !audioUrl))
             : taskType === 'reference_to_video'
-              ? referenceItems.length === 0  // 至少需要一个参考素材
+              ? referenceItems.length === 0
               : taskType === 'keyframe_to_video'
-                ? !firstFrameUrl || !lastFrameUrl  // 首尾帧都需要
+                ? !firstFrameUrl || !lastFrameUrl
                 : !prompt  // text_to_video 需要提示词
         }}
         width={700}
@@ -1027,6 +1031,8 @@ const VideoStudioPage = () => {
                     </>
                   )}
                   
+                  {!(taskType === 'image_to_video' && currentModelInfo?.supports_prompt === false) && (
+                  <>
                   <div style={{ marginBottom: 16 }}>
                     <div style={{ marginBottom: 8 }}>提示词{taskType === 'text_to_video' ? ' *' : ''}</div>
                     <TextArea
@@ -1049,6 +1055,8 @@ const VideoStudioPage = () => {
                       rows={2}
                     />
                   </div>
+                  </>
+                  )}
                 </div>
               )
             },
@@ -1073,22 +1081,25 @@ const VideoStudioPage = () => {
                                 if (modelInfo?.default_resolution) {
                                   setResolution(modelInfo.default_resolution)
                                 }
-                                // 处理默认时长
                                 if (modelInfo?.default_duration) {
                                   setDuration(modelInfo.default_duration)
                                 }
-                                // 处理音频支持
                                 if (modelInfo?.supports_audio) {
                                   setAutoAudio(modelInfo.default_audio !== false)
                                 } else {
                                   setAutoAudio(false)
                                   setAudioUrl('')
                                 }
-                                // 处理镜头类型
                                 if (modelInfo?.supports_shot_type) {
                                   setShotType(modelInfo.default_shot_type || 'single')
                                 } else {
                                   setShotType('single')
+                                }
+                                if (modelInfo?.requires_audio) {
+                                  setAutoAudio(false)
+                                  setPrompt('')
+                                  setNegativePrompt('')
+                                  setSeed(undefined)
                                 }
                               }}
                             >
@@ -1117,11 +1128,11 @@ const VideoStudioPage = () => {
                         </Col>
                       </Row>
                       
+                      {currentModelInfo?.supports_duration !== false && (
                       <Row gutter={16}>
                         <Col span={12}>
                           <div style={{ marginBottom: 16 }}>
                             <div style={{ marginBottom: 8 }}>时长</div>
-                            {/* 根据模型是否有 duration_range 来决定使用 InputNumber 还是 Select */}
                             {currentModelInfo?.duration_range ? (
                               <InputNumber
                                 style={{ width: '100%' }}
@@ -1161,8 +1172,40 @@ const VideoStudioPage = () => {
                           </div>
                         </Col>
                       </Row>
-                      
+                      )}
+
+                      {currentModelInfo?.requires_audio && (
+                        <div style={{
+                          padding: 12,
+                          background: token.colorBgLayout,
+                          borderRadius: 8,
+                          marginBottom: 16,
+                          border: `1px solid ${token.colorBorder}`
+                        }}>
+                          <div style={{ marginBottom: 12, fontWeight: 500 }}>🎤 驱动音频（必选）</div>
+                          <Select
+                            style={{ width: '100%' }}
+                            value={audioUrl || undefined}
+                            onChange={(v) => setAudioUrl(v || '')}
+                            placeholder="从音频库选择"
+                            allowClear
+                            status={!audioUrl ? 'warning' : undefined}
+                          >
+                            {audioItems.map(audio => (
+                              <Option key={audio.id} value={audio.url}>
+                                {audio.name}
+                              </Option>
+                            ))}
+                          </Select>
+                          <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
+                            音频将驱动人物口型、表情和动作（wav/mp3，小于15MB，时长不超过20秒，需清晰人声）
+                          </div>
+                        </div>
+                      )}
+
+                      {(currentModelInfo?.supports_prompt_extend || currentModelInfo?.supports_watermark || currentModelInfo?.supports_seed) && (
                       <Row gutter={16}>
+                        {currentModelInfo?.supports_prompt_extend && (
                         <Col span={8}>
                           <div style={{ marginBottom: 16 }}>
                             <Space>
@@ -1177,6 +1220,8 @@ const VideoStudioPage = () => {
                             </div>
                           </div>
                         </Col>
+                        )}
+                        {currentModelInfo?.supports_watermark && (
                         <Col span={8}>
                           <div style={{ marginBottom: 16 }}>
                             <Space>
@@ -1191,6 +1236,8 @@ const VideoStudioPage = () => {
                             </div>
                           </div>
                         </Col>
+                        )}
+                        {currentModelInfo?.supports_seed && (
                         <Col span={8}>
                           <div style={{ marginBottom: 16 }}>
                             <div style={{ marginBottom: 8 }}>随机种子</div>
@@ -1204,9 +1251,11 @@ const VideoStudioPage = () => {
                             />
                           </div>
                         </Col>
+                        )}
                       </Row>
+                      )}
                       
-                      {currentModelInfo?.supports_audio && (
+                      {currentModelInfo?.supports_audio && !currentModelInfo?.requires_audio && (
                         <div style={{ 
                           padding: 12, 
                           background: token.colorBgLayout, 
@@ -2305,6 +2354,8 @@ const VideoStudioPage = () => {
                     </>
                   )}
                   
+                  {!(editTaskType === 'image_to_video' && (getEditModelInfo() as VideoModelInfo)?.supports_prompt === false) && (
+                  <>
                   <Form.Item name="prompt" label={editTaskType === 'keyframe_to_video' ? '提示词（可选）' : '提示词'}>
                     <TextArea rows={3} placeholder="描述想要生成的视频内容" />
                   </Form.Item>
@@ -2312,6 +2363,8 @@ const VideoStudioPage = () => {
                   <Form.Item name="negative_prompt" label="负向提示词">
                     <TextArea rows={2} placeholder="不希望出现的内容" />
                   </Form.Item>
+                  </>
+                  )}
                 </Form>
               )
             },
@@ -2436,10 +2489,10 @@ const VideoStudioPage = () => {
                     </Col>
                   </Row>
                   
+                  {(getEditModelInfo() as VideoModelInfo)?.supports_duration !== false && (
                   <Row gutter={16}>
                     <Col span={12}>
                       <Form.Item name="duration" label="视频时长">
-                        {/* 根据模型是否有 duration_range 或 min/max_duration 来决定使用 InputNumber 还是 Select */}
                         {(getEditModelInfo() as VideoModelInfo)?.duration_range ? (
                           <InputNumber
                             style={{ width: '100%' }}
@@ -2448,7 +2501,6 @@ const VideoStudioPage = () => {
                             addonAfter="秒"
                           />
                         ) : editTaskType === 'reference_to_video' ? (
-                          // 参考生视频支持2-10秒连续范围
                           <InputNumber
                             style={{ width: '100%' }}
                             min={(getEditModelInfo() as any)?.min_duration || 2}
@@ -2477,7 +2529,38 @@ const VideoStudioPage = () => {
                       </div>
                     </Col>
                   </Row>
-                  
+                  )}
+
+                  {(getEditModelInfo() as VideoModelInfo)?.requires_audio && (
+                    <div style={{
+                      padding: 12,
+                      background: token.colorBgLayout,
+                      borderRadius: 8,
+                      marginBottom: 16,
+                      border: `1px solid ${token.colorBorder}`
+                    }}>
+                      <div style={{ marginBottom: 12, fontWeight: 500 }}>🎤 驱动音频（必选）</div>
+                      <Select
+                        style={{ width: '100%' }}
+                        value={editAudioUrl || undefined}
+                        onChange={(v) => setEditAudioUrl(v || '')}
+                        placeholder="从音频库选择"
+                        allowClear
+                        status={!editAudioUrl ? 'warning' : undefined}
+                      >
+                        {audioItems.map(audio => (
+                          <Option key={audio.id} value={audio.url}>
+                            {audio.name}
+                          </Option>
+                        ))}
+                      </Select>
+                      <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
+                        音频将驱动人物口型、表情和动作（wav/mp3，小于15MB，时长不超过20秒，需清晰人声）
+                      </div>
+                    </div>
+                  )}
+
+                  {!((getEditModelInfo() as VideoModelInfo)?.requires_audio) && (
                   <Row gutter={16}>
                     <Col span={8}>
                       {editTaskType === 'image_to_video' ? (
@@ -2518,9 +2601,9 @@ const VideoStudioPage = () => {
                       </Form.Item>
                     </Col>
                   </Row>
+                  )}
                   
-                  {/* 音频设置 - wan2.5/2.6 支持 */}
-                  {(getEditModelInfo()?.supports_audio || editModel?.includes('wan2.5') || editModel?.includes('wan2.6')) && (
+                  {(getEditModelInfo()?.supports_audio || editModel?.includes('wan2.5') || editModel?.includes('wan2.6')) && !(getEditModelInfo() as VideoModelInfo)?.requires_audio && (
                     <div style={{ 
                       padding: 12, 
                       background: token.colorBgLayout, 

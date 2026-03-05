@@ -112,15 +112,18 @@ export interface VideoModelInfo {
   durations?: number[]  // 支持的时长列表（固定选项）
   duration_range?: [number, number]  // 连续时长范围 [min, max]（如 wan2.6-i2v-flash 的 [2, 15]）
   default_duration?: number
+  supports_prompt?: boolean  // 是否支持提示词（默认 true，wan2.2-s2v 为 false）
   supports_prompt_extend?: boolean
   supports_watermark?: boolean
   supports_seed?: boolean
   supports_negative_prompt?: boolean
   supports_audio?: boolean  // 是否支持音频参数
   supports_audio_toggle?: boolean  // 是否支持有声/无声切换（仅 wan2.6-i2v-flash）
+  requires_audio?: boolean  // 音频是否为必填项（wan2.2-s2v）
   default_audio?: boolean  // 默认是否开启自动配音
   supports_shot_type?: boolean  // 是否支持镜头类型（仅wan2.6）
   default_shot_type?: string  // 默认镜头类型
+  supports_duration?: boolean  // 是否支持时长设置（默认 true，wan2.2-s2v 为 false）
   image_param?: string
 }
 

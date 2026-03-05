@@ -8,11 +8,13 @@
 - wan2.6-r2v: 万相2.6 参考生视频（角色一致性）
 - wan2.5-i2v-preview: 万相2.5 图生视频
 - wanx2.1-i2v-turbo: 万相2.1 图生视频 Turbo
+- wan2.2-s2v: 万相2.2 数字人（图片+音频生成说话视频）
 
 API 文档：
 - 文生视频: https://help.aliyun.com/zh/model-studio/text-to-video-api
 - 图生视频: https://help.aliyun.com/zh/model-studio/image-to-video-api-reference
 - 参考生视频: https://help.aliyun.com/zh/model-studio/wan-video-to-video-api-reference
+- 数字人: https://help.aliyun.com/zh/model-studio/digital-human-video-generation
 """
 
 # 万相2.6 视频模型（推荐）
@@ -26,12 +28,16 @@ from . import wan25_i2v
 # 万相2.1 视频模型
 from . import wanx21_i2v
 
+# 万相2.2 数字人
+from . import wan22_s2v
+
 # 导出模型信息和服务类
 from .wan26_t2v import WAN26_T2V_MODEL_INFO, Wan26T2VService
 from .wan26_i2v import WAN26_I2V_FLASH_MODEL_INFO, WAN26_I2V_MODEL_INFO, Wan26I2VService
 from .wan26_r2v import WAN26_R2V_MODEL_INFO, Wan26R2VService
 from .wan25_i2v import WAN25_I2V_MODEL_INFO, Wan25I2VService
 from .wanx21_i2v import WANX21_I2V_MODEL_INFO, Wanx21I2VService
+from .wan22_s2v import WAN22_S2V_MODEL_INFO, Wan22S2VService
 
 __all__ = [
     # 万相2.6
@@ -48,5 +54,8 @@ __all__ = [
     # 万相2.1
     "WANX21_I2V_MODEL_INFO",
     "Wanx21I2VService",
+    # 万相2.2
+    "WAN22_S2V_MODEL_INFO",
+    "Wan22S2VService",
 ]
 
