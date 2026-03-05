@@ -9,7 +9,7 @@
 # 命令行模式:
 #   start [--prod]  stop  restart [--prod]  status  logs  install
 #   update [--auto]  auto-update [enable|disable|status]  rollback
-#   version  help
+#   network [on|off|status]  version  help
 #
 
 set -e
@@ -397,11 +397,60 @@ install_all_deps() {
 }
 
 # ======================
-# 端口配置
+# 端口与网络配置
 # ======================
 
 BACKEND_PORT=8000
 FRONTEND_PORT=3000
+MIEMIE_CONF="$PROJECT_DIR/.miemie.conf"
+
+# 默认仅本地访问
+LISTEN_HOST="127.0.0.1"
+
+# 从配置文件加载持久化设置
+load_config() {
+    if [ -f "$MIEMIE_CONF" ]; then
+        source "$MIEMIE_CONF"
+    fi
+}
+
+# 保存设置到配置文件
+save_config() {
+    cat > "$MIEMIE_CONF" << EOF
+# MieMie-Studio 运行配置（自动生成，请勿手动编辑）
+LISTEN_HOST="$LISTEN_HOST"
+EOF
+}
+
+# 获取服务器本机 IP（非 127.0.0.1 的第一个 IPv4 地址）
+get_server_ip() {
+    local ip=""
+    # 优先 hostname -I（Linux）
+    if command -v hostname &> /dev/null; then
+        ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+    fi
+    # 回退 ip route（Linux）
+    if [ -z "$ip" ] && command -v ip &> /dev/null; then
+        ip=$(ip route get 1.1.1.1 2>/dev/null | sed -n 's/.*src \([0-9.]*\).*/\1/p')
+    fi
+    # 回退 ifconfig（macOS / Linux）
+    if [ -z "$ip" ] && command -v ifconfig &> /dev/null; then
+        ip=$(ifconfig 2>/dev/null | awk '/inet / && !/127.0.0.1/ {print $2; exit}')
+    fi
+    echo "${ip:-127.0.0.1}"
+}
+
+# 根据 LISTEN_HOST 生成 URL 中使用的主机名
+get_display_host() {
+    if [ "$LISTEN_HOST" = "0.0.0.0" ]; then
+        get_server_ip
+    else
+        echo "localhost"
+    fi
+}
+
+# 初始加载配置
+load_config
 
 # ======================
 # 服务状态检查
@@ -504,7 +553,7 @@ start_backend() {
             gunicorn app.main:app \
                 -w \${MIEMIE_WORKERS:-4} \
                 -k uvicorn.workers.UvicornWorker \
-                --bind 0.0.0.0:$BACKEND_PORT \
+                --bind $LISTEN_HOST:$BACKEND_PORT \
                 --timeout 300 \
                 --graceful-timeout 30 \
                 --access-logfile '$BACKEND_LOG' \
@@ -515,13 +564,15 @@ start_backend() {
         screen -dmS "$BACKEND_SESSION" bash -c "
             cd '$BACKEND_DIR'
             source '$VENV_DIR/bin/activate'
-            uvicorn app.main:app --reload --host 0.0.0.0 --port $BACKEND_PORT 2>&1 | tee -a '$BACKEND_LOG'
+            uvicorn app.main:app --reload --host $LISTEN_HOST --port $BACKEND_PORT 2>&1 | tee -a '$BACKEND_LOG'
         "
     fi
     
     sleep 2
+    local display_host
+    display_host=$(get_display_host)
     if is_backend_running; then
-        log_success "后端服务已启动 (http://localhost:$BACKEND_PORT)"
+        log_success "后端服务已启动 (http://${display_host}:$BACKEND_PORT)"
     else
         log_error "后端服务启动失败，请查看日志: $BACKEND_LOG"
         return 1
@@ -554,7 +605,9 @@ start_frontend() {
     # 生产模式下不需要独立前端服务器（由后端提供）
     if [ "$RUN_MODE" = "prod" ]; then
         build_frontend || return 1
-        log_success "前端已构建，由后端统一服务 (http://localhost:$BACKEND_PORT)"
+        local display_host
+        display_host=$(get_display_host)
+        log_success "前端已构建，由后端统一服务 (http://${display_host}:$BACKEND_PORT)"
         return 0
     fi
 
@@ -580,14 +633,22 @@ start_frontend() {
     > "$FRONTEND_LOG"
     
     log_info "启动前端开发服务器..."
+    local host_flag=""
+    if [ "$LISTEN_HOST" = "0.0.0.0" ]; then
+        host_flag="--host 0.0.0.0"
+    else
+        host_flag="--host 127.0.0.1"
+    fi
     screen -dmS "$FRONTEND_SESSION" bash -c "
         cd '$FRONTEND_DIR'
-        npm run dev -- --host --port $FRONTEND_PORT 2>&1 | tee -a '$FRONTEND_LOG'
+        npm run dev -- $host_flag --port $FRONTEND_PORT 2>&1 | tee -a '$FRONTEND_LOG'
     "
     
     sleep 3
+    local display_host
+    display_host=$(get_display_host)
     if is_frontend_running; then
-        log_success "前端服务已启动 (http://localhost:$FRONTEND_PORT)"
+        log_success "前端服务已启动 (http://${display_host}:$FRONTEND_PORT)"
     else
         log_error "前端服务启动失败，请查看日志: $FRONTEND_LOG"
         return 1
@@ -603,14 +664,26 @@ start_all() {
     echo ""
     log_success "MieMie-Studio 启动完成!"
     echo ""
+
+    local display_host
+    display_host=$(get_display_host)
+    local is_public="否"
+    [ "$LISTEN_HOST" = "0.0.0.0" ] && is_public="是"
+
+    echo -e "  ${DIM}──────────────────────────────────────────────${NC}"
+    echo -e "  公网访问: ${BOLD}${is_public}${NC}    监听地址: ${BOLD}${LISTEN_HOST}${NC}"
     echo -e "  ${DIM}──────────────────────────────────────────────${NC}"
     echo -e "  访问地址:"
     if [ "$RUN_MODE" = "prod" ]; then
-        echo -e "  ${BOLD}应用页面${NC}  http://localhost:$BACKEND_PORT"
+        echo -e "  ${BOLD}应用页面${NC}  http://${display_host}:$BACKEND_PORT"
     else
-        echo -e "  ${BOLD}前端页面${NC}  http://localhost:$FRONTEND_PORT"
-        echo -e "  ${BOLD}后端接口${NC}  http://localhost:$BACKEND_PORT"
-        echo -e "  ${BOLD}API 文档${NC}  http://localhost:$BACKEND_PORT/docs"
+        echo -e "  ${BOLD}前端页面${NC}  http://${display_host}:$FRONTEND_PORT"
+        echo -e "  ${BOLD}后端接口${NC}  http://${display_host}:$BACKEND_PORT"
+        echo -e "  ${BOLD}API 文档${NC}  http://${display_host}:$BACKEND_PORT/docs"
+    fi
+    if [ "$LISTEN_HOST" = "0.0.0.0" ]; then
+        echo -e ""
+        echo -e "  ${DIM}本机也可用: http://localhost:$BACKEND_PORT${NC}"
     fi
     echo -e "  ${DIM}──────────────────────────────────────────────${NC}"
 }
@@ -705,6 +778,15 @@ show_status() {
     echo -e "  ${BOLD}服务状态${NC}"
     echo -e "  ${DIM}──────────────────────────────────────────────${NC}"
     echo ""
+
+    # 网络状态
+    if [ "$LISTEN_HOST" = "0.0.0.0" ]; then
+        local server_ip
+        server_ip=$(get_server_ip)
+        echo -e "  公网访问    ${GREEN}● 已开启${NC}   IP: $server_ip"
+    else
+        echo -e "  公网访问    ${RED}○ 已关闭${NC}   仅本机可访问"
+    fi
     
     # 后端状态
     local backend_port_pid=$(get_port_pid $BACKEND_PORT)
@@ -1192,6 +1274,85 @@ print_header() {
     echo ""
 }
 
+# ======================
+# 网络访问设置
+# ======================
+
+menu_network() {
+    print_header
+
+    local current_status
+    if [ "$LISTEN_HOST" = "0.0.0.0" ]; then
+        current_status="${GREEN}已开启${NC}"
+    else
+        current_status="${RED}已关闭${NC}"
+    fi
+
+    local server_ip
+    server_ip=$(get_server_ip)
+
+    echo -e "  ${BOLD}网络访问设置${NC}"
+    echo -e "  ${DIM}──────────────────────────────────────────────${NC}"
+    echo ""
+    echo -e "  当前状态:  公网访问 $current_status"
+    echo -e "  监听地址:  ${BOLD}$LISTEN_HOST${NC}"
+    echo -e "  本机 IP:   ${BOLD}$server_ip${NC}"
+    echo ""
+    echo -e "  ${DIM}开启公网访问后，同一网络内的设备可通过 IP 访问本平台${NC}"
+    echo -e "  ${DIM}关闭后仅允许本机 localhost 访问（更安全）${NC}"
+    echo ""
+    echo -e "  ${GREEN}1${NC})  开启公网访问    ${DIM}— 监听 0.0.0.0，允许外部 IP 连接${NC}"
+    echo -e "  ${GREEN}2${NC})  关闭公网访问    ${DIM}— 监听 127.0.0.1，仅本机可访问${NC}"
+    echo -e "  ${RED}0${NC})  返回"
+    echo ""
+    read -p "  请选择 [0-2]: " choice
+
+    case "$choice" in
+        1)
+            LISTEN_HOST="0.0.0.0"
+            save_config
+            echo ""
+            log_success "公网访问已开启"
+            log_info "监听地址: 0.0.0.0"
+            log_info "访问链接: http://${server_ip}:$BACKEND_PORT"
+            echo ""
+            if is_backend_running || is_frontend_running; then
+                log_warn "设置将在下次启动/重启服务后生效"
+                echo ""
+                read -p "  是否立即重启服务？[y/N]: " restart_choice
+                if [[ "$restart_choice" =~ ^[Yy]$ ]]; then
+                    echo ""
+                    stop_all
+                    sleep 2
+                    start_all
+                fi
+            fi
+            wait_key
+            ;;
+        2)
+            LISTEN_HOST="127.0.0.1"
+            save_config
+            echo ""
+            log_success "公网访问已关闭"
+            log_info "监听地址: 127.0.0.1 (仅本机)"
+            echo ""
+            if is_backend_running || is_frontend_running; then
+                log_warn "设置将在下次启动/重启服务后生效"
+                echo ""
+                read -p "  是否立即重启服务？[y/N]: " restart_choice
+                if [[ "$restart_choice" =~ ^[Yy]$ ]]; then
+                    echo ""
+                    stop_all
+                    sleep 2
+                    start_all
+                fi
+            fi
+            wait_key
+            ;;
+        *) ;;
+    esac
+}
+
 wait_key() {
     echo ""
     read -p "  按回车键返回主菜单..." _
@@ -1214,10 +1375,11 @@ menu_main() {
         echo -e "  ${BLUE}8${NC})  版本回滚        ${DIM}— 更新后遇到问题？回退到上一个版本${NC}"
         echo ""
         echo -e "  ${YELLOW}9${NC})  安装/维护       ${DIM}— 安装依赖、清理缓存、重置环境${NC}"
+        echo -e "  ${YELLOW}n${NC})  网络设置        ${DIM}— 开启/关闭公网访问，查看访问链接${NC}"
         echo -e "  ${YELLOW}v${NC})  版本信息        ${DIM}— 查看当前版本号和项目信息${NC}"
         echo -e "  ${RED}0${NC})  退出"
         echo ""
-        read -p "  请输入 [0-9/v]: " choice
+        read -p "  请输入 [0-9/n/v]: " choice
 
         case "$choice" in
             1) menu_start ;;
@@ -1243,6 +1405,7 @@ menu_main() {
                 wait_key
                 ;;
             9) menu_maintenance ;;
+            n|N) menu_network ;;
             v|V)
                 show_version
                 wait_key
@@ -1428,6 +1591,7 @@ show_help() {
     echo "  update [--auto]      更新到最新版本"
     echo "  auto-update [enable|disable|status]"
     echo "  rollback             回滚到上一个版本"
+    echo "  network [on|off|status]  公网访问开关"
     echo "  clean                清理缓存/重置依赖"
     echo "  version              版本信息"
     echo ""
@@ -1485,6 +1649,33 @@ main() {
             ;;
         clean)
             clean_project
+            ;;
+        network)
+            shift
+            case "${1:-}" in
+                on)
+                    LISTEN_HOST="0.0.0.0"
+                    save_config
+                    log_success "公网访问已开启 (http://$(get_server_ip):$BACKEND_PORT)"
+                    log_warn "请重启服务使设置生效"
+                    ;;
+                off)
+                    LISTEN_HOST="127.0.0.1"
+                    save_config
+                    log_success "公网访问已关闭 (仅 localhost)"
+                    log_warn "请重启服务使设置生效"
+                    ;;
+                status|"")
+                    if [ "$LISTEN_HOST" = "0.0.0.0" ]; then
+                        echo "公网访问: 已开启 (http://$(get_server_ip):$BACKEND_PORT)"
+                    else
+                        echo "公网访问: 已关闭 (仅 localhost)"
+                    fi
+                    ;;
+                *)
+                    echo "用法: $0 network [on|off|status]"
+                    ;;
+            esac
             ;;
         version|--version|-v)
             show_version

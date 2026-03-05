@@ -70,6 +70,9 @@ build/
 Thumbs.db
 .DS_Store
 
+# 运行配置（用户本地设置）
+.miemie.conf
+
 # Excluded from GitHub (temporary - for initial release)
 docs/
 encrypt_secrets.py
