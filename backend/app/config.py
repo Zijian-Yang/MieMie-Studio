@@ -249,7 +249,7 @@ IMAGE_EDIT_MODELS = {
 TEXT_TO_VIDEO_MODELS = {
     "wan2.6-t2v": {
         "name": "文生视频 wan2.6-t2v",
-        "description": "最新模型，支持多镜头叙事、自动配音，720P/1080P，5/10/15秒",
+        "description": "最新模型，支持多镜头叙事、自动配音，720P/1080P，2-15秒连续时长",
         # 720P档位的所有分辨率
         "resolutions_720p": [
             {"value": "1280*720", "label": "1280x720 横向 16:9"},
@@ -267,7 +267,7 @@ TEXT_TO_VIDEO_MODELS = {
             {"value": "1248*1632", "label": "1248x1632 竖向 3:4"},
         ],
         "default_size": "1920*1080",  # 官方默认值
-        "durations": [5, 10, 15],  # 支持的时长
+        "duration_range": [2, 15],  # 连续时长范围（秒），API支持[2,15]之间的整数
         "default_duration": 5,  # 默认时长
         "prompt_max_length": 1500,  # 提示词最大长度
         "negative_prompt_max_length": 500,  # 反向提示词最大长度
@@ -437,6 +437,48 @@ KEYFRAME_TO_VIDEO_MODELS = {
 # 参考生视频模型配置（参考视频/图像生成视频）
 # 参考: https://help.aliyun.com/zh/model-studio/wan-video-to-video-api-reference
 REF_VIDEO_MODELS = {
+    "wan2.6-r2v-flash": {
+        "name": "参考生视频 wan2.6-r2v-flash (推荐)",
+        "description": "极速参考生视频，支持有声/无声切换、多镜头叙事，720P/1080P，2-10秒",
+        # 720P档位的所有分辨率
+        "resolutions_720p": [
+            {"value": "1280*720", "label": "1280×720 (16:9 横屏)"},
+            {"value": "720*1280", "label": "720×1280 (9:16 竖屏)"},
+            {"value": "960*960", "label": "960×960 (1:1 方形)"},
+            {"value": "1088*832", "label": "1088×832 (4:3 横屏)"},
+            {"value": "832*1088", "label": "832×1088 (3:4 竖屏)"},
+        ],
+        # 1080P档位的所有分辨率
+        "resolutions_1080p": [
+            {"value": "1920*1080", "label": "1920×1080 (16:9 横屏)"},
+            {"value": "1080*1920", "label": "1080×1920 (9:16 竖屏)"},
+            {"value": "1440*1440", "label": "1440×1440 (1:1 方形)"},
+            {"value": "1632*1248", "label": "1632×1248 (4:3 横屏)"},
+            {"value": "1248*1632", "label": "1248×1632 (3:4 竖屏)"},
+        ],
+        "default_size": "1920*1080",
+        "min_duration": 2,
+        "max_duration": 10,
+        "default_duration": 5,
+        "supports_shot_type": True,
+        "default_shot_type": "single",
+        "supports_watermark": True,
+        "supports_seed": True,
+        "supports_negative_prompt": True,
+        "supports_audio": True,
+        "supports_audio_toggle": True,  # 支持有声/无声切换
+        "default_audio": True,
+        # 参考素材限制
+        "max_reference_images": 5,
+        "max_reference_videos": 3,
+        "max_reference_total": 5,
+        "reference_video_duration": "1-30s",
+        "reference_video_max_size": "100MB",
+        "reference_image_formats": ["JPEG", "JPG", "PNG", "BMP", "WEBP"],
+        "reference_image_min_dim": 240,
+        "reference_image_max_dim": 5000,
+        "reference_image_max_size": "10MB",
+    },
     "wan2.6-r2v": {
         "name": "参考生视频 wan2.6-r2v",
         "description": "参考输入视频或图像中的角色形象（视频还可参考音色），生成保持角色一致性的新视频，支持多镜头叙事",
@@ -465,8 +507,9 @@ REF_VIDEO_MODELS = {
         "supports_watermark": True,
         "supports_seed": True,
         "supports_negative_prompt": True,
-        "supports_audio": True,  # 参考视频可提取音色，支持通过提示词生成声音
-        "default_audio": True,
+        "supports_audio": False,  # r2v 不支持 audio toggle（音频由参考视频的音色自动生成）
+        "supports_audio_toggle": False,
+        "default_audio": True,  # 默认自带声音（从参考视频提取音色）
         # 参考素材限制（图片+视频）
         "max_reference_images": 5,  # 最多5张参考图片
         "max_reference_videos": 3,  # 最多3个参考视频
@@ -506,19 +549,19 @@ VIDEO_MODELS = {
     },
     "wan2.6-i2v": {
         "name": "图生视频 wan2.6-i2v",
-        "description": "万相2.6，支持多镜头叙事、自动配音，分辨率由输入图像决定",
+        "description": "万相2.6，支持2-15秒连续时长、多镜头叙事、自动配音，分辨率由输入图像决定",
         "resolutions": [
             {"value": "720P", "label": "720P (高清)"},
             {"value": "1080P", "label": "1080P (全高清)"},
         ],
         "default_resolution": "1080P",  # 官方默认值
-        "durations": [5, 10, 15],  # 支持的时长（比2.5多了15秒）
+        "duration_range": [2, 15],  # 连续时长范围（秒），API支持[2,15]之间的整数
         "default_duration": 5,  # 默认时长
         "supports_prompt_extend": True,
         "supports_watermark": True,
         "supports_seed": True,
         "supports_negative_prompt": True,
-        "supports_audio": True,  # 支持音频参数 (audio, audio_url)
+        "supports_audio": True,  # 支持音频参数 (audio_url)
         "default_audio": True,  # 默认开启自动配音
         "supports_shot_type": True,  # 支持镜头类型 (single/multi)
         "default_shot_type": "single",
@@ -686,8 +729,8 @@ class TextToVideoConfig(BaseModel):
 class RefVideoConfig(BaseModel):
     """参考生视频配置（参考视频/图像生成视频）
     
-    参数说明（根据官方文档 wan2.6-r2v）：
-    - model: 模型名称，目前仅支持 wan2.6-r2v
+    参数说明：
+    - model: 模型名称，支持 wan2.6-r2v-flash 和 wan2.6-r2v
     - size: 分辨率，格式为"宽*高"（如 1920*1080），默认1080P 16:9
     - duration: 视频时长，2-10秒整数
     - shot_type: 镜头类型，single 单镜头 / multi 多镜头叙事
@@ -701,7 +744,7 @@ class RefVideoConfig(BaseModel):
     - 总数限制：图片+视频 ≤ 5
     - 通过 character1, character2 等标识引用参考角色
     """
-    model: str = "wan2.6-r2v"  # 目前仅支持此模型
+    model: str = "wan2.6-r2v-flash"  # 默认使用极速版
     size: str = "1920*1080"  # 分辨率（宽*高格式），默认1080P 16:9
     duration: int = 5  # 视频时长（2-10秒整数）
     shot_type: str = "single"  # 镜头类型：single单镜头/multi多镜头叙事

@@ -287,7 +287,7 @@ async def get_task_status(task_id: str):
     for api_task_id in task.task_ids:
         print(f"\n[视频工作室状态查询] 查询子任务: {api_task_id}")
         try:
-            if task_type == "reference_to_video" or task.model == "wan2.6-r2v":
+            if task_type == "reference_to_video" or (task.model and "r2v" in task.model):
                 print(f"[视频工作室状态查询] 使用 参考生视频服务 (HTTP)")
                 r2v_service = ReferenceToVideoService()
                 status, video_url = await r2v_service.get_task_status(api_task_id, task.project_id)
@@ -596,6 +596,7 @@ async def _submit_api_tasks(
                 watermark=request.watermark,
                 seed=current_seed,
                 negative_prompt=request.negative_prompt or None,
+                audio=request.auto_audio if request.model and "r2v-flash" in request.model else None,
             )
 
         elif request.task_type == "text_to_video":

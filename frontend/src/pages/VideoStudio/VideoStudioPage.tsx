@@ -48,6 +48,7 @@ const VideoStudioPage = () => {
   const [prompt, setPrompt] = useState('')
   const [negativePrompt, setNegativePrompt] = useState('')
   const [model, setModel] = useState('wan2.5-i2v-preview')
+  const [refModel, setRefModel] = useState('wan2.6-r2v-flash')  // 参考生视频模型
   const [resolution, setResolution] = useState('1080P')  // 默认1080P
   const [size, setSize] = useState('1920*1080')  // 参考生视频分辨率
   const [duration, setDuration] = useState(5)
@@ -190,7 +191,7 @@ const VideoStudioPage = () => {
       // 确定使用的模型
       let taskModel = model
       if (taskType === 'reference_to_video') {
-        taskModel = 'wan2.6-r2v'
+        taskModel = refModel
       } else if (taskType === 'text_to_video') {
         taskModel = model || 'wan2.6-t2v'
       } else if (taskType === 'keyframe_to_video') {
@@ -500,7 +501,7 @@ const VideoStudioPage = () => {
   }
 
   const currentModelInfo = videoModels[model]
-  const currentRefVideoModelInfo = refVideoModels['wan2.6-r2v']  // 目前只有一个参考生视频模型
+  const currentRefVideoModelInfo = refVideoModels[refModel] || Object.values(refVideoModels)[0]
 
   return (
     <div style={{ padding: 24 }}>
@@ -644,7 +645,6 @@ const VideoStudioPage = () => {
                         setTaskType(v)
                         // 切换类型时重置相关字段
                         if (v === 'reference_to_video') {
-                          setModel('wan2.6-r2v')
                           setFirstFrameUrl('')
                           setLastFrameUrl('')
                           setAudioUrl('')
@@ -1374,10 +1374,24 @@ const VideoStudioPage = () => {
                             <div style={{ marginBottom: 8 }}>模型</div>
                             <Select
                               style={{ width: '100%' }}
-                              value="wan2.6-r2v"
-                              disabled
+                              value={refModel}
+                              onChange={(v) => {
+                                setRefModel(v)
+                                const modelInfo = refVideoModels[v]
+                                if (modelInfo?.default_size) {
+                                  setSize(modelInfo.default_size)
+                                }
+                                if (modelInfo?.default_duration) {
+                                  setDuration(modelInfo.default_duration)
+                                }
+                                if (modelInfo?.supports_audio_toggle) {
+                                  setAutoAudio(modelInfo.default_audio !== false)
+                                }
+                              }}
                             >
-                              <Option value="wan2.6-r2v">{currentRefVideoModelInfo?.name || '万相2.6 参考生视频'}</Option>
+                              {Object.entries(refVideoModels).map(([key, info]) => (
+                                <Option key={key} value={key}>{info.name}</Option>
+                              ))}
                             </Select>
                             <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               {currentRefVideoModelInfo?.description || '参考视频/图像的角色形象生成新视频'}
@@ -1413,7 +1427,7 @@ const VideoStudioPage = () => {
                       <Row gutter={16}>
                         <Col span={12}>
                           <div style={{ marginBottom: 16 }}>
-                            <div style={{ marginBottom: 8 }}>时长 (2-10秒)</div>
+                            <div style={{ marginBottom: 8 }}>时长 ({currentRefVideoModelInfo?.min_duration || 2}-{currentRefVideoModelInfo?.max_duration || 10}秒)</div>
                             <InputNumber
                               style={{ width: '100%' }}
                               min={currentRefVideoModelInfo?.min_duration || 2}
@@ -1462,9 +1476,24 @@ const VideoStudioPage = () => {
                           </div>
                         </Col>
                         <Col span={12}>
-                          <div style={{ fontSize: 12, color: token.colorTextSecondary, paddingTop: 24 }}>
-                            音频说明：参考视频时可自动提取音色，也可通过提示词描述声音效果
-                          </div>
+                          {currentRefVideoModelInfo?.supports_audio_toggle ? (
+                            <div style={{ marginBottom: 16 }}>
+                              <Space>
+                                <Switch
+                                  checked={autoAudio}
+                                  onChange={setAutoAudio}
+                                />
+                                <span>有声视频</span>
+                              </Space>
+                              <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
+                                {autoAudio ? '生成有声视频（从参考视频提取音色）' : '生成无声视频（费用更低）'}
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, paddingTop: 24 }}>
+                              音频说明：参考视频时自动提取音色生成有声视频
+                            </div>
+                          )}
                         </Col>
                       </Row>
                       
@@ -1571,17 +1600,29 @@ const VideoStudioPage = () => {
                         <Col span={12}>
                           <div style={{ marginBottom: 16 }}>
                             <div style={{ marginBottom: 8 }}>时长</div>
-                            <Select
-                              style={{ width: '100%' }}
-                              value={duration}
-                              onChange={setDuration}
-                            >
-                              {textToVideoModels[model]?.durations?.map((d: number) => (
-                                <Option key={d} value={d}>{d} 秒</Option>
-                              ))}
-                            </Select>
+                            {textToVideoModels[model]?.duration_range ? (
+                              <InputNumber
+                                style={{ width: '100%' }}
+                                min={textToVideoModels[model].duration_range![0]}
+                                max={textToVideoModels[model].duration_range![1]}
+                                value={duration}
+                                onChange={(v) => setDuration(v || textToVideoModels[model]?.default_duration || 5)}
+                                addonAfter="秒"
+                              />
+                            ) : (
+                              <Select
+                                style={{ width: '100%' }}
+                                value={duration}
+                                onChange={setDuration}
+                              >
+                                {textToVideoModels[model]?.durations?.map((d: number) => (
+                                  <Option key={d} value={d}>{d} 秒</Option>
+                                ))}
+                              </Select>
+                            )}
                             <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
                               时长直接影响费用，按秒计费
+                              {textToVideoModels[model]?.duration_range && ` (${textToVideoModels[model].duration_range![0]}-${textToVideoModels[model].duration_range![1]}秒)`}
                             </div>
                           </div>
                         </Col>
@@ -2402,13 +2443,16 @@ const VideoStudioPage = () => {
                             onChange={(v) => {
                               setEditModel(v)
                               const modelInfo = refVideoModels[v]
-                              if (modelInfo?.default_resolution) {
-                                editForm.setFieldValue('size', modelInfo.default_resolution)
+                              if (modelInfo?.default_size) {
+                                editForm.setFieldValue('size', modelInfo.default_size)
+                              }
+                              if (modelInfo?.default_duration) {
+                                editForm.setFieldValue('duration', modelInfo.default_duration)
                               }
                             }}
                           >
                             {Object.entries(refVideoModels).map(([key, info]) => (
-                              <Option key={key} value={key}>{info.name} {key}</Option>
+                              <Option key={key} value={key}>{info.name}</Option>
                             ))}
                           </Select>
                         ) : (

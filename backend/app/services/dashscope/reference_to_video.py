@@ -45,6 +45,7 @@ class ReferenceToVideoService:
         watermark: Optional[bool] = None,
         seed: Optional[int] = None,
         negative_prompt: Optional[str] = None,
+        audio: Optional[bool] = None,
     ) -> str:
         """
         创建参考生视频任务
@@ -110,8 +111,10 @@ class ReferenceToVideoService:
         elif self.ref_video_config.seed is not None:
             parameters["seed"] = self.ref_video_config.seed
         
-        # 注意：wan2.6-r2v 不再支持 audio 和 prompt_extend 参数
-        # 音频由参考视频提取音色 + 提示词生成
+        # wan2.6-r2v-flash 支持 audio 参数（有声/无声切换）
+        model_info = REF_VIDEO_MODELS.get(model_name, {})
+        if audio is not None and model_info.get("supports_audio_toggle"):
+            parameters["audio"] = audio
         
         # 构建请求体
         request_body = {

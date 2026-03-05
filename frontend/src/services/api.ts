@@ -202,7 +202,8 @@ export interface TextToVideoModelInfo {
   resolutions_720p?: VideoResolutionOption[]
   resolutions_1080p?: VideoResolutionOption[]
   default_size: string
-  durations: number[]  // 支持的时长列表
+  durations?: number[]  // 支持的时长列表（离散）
+  duration_range?: number[]  // 连续时长范围 [min, max]
   default_duration: number
   prompt_max_length?: number  // 提示词最大长度
   negative_prompt_max_length?: number  // 反向提示词最大长度
@@ -253,6 +254,7 @@ export interface RefVideoModelInfo {
   supports_seed: boolean
   supports_negative_prompt: boolean
   supports_audio: boolean
+  supports_audio_toggle?: boolean
   default_audio: boolean
   // 参考素材限制
   max_reference_images?: number  // 最多支持的参考图片数量（5）
