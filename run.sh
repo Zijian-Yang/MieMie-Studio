@@ -72,8 +72,76 @@ check_command() {
 }
 
 # ======================
-# 环境检查
+# 环境检查与自动安装
 # ======================
+
+# 检测系统包管理器
+detect_pkg_manager() {
+    if command -v apt-get &> /dev/null; then
+        echo "apt"
+    elif command -v yum &> /dev/null; then
+        echo "yum"
+    elif command -v dnf &> /dev/null; then
+        echo "dnf"
+    elif command -v brew &> /dev/null; then
+        echo "brew"
+    elif command -v pacman &> /dev/null; then
+        echo "pacman"
+    else
+        echo ""
+    fi
+}
+
+# 用 sudo 或直接执行（取决于是否为 root）
+run_pkg_cmd() {
+    if [ "$(id -u)" -eq 0 ]; then
+        "$@"
+    else
+        sudo "$@"
+    fi
+}
+
+# 自动安装系统包
+auto_install_package() {
+    local pkg_name="$1"
+    local display_name="${2:-$pkg_name}"
+    local pkg_mgr
+    pkg_mgr=$(detect_pkg_manager)
+
+    if [ -z "$pkg_mgr" ]; then
+        log_error "无法检测系统包管理器，请手动安装 $display_name"
+        return 1
+    fi
+
+    log_info "正在自动安装 $display_name ..."
+
+    case "$pkg_mgr" in
+        apt)
+            run_pkg_cmd apt-get update -qq
+            run_pkg_cmd apt-get install -y -qq "$pkg_name"
+            ;;
+        yum)
+            run_pkg_cmd yum install -y -q "$pkg_name"
+            ;;
+        dnf)
+            run_pkg_cmd dnf install -y -q "$pkg_name"
+            ;;
+        brew)
+            brew install "$pkg_name"
+            ;;
+        pacman)
+            run_pkg_cmd pacman -S --noconfirm "$pkg_name"
+            ;;
+    esac
+
+    if [ $? -eq 0 ]; then
+        log_success "$display_name 安装完成"
+        return 0
+    else
+        log_error "$display_name 安装失败，请手动安装"
+        return 1
+    fi
+}
 
 check_python() {
     if command -v python3 &> /dev/null; then
@@ -86,25 +154,139 @@ check_python() {
     fi
 }
 
+# 确保 python3-venv 模块可用，不可用时自动安装
+ensure_python_venv() {
+    local PYTHON
+    PYTHON=$(check_python)
+    if $PYTHON -m venv --help &> /dev/null; then
+        return 0
+    fi
+
+    log_warn "Python venv 模块不可用，尝试自动安装..."
+
+    local py_version
+    py_version=$($PYTHON --version 2>&1 | grep -oP '\d+\.\d+')
+
+    local pkg_mgr
+    pkg_mgr=$(detect_pkg_manager)
+
+    case "$pkg_mgr" in
+        apt)
+            local venv_pkg="python${py_version}-venv"
+            log_info "安装 $venv_pkg ..."
+            run_pkg_cmd apt-get update -qq
+            run_pkg_cmd apt-get install -y -qq "$venv_pkg"
+            ;;
+        yum|dnf)
+            auto_install_package "python3-virtualenv" "Python venv"
+            ;;
+        brew)
+            log_info "macOS 的 Python 自带 venv 模块，请检查 Python 安装是否完整"
+            return 1
+            ;;
+        pacman)
+            auto_install_package "python" "Python (含 venv)"
+            ;;
+        *)
+            log_error "无法自动安装 python venv，请手动执行: apt install python${py_version}-venv"
+            return 1
+            ;;
+    esac
+
+    if $PYTHON -m venv --help &> /dev/null; then
+        log_success "Python venv 模块已就绪"
+        return 0
+    else
+        log_error "Python venv 模块安装失败，请手动安装"
+        return 1
+    fi
+}
+
+# 自动安装 Node.js（使用 NodeSource 或系统包管理器）
+install_node() {
+    local pkg_mgr
+    pkg_mgr=$(detect_pkg_manager)
+
+    log_info "正在自动安装 Node.js ..."
+
+    case "$pkg_mgr" in
+        apt)
+            if ! command -v curl &> /dev/null; then
+                run_pkg_cmd apt-get update -qq
+                run_pkg_cmd apt-get install -y -qq curl
+            fi
+            # NodeSource 官方安装脚本（Node.js 20 LTS）
+            log_info "通过 NodeSource 安装 Node.js 20 LTS ..."
+            curl -fsSL https://deb.nodesource.com/setup_20.x | run_pkg_cmd bash -
+            run_pkg_cmd apt-get install -y -qq nodejs
+            ;;
+        yum|dnf)
+            if ! command -v curl &> /dev/null; then
+                run_pkg_cmd "$pkg_mgr" install -y -q curl
+            fi
+            curl -fsSL https://rpm.nodesource.com/setup_20.x | run_pkg_cmd bash -
+            run_pkg_cmd "$pkg_mgr" install -y -q nodejs
+            ;;
+        brew)
+            brew install node@20
+            ;;
+        pacman)
+            run_pkg_cmd pacman -S --noconfirm nodejs npm
+            ;;
+        *)
+            log_error "无法自动安装 Node.js，请手动安装 Node.js 18+ 后重试"
+            log_info "推荐: https://nodejs.org/en/download/"
+            return 1
+            ;;
+    esac
+
+    if command -v node &> /dev/null; then
+        local node_ver
+        node_ver=$(node --version)
+        log_success "Node.js $node_ver 安装完成"
+        return 0
+    else
+        log_error "Node.js 安装失败，请手动安装"
+        return 1
+    fi
+}
+
 check_node() {
     if ! command -v node &> /dev/null; then
-        log_error "Node.js 未安装，请先安装 Node.js 18+"
-        exit 1
+        install_node || exit 1
     fi
 }
 
 check_npm() {
     if ! command -v npm &> /dev/null; then
-        log_error "npm 未安装"
-        exit 1
+        log_error "npm 未安装（Node.js 安装可能不完整）"
+        install_node || exit 1
     fi
 }
 
-check_screen() {
-    if ! command -v screen &> /dev/null; then
-        log_error "screen 未安装，请先安装: brew install screen"
-        exit 1
+# 确保 screen 已安装
+ensure_screen() {
+    if command -v screen &> /dev/null; then
+        return 0
     fi
+
+    local pkg_mgr
+    pkg_mgr=$(detect_pkg_manager)
+
+    case "$pkg_mgr" in
+        apt)      auto_install_package "screen" "screen" ;;
+        yum|dnf)  auto_install_package "screen" "screen" ;;
+        brew)     auto_install_package "screen" "screen" ;;
+        pacman)   auto_install_package "screen" "screen" ;;
+        *)
+            log_error "screen 未安装，请手动安装"
+            return 1
+            ;;
+    esac
+}
+
+check_screen() {
+    ensure_screen || exit 1
 }
 
 # ======================
@@ -120,7 +302,9 @@ create_venv() {
         log_info "虚拟环境已存在"
         return 0
     fi
-    
+
+    ensure_python_venv || exit 1
+
     log_info "创建虚拟环境..."
     PYTHON=$(check_python)
     $PYTHON -m venv "$VENV_DIR"
