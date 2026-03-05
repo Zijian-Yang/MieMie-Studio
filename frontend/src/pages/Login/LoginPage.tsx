@@ -72,7 +72,7 @@ const LoginPage: React.FC = () => {
               <path d="M57 54 L63 58" stroke="white" strokeWidth="3" strokeLinecap="round" />
             </svg>
           </div>
-          <Title level={2} className="logo-title">淸水Studio</Title>
+          <Title level={2} className="logo-title">MieMie Studio</Title>
           <Text className="logo-subtitle">AI 视频创作平台</Text>
         </div>
 
@@ -136,7 +136,7 @@ const LoginPage: React.FC = () => {
       </div>
 
       <div className="login-copyright">
-        <Text type="secondary">© 2024 淸水Studio. All rights reserved.</Text>
+        <Text type="secondary">© 2024 MieMie Studio. All rights reserved.</Text>
       </div>
     </div>
   )

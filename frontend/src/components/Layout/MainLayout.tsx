@@ -146,7 +146,7 @@ const MainLayout = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <VideoCameraOutlined style={{ fontSize: 24, color: token.colorPrimary }} />
               <span style={{ fontSize: 16, fontWeight: 600, color: token.colorText }}>
-                淸水Studio
+                MieMie Studio
               </span>
             </div>
           )}
