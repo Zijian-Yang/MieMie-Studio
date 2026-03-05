@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import fs from 'fs'
 import path from 'path'
 
-function loadAllowedHosts(): string[] | true {
+function loadAllowedHosts(): string[] | undefined {
   const confPath = path.resolve(__dirname, '..', '.miemie.conf')
   try {
     const content = fs.readFileSync(confPath, 'utf-8')
@@ -14,7 +14,7 @@ function loadAllowedHosts(): string[] | true {
   } catch {
     // config file doesn't exist yet
   }
-  return true
+  return undefined
 }
 
 // https://vitejs.dev/config/
