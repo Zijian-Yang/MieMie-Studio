@@ -60,6 +60,10 @@ backend/data/users/
 backend/data/users.json
 backend/data/sessions.json
 backend/data/config.json
+backend/data/assets/
+
+# Backups
+backups/
 
 # Build outputs
 dist/

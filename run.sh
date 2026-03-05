@@ -910,6 +910,10 @@ update_project() {
     if [ -d "$PROJECT_DIR/backend/data" ]; then
         local backup_name="pre_update_$(date +%Y%m%d_%H%M%S)"
         cp -r "$PROJECT_DIR/backend/data" "$BACKUP_DIR/$backup_name"
+        # 同时备份运行配置
+        if [ -f "$MIEMIE_CONF" ]; then
+            cp "$MIEMIE_CONF" "$BACKUP_DIR/$backup_name/.miemie.conf"
+        fi
         log_info "数据已备份: $BACKUP_DIR/$backup_name"
         # 保留最近 10 个备份
         ls -dt "$BACKUP_DIR"/pre_update_* 2>/dev/null | tail -n +11 | xargs rm -rf 2>/dev/null
@@ -1110,6 +1114,9 @@ rollback_version() {
     local backup_name="backup_$(date +%Y%m%d_%H%M%S)"
     if [ -d "$PROJECT_DIR/backend/data" ]; then
         cp -r "$PROJECT_DIR/backend/data" "$BACKUP_DIR/$backup_name"
+        if [ -f "$MIEMIE_CONF" ]; then
+            cp "$MIEMIE_CONF" "$BACKUP_DIR/$backup_name/.miemie.conf"
+        fi
         log_success "数据已备份到 $BACKUP_DIR/$backup_name"
     fi
 
