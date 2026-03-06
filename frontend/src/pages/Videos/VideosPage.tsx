@@ -805,7 +805,7 @@ const VideosPage = () => {
                 const shotVideos = videos.filter(v => v.shot_id === selectedShot.id)
                   .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                 
-                if (shotVideos.length === 0) {
+                if (shotVideos.length === 0 && !selectedShot.video_url) {
                   return (
                     <div style={{ 
                       aspectRatio: '16/9',
@@ -821,6 +821,32 @@ const VideosPage = () => {
                     }}>
                       <PlayCircleOutlined style={{ fontSize: 48, color: token.colorBorderSecondary, marginBottom: 8 }} />
                       <span style={{ fontSize: 12 }}>视频待生成</span>
+                    </div>
+                  )
+                }
+                
+                if (shotVideos.length === 0 && selectedShot.video_url) {
+                  return (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ 
+                        background: '#000',
+                        borderRadius: 8,
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minHeight: 200,
+                        maxHeight: 400
+                      }}>
+                        <video
+                          src={selectedShot.video_url}
+                          style={{ maxWidth: '100%', maxHeight: 400, objectFit: 'contain' }}
+                          controls
+                        />
+                      </div>
+                      <div style={{ marginTop: 6, textAlign: 'center' }}>
+                        <Tag color="blue">来自视频库</Tag>
+                      </div>
                     </div>
                   )
                 }

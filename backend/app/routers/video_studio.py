@@ -9,12 +9,18 @@
 
 import asyncio
 import logging
+import os
+import subprocess
+import tempfile
+import uuid
+import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 
 from app.models.media import VideoStudioTask
+from app.models.gallery import GalleryImage
 from app.services.storage import storage_service, get_current_user_id, set_current_user
 from app.services.dashscope.image_to_video import ImageToVideoService
 from app.services.dashscope.reference_to_video import ReferenceToVideoService
@@ -520,6 +526,100 @@ async def save_to_library(task_id: str, video_url: str, name: str = ""):
     storage_service.save_video_item(video)
     
     return {"message": "已保存到视频库", "video": video}
+
+
+class ExtractLastFrameRequest(BaseModel):
+    """提取视频尾帧请求"""
+    video_url: str
+    name: Optional[str] = None
+
+
+@router.post("/{task_id}/extract-last-frame")
+async def extract_last_frame(task_id: str, request: ExtractLastFrameRequest):
+    """
+    使用 ffmpeg 提取视频工作室任务中某个视频的最后一帧，保存到图库
+    """
+    if not oss_service.is_enabled():
+        raise HTTPException(status_code=400, detail="OSS未启用，请先在设置中配置并启用OSS")
+
+    task = storage_service.get_video_studio_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    if request.video_url not in task.video_urls:
+        raise HTTPException(status_code=400, detail="视频URL不属于此任务")
+
+    try:
+        image_bytes = await _ffmpeg_extract_last_frame(request.video_url)
+
+        filename = f"{datetime.now().strftime('%Y%m%d/%H%M%S')}_{uuid.uuid4().hex[:8]}.jpg"
+        oss_url = oss_service.upload_bytes(image_bytes, f"gallery/{task.project_id}/{filename}")
+
+        image_name = request.name or f"{task.name}_尾帧"
+        gallery_image = GalleryImage(
+            project_id=task.project_id,
+            name=image_name,
+            description=f"从视频工作室任务《{task.name}》提取的尾帧",
+            url=oss_url,
+            source="video_studio",
+            tags=["尾帧", "视频提取"],
+        )
+        storage_service.save_gallery_image(gallery_image)
+
+        return {"message": "尾帧已保存到图库", "image": gallery_image}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[视频尾帧提取] 错误: {e}")
+        raise HTTPException(status_code=500, detail=f"提取尾帧失败: {str(e)}")
+
+
+async def _ffmpeg_extract_last_frame(video_url: str) -> bytes:
+    """下载视频并用 ffmpeg 提取最后一帧，返回 JPEG 字节"""
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        resp = await client.get(video_url)
+        if resp.status_code != 200:
+            raise HTTPException(status_code=400, detail=f"无法下载视频: HTTP {resp.status_code}")
+        video_content = resp.content
+
+    tmp_video = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+    tmp_output = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+    tmp_video.write(video_content)
+    tmp_video.close()
+    tmp_output.close()
+
+    try:
+        # 用 ffprobe 获取视频时长
+        probe = subprocess.run(
+            ['ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+             '-of', 'default=noprint_wrappers=1:nokey=1', tmp_video.name],
+            capture_output=True, text=True
+        )
+        if probe.returncode != 0:
+            raise RuntimeError(f"ffprobe 失败: {probe.stderr}")
+        duration = float(probe.stdout.strip())
+
+        # -ss 定位到末尾前 2s，-update 1 持续覆盖输出，最终文件即为最后一帧
+        seek_time = max(0, duration - 2)
+        # format=yuvj420p: ffmpeg 8.x MJPEG 编码器要求全范围 YUV
+        result = subprocess.run(
+            ['ffmpeg', '-ss', str(seek_time), '-i', tmp_video.name,
+             '-vf', 'format=yuvj420p',
+             '-q:v', '2', '-update', '1',
+             '-y', tmp_output.name],
+            capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"ffmpeg 提取失败: {result.stderr}")
+
+        with open(tmp_output.name, 'rb') as f:
+            image_data = f.read()
+        if not image_data:
+            raise RuntimeError("ffmpeg 未输出任何图像数据")
+        return image_data
+    finally:
+        os.unlink(tmp_video.name)
+        os.unlink(tmp_output.name)
 
 
 @router.delete("/{task_id}")

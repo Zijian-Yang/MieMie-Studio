@@ -897,6 +897,13 @@ export const framesApi = {
   }) => api.post<any, { frame: Frame; message: string }>('/frames/set-from-gallery', data),
   saveToGallery: (frameId: string, data: { name?: string; description?: string; group_index?: number }) => 
     api.post<any, { gallery_image: GalleryImage; message: string }>(`/frames/${frameId}/save-to-gallery`, data),
+  setFromVideoLastFrame: (data: {
+    project_id: string
+    shot_id: string
+    shot_number?: number
+    video_url: string
+    group_index?: number
+  }) => api.post<any, { frame: Frame; gallery_image: GalleryImage; message: string }>('/frames/set-from-video-last-frame', data),
 }
 
 // ============ 视频 API ============
@@ -1472,6 +1479,8 @@ export const videoStudioApi = {
     api.post<any, { message: string; video: VideoLibraryItem }>(`/video-studio/${id}/save-to-library`, null, { params: { video_url: videoUrl, name } }),
   updateVideoMarkers: (taskId: string, videoUrl: string, markers: string[]) =>
     api.post<any, { success: boolean; video_markers: Record<string, string[]> }>(`/video-studio/${taskId}/markers`, { video_url: videoUrl, markers }),
+  extractLastFrame: (taskId: string, videoUrl: string, name?: string) =>
+    api.post<any, { message: string; image: GalleryImage }>(`/video-studio/${taskId}/extract-last-frame`, { video_url: videoUrl, name }),
   delete: (id: string) => api.delete(`/video-studio/${id}`),
   deleteAll: (projectId: string) => api.delete(`/video-studio?project_id=${projectId}`),
 }

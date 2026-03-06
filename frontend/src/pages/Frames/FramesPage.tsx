@@ -8,7 +8,8 @@ import {
 import { 
   ReloadOutlined, PictureOutlined, SettingOutlined,
   DragOutlined, DeleteOutlined, StopOutlined, ThunderboltOutlined,
-  SaveOutlined, PlusOutlined, ExclamationCircleOutlined, ClearOutlined
+  SaveOutlined, PlusOutlined, ExclamationCircleOutlined, ClearOutlined,
+  VideoCameraOutlined
 } from '@ant-design/icons'
 import {
   DndContext,
@@ -910,6 +911,49 @@ const FramesPage = () => {
     }
   }
 
+  const [settingFromVideoLastFrame, setSettingFromVideoLastFrame] = useState(false)
+
+  const getPreviousShotVideoUrl = (): string | null => {
+    if (!selectedShot) return null
+    const idx = shots.findIndex(s => s.id === selectedShot.id)
+    if (idx <= 0) return null
+    return shots[idx - 1].video_url || null
+  }
+
+  const setFrameFromVideoLastFrame = async (groupIndex: number = 0) => {
+    if (!projectId || !selectedShot) return
+    const videoUrl = getPreviousShotVideoUrl()
+    if (!videoUrl) return
+
+    setSettingFromVideoLastFrame(true)
+    try {
+      const result = await framesApi.setFromVideoLastFrame({
+        project_id: projectId,
+        shot_id: selectedShot.id,
+        shot_number: selectedShot.shot_number,
+        video_url: videoUrl,
+        group_index: groupIndex,
+      })
+
+      safeSetState(setFrames, (prev: Frame[]) => {
+        const exists = prev.find(f => f.shot_id === selectedShot.id)
+        if (exists) {
+          return prev.map(f => f.shot_id === selectedShot.id ? result.frame : f)
+        }
+        return [...prev, result.frame]
+      })
+
+      setSelectedFrame(result.frame)
+      message.success('已从上一个视频尾帧设置首帧')
+
+      fetchProject(projectId).catch(() => {})
+    } catch (error: any) {
+      message.error(error.message || '提取视频尾帧失败')
+    } finally {
+      setSettingFromVideoLastFrame(false)
+    }
+  }
+
   // 保存单个首帧到图库
   const saveFrameToGallery = async (groupIndex?: number) => {
     if (!selectedFrame) return
@@ -1235,6 +1279,18 @@ const FramesPage = () => {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                         <h4 style={{ margin: 0 }}>首帧预览</h4>
                         <Space>
+                          {getPreviousShotVideoUrl() && (
+                            <Tooltip title={`从镜头 ${(selectedShot?.shot_number ?? 1) - 1} 的视频提取尾帧`}>
+                              <Button
+                                size="small"
+                                icon={<VideoCameraOutlined />}
+                                loading={settingFromVideoLastFrame}
+                                onClick={() => setFrameFromVideoLastFrame(0)}
+                              >
+                                上一视频尾帧
+                              </Button>
+                            </Tooltip>
+                          )}
                           <Button 
                             size="small"
                             icon={<PictureOutlined />} 

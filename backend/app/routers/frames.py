@@ -2,6 +2,7 @@
 分镜首帧 API 路由
 """
 
+import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
@@ -11,7 +12,10 @@ from app.models.gallery import GalleryImage
 from app.services.storage import storage_service
 from app.services.dashscope.text_to_image import TextToImageService
 from app.services.dashscope.image_to_image import ImageToImageService
+from app.services.oss import oss_service
 from app.config import get_config
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -72,6 +76,15 @@ class SaveFrameToGalleryRequest(BaseModel):
     name: str = ""
     description: str = ""
     group_index: Optional[int] = None  # 指定保存哪组图片，默认为选中组
+
+
+class SetFrameFromVideoLastFrameRequest(BaseModel):
+    """从上一个视频尾帧设置首帧"""
+    project_id: str
+    shot_id: str
+    shot_number: int = 0
+    video_url: str
+    group_index: int = 0
 
 
 def get_shot_reference_urls(project_id: str, shot) -> List[str]:
@@ -504,3 +517,76 @@ async def save_frame_to_gallery(frame_id: str, request: SaveFrameToGalleryReques
     storage_service.save_gallery_image(gallery_image)
     
     return {"gallery_image": gallery_image, "message": "已保存到图库"}
+
+
+@router.post("/set-from-video-last-frame")
+async def set_frame_from_video_last_frame(request: SetFrameFromVideoLastFrameRequest):
+    """
+    提取视频最后一帧并设置为分镜首帧
+
+    使用 ffmpeg 从指定视频 URL 提取尾帧，上传到 OSS 并保存到图库，
+    同时将该图片设为指定分镜的首帧。
+    """
+    if not oss_service.is_enabled():
+        raise HTTPException(status_code=400, detail="OSS未启用，请先在设置中配置并启用OSS")
+
+    project = storage_service.get_project(request.project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+
+    try:
+        from app.routers.video_studio import _ffmpeg_extract_last_frame
+        import uuid
+        from datetime import datetime
+
+        image_bytes = await _ffmpeg_extract_last_frame(request.video_url)
+
+        filename = f"{datetime.now().strftime('%Y%m%d/%H%M%S')}_{uuid.uuid4().hex[:8]}.jpg"
+        oss_url = oss_service.upload_bytes(image_bytes, f"gallery/{request.project_id}/{filename}")
+
+        gallery_image = GalleryImage(
+            project_id=request.project_id,
+            name=f"镜头{request.shot_number}首帧_视频尾帧",
+            description="从上一个镜头视频提取的尾帧",
+            url=oss_url,
+            source="video_last_frame",
+            tags=["尾帧", "首帧", "视频提取"],
+        )
+        storage_service.save_gallery_image(gallery_image)
+
+        frame = storage_service.get_frame_by_shot(request.project_id, request.shot_id)
+        if not frame:
+            frame = Frame(
+                project_id=request.project_id,
+                shot_id=request.shot_id,
+                shot_number=request.shot_number,
+                prompt=f"从视频尾帧导入"
+            )
+
+        image = FrameImage(
+            group_index=request.group_index,
+            url=oss_url,
+            prompt_used="从上一个镜头视频尾帧提取"
+        )
+
+        while len(frame.image_groups) <= request.group_index:
+            frame.image_groups.append(FrameImage(group_index=len(frame.image_groups)))
+
+        frame.image_groups[request.group_index] = image
+
+        if request.group_index == 0:
+            frame.selected_group_index = 0
+
+        storage_service.save_frame(frame)
+
+        return {
+            "frame": frame,
+            "gallery_image": gallery_image,
+            "message": "已从视频尾帧设置首帧",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[视频尾帧→首帧] 错误: {e}")
+        raise HTTPException(status_code=500, detail=f"提取视频尾帧失败: {str(e)}")

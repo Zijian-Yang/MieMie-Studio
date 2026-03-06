@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { Card, Button, List, Modal, Input, Select, InputNumber, Switch, message, Popconfirm, Space, Empty, Spin, Row, Col, Tabs, Tag, Form, theme } from 'antd'
-import { PlusOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, VideoCameraOutlined, EditOutlined, ReloadOutlined, StarFilled, FlagOutlined, FlagFilled, CheckOutlined, CloseOutlined, StarOutlined } from '@ant-design/icons'
+import { PlusOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, VideoCameraOutlined, EditOutlined, ReloadOutlined, StarFilled, FlagOutlined, FlagFilled, CheckOutlined, CloseOutlined, StarOutlined, CameraOutlined } from '@ant-design/icons'
 import { videoStudioApi, galleryApi, audioApi, videoLibraryApi, settingsApi, VideoStudioTask, GalleryImage, AudioItem, VideoLibraryItem, VideoModelInfo, RefVideoModelInfo, TextToVideoModelInfo, KeyframeToVideoModelInfo } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 
@@ -282,6 +282,21 @@ const VideoStudioPage = () => {
       message.success('已保存到视频库')
     } catch (error: any) {
       message.error(error.message || '保存失败')
+    }
+  }
+
+  const [extractingFrames, setExtractingFrames] = useState<Set<string>>(new Set())
+
+  const handleExtractLastFrame = async (videoUrl: string) => {
+    if (!selectedTask) return
+    setExtractingFrames(prev => new Set([...prev, videoUrl]))
+    try {
+      await videoStudioApi.extractLastFrame(selectedTask.id, videoUrl)
+      message.success('尾帧已保存到图库')
+    } catch (error: any) {
+      message.error(error.message || '提取尾帧失败')
+    } finally {
+      setExtractingFrames(prev => { const next = new Set(prev); next.delete(videoUrl); return next })
     }
   }
 
@@ -2018,7 +2033,7 @@ const VideoStudioPage = () => {
                               )
                             })}
                           </div>
-                          <div style={{ marginTop: 6, textAlign: 'center' }}>
+                          <div style={{ marginTop: 6, textAlign: 'center', display: 'flex', justifyContent: 'center', gap: 8 }}>
                             <Button
                               type="primary"
                               size="small"
@@ -2026,6 +2041,14 @@ const VideoStudioPage = () => {
                               onClick={() => handleSaveToLibrary(url)}
                             >
                               保存到视频库
+                            </Button>
+                            <Button
+                              size="small"
+                              icon={<CameraOutlined />}
+                              loading={extractingFrames.has(url)}
+                              onClick={() => handleExtractLastFrame(url)}
+                            >
+                              保存尾帧
                             </Button>
                           </div>
                         </Card>
