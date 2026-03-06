@@ -1139,6 +1139,7 @@ export interface StudioTaskImage {
   url?: string
   prompt_used?: string
   is_selected: boolean
+  markers?: string[]  // star, flag, check, cross
   created_at: string
 }
 
@@ -1208,6 +1209,8 @@ export const studioApi = {
     max_images?: number  // 图文混合模式下最大图片数 (1-5)
   }) => api.post<any, { task: StudioTask }>(`/studio/${id}/generate`, data || {}),
   saveToGallery: (id: string, imageIds: string[]) => api.post<any, { saved_images: GalleryImage[] }>(`/studio/${id}/save-to-gallery`, { image_ids: imageIds }),
+  updateImageMarkers: (taskId: string, imageId: string, markers: string[]) =>
+    api.post<any, { success: boolean; markers: string[] }>(`/studio/${taskId}/markers`, { image_id: imageId, markers }),
   delete: (id: string) => api.delete(`/studio/${id}`),
   deleteAll: (projectId: string) => api.delete(`/studio/project/${projectId}/all`),
   // 获取可用模型列表（带详情）
@@ -1398,6 +1401,7 @@ export interface VideoStudioTask {
   group_count: number
   video_urls: string[]
   selected_video_url?: string
+  video_markers?: Record<string, string[]>  // {video_url: [marker_type, ...]}
   task_ids: string[]
   request_ids?: string[]  // 各组的请求ID（用于追踪）
   status: 'pending' | 'processing' | 'succeeded' | 'failed'
@@ -1464,8 +1468,10 @@ export const videoStudioApi = {
     api.put<any, VideoStudioTask>(`/video-studio/${id}`, data),
   regenerate: (id: string) => 
     api.post<any, { task: VideoStudioTask; task_ids: string[] }>(`/video-studio/${id}/regenerate`),
-  saveToLibrary: (id: string, videoUrl: string, name?: string) => 
+  saveToLibrary: (id: string, videoUrl: string, name?: string) =>
     api.post<any, { message: string; video: VideoLibraryItem }>(`/video-studio/${id}/save-to-library`, null, { params: { video_url: videoUrl, name } }),
+  updateVideoMarkers: (taskId: string, videoUrl: string, markers: string[]) =>
+    api.post<any, { success: boolean; video_markers: Record<string, string[]> }>(`/video-studio/${taskId}/markers`, { video_url: videoUrl, markers }),
   delete: (id: string) => api.delete(`/video-studio/${id}`),
   deleteAll: (projectId: string) => api.delete(`/video-studio?project_id=${projectId}`),
 }
@@ -1714,6 +1720,7 @@ export interface AudioStudioTask {
   result_voice_id?: string | null
   audio_duration?: number | null
   saved_to_library: boolean
+  markers?: string[]  // star, flag, check, cross
   // Status
   status: 'pending' | 'processing' | 'succeeded' | 'failed'
   error_message?: string | null
@@ -1784,6 +1791,8 @@ export const audioStudioApi = {
 
   saveToLibrary: (taskId: string) =>
     api.post<any, { success: boolean }>(`/audio-studio/${taskId}/save-to-library`),
+  updateMarkers: (taskId: string, markers: string[]) =>
+    api.post<any, { success: boolean; markers: string[] }>(`/audio-studio/${taskId}/markers`, { markers }),
 
   listVoices: (projectId: string) =>
     api.get<any, { voices: VoiceProfile[] }>('/audio-studio/voices', { params: { project_id: projectId } }),

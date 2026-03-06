@@ -8,7 +8,8 @@ import {
 import { 
   PlusOutlined, DeleteOutlined, PictureOutlined,
   ExclamationCircleOutlined, ThunderboltOutlined, SaveOutlined,
-  CheckCircleOutlined, CloseCircleOutlined, SyncOutlined
+  CheckCircleOutlined, CloseCircleOutlined, SyncOutlined,
+  StarOutlined, StarFilled, FlagOutlined, FlagFilled, CheckOutlined, CloseOutlined
 } from '@ant-design/icons'
 import { 
   studioApi, galleryApi, charactersApi, scenesApi, propsApi, stylesApi,
@@ -627,6 +628,27 @@ const StudioPage = () => {
     })
   }
 
+  const handleToggleImageMarker = async (taskId: string, imageId: string, markerKey: string, currentMarkers: string[]) => {
+    const newMarkers = currentMarkers.includes(markerKey)
+      ? currentMarkers.filter(m => m !== markerKey)
+      : [...currentMarkers, markerKey]
+    try {
+      await studioApi.updateImageMarkers(taskId, imageId, newMarkers)
+      setTasks(prev => prev.map(t => {
+        if (t.id !== taskId) return t
+        return { ...t, images: t.images.map(img => img.id === imageId ? { ...img, markers: newMarkers } : img) }
+      }))
+      if (selectedTask?.id === taskId) {
+        setSelectedTask(prev => prev ? {
+          ...prev,
+          images: prev.images.map(img => img.id === imageId ? { ...img, markers: newMarkers } : img)
+        } : prev)
+      }
+    } catch {
+      message.error('标记更新失败')
+    }
+  }
+
   const saveToGallery = async () => {
     if (!selectedTask || selectedImages.size === 0) {
       message.warning('请先选择要保存的图片')
@@ -1074,43 +1096,71 @@ const StudioPage = () => {
                     >
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
                         {selectedTask.images.map((image, idx) => (
-                          <div 
-                            key={image.id}
-                            style={{ 
-                              position: 'relative',
-                              aspectRatio: '1',
-                              background: token.colorBgLayout,
-                              borderRadius: 8,
-                              overflow: 'hidden',
-                              border: selectedImages.has(image.id) ? `2px solid ${token.colorPrimary}` : '2px solid transparent'
-                            }}
-                          >
-                            {image.url ? (
-                              <Image 
-                                src={image.url} 
-                                alt={`第 ${idx + 1} 组`} 
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                preview={{ mask: '点击预览' }}
-                              />
-                            ) : (
-                              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <PictureOutlined style={{ fontSize: 32, color: token.colorBorderSecondary }} />
-                              </div>
-                            )}
+                          <div key={image.id}>
                             <div 
-                              style={{ position: 'absolute', top: 8, left: 8, cursor: 'pointer', zIndex: 10 }}
-                              onClick={(e) => { e.stopPropagation(); toggleImageSelection(image.id); }}
+                              style={{ 
+                                position: 'relative',
+                                aspectRatio: '1',
+                                background: token.colorBgLayout,
+                                borderRadius: 8,
+                                overflow: 'hidden',
+                                border: selectedImages.has(image.id) ? `2px solid ${token.colorPrimary}` : '2px solid transparent'
+                              }}
                             >
-                              <Checkbox checked={selectedImages.has(image.id)} />
-                            </div>
-                            <div style={{ position: 'absolute', bottom: 8, right: 8, pointerEvents: 'none' }}>
-                              <Tag>第 {idx + 1} 组</Tag>
-                            </div>
-                            {image.is_selected && (
-                              <div style={{ position: 'absolute', top: 8, right: 8, pointerEvents: 'none' }}>
-                                <Tag color="green">已保存</Tag>
+                              {image.url ? (
+                                <Image 
+                                  src={image.url} 
+                                  alt={`第 ${idx + 1} 组`} 
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  preview={{ mask: '点击预览' }}
+                                />
+                              ) : (
+                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  <PictureOutlined style={{ fontSize: 32, color: token.colorBorderSecondary }} />
+                                </div>
+                              )}
+                              <div 
+                                style={{ position: 'absolute', top: 8, left: 8, cursor: 'pointer', zIndex: 10 }}
+                                onClick={(e) => { e.stopPropagation(); toggleImageSelection(image.id); }}
+                              >
+                                <Checkbox checked={selectedImages.has(image.id)} />
                               </div>
-                            )}
+                              <div style={{ position: 'absolute', bottom: 8, right: 8, pointerEvents: 'none' }}>
+                                <Tag>第 {idx + 1} 组</Tag>
+                              </div>
+                              {image.is_selected && (
+                                <div style={{ position: 'absolute', top: 8, right: 8, pointerEvents: 'none' }}>
+                                  <Tag color="green">已保存</Tag>
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginTop: 4 }}>
+                              {([
+                                { key: 'star', icon: <StarOutlined />, activeIcon: <StarFilled />, color: '#faad14', title: '星标' },
+                                { key: 'flag', icon: <FlagOutlined />, activeIcon: <FlagFilled />, color: '#ff4d4f', title: '红旗' },
+                                { key: 'check', icon: <CheckOutlined />, activeIcon: <CheckOutlined />, color: '#52c41a', title: '对号' },
+                                { key: 'cross', icon: <CloseOutlined />, activeIcon: <CloseOutlined />, color: '#ff4d4f', title: '红叉' },
+                              ] as const).map(marker => {
+                                const active = (image.markers || []).includes(marker.key)
+                                return (
+                                  <Button
+                                    key={marker.key}
+                                    type="text"
+                                    size="small"
+                                    title={marker.title}
+                                    icon={active ? marker.activeIcon : marker.icon}
+                                    style={{
+                                      color: active ? marker.color : token.colorTextQuaternary,
+                                      fontSize: 14,
+                                      padding: '2px 6px',
+                                      height: 24,
+                                      minWidth: 24,
+                                    }}
+                                    onClick={() => handleToggleImageMarker(selectedTask.id, image.id, marker.key, image.markers || [])}
+                                  />
+                                )
+                              })}
+                            </div>
                           </div>
                         ))}
                       </div>

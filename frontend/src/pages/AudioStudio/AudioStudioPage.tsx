@@ -7,6 +7,7 @@ import {
 import {
   AudioOutlined, SoundOutlined, ScissorOutlined, ExperimentOutlined,
   PlayCircleOutlined, PauseCircleOutlined, DeleteOutlined, SaveOutlined, ReloadOutlined,
+  StarOutlined, StarFilled, FlagOutlined, FlagFilled, CheckOutlined, CloseOutlined,
 } from '@ant-design/icons'
 import {
   audioStudioApi, audioApi,
@@ -477,6 +478,21 @@ const AudioStudioPage = () => {
     }
   }
 
+  const handleToggleAudioMarker = async (taskId: string, markerKey: string) => {
+    const task = tasks.find(t => t.id === taskId)
+    if (!task) return
+    const currentMarkers = task.markers || []
+    const newMarkers = currentMarkers.includes(markerKey)
+      ? currentMarkers.filter(m => m !== markerKey)
+      : [...currentMarkers, markerKey]
+    try {
+      await audioStudioApi.updateMarkers(taskId, newMarkers)
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, markers: newMarkers } : t))
+    } catch {
+      message.error('标记更新失败')
+    }
+  }
+
   const handleDeleteVoice = async (profileId: string) => {
     try {
       await audioStudioApi.deleteVoice(profileId)
@@ -699,132 +715,166 @@ const AudioStudioPage = () => {
               </Form>
             ),
           },
+          {
+            key: 'my_voices',
+            label: <span><AudioOutlined /> 我的音色 ({voices.length})</span>,
+            children: (
+              <>
+                {voices.length === 0 ? (
+                  <Empty description="暂无自定义音色，可通过声音复刻或声音设计创建" />
+                ) : (
+                  <List
+                    dataSource={voices}
+                    renderItem={(v) => (
+                      <List.Item
+                        actions={[
+                          v.preview_audio_url && (
+                            <Button
+                              size="small"
+                              icon={playingId === `voice-${v.id}` ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+                              onClick={() => handlePlayPause(`voice-${v.id}`, v.preview_audio_url!)}
+                            >
+                              {playingId === `voice-${v.id}` ? '暂停' : '试听'}
+                            </Button>
+                          ),
+                          <Popconfirm title="确定删除该音色？删除后不可恢复。" onConfirm={() => handleDeleteVoice(v.id)}>
+                            <Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
+                          </Popconfirm>,
+                        ].filter(Boolean)}
+                      >
+                        <List.Item.Meta
+                          title={<Space>{v.name} <Tag color={v.status === 'ok' ? 'success' : v.status === 'deploying' ? 'processing' : 'error'}>{v.status === 'ok' ? '可用' : v.status === 'deploying' ? '审核中' : '不可用'}</Tag></Space>}
+                          description={
+                            <Space direction="vertical" size={0}>
+                              <Text type="secondary">来源: {v.source === 'clone' ? '声音复刻' : '声音设计'} | 模型: {v.target_model}</Text>
+                              <Text type="secondary" copyable={{ text: v.voice_id }}>ID: {v.voice_id}</Text>
+                              {v.voice_prompt && <Text type="secondary">描述: {v.voice_prompt}</Text>}
+                            </Space>
+                          }
+                        />
+                      </List.Item>
+                    )}
+                  />
+                )}
+              </>
+            ),
+          },
+          {
+            key: 'task_history',
+            label: <span><SoundOutlined /> 任务历史 ({tasks.length})</span>,
+            children: (
+              <>
+                {loading ? (
+                  <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
+                ) : tasks.length === 0 ? (
+                  <Empty description="暂无任务" />
+                ) : (
+                  <List
+                    dataSource={tasks}
+                    renderItem={(task) => (
+                      <List.Item
+                        actions={[
+                          task.result_audio_url && (
+                            <Button
+                              size="small"
+                              icon={playingId === task.id ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+                              onClick={() => handlePlayPause(task.id, task.result_audio_url!)}
+                            >
+                              {playingId === task.id ? '暂停' : '播放'}
+                            </Button>
+                          ),
+                          task.result_audio_url && !task.saved_to_library && (
+                            <Button size="small" icon={<SaveOutlined />} onClick={() => handleSaveToLibrary(task.id)}>
+                              存入音频库
+                            </Button>
+                          ),
+                          <Popconfirm title="确定删除？" onConfirm={() => handleDeleteTask(task.id)}>
+                            <Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
+                          </Popconfirm>,
+                        ].filter(Boolean)}
+                      >
+                        <List.Item.Meta
+                          title={
+                            <Space>
+                              {task.name || task.id.slice(0, 8)}
+                              <Tag>{taskTypeLabel(task.task_type)}</Tag>
+                              {statusTag(task.status)}
+                              {task.saved_to_library && <Tag color="blue">已存库</Tag>}
+                              <span style={{ display: 'inline-flex', gap: 2, marginLeft: 4 }}>
+                                {([
+                                  { key: 'star', icon: <StarOutlined />, activeIcon: <StarFilled />, color: '#faad14' },
+                                  { key: 'flag', icon: <FlagOutlined />, activeIcon: <FlagFilled />, color: '#ff4d4f' },
+                                  { key: 'check', icon: <CheckOutlined />, activeIcon: <CheckOutlined />, color: '#52c41a' },
+                                  { key: 'cross', icon: <CloseOutlined />, activeIcon: <CloseOutlined />, color: '#ff4d4f' },
+                                ] as const).map(marker => {
+                                  const active = (task.markers || []).includes(marker.key)
+                                  return (
+                                    <Button
+                                      key={marker.key}
+                                      type="text"
+                                      size="small"
+                                      icon={active ? marker.activeIcon : marker.icon}
+                                      style={{
+                                        color: active ? marker.color : '#d9d9d9',
+                                        fontSize: 13,
+                                        padding: '1px 4px',
+                                        height: 22,
+                                        minWidth: 22,
+                                      }}
+                                      onClick={(e) => { e.stopPropagation(); handleToggleAudioMarker(task.id, marker.key) }}
+                                    />
+                                  )
+                                })}
+                              </span>
+                            </Space>
+                          }
+                          description={
+                            <Space direction="vertical" size={4}>
+                              {task.task_type === 'tts' && <Text type="secondary">文本: {task.text?.slice(0, 80)}{(task.text?.length || 0) > 80 ? '...' : ''}</Text>}
+                              {task.task_type === 'voice_clone' && <Text type="secondary">前缀: {task.prefix}</Text>}
+                              {task.task_type === 'voice_design' && <Text type="secondary">描述: {task.voice_prompt?.slice(0, 60)}</Text>}
+                              <Space size={[4, 4]} wrap>
+                                {task.task_type === 'tts' && task.voice && (
+                                  <Tag color="blue">{getVoiceDisplayName(task.voice)}</Tag>
+                                )}
+                                {task.task_type === 'tts' && task.format && (
+                                  <Tag>{FORMAT_LABEL_MAP[task.format] || task.format}</Tag>
+                                )}
+                                {task.task_type === 'tts' && task.speech_rate !== undefined && task.speech_rate !== 1.0 && (
+                                  <Tag>语速 {task.speech_rate}x</Tag>
+                                )}
+                                {task.task_type === 'tts' && task.pitch_rate !== undefined && task.pitch_rate !== 1.0 && (
+                                  <Tag>音高 {task.pitch_rate}x</Tag>
+                                )}
+                                {task.task_type === 'tts' && task.volume !== undefined && task.volume !== 50 && (
+                                  <Tag>音量 {task.volume}</Tag>
+                                )}
+                                {task.task_type === 'tts' && task.enable_ssml && (
+                                  <Tag color="purple">SSML</Tag>
+                                )}
+                                {task.audio_duration != null && (
+                                  <Tag color="cyan">{formatDuration(task.audio_duration)}</Tag>
+                                )}
+                              </Space>
+                              {task.result_voice_id && <Text type="secondary" copyable={{ text: task.result_voice_id }}>音色ID: {task.result_voice_id}</Text>}
+                              {task.error_message && <Text type="danger">{task.error_message}</Text>}
+                              <Text type="secondary" style={{ fontSize: 12 }}>{new Date(task.created_at).toLocaleString()}</Text>
+                              {task.request_id && (
+                                <Text type="secondary" style={{ fontSize: 11, fontFamily: 'monospace' }}>
+                                  Request ID: {task.request_id}
+                                </Text>
+                              )}
+                            </Space>
+                          }
+                        />
+                      </List.Item>
+                    )}
+                  />
+                )}
+              </>
+            ),
+          },
         ]} />
-      </Card>
-
-      {/* 我的音色 */}
-      <Card title={<Space><AudioOutlined /> 我的音色</Space>} style={{ marginTop: 16 }}>
-        {voices.length === 0 ? (
-          <Empty description="暂无自定义音色，可通过声音复刻或声音设计创建" />
-        ) : (
-          <List
-            dataSource={voices}
-            renderItem={(v) => (
-              <List.Item
-                actions={[
-                  v.preview_audio_url && (
-                    <Button
-                      size="small"
-                      icon={playingId === `voice-${v.id}` ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-                      onClick={() => handlePlayPause(`voice-${v.id}`, v.preview_audio_url!)}
-                    >
-                      {playingId === `voice-${v.id}` ? '暂停' : '试听'}
-                    </Button>
-                  ),
-                  <Popconfirm title="确定删除该音色？删除后不可恢复。" onConfirm={() => handleDeleteVoice(v.id)}>
-                    <Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
-                  </Popconfirm>,
-                ].filter(Boolean)}
-              >
-                <List.Item.Meta
-                  title={<Space>{v.name} <Tag color={v.status === 'ok' ? 'success' : v.status === 'deploying' ? 'processing' : 'error'}>{v.status === 'ok' ? '可用' : v.status === 'deploying' ? '审核中' : '不可用'}</Tag></Space>}
-                  description={
-                    <Space direction="vertical" size={0}>
-                      <Text type="secondary">来源: {v.source === 'clone' ? '声音复刻' : '声音设计'} | 模型: {v.target_model}</Text>
-                      <Text type="secondary" copyable={{ text: v.voice_id }}>ID: {v.voice_id}</Text>
-                      {v.voice_prompt && <Text type="secondary">描述: {v.voice_prompt}</Text>}
-                    </Space>
-                  }
-                />
-              </List.Item>
-            )}
-          />
-        )}
-      </Card>
-
-      {/* 任务历史 */}
-      <Card title={<Space><AudioOutlined /> 任务历史</Space>} style={{ marginTop: 16 }}>
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
-        ) : tasks.length === 0 ? (
-          <Empty description="暂无任务" />
-        ) : (
-          <List
-            dataSource={tasks}
-            renderItem={(task) => (
-              <List.Item
-                actions={[
-                  task.result_audio_url && (
-                    <Button
-                      size="small"
-                      icon={playingId === task.id ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-                      onClick={() => handlePlayPause(task.id, task.result_audio_url!)}
-                    >
-                      {playingId === task.id ? '暂停' : '播放'}
-                    </Button>
-                  ),
-                  task.result_audio_url && !task.saved_to_library && (
-                    <Button size="small" icon={<SaveOutlined />} onClick={() => handleSaveToLibrary(task.id)}>
-                      存入音频库
-                    </Button>
-                  ),
-                  <Popconfirm title="确定删除？" onConfirm={() => handleDeleteTask(task.id)}>
-                    <Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
-                  </Popconfirm>,
-                ].filter(Boolean)}
-              >
-                <List.Item.Meta
-                  title={
-                    <Space>
-                      {task.name || task.id.slice(0, 8)}
-                      <Tag>{taskTypeLabel(task.task_type)}</Tag>
-                      {statusTag(task.status)}
-                      {task.saved_to_library && <Tag color="blue">已存库</Tag>}
-                    </Space>
-                  }
-                  description={
-                    <Space direction="vertical" size={4}>
-                      {task.task_type === 'tts' && <Text type="secondary">文本: {task.text?.slice(0, 80)}{(task.text?.length || 0) > 80 ? '...' : ''}</Text>}
-                      {task.task_type === 'voice_clone' && <Text type="secondary">前缀: {task.prefix}</Text>}
-                      {task.task_type === 'voice_design' && <Text type="secondary">描述: {task.voice_prompt?.slice(0, 60)}</Text>}
-                      <Space size={[4, 4]} wrap>
-                        {task.task_type === 'tts' && task.voice && (
-                          <Tag color="blue">{getVoiceDisplayName(task.voice)}</Tag>
-                        )}
-                        {task.task_type === 'tts' && task.format && (
-                          <Tag>{FORMAT_LABEL_MAP[task.format] || task.format}</Tag>
-                        )}
-                        {task.task_type === 'tts' && task.speech_rate !== undefined && task.speech_rate !== 1.0 && (
-                          <Tag>语速 {task.speech_rate}x</Tag>
-                        )}
-                        {task.task_type === 'tts' && task.pitch_rate !== undefined && task.pitch_rate !== 1.0 && (
-                          <Tag>音高 {task.pitch_rate}x</Tag>
-                        )}
-                        {task.task_type === 'tts' && task.volume !== undefined && task.volume !== 50 && (
-                          <Tag>音量 {task.volume}</Tag>
-                        )}
-                        {task.task_type === 'tts' && task.enable_ssml && (
-                          <Tag color="purple">SSML</Tag>
-                        )}
-                        {task.audio_duration != null && (
-                          <Tag color="cyan">{formatDuration(task.audio_duration)}</Tag>
-                        )}
-                      </Space>
-                      {task.result_voice_id && <Text type="secondary" copyable={{ text: task.result_voice_id }}>音色ID: {task.result_voice_id}</Text>}
-                      {task.error_message && <Text type="danger">{task.error_message}</Text>}
-                      <Text type="secondary" style={{ fontSize: 12 }}>{new Date(task.created_at).toLocaleString()}</Text>
-                      {task.request_id && (
-                        <Text type="secondary" style={{ fontSize: 11, fontFamily: 'monospace' }}>
-                          Request ID: {task.request_id}
-                        </Text>
-                      )}
-                    </Space>
-                  }
-                />
-              </List.Item>
-            )}
-          />
-        )}
       </Card>
     </div>
   )

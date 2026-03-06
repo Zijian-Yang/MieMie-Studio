@@ -197,6 +197,27 @@ async def update_studio_task(task_id: str, request: TaskUpdateRequest):
     return task
 
 
+class ImageMarkerRequest(BaseModel):
+    """更新图片标记"""
+    image_id: str
+    markers: List[str]  # star, flag, check, cross
+
+
+@router.post("/{task_id}/markers")
+async def update_image_markers(task_id: str, request: ImageMarkerRequest):
+    """更新任务中某张图片的标记"""
+    VALID_MARKERS = {"star", "flag", "check", "cross"}
+    task = storage_service.get_studio_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    for img in task.images:
+        if img.id == request.image_id:
+            img.markers = [m for m in request.markers if m in VALID_MARKERS]
+            storage_service.save_studio_task(task)
+            return {"success": True, "markers": img.markers}
+    raise HTTPException(status_code=404, detail="图片不存在")
+
+
 @router.post("/{task_id}/generate")
 async def generate_task_images(task_id: str, request: TaskGenerateRequest):
     """启动图片生成（立即返回，后台执行）

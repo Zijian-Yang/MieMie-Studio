@@ -110,6 +110,23 @@ async def get_task(task_id: str):
     return {"task": task}
 
 
+class AudioMarkerRequest(BaseModel):
+    """更新音频任务标记"""
+    markers: List[str]  # star, flag, check, cross
+
+
+@router.post("/{task_id}/markers")
+async def update_audio_markers(task_id: str, request: AudioMarkerRequest):
+    """更新音频任务的标记"""
+    VALID_MARKERS = {"star", "flag", "check", "cross"}
+    task = storage_service.get_audio_studio_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    task.markers = [m for m in request.markers if m in VALID_MARKERS]
+    storage_service.save_audio_studio_task(task)
+    return {"success": True, "markers": task.markers}
+
+
 @router.delete("/{task_id}")
 async def delete_task(task_id: str):
     """删除任务"""

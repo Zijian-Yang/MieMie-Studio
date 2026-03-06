@@ -405,6 +405,28 @@ async def update_task(task_id: str, request: VideoStudioTaskUpdateRequest):
     return task
 
 
+class VideoMarkerRequest(BaseModel):
+    """更新视频标记"""
+    video_url: str
+    markers: List[str]  # star, flag, check, cross
+
+
+@router.post("/{task_id}/markers")
+async def update_video_markers(task_id: str, request: VideoMarkerRequest):
+    """更新任务中某个视频的标记"""
+    VALID_MARKERS = {"star", "flag", "check", "cross"}
+    task = storage_service.get_video_studio_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    if request.video_url not in task.video_urls:
+        raise HTTPException(status_code=404, detail="视频不存在")
+    if not hasattr(task, 'video_markers') or task.video_markers is None:
+        task.video_markers = {}
+    task.video_markers[request.video_url] = [m for m in request.markers if m in VALID_MARKERS]
+    storage_service.save_video_studio_task(task)
+    return {"success": True, "video_markers": task.video_markers}
+
+
 @router.post("/{task_id}/regenerate")
 async def regenerate_task(task_id: str):
     """重新生成任务视频"""

@@ -15,6 +15,7 @@ class StudioTaskImage(BaseModel):
     url: Optional[str] = None  # 图片 URL
     prompt_used: Optional[str] = None  # 使用的提示词
     is_selected: bool = False  # 是否被选中保存到图库
+    markers: List[str] = []  # 用户标记: star, flag, check, cross
     created_at: datetime = Field(default_factory=datetime.now)
 
 

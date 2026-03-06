@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { Card, Button, List, Modal, Input, Select, InputNumber, Switch, message, Popconfirm, Space, Empty, Spin, Row, Col, Tabs, Tag, Form, theme } from 'antd'
-import { PlusOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, VideoCameraOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons'
+import { PlusOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, VideoCameraOutlined, EditOutlined, ReloadOutlined, StarFilled, FlagOutlined, FlagFilled, CheckOutlined, CloseOutlined, StarOutlined } from '@ant-design/icons'
 import { videoStudioApi, galleryApi, audioApi, videoLibraryApi, settingsApi, VideoStudioTask, GalleryImage, AudioItem, VideoLibraryItem, VideoModelInfo, RefVideoModelInfo, TextToVideoModelInfo, KeyframeToVideoModelInfo } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 
@@ -276,12 +276,31 @@ const VideoStudioPage = () => {
 
   const handleSaveToLibrary = async (videoUrl: string) => {
     if (!selectedTask) return
-    
+
     try {
       await videoStudioApi.saveToLibrary(selectedTask.id, videoUrl)
       message.success('已保存到视频库')
     } catch (error: any) {
       message.error(error.message || '保存失败')
+    }
+  }
+
+  const handleToggleVideoMarker = async (taskId: string, videoUrl: string, markerKey: string) => {
+    const task = tasks.find(t => t.id === taskId)
+    if (!task) return
+    const currentMarkers = task.video_markers?.[videoUrl] || []
+    const newMarkers = currentMarkers.includes(markerKey)
+      ? currentMarkers.filter((m: string) => m !== markerKey)
+      : [...currentMarkers, markerKey]
+    try {
+      const res = await videoStudioApi.updateVideoMarkers(taskId, videoUrl, newMarkers)
+      const updatedVideoMarkers = res.video_markers
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, video_markers: updatedVideoMarkers } : t))
+      if (selectedTask?.id === taskId) {
+        setSelectedTask(prev => prev ? { ...prev, video_markers: updatedVideoMarkers } : prev)
+      }
+    } catch {
+      message.error('标记更新失败')
     }
   }
 
@@ -1962,27 +1981,57 @@ const VideoStudioPage = () => {
               <div>
                 <div style={{ marginBottom: 16, fontWeight: 500 }}>生成结果</div>
                 <Row gutter={16}>
-                  {selectedTask.video_urls.map((url, index) => (
-                    <Col key={index} span={12}>
-                      <Card size="small" style={{ marginBottom: 16 }}>
-                        <video
-                          controls
-                          style={{ width: '100%' }}
-                          src={url}
-                        />
-                        <div style={{ marginTop: 8, textAlign: 'center' }}>
-                          <Button
-                            type="primary"
-                            size="small"
-                            icon={<SaveOutlined />}
-                            onClick={() => handleSaveToLibrary(url)}
-                          >
-                            保存到视频库
-                          </Button>
-                        </div>
-                      </Card>
-                    </Col>
-                  ))}
+                  {selectedTask.video_urls.map((url, index) => {
+                    const videoMarkers = selectedTask.video_markers?.[url] || []
+                    return (
+                      <Col key={index} span={12}>
+                        <Card size="small" style={{ marginBottom: 16 }}>
+                          <video
+                            controls
+                            style={{ width: '100%' }}
+                            src={url}
+                          />
+                          <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginTop: 6 }}>
+                            {([
+                              { key: 'star', icon: <StarOutlined />, activeIcon: <StarFilled />, color: '#faad14', title: '星标' },
+                              { key: 'flag', icon: <FlagOutlined />, activeIcon: <FlagFilled />, color: '#ff4d4f', title: '红旗' },
+                              { key: 'check', icon: <CheckOutlined />, activeIcon: <CheckOutlined />, color: '#52c41a', title: '对号' },
+                              { key: 'cross', icon: <CloseOutlined />, activeIcon: <CloseOutlined />, color: '#ff4d4f', title: '红叉' },
+                            ] as const).map(marker => {
+                              const active = videoMarkers.includes(marker.key)
+                              return (
+                                <Button
+                                  key={marker.key}
+                                  type="text"
+                                  size="small"
+                                  title={marker.title}
+                                  icon={active ? marker.activeIcon : marker.icon}
+                                  style={{
+                                    color: active ? marker.color : token.colorTextQuaternary,
+                                    fontSize: 14,
+                                    padding: '2px 6px',
+                                    height: 24,
+                                    minWidth: 24,
+                                  }}
+                                  onClick={() => handleToggleVideoMarker(selectedTask.id, url, marker.key)}
+                                />
+                              )
+                            })}
+                          </div>
+                          <div style={{ marginTop: 6, textAlign: 'center' }}>
+                            <Button
+                              type="primary"
+                              size="small"
+                              icon={<SaveOutlined />}
+                              onClick={() => handleSaveToLibrary(url)}
+                            >
+                              保存到视频库
+                            </Button>
+                          </div>
+                        </Card>
+                      </Col>
+                    )
+                  })}
                 </Row>
               </div>
             )}

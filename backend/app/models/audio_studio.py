@@ -50,6 +50,7 @@ class AudioStudioTask(BaseModel):
     result_voice_id: Optional[str] = None  # 复刻或设计产生的音色 ID
     audio_duration: Optional[float] = None  # 生成音频时长（秒）
     saved_to_library: bool = False  # 是否已保存到音频库
+    markers: List[str] = []  # 用户标记: star, flag, check, cross
 
     # === 状态 ===
     status: str = "pending"  # pending, processing, succeeded, failed
