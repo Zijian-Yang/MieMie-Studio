@@ -131,47 +131,52 @@ class OSSService:
             (success, url_or_error): 成功时返回 OSS URL，失败时返回错误信息
         """
         if not self.is_enabled():
-            # OSS 未启用，返回原始 URL
             return True, url
         
-        # 使用锁确保每次只有一个线程初始化客户端
+        # 视频文件较大，使用更长的超时时间（DashScope 建议 300s）
+        dl_timeout = httpx.Timeout(10.0, read=300.0) if file_type == "video" else httpx.Timeout(60.0)
+
+        try:
+            response = httpx.get(url, timeout=dl_timeout, follow_redirects=True)
+            if response.status_code != 200:
+                return False, f"下载文件失败: HTTP {response.status_code}"
+        except httpx.TimeoutException:
+            print(f"[OSS] 下载超时 ({file_type}): {url[:120]}...")
+            return False, f"下载超时（{file_type}）"
+        except httpx.HTTPError as e:
+            print(f"[OSS] 下载失败 ({file_type}): {e}")
+            return False, f"下载失败: {str(e)}"
+
+        content_type = response.headers.get('Content-Type', '')
+        if 'jpeg' in content_type or 'jpg' in content_type:
+            extension = 'jpg'
+        elif 'png' in content_type:
+            extension = 'png'
+        elif 'webp' in content_type:
+            extension = 'webp'
+        elif 'mp4' in content_type or 'video' in content_type:
+            extension = 'mp4'
+
         with self._lock:
             success, bucket = self._init_client()
             if not success or bucket is None:
                 return False, "OSS 初始化失败"
             
             try:
-                response = httpx.get(url, timeout=60.0, follow_redirects=True)
-                if response.status_code != 200:
-                    return False, f"下载文件失败: HTTP {response.status_code}"
-
-                content_type = response.headers.get('Content-Type', '')
-                if 'jpeg' in content_type or 'jpg' in content_type:
-                    extension = 'jpg'
-                elif 'png' in content_type:
-                    extension = 'png'
-                elif 'webp' in content_type:
-                    extension = 'webp'
-                elif 'mp4' in content_type:
-                    extension = 'mp4'
-                elif 'video' in content_type:
-                    extension = 'mp4'
-
                 object_key = self._generate_object_key(file_type, extension, project_id)
                 result = bucket.put_object(object_key, response.content)
 
                 if result.status == 200:
                     config = self._get_config()
                     oss_url = f"https://{config.bucket_name}.{config.endpoint_host}/{object_key}"
+                    print(f"[OSS] 上传成功 ({file_type}): {oss_url}")
                     return True, oss_url
                 else:
+                    print(f"[OSS] 上传失败: HTTP {result.status}")
                     return False, f"上传失败: HTTP {result.status}"
 
-            except httpx.TimeoutException:
-                return False, "下载超时"
-            except httpx.HTTPError as e:
-                return False, f"下载失败: {str(e)}"
             except Exception as e:
+                print(f"[OSS] 上传异常 ({file_type}): {e}")
                 return False, f"上传失败: {str(e)}"
     
     def upload_from_url(
@@ -389,11 +394,12 @@ class OSSService:
         Returns:
             持久化后的视频 URL
         """
+        print(f"[OSS] 开始上传视频到 OSS, project_id={project_id}, url={url[:100]}...")
         success, result = await self.upload_from_url_async(url, "video", "mp4", project_id)
         if success:
             return result
         else:
-            print(f"视频上传到 OSS 失败: {result}，使用原始 URL")
+            print(f"[OSS] ⚠️ 视频上传到 OSS 失败: {result}，使用原始临时 URL（24小时后过期）")
             return url
     
     def reinitialize(self):
