@@ -114,14 +114,18 @@ class TextToVideoService:
         
         # 视频时长
         duration_value = duration if duration is not None else self.t2v_config.duration
-        supported_durations = model_info.get("durations", [5])
         if duration_value is not None:
-            # 根据模型支持的时长限制
-            if duration_value in supported_durations:
-                parameters["duration"] = duration_value
+            duration_range = model_info.get("duration_range")
+            if duration_range:
+                # 连续时长范围（如 wan2.6-t2v [2, 15]），使用 clamp
+                parameters["duration"] = max(duration_range[0], min(duration_range[1], duration_value))
             else:
-                # 找到最接近的支持时长
-                parameters["duration"] = min(supported_durations, key=lambda x: abs(x - duration_value))
+                # 离散时长列表（如 wan2.5-t2v [5, 10]）
+                supported_durations = model_info.get("durations", [5])
+                if duration_value in supported_durations:
+                    parameters["duration"] = duration_value
+                else:
+                    parameters["duration"] = min(supported_durations, key=lambda x: abs(x - duration_value))
         
         # 智能改写
         prompt_extend_value = prompt_extend if prompt_extend is not None else self.t2v_config.prompt_extend

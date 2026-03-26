@@ -245,17 +245,15 @@ class ImageToVideoService:
         if resolution_value:
             parameters["resolution"] = resolution_value
         
-        # 视频时长
-        # wan2.6-i2v-flash 支持 2-15 秒连续范围
-        # wan2.6-i2v 支持 5/10/15 秒固定选项
+        # 视频时长：wan2.6-i2v / wan2.6-i2v-flash 均支持 [2, 15] 连续范围
         duration_value = duration if duration is not None else self.video_config.duration
         if duration_value is not None:
-            if 'wan2.6-i2v-flash' in model:
-                # wan2.6-i2v-flash 支持 2-15 秒连续范围
-                parameters["duration"] = max(2, min(15, duration_value))
+            model_info = VIDEO_MODELS.get(model, {})
+            duration_range = model_info.get("duration_range")
+            if duration_range:
+                parameters["duration"] = max(duration_range[0], min(duration_range[1], duration_value))
             else:
-                # wan2.6-i2v 支持 5/10/15 秒
-                parameters["duration"] = max(5, min(15, duration_value))
+                parameters["duration"] = max(2, min(15, duration_value))
         
         # 智能改写
         prompt_extend_value = prompt_extend if prompt_extend is not None else self.video_config.prompt_extend
