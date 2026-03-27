@@ -12,7 +12,7 @@ class User(BaseModel):
     """用户模型"""
     id: str = ""
     username: str
-    password: str  # 明文存储
+    password: str  # bcrypt 哈希存储
     display_name: Optional[str] = None  # 显示名称
     created_at: str = ""
     last_login: Optional[str] = None

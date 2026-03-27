@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Optional, Dict
 from datetime import datetime, timedelta
 
+import bcrypt
+
 from app.models.user import User, UserResponse
 
 logger = logging.getLogger(__name__)
@@ -92,6 +94,25 @@ class UserService:
             self._save_sessions()
             logger.info(f"已清理 {len(expired)} 个过期会话")
     
+    @staticmethod
+    def _hash_password(password: str) -> str:
+        """使用 bcrypt 哈希密码"""
+        return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+    @staticmethod
+    def _verify_password(password: str, hashed: str) -> bool:
+        """验证密码（支持 bcrypt 哈希和明文密码的渐进式迁移）"""
+        try:
+            return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+        except (ValueError, TypeError):
+            # 明文密码兼容：旧数据未哈希时直接比较
+            return password == hashed
+
+    @staticmethod
+    def _is_hashed(password: str) -> bool:
+        """判断密码是否已经 bcrypt 哈希"""
+        return password.startswith('$2b$') or password.startswith('$2a$')
+
     def _generate_token(self, user_id: str) -> str:
         """生成简单的会话 token"""
         raw = f"{user_id}-{datetime.now().isoformat()}-{uuid.uuid4()}"
@@ -111,10 +132,10 @@ class UserService:
             if user_data.get('username') == username:
                 return None
         
-        # 创建新用户
+        # 创建新用户（密码 bcrypt 哈希）
         user = User(
             username=username,
-            password=password,
+            password=self._hash_password(password),
             display_name=display_name or username
         )
         
@@ -136,7 +157,12 @@ class UserService:
         users = self._load_users()
         
         for user_id, user_data in users.items():
-            if user_data.get('username') == username and user_data.get('password') == password:
+            if user_data.get('username') == username and self._verify_password(password, user_data.get('password', '')):
+                # 渐进式迁移：明文密码自动升级为 bcrypt 哈希
+                if not self._is_hashed(user_data.get('password', '')):
+                    user_data['password'] = self._hash_password(password)
+                    logger.info(f"用户 {username} 密码已自动迁移为 bcrypt 哈希")
+
                 # 更新最后登录时间
                 user_data['last_login'] = datetime.now().isoformat()
                 users[user_id] = user_data
@@ -230,18 +256,18 @@ class UserService:
             return False, "用户不存在"
         
         # 验证旧密码
-        if user_data.get('password') != old_password:
+        if not self._verify_password(old_password, user_data.get('password', '')):
             return False, "原密码错误"
-        
+
         # 验证新密码
         if len(new_password) < 4:
             return False, "新密码长度至少为 4 位"
-        
+
         if new_password == old_password:
             return False, "新密码不能与原密码相同"
-        
-        # 更新密码
-        user_data['password'] = new_password
+
+        # 更新密码（bcrypt 哈希）
+        user_data['password'] = self._hash_password(new_password)
         users[user_id] = user_data
         self._save_users(users)
         
