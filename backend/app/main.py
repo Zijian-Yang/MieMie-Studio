@@ -26,6 +26,9 @@ from slowapi.errors import RateLimitExceeded
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 
+# 生产模式标志（提前定义，供 CORS 和静态文件使用）
+SERVE_FRONTEND = os.environ.get("MIEMIE_SERVE_FRONTEND", "").lower() in ("true", "1", "yes")
+
 # 创建 FastAPI 应用
 app = FastAPI(
     title="AI 视频生成平台",
@@ -37,10 +40,25 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # 配置 CORS（必须在 AuthMiddleware 之前）
+# 通过环境变量 MIEMIE_CORS_ORIGINS 配置允许的源（逗号分隔）
+# 默认开发模式允许 localhost:3000 和 localhost:5173
+_cors_origins_env = os.environ.get("MIEMIE_CORS_ORIGINS", "")
+if _cors_origins_env:
+    _cors_origins = [origin.strip() for origin in _cors_origins_env.split(",") if origin.strip()]
+elif SERVE_FRONTEND:
+    # 生产模式：同源访问，不需要指定特定域名
+    _cors_origins = ["*"]
+else:
+    # 开发模式：允许常见的开发端口
+    _cors_origins = ["http://localhost:3000", "http://localhost:5173"]
+
+# allow_credentials 与 allow_origins=["*"] 不兼容（浏览器会拒绝）
+_allow_credentials = _cors_origins != ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -84,7 +102,6 @@ async def health_check():
 # ──────────────────────────────────────
 # 生产模式：由 FastAPI 服务前端静态文件
 # ──────────────────────────────────────
-SERVE_FRONTEND = os.environ.get("MIEMIE_SERVE_FRONTEND", "").lower() in ("true", "1", "yes")
 FRONTEND_DIST = Path(__file__).parent.parent.parent / "frontend" / "dist"
 
 if SERVE_FRONTEND and FRONTEND_DIST.exists():
