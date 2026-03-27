@@ -79,6 +79,7 @@ const VideoStudioPage = () => {
     }
     return () => {
       isMountedRef.current = false
+      pollingRef.current.clear()
     }
   }, [projectId, fetchProject])
 

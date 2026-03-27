@@ -131,18 +131,18 @@ const VideosPage = () => {
     loadData()
     
     return () => {
-      // 组件卸载时标记
+      // 组件卸载时停止所有轮询，防止网络请求泄漏
       isMountedRef.current = false
-      // 注意：不清理 pollingRef，让轮询继续运行
-      // 这样下次加载时可以从后端获取最新状态
+      pollingRef.current.clear()
     }
   }, [projectId, fetchProject])
-  
+
   // 组件挂载时重置标记
   useEffect(() => {
     isMountedRef.current = true
     return () => {
       isMountedRef.current = false
+      pollingRef.current.clear()
     }
   }, [])
 
