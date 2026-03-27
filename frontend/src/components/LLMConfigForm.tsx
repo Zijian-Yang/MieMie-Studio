@@ -29,6 +29,7 @@ const LLMConfigForm = ({
   hideModelSelect = false
 }: LLMConfigFormProps) => {
   const { token } = theme.useToken()
+  const watchedThinking = Form.useWatch('llm_enable_thinking', form)
   const [enableThinking, setEnableThinking] = useState(false)
 
   // 检查当前选中的模型是否支持深度思考
@@ -71,11 +72,10 @@ const LLMConfigForm = ({
     }
   }
 
-  // 同步 enableThinking 状态
+  // 同步 enableThinking 状态（通过 Form.useWatch 响应式更新）
   useEffect(() => {
-    const thinkingValue = form.getFieldValue('llm_enable_thinking')
-    setEnableThinking(!!thinkingValue)
-  }, [form])
+    setEnableThinking(!!watchedThinking)
+  }, [watchedThinking])
 
   const maxTokensLimit = getCurrentModelMaxTokens()
   const colSpan = compact ? 12 : 12

@@ -21,6 +21,7 @@ const SettingsPage = () => {
   const [config, setConfig] = useState<ConfigResponse | null>(null)
   const [selectedLLMModel, setSelectedLLMModel] = useState<string>('')
   const [enableThinking, setEnableThinking] = useState(false)
+  const ossEnabled = Form.useWatch('oss_enabled', form)
 
   useEffect(() => {
     fetchSettings()
@@ -590,7 +591,7 @@ const SettingsPage = () => {
               <Form.Item
                 name="oss_bucket_name"
                 label="Bucket 名称"
-                rules={[{ required: form.getFieldValue('oss_enabled'), message: '请输入 Bucket 名称' }]}
+                rules={[{ required: !!ossEnabled, message: '请输入 Bucket 名称' }]}
               >
                 <Input placeholder="例如: my-bucket" />
               </Form.Item>
@@ -600,7 +601,7 @@ const SettingsPage = () => {
                 name="oss_endpoint"
                 label="Endpoint"
                 rules={[
-                  { required: form.getFieldValue('oss_enabled'), message: '请输入 Endpoint' },
+                  { required: !!ossEnabled, message: '请输入 Endpoint' },
                   { pattern: /^https:\/\//, message: 'Endpoint 必须以 https:// 开头' }
                 ]}
               >
