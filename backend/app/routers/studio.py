@@ -444,7 +444,7 @@ async def generate_with_text_to_image(
     n = task.n or 1
     group_count = task.group_count or 3
     
-    print(f"[文生图] 开始生成: n={n}, group_count={group_count}, total={n * group_count}")
+    logger.info(f"[文生图] 开始生成: n={n}, group_count={group_count}, total={n * group_count}")
     
     width = None
     height = None
@@ -486,11 +486,11 @@ async def generate_with_text_to_image(
         except Exception as e:
             import traceback
             error_msg = str(e)
-            print(f"文生图生成失败 (组{group_index}): {e}")
+            logger.error(f"文生图生成失败 (组{group_index}): {e}")
             traceback.print_exc()
             return [], False, error_msg, "", ""
     
-    print(f"[文生图] 开始并发生成 {group_count} 组...")
+    logger.info(f"[文生图] 开始并发生成 {group_count} 组...")
     group_tasks = [generate_single_group(i) for i in range(group_count)]
     results = await asyncio.gather(*group_tasks)
     
@@ -506,7 +506,7 @@ async def generate_with_text_to_image(
             failed_groups.append((i, error_msg))
     
     if failed_groups:
-        print(f"[文生图] {len(failed_groups)} 个组失败，回退到串行重试...")
+        logger.info(f"[文生图] {len(failed_groups)} 个组失败，回退到串行重试...")
         max_retries = 3
         
         for group_index, original_error in failed_groups:
@@ -514,7 +514,7 @@ async def generate_with_text_to_image(
             
             for retry in range(max_retries):
                 wait_time = 2 * (retry + 1)
-                print(f"[文生图] 组{group_index} 等待 {wait_time}s 后重试 ({retry + 1}/{max_retries})...")
+                logger.info(f"[文生图] 组{group_index} 等待 {wait_time}s 后重试 ({retry + 1}/{max_retries})...")
                 await asyncio.sleep(wait_time)
                 
                 images, success, error_msg, tid, rid = await generate_single_group(group_index)
@@ -523,11 +523,11 @@ async def generate_with_text_to_image(
                     retry_success = True
                     if rid:
                         collected_request_ids.append(rid)
-                    print(f"[文生图] 组{group_index} 重试成功")
+                    logger.info(f"[文生图] 组{group_index} 重试成功")
                     break
             
             if not retry_success:
-                print(f"[文生图] 组{group_index} 重试全部失败")
+                logger.error(f"[文生图] 组{group_index} 重试全部失败")
                 for i in range(n):
                     all_images.append(StudioTaskImage(
                         group_index=group_index * n + i,
@@ -538,8 +538,8 @@ async def generate_with_text_to_image(
     all_images.sort(key=lambda img: img.group_index)
     
     success_count = sum(1 for img in all_images if img.url)
-    print(f"[文生图] 生成完成: 共 {len(all_images)} 张图片，成功 {success_count} 张")
-    print(f"[文生图] request_ids: {collected_request_ids}")
+    logger.info(f"[文生图] 生成完成: 共 {len(all_images)} 张图片，成功 {success_count} 张")
+    logger.info(f"[文生图] request_ids: {collected_request_ids}")
     return all_images, collected_request_ids
 
 
@@ -600,7 +600,7 @@ async def generate_with_wan26_image(
             return images
         except Exception as e:
             import traceback
-            print(f"wan2.6-image 生成失败: {e}")
+            logger.error(f"wan2.6-image 生成失败: {e}")
             traceback.print_exc()
             group_errors.append(str(e))
             return [StudioTaskImage(
@@ -739,7 +739,7 @@ async def generate_with_qwen_image_edit(
             return images
         except Exception as e:
             import traceback
-            print(f"{model_name} 生成失败: {e}")
+            logger.error(f"{model_name} 生成失败: {e}")
             traceback.print_exc()
             group_errors.append(str(e))
             return [StudioTaskImage(
@@ -822,7 +822,7 @@ async def generate_with_qwen_image(
             ) for u in final_urls]
         except Exception as e:
             import traceback
-            print(f"{model_name} 生成失败: {e}")
+            logger.error(f"{model_name} 生成失败: {e}")
             traceback.print_exc()
             group_errors.append(str(e))
             return [StudioTaskImage(

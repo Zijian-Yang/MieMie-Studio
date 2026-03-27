@@ -7,11 +7,14 @@
 """
 
 import os
+import logging
 import uuid
 import hashlib
 import httpx
 import threading
 import asyncio
+
+logger = logging.getLogger(__name__)
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
@@ -55,7 +58,7 @@ class OSSService:
             (success, bucket): 成功时返回 bucket 对象
         """
         if not OSS_AVAILABLE:
-            print("警告: oss2 库未安装，OSS 功能不可用。请运行: pip install oss2")
+            logger.warning("oss2 库未安装，OSS 功能不可用。请运行: pip install oss2")
             return False, None
         
         config = self._get_config()
@@ -64,7 +67,7 @@ class OSSService:
             return False, None
         
         if not all([config.access_key_id, config.access_key_secret, config.bucket_name, config.endpoint]):
-            print("警告: OSS 配置不完整")
+            logger.warning("OSS 配置不完整")
             return False, None
         
         try:
@@ -73,7 +76,7 @@ class OSSService:
             bucket = oss2.Bucket(auth, config.endpoint_url, config.bucket_name)
             return True, bucket
         except Exception as e:
-            print(f"OSS 客户端初始化失败: {e}")
+            logger.error(f"OSS 客户端初始化失败: {e}")
             return False, None
     
     def is_enabled(self) -> bool:
@@ -141,10 +144,10 @@ class OSSService:
             if response.status_code != 200:
                 return False, f"下载文件失败: HTTP {response.status_code}"
         except httpx.TimeoutException:
-            print(f"[OSS] 下载超时 ({file_type}): {url[:120]}...")
+            logger.warning(f"[OSS] 下载超时 ({file_type}): {url[:120]}...")
             return False, f"下载超时（{file_type}）"
         except httpx.HTTPError as e:
-            print(f"[OSS] 下载失败 ({file_type}): {e}")
+            logger.error(f"[OSS] 下载失败 ({file_type}): {e}")
             return False, f"下载失败: {str(e)}"
 
         content_type = response.headers.get('Content-Type', '')
@@ -169,14 +172,14 @@ class OSSService:
                 if result.status == 200:
                     config = self._get_config()
                     oss_url = f"https://{config.bucket_name}.{config.endpoint_host}/{object_key}"
-                    print(f"[OSS] 上传成功 ({file_type}): {oss_url}")
+                    logger.info(f"[OSS] 上传成功 ({file_type}): {oss_url}")
                     return True, oss_url
                 else:
-                    print(f"[OSS] 上传失败: HTTP {result.status}")
+                    logger.error(f"[OSS] 上传失败: HTTP {result.status}")
                     return False, f"上传失败: HTTP {result.status}"
 
             except Exception as e:
-                print(f"[OSS] 上传异常 ({file_type}): {e}")
+                logger.error(f"[OSS] 上传异常 ({file_type}): {e}")
                 return False, f"上传失败: {str(e)}"
     
     def upload_from_url(
@@ -337,7 +340,7 @@ class OSSService:
         if success:
             return result
         else:
-            print(f"图片上传到 OSS 失败: {result}，使用原始 URL")
+            logger.warning(f"图片上传到 OSS 失败: {result}，使用原始 URL")
             return url
     
     async def upload_image_async(self, url: str, project_id: str = "") -> str:
@@ -358,7 +361,7 @@ class OSSService:
         if success:
             return result
         else:
-            print(f"图片上传到 OSS 失败: {result}，使用原始 URL")
+            logger.warning(f"图片上传到 OSS 失败: {result}，使用原始 URL")
             return url
     
     def upload_video(self, url: str, project_id: str = "") -> str:
@@ -377,7 +380,7 @@ class OSSService:
         if success:
             return result
         else:
-            print(f"视频上传到 OSS 失败: {result}，使用原始 URL")
+            logger.warning(f"视频上传到 OSS 失败: {result}，使用原始 URL")
             return url
     
     async def upload_video_async(self, url: str, project_id: str = "") -> str:
@@ -394,12 +397,12 @@ class OSSService:
         Returns:
             持久化后的视频 URL
         """
-        print(f"[OSS] 开始上传视频到 OSS, project_id={project_id}, url={url[:100]}...")
+        logger.info(f"[OSS] 开始上传视频到 OSS, project_id={project_id}, url={url[:100]}...")
         success, result = await self.upload_from_url_async(url, "video", "mp4", project_id)
         if success:
             return result
         else:
-            print(f"[OSS] ⚠️ 视频上传到 OSS 失败: {result}，使用原始临时 URL（24小时后过期）")
+            logger.warning(f"[OSS] 视频上传到 OSS 失败: {result}，使用原始临时 URL（24小时后过期）")
             return url
     
     def reinitialize(self):
@@ -410,7 +413,7 @@ class OSSService:
         self._auth = None
         self._bucket = None
         self._config = None
-        print("OSS 服务已重置，将在下次使用时重新初始化")
+        logger.info("OSS 服务已重置，将在下次使用时重新初始化")
     
     def test_connection(self) -> Tuple[bool, str]:
         """
