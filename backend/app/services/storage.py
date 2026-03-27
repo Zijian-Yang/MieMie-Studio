@@ -171,11 +171,10 @@ class StorageService:
     def get_character(self, character_id: str) -> Optional[Character]:
         """获取角色"""
         file_path = self.characters_dir / f"{character_id}.json"
-        if not file_path.exists():
-            return None
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        data = self._read_json_with_lock(file_path)
+        if data:
             return Character(**data)
+        return None
     
     def delete_character(self, character_id: str) -> None:
         """删除角色"""
@@ -195,11 +194,10 @@ class StorageService:
     def get_scene(self, scene_id: str) -> Optional[Scene]:
         """获取场景"""
         file_path = self.scenes_dir / f"{scene_id}.json"
-        if not file_path.exists():
-            return None
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        data = self._read_json_with_lock(file_path)
+        if data:
             return Scene(**data)
+        return None
     
     def delete_scene(self, scene_id: str) -> None:
         """删除场景"""
@@ -219,11 +217,10 @@ class StorageService:
     def get_prop(self, prop_id: str) -> Optional[Prop]:
         """获取道具"""
         file_path = self.props_dir / f"{prop_id}.json"
-        if not file_path.exists():
-            return None
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        data = self._read_json_with_lock(file_path)
+        if data:
             return Prop(**data)
+        return None
     
     def delete_prop(self, prop_id: str) -> None:
         """删除道具"""
@@ -243,29 +240,26 @@ class StorageService:
     def get_frame(self, frame_id: str) -> Optional[Frame]:
         """获取首帧"""
         file_path = self.frames_dir / f"{frame_id}.json"
-        if not file_path.exists():
-            return None
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        data = self._read_json_with_lock(file_path)
+        if data:
             return Frame(**data)
+        return None
     
     def get_frame_by_shot(self, project_id: str, shot_id: str) -> Optional[Frame]:
         """根据分镜ID获取首帧"""
         for file_path in self.frames_dir.glob("*.json"):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if data.get("project_id") == project_id and data.get("shot_id") == shot_id:
-                    return Frame(**data)
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("project_id") == project_id and data.get("shot_id") == shot_id:
+                return Frame(**data)
         return None
     
     def get_frames_by_project(self, project_id: str) -> List[Frame]:
         """获取项目所有首帧"""
         frames = []
         for file_path in self.frames_dir.glob("*.json"):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if data.get("project_id") == project_id:
-                    frames.append(Frame(**data))
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("project_id") == project_id:
+                frames.append(Frame(**data))
         return sorted(frames, key=lambda f: f.shot_number)
     
     def delete_frame(self, frame_id: str) -> None:
@@ -286,39 +280,36 @@ class StorageService:
     def get_video(self, video_id: str) -> Optional[Video]:
         """获取视频"""
         file_path = self.videos_dir / f"{video_id}.json"
-        if not file_path.exists():
-            return None
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        data = self._read_json_with_lock(file_path)
+        if data:
             return Video(**data)
-    
+        return None
+
     def get_video_by_task(self, task_id: str) -> Optional[Video]:
         """根据任务ID获取视频"""
         for file_path in self.videos_dir.glob("*.json"):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+            data = self._read_json_with_lock(file_path)
+            if data:
                 task = data.get("task")
                 if task and task.get("task_id") == task_id:
                     return Video(**data)
         return None
-    
+
     def get_videos_by_project(self, project_id: str) -> List[Video]:
         """获取项目所有视频"""
         videos = []
         for file_path in self.videos_dir.glob("*.json"):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if data.get("project_id") == project_id:
-                    videos.append(Video(**data))
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("project_id") == project_id:
+                videos.append(Video(**data))
         return sorted(videos, key=lambda v: v.shot_number)
-    
+
     def get_video_by_shot(self, project_id: str, shot_id: str) -> Optional[Video]:
         """根据分镜ID获取视频"""
         for file_path in self.videos_dir.glob("*.json"):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if data.get("project_id") == project_id and data.get("shot_id") == shot_id:
-                    return Video(**data)
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("project_id") == project_id and data.get("shot_id") == shot_id:
+                return Video(**data)
         return None
     
     def delete_video(self, video_id: str) -> None:
@@ -339,11 +330,10 @@ class StorageService:
     def get_style(self, style_id: str) -> Optional[Style]:
         """获取风格"""
         file_path = self.styles_dir / f"{style_id}.json"
-        if not file_path.exists():
-            return None
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        data = self._read_json_with_lock(file_path)
+        if data:
             return Style(**data)
+        return None
     
     def delete_style(self, style_id: str) -> None:
         """删除风格"""
@@ -363,20 +353,18 @@ class StorageService:
     def get_gallery_image(self, image_id: str) -> Optional[GalleryImage]:
         """获取图库图片"""
         file_path = self.gallery_dir / f"{image_id}.json"
-        if not file_path.exists():
-            return None
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        data = self._read_json_with_lock(file_path)
+        if data:
             return GalleryImage(**data)
-    
+        return None
+
     def get_gallery_images_by_project(self, project_id: str) -> List[GalleryImage]:
         """获取项目所有图库图片"""
         images = []
         for file_path in self.gallery_dir.glob("*.json"):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if data.get("project_id") == project_id:
-                    images.append(GalleryImage(**data))
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("project_id") == project_id:
+                images.append(GalleryImage(**data))
         return sorted(images, key=lambda i: i.created_at, reverse=True)
     
     def delete_gallery_image(self, image_id: str) -> None:
@@ -397,20 +385,18 @@ class StorageService:
     def get_studio_task(self, task_id: str) -> Optional[StudioTask]:
         """获取图片工作室任务"""
         file_path = self.studio_dir / f"{task_id}.json"
-        if not file_path.exists():
-            return None
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        data = self._read_json_with_lock(file_path)
+        if data:
             return StudioTask(**data)
-    
+        return None
+
     def get_studio_tasks_by_project(self, project_id: str) -> List[StudioTask]:
         """获取项目所有图片工作室任务"""
         tasks = []
         for file_path in self.studio_dir.glob("*.json"):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if data.get("project_id") == project_id:
-                    tasks.append(StudioTask(**data))
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("project_id") == project_id:
+                tasks.append(StudioTask(**data))
         return sorted(tasks, key=lambda t: t.created_at, reverse=True)
     
     def delete_studio_task(self, task_id: str) -> None:
@@ -431,20 +417,18 @@ class StorageService:
     def get_audio_item(self, audio_id: str) -> Optional[AudioItem]:
         """获取音频项"""
         file_path = self.audio_dir / f"{audio_id}.json"
-        if not file_path.exists():
-            return None
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        data = self._read_json_with_lock(file_path)
+        if data:
             return AudioItem(**data)
-    
+        return None
+
     def get_audio_items(self, project_id: str) -> List[AudioItem]:
         """获取项目所有音频"""
         audios = []
         for file_path in self.audio_dir.glob("*.json"):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if data.get("project_id") == project_id:
-                    audios.append(AudioItem(**data))
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("project_id") == project_id:
+                audios.append(AudioItem(**data))
         return sorted(audios, key=lambda a: a.created_at, reverse=True)
     
     def delete_audio_item(self, audio_id: str) -> None:
@@ -465,20 +449,18 @@ class StorageService:
     def get_video_item(self, video_id: str) -> Optional[VideoItem]:
         """获取视频项"""
         file_path = self.video_library_dir / f"{video_id}.json"
-        if not file_path.exists():
-            return None
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        data = self._read_json_with_lock(file_path)
+        if data:
             return VideoItem(**data)
-    
+        return None
+
     def get_video_items(self, project_id: str) -> List[VideoItem]:
         """获取项目所有视频"""
         videos = []
         for file_path in self.video_library_dir.glob("*.json"):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if data.get("project_id") == project_id:
-                    videos.append(VideoItem(**data))
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("project_id") == project_id:
+                videos.append(VideoItem(**data))
         return sorted(videos, key=lambda v: v.created_at, reverse=True)
     
     def delete_video_item(self, video_id: str) -> None:
@@ -499,20 +481,18 @@ class StorageService:
     def get_text_item(self, text_id: str) -> Optional[TextItem]:
         """获取文本项"""
         file_path = self.text_library_dir / f"{text_id}.json"
-        if not file_path.exists():
-            return None
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        data = self._read_json_with_lock(file_path)
+        if data:
             return TextItem(**data)
-    
+        return None
+
     def get_text_items(self, project_id: str) -> List[TextItem]:
         """获取项目所有文本"""
         texts = []
         for file_path in self.text_library_dir.glob("*.json"):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if data.get("project_id") == project_id:
-                    texts.append(TextItem(**data))
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("project_id") == project_id:
+                texts.append(TextItem(**data))
         return sorted(texts, key=lambda t: t.created_at, reverse=True)
     
     def delete_text_item(self, text_id: str) -> None:
@@ -533,20 +513,18 @@ class StorageService:
     def get_video_studio_task(self, task_id: str) -> Optional[VideoStudioTask]:
         """获取视频工作室任务"""
         file_path = self.video_studio_dir / f"{task_id}.json"
-        if not file_path.exists():
-            return None
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        data = self._read_json_with_lock(file_path)
+        if data:
             return VideoStudioTask(**data)
-    
+        return None
+
     def get_video_studio_tasks(self, project_id: str) -> List[VideoStudioTask]:
         """获取项目所有视频工作室任务"""
         tasks = []
         for file_path in self.video_studio_dir.glob("*.json"):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if data.get("project_id") == project_id:
-                    tasks.append(VideoStudioTask(**data))
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("project_id") == project_id:
+                tasks.append(VideoStudioTask(**data))
         return sorted(tasks, key=lambda t: t.created_at, reverse=True)
     
     def delete_video_studio_task(self, task_id: str) -> None:
@@ -567,20 +545,18 @@ class StorageService:
     def get_audio_studio_task(self, task_id: str) -> Optional[AudioStudioTask]:
         """获取音频工作室任务"""
         file_path = self.audio_studio_dir / f"{task_id}.json"
-        if not file_path.exists():
-            return None
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        data = self._read_json_with_lock(file_path)
+        if data:
             return AudioStudioTask(**data)
+        return None
 
     def get_audio_studio_tasks(self, project_id: str) -> List[AudioStudioTask]:
         """获取项目所有音频工作室任务"""
         tasks = []
         for file_path in self.audio_studio_dir.glob("*.json"):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if data.get("project_id") == project_id:
-                    tasks.append(AudioStudioTask(**data))
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("project_id") == project_id:
+                tasks.append(AudioStudioTask(**data))
         return sorted(tasks, key=lambda t: t.created_at, reverse=True)
 
     def delete_audio_studio_task(self, task_id: str) -> None:
@@ -601,29 +577,26 @@ class StorageService:
     def get_voice_profile(self, profile_id: str) -> Optional[VoiceProfile]:
         """获取音色档案"""
         file_path = self.voices_dir / f"{profile_id}.json"
-        if not file_path.exists():
-            return None
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        data = self._read_json_with_lock(file_path)
+        if data:
             return VoiceProfile(**data)
+        return None
 
     def get_voice_profiles(self, project_id: str) -> List[VoiceProfile]:
         """获取项目所有音色档案"""
         profiles = []
         for file_path in self.voices_dir.glob("*.json"):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if data.get("project_id") == project_id:
-                    profiles.append(VoiceProfile(**data))
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("project_id") == project_id:
+                profiles.append(VoiceProfile(**data))
         return sorted(profiles, key=lambda p: p.created_at, reverse=True)
 
     def get_voice_profile_by_voice_id(self, voice_id: str) -> Optional[VoiceProfile]:
         """通过 DashScope voice_id 获取音色档案"""
         for file_path in self.voices_dir.glob("*.json"):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if data.get("voice_id") == voice_id:
-                    return VoiceProfile(**data)
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("voice_id") == voice_id:
+                return VoiceProfile(**data)
         return None
 
     def delete_voice_profile(self, profile_id: str) -> None:
