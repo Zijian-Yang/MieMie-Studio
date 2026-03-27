@@ -633,34 +633,39 @@ class StorageService:
             file_path.unlink()
 
 
-# 存储服务缓存
+# 存储服务缓存（线程安全）
 _storage_cache: dict = {}
+_cache_lock = threading.Lock()
 _default_storage: Optional[StorageService] = None
 
 
 def get_user_storage(user_id: str) -> StorageService:
     """
-    获取用户专属的存储服务
-    
+    获取用户专属的存储服务（线程安全，double-checked locking）
+
     Args:
         user_id: 用户 ID
-        
+
     Returns:
         用户专属的 StorageService 实例
     """
     if user_id not in _storage_cache:
-        from app.services.user_service import get_user_service
-        user_service = get_user_service()
-        user_data_path = user_service.get_user_data_path(user_id)
-        _storage_cache[user_id] = StorageService(str(user_data_path))
+        with _cache_lock:
+            if user_id not in _storage_cache:
+                from app.services.user_service import get_user_service
+                user_service = get_user_service()
+                user_data_path = user_service.get_user_data_path(user_id)
+                _storage_cache[user_id] = StorageService(str(user_data_path))
     return _storage_cache[user_id]
 
 
 def get_default_storage() -> StorageService:
-    """获取默认存储服务（向后兼容）"""
+    """获取默认存储服务（向后兼容，线程安全）"""
     global _default_storage
     if _default_storage is None:
-        _default_storage = StorageService()
+        with _cache_lock:
+            if _default_storage is None:
+                _default_storage = StorageService()
     return _default_storage
 
 
