@@ -65,7 +65,8 @@ class UserService:
                 if migrated:
                     self._save_sessions()
                 self._cleanup_expired_sessions()
-            except Exception:
+            except Exception as e:
+                logger.warning(f"会话文件加载失败，已重置会话: {e}")
                 self.sessions = {}
         else:
             self.sessions = {}

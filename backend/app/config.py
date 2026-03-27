@@ -807,9 +807,12 @@ class AppConfig(BaseModel):
 
 
 import os
+import logging
 import threading
 import fcntl
 from contextvars import ContextVar
+
+logger = logging.getLogger(__name__)
 
 # 当前用户配置的上下文变量
 _current_user_config_dir: ContextVar[Optional[str]] = ContextVar('current_user_config_dir', default=None)
@@ -885,9 +888,9 @@ class ConfigManager:
             if data and len(data) > 0:
                 try:
                     return AppConfig(**data)
-                except Exception:
-                    # 如果数据格式错误，使用默认配置
-                    pass
+                except Exception as e:
+                    # 如果数据格式错误，使用默认配置并记录警告
+                    logger.warning(f"配置文件格式错误，使用默认配置: {e}")
             # 创建并保存默认配置
             config = AppConfig()
             self.save(config)

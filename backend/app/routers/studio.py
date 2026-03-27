@@ -811,10 +811,10 @@ async def generate_with_qwen_image(
                                 if success:
                                     final_urls.append(oss_url)
                                     continue
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"OSS 上传失败，使用原始 URL: {e}")
                 final_urls.append(url)
-            
+
             return [StudioTaskImage(
                 group_index=group_index,
                 url=u,
@@ -909,8 +909,8 @@ async def generate_with_qwen_image_2(
                                 if success:
                                     final_urls.append(oss_url)
                                     continue
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"OSS 上传失败，使用原始 URL: {e}")
                 final_urls.append(url)
 
             return [

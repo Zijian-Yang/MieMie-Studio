@@ -10,9 +10,12 @@ JSON 文件存储服务
 
 import json
 import os
+import logging
 import fcntl
 import threading
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 from typing import Optional, List
 from datetime import datetime
 from contextvars import ContextVar
@@ -148,8 +151,8 @@ class StorageService:
                 if data:
                     try:
                         projects.append(Project(**data))
-                    except Exception:
-                        pass  # 跳过格式错误的文件
+                    except Exception as e:
+                        logger.warning(f"跳过格式错误的项目文件 {file_path.name}: {e}")
         return sorted(projects, key=lambda p: p.updated_at, reverse=True)
     
     def delete_project(self, project_id: str) -> None:
