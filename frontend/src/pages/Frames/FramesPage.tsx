@@ -1313,7 +1313,7 @@ const FramesPage = () => {
                       
                       {/* 批量保存按钮 */}
                       {selectedGroupsForGallery.size > 0 && (
-                        <div style={{ marginBottom: 12, padding: 8, background: '#1a3a1a', borderRadius: 6 }}>
+                        <div style={{ marginBottom: 12, padding: 8, background: token.colorSuccessBg, borderRadius: 6 }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <span style={{ fontSize: 12, color: token.colorSuccess }}>已选择 {selectedGroupsForGallery.size} 张图片</span>
                             <Button 
@@ -1523,7 +1523,7 @@ const FramesPage = () => {
                                           justifyContent: 'center',
                                           fontSize: 11,
                                           fontWeight: 'bold',
-                                          color: '#fff'
+                                          color: token.colorWhite
                                         }}>
                                           {index + 1}
                                         </div>
@@ -1558,7 +1558,7 @@ const FramesPage = () => {
                                             }
                                           }}
                                         >
-                                          <DeleteOutlined style={{ fontSize: 10, color: '#fff' }} />
+                                          <DeleteOutlined style={{ fontSize: 10, color: token.colorWhite }} />
                                         </div>
                                       </div>
                                     </Tooltip>
@@ -1776,7 +1776,7 @@ const FramesPage = () => {
                             </div>
                           {/* 提示信息 */}
                           {getModelType(frameModel) === 'i2i' && (!useReferences || selectedReferences.length === 0) && (
-                            <div style={{ color: '#ff9800', fontSize: 11, marginTop: 8, padding: 8, background: 'rgba(255,152,0,0.1)', borderRadius: 4 }}>
+                            <div style={{ color: token.colorWarning, fontSize: 11, marginTop: 8, padding: 8, background: token.colorWarningBg, borderRadius: 4 }}>
                               ⚠️ 当前选择的是图生图模型，请添加参考素材
                             </div>
                           )}

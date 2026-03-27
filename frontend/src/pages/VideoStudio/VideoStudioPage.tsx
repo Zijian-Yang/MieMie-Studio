@@ -926,7 +926,7 @@ const VideoStudioPage = () => {
                                   top: 4,
                                   right: 4,
                                   background: 'rgba(0,0,0,0.7)',
-                                  color: '#fff',
+                                  color: token.colorWhite,
                                   padding: '2px 6px',
                                   borderRadius: 4,
                                   fontSize: 10,
@@ -1988,7 +1988,7 @@ const VideoStudioPage = () => {
             )}
             
             {selectedTask.status === 'failed' && (
-              <div style={{ padding: 20, background: '#2a1818', borderRadius: 8, color: token.colorError }}>
+              <div style={{ padding: 20, background: token.colorErrorBg, borderRadius: 8, color: token.colorError }}>
                 生成失败: {selectedTask.error_message || '未知错误'}
               </div>
             )}
@@ -2009,10 +2009,10 @@ const VideoStudioPage = () => {
                           />
                           <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginTop: 6 }}>
                             {([
-                              { key: 'star', icon: <StarOutlined />, activeIcon: <StarFilled />, color: '#faad14', title: '星标' },
-                              { key: 'flag', icon: <FlagOutlined />, activeIcon: <FlagFilled />, color: '#ff4d4f', title: '红旗' },
-                              { key: 'check', icon: <CheckOutlined />, activeIcon: <CheckOutlined />, color: '#52c41a', title: '对号' },
-                              { key: 'cross', icon: <CloseOutlined />, activeIcon: <CloseOutlined />, color: '#ff4d4f', title: '红叉' },
+                              { key: 'star', icon: <StarOutlined />, activeIcon: <StarFilled />, color: token.colorWarning, title: '星标' },
+                              { key: 'flag', icon: <FlagOutlined />, activeIcon: <FlagFilled />, color: token.colorError, title: '红旗' },
+                              { key: 'check', icon: <CheckOutlined />, activeIcon: <CheckOutlined />, color: token.colorSuccess, title: '对号' },
+                              { key: 'cross', icon: <CloseOutlined />, activeIcon: <CloseOutlined />, color: token.colorError, title: '红叉' },
                             ] as const).map(marker => {
                               const active = videoMarkers.includes(marker.key)
                               return (
@@ -2328,7 +2328,7 @@ const VideoStudioPage = () => {
                                   top: 4,
                                   right: 4,
                                   background: 'rgba(0,0,0,0.7)',
-                                  color: '#fff',
+                                  color: token.colorWhite,
                                   padding: '2px 6px',
                                   borderRadius: 4,
                                   fontSize: 10,

@@ -1136,10 +1136,10 @@ const StudioPage = () => {
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginTop: 4 }}>
                               {([
-                                { key: 'star', icon: <StarOutlined />, activeIcon: <StarFilled />, color: '#faad14', title: '星标' },
-                                { key: 'flag', icon: <FlagOutlined />, activeIcon: <FlagFilled />, color: '#ff4d4f', title: '红旗' },
-                                { key: 'check', icon: <CheckOutlined />, activeIcon: <CheckOutlined />, color: '#52c41a', title: '对号' },
-                                { key: 'cross', icon: <CloseOutlined />, activeIcon: <CloseOutlined />, color: '#ff4d4f', title: '红叉' },
+                                { key: 'star', icon: <StarOutlined />, activeIcon: <StarFilled />, color: token.colorWarning, title: '星标' },
+                                { key: 'flag', icon: <FlagOutlined />, activeIcon: <FlagFilled />, color: token.colorError, title: '红旗' },
+                                { key: 'check', icon: <CheckOutlined />, activeIcon: <CheckOutlined />, color: token.colorSuccess, title: '对号' },
+                                { key: 'cross', icon: <CloseOutlined />, activeIcon: <CloseOutlined />, color: token.colorError, title: '红叉' },
                               ] as const).map(marker => {
                                 const active = (image.markers || []).includes(marker.key)
                                 return (
