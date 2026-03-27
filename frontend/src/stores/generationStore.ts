@@ -237,7 +237,7 @@ export const useGenerationStore = create<GenerationState>()(
     }),
     {
       name: 'generation-settings',
-      // 只持久化设置，不持久化运行时状态
+      // 只持久化设置，不持久化运行时状态（Set/Map 等不可序列化类型不会被持久化）
       partialize: (state) => ({
         characterGroupCount: state.characterGroupCount,
         sceneGroupCount: state.sceneGroupCount,
