@@ -95,14 +95,46 @@ async def delete_project(project_id: str):
     frames = storage_service.get_frames_by_project(project_id)
     for frame in frames:
         storage_service.delete_frame(frame.id)
-    
+
     videos = storage_service.get_videos_by_project(project_id)
     for video in videos:
         storage_service.delete_video(video.id)
-    
+
+    # 删除图库
+    for image in storage_service.get_gallery_images_by_project(project_id):
+        storage_service.delete_gallery_image(image.id)
+
+    # 删除图片工作室任务
+    for task in storage_service.get_studio_tasks_by_project(project_id):
+        storage_service.delete_studio_task(task.id)
+
+    # 删除音频库
+    for audio in storage_service.get_audio_items(project_id):
+        storage_service.delete_audio_item(audio.id)
+
+    # 删除视频库
+    for video_item in storage_service.get_video_items(project_id):
+        storage_service.delete_video_item(video_item.id)
+
+    # 删除文本库
+    for text in storage_service.get_text_items(project_id):
+        storage_service.delete_text_item(text.id)
+
+    # 删除视频工作室任务
+    for task in storage_service.get_video_studio_tasks(project_id):
+        storage_service.delete_video_studio_task(task.id)
+
+    # 删除音频工作室任务
+    for task in storage_service.get_audio_studio_tasks(project_id):
+        storage_service.delete_audio_studio_task(task.id)
+
+    # 删除音色
+    for profile in storage_service.get_voice_profiles(project_id):
+        storage_service.delete_voice_profile(profile.id)
+
     # 最后删除项目
     storage_service.delete_project(project_id)
-    
+
     return {"message": "项目已删除"}
 
 
