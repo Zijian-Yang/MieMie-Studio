@@ -3,9 +3,11 @@
 """
 
 import json
+import os
 import uuid
 import hashlib
 import logging
+import threading
 from pathlib import Path
 from typing import Optional, Dict
 from datetime import datetime, timedelta
@@ -44,9 +46,13 @@ class UserService:
         return {}
     
     def _save_users(self, users: Dict[str, dict]):
-        """保存所有用户"""
-        with open(self.users_file, 'w', encoding='utf-8') as f:
+        """保存所有用户（原子写入）"""
+        tmp_path = self.users_file.with_suffix('.tmp')
+        with open(tmp_path, 'w', encoding='utf-8') as f:
             json.dump(users, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(str(tmp_path), str(self.users_file))
     
     def _load_sessions(self):
         """加载会话（从文件恢复），自动兼容旧格式并清理过期 token"""
@@ -72,10 +78,14 @@ class UserService:
             self.sessions = {}
     
     def _save_sessions(self):
-        """保存会话到文件"""
+        """保存会话到文件（原子写入）"""
         sessions_file = self.data_dir / "sessions.json"
-        with open(sessions_file, 'w', encoding='utf-8') as f:
+        tmp_path = sessions_file.with_suffix('.tmp')
+        with open(tmp_path, 'w', encoding='utf-8') as f:
             json.dump(self.sessions, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(str(tmp_path), str(sessions_file))
     
     def _cleanup_expired_sessions(self):
         """清理过期的会话"""
@@ -296,13 +306,16 @@ class UserService:
         return self.data_dir / "users" / user_id
 
 
-# 全局单例
+# 全局单例（线程安全）
 _user_service: Optional[UserService] = None
+_service_lock = threading.Lock()
 
 def get_user_service() -> UserService:
-    """获取用户服务单例"""
+    """获取用户服务单例（线程安全，double-checked locking）"""
     global _user_service
     if _user_service is None:
-        _user_service = UserService()
+        with _service_lock:
+            if _user_service is None:
+                _user_service = UserService()
     return _user_service
 
