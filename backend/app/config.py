@@ -806,6 +806,7 @@ class AppConfig(BaseModel):
         return API_REGIONS.get(self.api_region, API_REGIONS["beijing"])["base_url"]
 
 
+import os
 import threading
 import fcntl
 from contextvars import ContextVar
@@ -859,13 +860,22 @@ class ConfigManager:
                 fcntl.flock(f.fileno(), fcntl.LOCK_UN)
     
     def _write_with_lock(self, data: dict):
-        """带文件锁的写入操作"""
-        with open(self.config_file, 'w', encoding='utf-8') as f:
-            fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # 排他锁
-            try:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-            finally:
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+        """原子写入配置文件：写临时文件 → fsync → os.replace"""
+        tmp_path = self.config_file.with_suffix('.tmp')
+        try:
+            with open(tmp_path, 'w', encoding='utf-8') as f:
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # 排他锁
+                try:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+                    f.flush()
+                    os.fsync(f.fileno())
+                finally:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+            os.replace(str(tmp_path), str(self.config_file))
+        except Exception:
+            if tmp_path.exists():
+                tmp_path.unlink()
+            raise
     
     def load(self) -> AppConfig:
         """加载配置（每次都从文件读取，确保最新）"""

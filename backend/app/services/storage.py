@@ -9,6 +9,7 @@ JSON 文件存储服务
 """
 
 import json
+import os
 import fcntl
 import threading
 from pathlib import Path
@@ -103,13 +104,23 @@ class StorageService:
             return None
     
     def _write_json_with_lock(self, file_path: Path, data: dict):
-        """带文件锁的 JSON 写入"""
-        with open(file_path, 'w', encoding='utf-8') as f:
-            fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # 排他锁
-            try:
-                json.dump(data, f, ensure_ascii=False, indent=2, default=self._serialize_datetime)
-            finally:
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+        """原子写入 JSON 文件：写临时文件 → fsync → os.replace"""
+        tmp_path = file_path.with_suffix('.tmp')
+        try:
+            with open(tmp_path, 'w', encoding='utf-8') as f:
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # 排他锁
+                try:
+                    json.dump(data, f, ensure_ascii=False, indent=2, default=self._serialize_datetime)
+                    f.flush()
+                    os.fsync(f.fileno())
+                finally:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+            os.replace(str(tmp_path), str(file_path))
+        except Exception:
+            # 清理临时文件
+            if tmp_path.exists():
+                tmp_path.unlink()
+            raise
     
     # ============ Project ============
     
