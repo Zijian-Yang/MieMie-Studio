@@ -2,8 +2,11 @@
 认证路由 - 处理用户登录、注册、登出
 """
 
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Request
 from typing import Optional
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.models.user import (
     UserLoginRequest, UserRegisterRequest, 
@@ -12,10 +15,12 @@ from app.models.user import (
 from app.services.user_service import get_user_service
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post("/register", response_model=LoginResponse)
-async def register(request: UserRegisterRequest):
+@limiter.limit("3/minute")
+async def register(request: UserRegisterRequest, req: Request):
     """用户注册"""
     service = get_user_service()
     
@@ -42,7 +47,8 @@ async def register(request: UserRegisterRequest):
 
 
 @router.post("/login", response_model=LoginResponse)
-async def login(request: UserLoginRequest):
+@limiter.limit("5/minute")
+async def login(request: UserLoginRequest, req: Request):
     """用户登录"""
     service = get_user_service()
     
