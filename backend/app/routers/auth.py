@@ -20,26 +20,26 @@ limiter = Limiter(key_func=get_remote_address)
 
 @router.post("/register", response_model=LoginResponse)
 @limiter.limit("3/minute")
-async def register(request: UserRegisterRequest, req: Request):
+async def register(data: UserRegisterRequest, request: Request):
     """用户注册"""
     service = get_user_service()
-    
+
     user = service.register(
-        username=request.username,
-        password=request.password,
-        display_name=request.display_name
+        username=data.username,
+        password=data.password,
+        display_name=data.display_name
     )
-    
+
     if not user:
         raise HTTPException(status_code=400, detail="用户名已存在")
-    
+
     # 注册后自动登录
-    result = service.login(request.username, request.password)
+    result = service.login(data.username, data.password)
     if not result:
         raise HTTPException(status_code=500, detail="注册成功但登录失败")
-    
+
     token, user = result
-    
+
     return LoginResponse(
         token=token,
         user=service.to_response(user)
@@ -48,17 +48,17 @@ async def register(request: UserRegisterRequest, req: Request):
 
 @router.post("/login", response_model=LoginResponse)
 @limiter.limit("5/minute")
-async def login(request: UserLoginRequest, req: Request):
+async def login(data: UserLoginRequest, request: Request):
     """用户登录"""
     service = get_user_service()
-    
-    result = service.login(request.username, request.password)
-    
+
+    result = service.login(data.username, data.password)
+
     if not result:
         raise HTTPException(status_code=401, detail="用户名或密码错误")
-    
+
     token, user = result
-    
+
     return LoginResponse(
         token=token,
         user=service.to_response(user)
