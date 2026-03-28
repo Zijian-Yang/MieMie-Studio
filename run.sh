@@ -7,7 +7,7 @@
 #   ./run.sh [命令]       - 直接执行命令（适用于脚本/自动化）
 #
 # 命令行模式:
-#   start [--prod]  stop  restart [--prod]  status  logs  install
+#   start [--prod]  stop  restart [--prod]  status  logs  install  test
 #   update [--auto]  auto-update [enable|disable|status]  rollback
 #   network [on|off|status]  version  help
 #
@@ -1131,6 +1131,38 @@ rollback_version() {
 # 清理项目
 # ======================
 
+run_tests() {
+    log_info "运行后端测试..."
+    PYTHON=$(check_python)
+    if [ -z "$PYTHON" ]; then
+        log_error "未找到 Python 环境"
+        return 1
+    fi
+
+    # 激活虚拟环境
+    if [ -f "$VENV_DIR/bin/activate" ]; then
+        source "$VENV_DIR/bin/activate"
+    fi
+
+    # 检查 pytest 是否安装
+    if ! "$PYTHON" -m pytest --version > /dev/null 2>&1; then
+        log_info "安装 pytest..."
+        "$PYTHON" -m pip install pytest pytest-asyncio -q
+    fi
+
+    cd "$BACKEND_DIR"
+    "$PYTHON" -m pytest tests/ -v
+    local exit_code=$?
+    cd "$PROJECT_DIR"
+
+    if [ $exit_code -eq 0 ]; then
+        log_success "所有测试通过"
+    else
+        log_error "部分测试失败 (exit code: $exit_code)"
+    fi
+    return $exit_code
+}
+
 clean_project() {
     echo ""
     echo -e "  ${BOLD}清理与重置${NC}"
@@ -1603,10 +1635,11 @@ menu_maintenance() {
     echo -e "  ${BOLD}安装与维护${NC}"
     echo ""
     echo -e "  ${GREEN}1${NC})  安装全部依赖    ${DIM}— 首次使用或依赖缺失时选择${NC}"
-    echo -e "  ${GREEN}2${NC})  清理与重置      ${DIM}— 清理日志、缓存，或重新安装依赖${NC}"
+    echo -e "  ${GREEN}2${NC})  运行后端测试    ${DIM}— 运行 pytest 自动化测试${NC}"
+    echo -e "  ${GREEN}3${NC})  清理与重置      ${DIM}— 清理日志、缓存，或重新安装依赖${NC}"
     echo -e "  ${RED}0${NC})  返回"
     echo ""
-    read -p "  请选择 [0-2]: " choice
+    read -p "  请选择 [0-3]: " choice
 
     case "$choice" in
         1)
@@ -1615,6 +1648,11 @@ menu_maintenance() {
             wait_key
             ;;
         2)
+            echo ""
+            run_tests
+            wait_key
+            ;;
+        3)
             clean_project
             wait_key
             ;;
@@ -1645,6 +1683,7 @@ show_help() {
     echo "  auto-update [enable|disable|status]"
     echo "  rollback             回滚到上一个版本"
     echo "  network [on|off|status]  公网访问开关"
+    echo "  test                 运行后端测试"
     echo "  clean                清理缓存/重置依赖"
     echo "  version              版本信息"
     echo ""
@@ -1699,6 +1738,9 @@ main() {
             ;;
         rollback)
             rollback_version
+            ;;
+        test)
+            run_tests
             ;;
         clean)
             clean_project

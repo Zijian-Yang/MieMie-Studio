@@ -150,6 +150,12 @@ npm run dev -- --host
 ./run.sh clean      # 清理缓存/重置依赖
 ```
 
+### 测试
+
+```bash
+./run.sh test       # 运行后端自动化测试（pytest）
+```
+
 ### 调试工具
 
 ```bash
@@ -242,11 +248,14 @@ MieMie-Studio/
 │   ├── app/
 │   │   ├── main.py            # 应用入口
 │   │   ├── config.py          # 配置管理
+│   │   ├── middleware/        # ASGI 中间件（认证等）
 │   │   ├── routers/           # API 路由
 │   │   ├── services/          # 业务服务
 │   │   │   ├── dashscope/     # 阿里云 API 封装
 │   │   │   └── storage.py     # 存储服务
-│   │   └── models/            # 数据模型
+│   │   ├── models/            # 数据模型
+│   │   └── models_registry/   # 可插拔模型注册系统
+│   ├── tests/                 # 自动化测试（pytest）
 │   └── data/                  # 数据存储
 ├── frontend/                   # React 前端
 │   ├── src/
