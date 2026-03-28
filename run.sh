@@ -9,7 +9,7 @@
 # 命令行模式:
 #   start [--prod]  stop  restart [--prod]  status  logs  install  test
 #   update [--auto]  auto-update [enable|disable|status]  rollback
-#   network [on|off|status]  version  help
+#   network [on|off|status]  port [backend|frontend] <端口>  version  help
 #
 
 set -e
@@ -413,6 +413,9 @@ load_config() {
     if [ -f "$MIEMIE_CONF" ]; then
         source "$MIEMIE_CONF"
     fi
+    # 环境变量优先级最高
+    BACKEND_PORT="${MIEMIE_BACKEND_PORT:-$BACKEND_PORT}"
+    FRONTEND_PORT="${MIEMIE_FRONTEND_PORT:-$FRONTEND_PORT}"
 }
 
 # 保存设置到配置文件
@@ -421,6 +424,8 @@ save_config() {
 # MieMie-Studio 运行配置（自动生成，勿手动编辑）
 LISTEN_HOST="$LISTEN_HOST"
 ALLOWED_DOMAINS="$ALLOWED_DOMAINS"
+BACKEND_PORT="$BACKEND_PORT"
+FRONTEND_PORT="$FRONTEND_PORT"
 EOF
 }
 
@@ -552,6 +557,7 @@ start_backend() {
             cd '$BACKEND_DIR'
             source '$VENV_DIR/bin/activate'
             export MIEMIE_SERVE_FRONTEND=true
+            export MIEMIE_FRONTEND_PORT=$FRONTEND_PORT
             gunicorn app.main:app \
                 -w \${MIEMIE_WORKERS:-4} \
                 -k uvicorn.workers.UvicornWorker \
@@ -566,6 +572,7 @@ start_backend() {
         screen -dmS "$BACKEND_SESSION" bash -c "
             cd '$BACKEND_DIR'
             source '$VENV_DIR/bin/activate'
+            export MIEMIE_FRONTEND_PORT=$FRONTEND_PORT
             uvicorn app.main:app --reload --host $LISTEN_HOST --port $BACKEND_PORT 2>&1 | tee -a '$BACKEND_LOG'
         "
     fi
@@ -1352,6 +1359,8 @@ menu_network() {
     echo -e "  公网访问:  $current_status"
     echo -e "  监听地址:  ${BOLD}$LISTEN_HOST${NC}"
     echo -e "  本机 IP:   ${BOLD}$server_ip${NC}"
+    echo -e "  后端端口:  ${BOLD}$BACKEND_PORT${NC}"
+    echo -e "  前端端口:  ${BOLD}$FRONTEND_PORT${NC}"
     if [ -n "$ALLOWED_DOMAINS" ]; then
         echo -e "  绑定域名:  ${BOLD}$ALLOWED_DOMAINS${NC}"
     else
@@ -1362,9 +1371,10 @@ menu_network() {
     echo -e "  ${GREEN}2${NC})  关闭公网访问    ${DIM}— 监听 127.0.0.1，仅本机可访问${NC}"
     echo -e "  ${GREEN}3${NC})  绑定域名        ${DIM}— 通过 Nginx 反代域名访问时必须设置${NC}"
     echo -e "  ${GREEN}4${NC})  清除域名        ${DIM}— 移除已绑定的域名${NC}"
+    echo -e "  ${GREEN}5${NC})  修改端口        ${DIM}— 自定义前端/后端服务端口${NC}"
     echo -e "  ${RED}0${NC})  返回"
     echo ""
-    read -p "  请选择 [0-4]: " choice
+    read -p "  请选择 [0-5]: " choice
 
     case "$choice" in
         1)
@@ -1432,6 +1442,42 @@ menu_network() {
             log_success "已清除绑定域名"
             echo ""
             prompt_restart_if_running
+            wait_key
+            ;;
+        5)
+            echo ""
+            echo -e "  当前端口:  后端 ${BOLD}$BACKEND_PORT${NC}  /  前端 ${BOLD}$FRONTEND_PORT${NC}"
+            echo -e "  ${DIM}直接回车保持当前值不变${NC}"
+            echo ""
+            read -p "  后端端口 [$BACKEND_PORT]: " input_backend_port
+            read -p "  前端端口 [$FRONTEND_PORT]: " input_frontend_port
+
+            local changed=false
+            if [ -n "$input_backend_port" ]; then
+                if [[ "$input_backend_port" =~ ^[0-9]+$ ]] && [ "$input_backend_port" -ge 1024 ] && [ "$input_backend_port" -le 65535 ]; then
+                    BACKEND_PORT="$input_backend_port"
+                    changed=true
+                else
+                    log_error "无效端口号（需 1024-65535）"
+                fi
+            fi
+            if [ -n "$input_frontend_port" ]; then
+                if [[ "$input_frontend_port" =~ ^[0-9]+$ ]] && [ "$input_frontend_port" -ge 1024 ] && [ "$input_frontend_port" -le 65535 ]; then
+                    FRONTEND_PORT="$input_frontend_port"
+                    changed=true
+                else
+                    log_error "无效端口号（需 1024-65535）"
+                fi
+            fi
+            if [ "$BACKEND_PORT" = "$FRONTEND_PORT" ]; then
+                log_error "前端和后端端口不能相同"
+            elif [ "$changed" = true ]; then
+                save_config
+                echo ""
+                log_success "端口已更新:  后端 $BACKEND_PORT  /  前端 $FRONTEND_PORT"
+                echo ""
+                prompt_restart_if_running
+            fi
             wait_key
             ;;
         *) ;;
@@ -1683,6 +1729,8 @@ show_help() {
     echo "  auto-update [enable|disable|status]"
     echo "  rollback             回滚到上一个版本"
     echo "  network [on|off|status]  公网访问开关"
+    echo "  port [backend|frontend] <端口号>"
+    echo "                       修改服务端口"
     echo "  test                 运行后端测试"
     echo "  clean                清理缓存/重置依赖"
     echo "  version              版本信息"
@@ -1741,6 +1789,32 @@ main() {
             ;;
         test)
             run_tests
+            ;;
+        port)
+            shift
+            local target="${1:-}"
+            local new_port="${2:-}"
+            if [ -z "$target" ] || [ -z "$new_port" ]; then
+                echo "当前端口:  后端 $BACKEND_PORT  /  前端 $FRONTEND_PORT"
+                echo ""
+                echo "用法: $0 port [backend|frontend] <端口号>"
+                echo "  $0 port backend 9000"
+                echo "  $0 port frontend 3001"
+            elif ! [[ "$new_port" =~ ^[0-9]+$ ]] || [ "$new_port" -lt 1024 ] || [ "$new_port" -gt 65535 ]; then
+                log_error "无效端口号（需 1024-65535）"
+                exit 1
+            elif [ "$target" = "backend" ]; then
+                BACKEND_PORT="$new_port"
+                save_config
+                log_success "后端端口已设置为 $BACKEND_PORT"
+            elif [ "$target" = "frontend" ]; then
+                FRONTEND_PORT="$new_port"
+                save_config
+                log_success "前端端口已设置为 $FRONTEND_PORT"
+            else
+                log_error "未知目标: $target（可选: backend, frontend）"
+                exit 1
+            fi
             ;;
         clean)
             clean_project

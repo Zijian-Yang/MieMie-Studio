@@ -150,6 +150,16 @@ npm run dev -- --host
 ./run.sh clean      # 清理缓存/重置依赖
 ```
 
+### 端口配置
+
+```bash
+./run.sh port                    # 查看当前端口
+./run.sh port backend 9000       # 修改后端端口
+./run.sh port frontend 3001      # 修改前端端口
+```
+
+也可以通过环境变量临时覆盖：`MIEMIE_BACKEND_PORT=9000 ./run.sh start`
+
 ### 测试
 
 ```bash

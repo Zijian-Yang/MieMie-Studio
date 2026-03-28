@@ -41,7 +41,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # 配置 CORS（必须在 AuthMiddleware 之前）
 # 通过环境变量 MIEMIE_CORS_ORIGINS 配置允许的源（逗号分隔）
-# 默认开发模式允许 localhost:3000 和 localhost:5173
+# 默认开发模式允许前端端口（可通过 MIEMIE_FRONTEND_PORT 自定义）
 _cors_origins_env = os.environ.get("MIEMIE_CORS_ORIGINS", "")
 if _cors_origins_env:
     _cors_origins = [origin.strip() for origin in _cors_origins_env.split(",") if origin.strip()]
@@ -49,8 +49,15 @@ elif SERVE_FRONTEND:
     # 生产模式：同源访问，不需要指定特定域名
     _cors_origins = ["*"]
 else:
-    # 开发模式：允许常见的开发端口
-    _cors_origins = ["http://localhost:3000", "http://localhost:5173"]
+    # 开发模式：允许自定义前端端口
+    _frontend_port = os.environ.get("MIEMIE_FRONTEND_PORT", "3000")
+    _cors_origins = [
+        f"http://localhost:{_frontend_port}",
+        "http://localhost:5173",  # Vite 默认端口
+    ]
+    # 如果自定义端口不是 3000，也保留 3000 的兼容
+    if _frontend_port != "3000":
+        _cors_origins.append("http://localhost:3000")
 
 # allow_credentials 与 allow_origins=["*"] 不兼容（浏览器会拒绝）
 _allow_credentials = _cors_origins != ["*"]
