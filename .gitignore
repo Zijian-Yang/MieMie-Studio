@@ -79,6 +79,7 @@ Thumbs.db
 
 # Excluded from GitHub (temporary - for initial release)
 docs/
+CLAUDE.md
 encrypt_secrets.py
 cursor-chat-history/
 cursor-chat-history.zip
