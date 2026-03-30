@@ -147,9 +147,15 @@ npm run dev -- --host
 
 ```bash
 ./run.sh install    # 安装/重新安装依赖
+./run.sh optimize   # 检测服务器并应用推荐配置
 ./run.sh update     # 更新项目到最新版本
 ./run.sh clean      # 清理缓存/重置依赖
 ```
+
+说明：
+- `./run.sh install` 和生产模式启动前，会自动检测服务器内核、CPU、内存与当前 Swap
+- 脚本会推荐 Gunicorn workers、前端构建内存上限；小内存 Linux 机器会额外建议创建 Swap
+- 用户确认后才会应用，应用后会立即校验是否生效
 
 ### 端口配置
 
