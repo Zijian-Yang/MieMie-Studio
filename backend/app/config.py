@@ -523,6 +523,73 @@ REF_VIDEO_MODELS = {
     }
 }
 
+VACE_VIDEO_COMMON_SIZES = [
+    {"value": "1280*720", "label": "1280x720 横向 16:9"},
+    {"value": "720*1280", "label": "720x1280 竖向 9:16"},
+    {"value": "960*960", "label": "960x960 方形 1:1"},
+    {"value": "832*1088", "label": "832x1088 竖向 3:4"},
+    {"value": "1088*832", "label": "1088x832 横向 4:3"},
+]
+
+VIDEO_REPAINTING_MODELS = {
+    "wanx2.1-vace-plus": {
+        "name": "视频重绘 wanx2.1-vace-plus",
+        "description": "基于源视频提取动作、构图或线稿结构，结合提示词与单张参考图生成新视频",
+        "prompt_max_length": 800,
+        "supports_prompt_extend": True,
+        "supports_watermark": True,
+        "supports_seed": True,
+        "supported_control_conditions": ["posebodyface", "posebody", "depth", "scribble"],
+        "default_control_condition": "depth",
+        "strength_range": [0.0, 1.0],
+        "default_strength": 1.0,
+        "max_reference_images": 1,
+        "supported_image_formats": ["JPEG", "JPG", "PNG", "BMP", "TIFF", "WEBP"],
+        "image_min_dimension": 360,
+        "image_max_dimension": 2000,
+        "image_max_size_mb": 10,
+        "supported_video_formats": ["MP4"],
+        "video_min_fps": 16,
+        "video_max_size_mb": 50,
+        "video_max_duration_sec": 5,
+        "output_max_pixels": 1280 * 720,
+        "supports_audio": False,
+    }
+}
+
+VIDEO_EDIT_MODELS = {
+    "wanx2.1-vace-plus": {
+        "name": "局部编辑 wanx2.1-vace-plus",
+        "description": "基于首帧mask对视频局部区域做精细化编辑，支持固定区域和目标跟踪两种模式",
+        "prompt_max_length": 800,
+        "supports_prompt_extend": True,
+        "supports_watermark": True,
+        "supports_seed": True,
+        "supported_control_conditions": ["posebodyface", "depth"],
+        "supported_mask_types": ["tracking", "fixed"],
+        "default_mask_type": "tracking",
+        "expand_ratio_range": [0.0, 1.0],
+        "default_expand_ratio": 0.05,
+        "supported_expand_modes": ["hull", "bbox", "original"],
+        "default_expand_mode": "hull",
+        "sizes": VACE_VIDEO_COMMON_SIZES,
+        "default_size": "1280*720",
+        "mask_frame_id_min": 1,
+        "max_reference_images": 1,
+        "supported_image_formats": ["JPEG", "JPG", "PNG", "BMP", "TIFF", "WEBP"],
+        "image_min_dimension": 360,
+        "image_max_dimension": 2000,
+        "image_max_size_mb": 10,
+        "mask_max_size_mb": 10,
+        "supported_video_formats": ["MP4"],
+        "video_min_fps": 16,
+        "video_max_size_mb": 50,
+        "video_max_duration_sec": 5,
+        "output_max_pixels": 1280 * 720,
+        "supports_audio": False,
+    }
+}
+
 # 图生视频模型配置
 # 参考: https://www.alibabacloud.com/help/zh/model-studio/image-to-video-api-reference
 VIDEO_MODELS = {

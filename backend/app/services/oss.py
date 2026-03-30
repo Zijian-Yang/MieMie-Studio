@@ -323,6 +323,18 @@ class OSSService:
             OSS URL，失败时抛出异常
         """
         return self._upload_bytes_sync(data, object_path)
+
+    async def upload_bytes_async(self, data: bytes, object_path: str) -> str:
+        """
+        异步版：直接上传字节数据到指定OSS路径
+        """
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            _oss_executor,
+            self._upload_bytes_sync,
+            data,
+            object_path,
+        )
     
     def upload_image(self, url: str, project_id: str = "") -> str:
         """
@@ -470,4 +482,3 @@ class OSSService:
 
 # 全局 OSS 服务实例
 oss_service = OSSService()
-

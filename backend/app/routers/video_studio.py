@@ -1,10 +1,12 @@
 """
 视频工作室 API 路由
-支持四种任务类型：
+支持六种任务类型：
 1. 图生视频（image_to_video）：基于首帧图生成视频
 2. 参考生视频（reference_to_video）：基于参考视频/图片生成新视频
 3. 文生视频（text_to_video）：基于文本提示词生成视频
 4. 首尾帧生视频（keyframe_to_video）：基于首帧和尾帧图片生成平滑过渡视频
+5. 视频重绘（video_repainting）：基于源视频重绘新视频
+6. 局部编辑（video_edit）：基于首帧Mask编辑视频局部区域
 """
 
 import asyncio
@@ -14,7 +16,7 @@ import subprocess
 import tempfile
 import uuid
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
@@ -27,6 +29,7 @@ from app.services.dashscope.reference_to_video import ReferenceToVideoService
 from app.services.dashscope.text_to_video import TextToVideoService
 from app.services.dashscope.keyframe_to_video import KeyframeToVideoService
 from app.services.dashscope.digital_human import DigitalHumanService
+from app.services.dashscope.vace_video_edit import VaceVideoEditService
 from app.services.oss import oss_service
 from app.config import set_user_config_dir, get_user_config_dir
 
@@ -38,11 +41,13 @@ router = APIRouter()
 class VideoStudioTaskCreateRequest(BaseModel):
     """创建视频生成任务请求
     
-    支持四种任务类型：
+    支持六种任务类型：
     1. image_to_video（图生视频）：使用 first_frame_url
     2. reference_to_video（参考生视频）：使用 reference_video_urls（支持视频和图片，总数≤5）
     3. text_to_video（文生视频）：使用 prompt 生成视频
     4. keyframe_to_video（首尾帧生视频）：使用 first_frame_url 和 last_frame_url
+    5. video_repainting（视频重绘）：使用 source_video_url，可选 reference_image_url
+    6. video_edit（局部编辑）：使用 source_video_url + mask_image_url，可选 reference_image_url
     
     图生视频参数说明（根据官方文档）：
     - resolution: 分辨率档位，wan2.5/2.6 支持 480P/720P/1080P（默认1080P）
@@ -84,7 +89,7 @@ class VideoStudioTaskCreateRequest(BaseModel):
     project_id: str
     name: str = ""
     
-    # 任务类型: image_to_video, reference_to_video, text_to_video, keyframe_to_video
+    # 任务类型: image_to_video, reference_to_video, text_to_video, keyframe_to_video, video_repainting, video_edit
     task_type: str = "image_to_video"
     
     # 图生视频参数
@@ -95,7 +100,14 @@ class VideoStudioTaskCreateRequest(BaseModel):
     
     # 参考生视频参数（支持视频和图片，总数≤5）
     reference_video_urls: List[str] = []  # 参考素材URL列表（视频+图片）
-    
+
+    # VACE 视频编辑参数
+    source_video_url: Optional[str] = None
+    source_video_preview_url: Optional[str] = None
+    reference_image_url: Optional[str] = None
+    mask_image_url: Optional[str] = None
+    mask_frame_id: Optional[int] = 1
+
     # 通用参数
     prompt: str = ""
     negative_prompt: str = ""
@@ -109,13 +121,20 @@ class VideoStudioTaskCreateRequest(BaseModel):
     # 图生视频专用
     resolution: str = "1080P"  # 默认1080P
     prompt_extend: bool = True  # 智能改写
-    
+
     # 参考生视频专用
-    size: str = "1920*1080"  # 分辨率（宽*高格式）
-    
+    size: Optional[str] = None  # 分辨率（宽*高格式）
+
     # 文生视频专用
     t2v_prompt_extend: bool = True  # 文生视频的智能改写，默认开启
-    
+
+    # VACE 专用
+    control_condition: Optional[str] = None
+    strength: Optional[float] = None
+    mask_type: Optional[str] = None
+    expand_ratio: Optional[float] = None
+    expand_mode: Optional[str] = None
+
     group_count: int = 1
 
 
@@ -141,6 +160,114 @@ class VideoStudioTaskUpdateRequest(BaseModel):
     size: Optional[str] = None  # 参考生视频/文生视频分辨率
     t2v_prompt_extend: Optional[bool] = None  # 文生视频的智能改写
     group_count: Optional[int] = None  # 生成组数
+    source_video_url: Optional[str] = None
+    source_video_preview_url: Optional[str] = None
+    reference_image_url: Optional[str] = None
+    mask_image_url: Optional[str] = None
+    mask_frame_id: Optional[int] = None
+    control_condition: Optional[str] = None
+    strength: Optional[float] = None
+    mask_type: Optional[str] = None
+    expand_ratio: Optional[float] = None
+    expand_mode: Optional[str] = None
+
+
+class PrepareSourceVideoRequest(BaseModel):
+    """准备源视频首帧与元数据"""
+    project_id: str
+    video_url: str
+
+
+VACE_REPAINTING_CONTROL_CONDITIONS = {"posebodyface", "posebody", "depth", "scribble"}
+VACE_EDIT_CONTROL_CONDITIONS = {"posebodyface", "depth"}
+VACE_EDIT_MASK_TYPES = {"tracking", "fixed"}
+VACE_EDIT_EXPAND_MODES = {"hull", "bbox", "original"}
+VACE_EDIT_SIZES = {"1280*720", "720*1280", "960*960", "832*1088", "1088*832"}
+VACE_MODEL_NAME = "wanx2.1-vace-plus"
+VACE_MASK_FRAME_ID = 1
+
+
+def _get_vace_task_duration(source_metadata: dict) -> int:
+    duration = float(source_metadata.get("duration") or 5)
+    duration = min(max(duration, 1.0), 5.0)
+    return max(1, int(round(duration)))
+
+
+async def _validate_vace_task_request(request: VideoStudioTaskCreateRequest) -> dict:
+    if not oss_service.is_enabled():
+        raise HTTPException(status_code=400, detail="VACE任务需要启用OSS，请先在设置中配置并启用OSS")
+
+    if not request.prompt:
+        raise HTTPException(status_code=400, detail="请输入提示词")
+    if len(request.prompt) > 800:
+        raise HTTPException(status_code=400, detail="提示词长度不能超过800字符")
+    if request.seed is not None and not (0 <= request.seed <= 2147483647):
+        raise HTTPException(status_code=400, detail="随机种子必须在0到2147483647之间")
+
+    service = VaceVideoEditService()
+
+    if not request.source_video_url:
+        raise HTTPException(status_code=400, detail="请选择源视频")
+    try:
+        source_metadata = await service.validate_source_video(request.source_video_url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if request.reference_image_url:
+        try:
+            await service.validate_reference_image(request.reference_image_url)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    requested_model = request.model
+    if requested_model in {"", "wan2.5-i2v-preview"}:
+        requested_model = VACE_MODEL_NAME
+
+    if request.task_type == "video_repainting":
+        if requested_model != VACE_MODEL_NAME:
+            raise HTTPException(status_code=400, detail="视频重绘仅支持 wanx2.1-vace-plus")
+        if request.control_condition not in VACE_REPAINTING_CONTROL_CONDITIONS:
+            raise HTTPException(status_code=400, detail="视频重绘的控制条件不合法")
+        if request.strength is not None and not (0.0 <= request.strength <= 1.0):
+            raise HTTPException(status_code=400, detail="视频重绘强度必须在0到1之间")
+
+    elif request.task_type == "video_edit":
+        if requested_model != VACE_MODEL_NAME:
+            raise HTTPException(status_code=400, detail="局部编辑仅支持 wanx2.1-vace-plus")
+        if not request.mask_image_url:
+            raise HTTPException(status_code=400, detail="局部编辑任务需要上传Mask")
+        if request.mask_frame_id not in (None, VACE_MASK_FRAME_ID):
+            raise HTTPException(status_code=400, detail="当前仅支持首帧Mask，mask_frame_id固定为1")
+        if request.control_condition and request.control_condition not in VACE_EDIT_CONTROL_CONDITIONS:
+            raise HTTPException(status_code=400, detail="局部编辑的控制条件不合法")
+
+        mask_type = request.mask_type or "tracking"
+        if mask_type not in VACE_EDIT_MASK_TYPES:
+            raise HTTPException(status_code=400, detail="局部编辑的mask_type不合法")
+        if request.size and request.size not in VACE_EDIT_SIZES:
+            raise HTTPException(status_code=400, detail="局部编辑的输出分辨率不合法")
+
+        if mask_type == "tracking":
+            if request.expand_ratio is not None and not (0.0 <= request.expand_ratio <= 1.0):
+                raise HTTPException(status_code=400, detail="expand_ratio必须在0到1之间")
+            if request.expand_mode and request.expand_mode not in VACE_EDIT_EXPAND_MODES:
+                raise HTTPException(status_code=400, detail="expand_mode不合法")
+        else:
+            if request.expand_ratio is not None:
+                raise HTTPException(status_code=400, detail="fixed模式下不支持expand_ratio")
+            if request.expand_mode is not None:
+                raise HTTPException(status_code=400, detail="fixed模式下不支持expand_mode")
+
+        try:
+            await service.validate_mask_image(
+                request.mask_image_url,
+                source_metadata["width"],
+                source_metadata["height"],
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return source_metadata
 
 
 @router.get("")
@@ -148,6 +275,39 @@ async def list_tasks(project_id: str):
     """获取项目所有视频工作室任务"""
     tasks = storage_service.get_video_studio_tasks(project_id)
     return {"tasks": tasks}
+
+
+@router.post("/prepare-source-video")
+async def prepare_source_video(request: PrepareSourceVideoRequest):
+    """提取源视频首帧并返回元数据与预览"""
+    service = VaceVideoEditService()
+    try:
+        result = await service.prepare_source_video(request.project_id, request.video_url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.error(f"[视频工作室] 准备源视频失败: {exc}")
+        raise HTTPException(status_code=500, detail=f"准备源视频失败: {str(exc)}") from exc
+    return result
+
+
+@router.post("/upload-mask")
+async def upload_mask(
+    project_id: str = Form(...),
+    source_video_url: str = Form(...),
+    mask_file: UploadFile = File(...),
+):
+    """上传并规范化局部编辑Mask"""
+    service = VaceVideoEditService()
+    try:
+        mask_bytes = await mask_file.read()
+        result = await service.upload_mask(project_id, source_video_url, mask_bytes)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.error(f"[视频工作室] 上传Mask失败: {exc}")
+        raise HTTPException(status_code=500, detail=f"上传Mask失败: {str(exc)}") from exc
+    return result
 
 
 @router.get("/{task_id}")
@@ -163,11 +323,13 @@ async def get_task(task_id: str):
 async def create_task(request: VideoStudioTaskCreateRequest):
     """创建并启动视频生成任务
     
-    支持四种任务类型：
+    支持六种任务类型：
     1. image_to_video（图生视频）：需要 first_frame_url
     2. reference_to_video（参考生视频）：需要 reference_video_urls（支持视频+图片）
     3. text_to_video（文生视频）：需要 prompt
     4. keyframe_to_video（首尾帧生视频）：需要 first_frame_url 和 last_frame_url
+    5. video_repainting（视频重绘）：需要 source_video_url
+    6. video_edit（局部编辑）：需要 source_video_url 和 mask_image_url
     """
     # 打印详细请求信息
     print(f"\n{'#'*60}")
@@ -190,12 +352,19 @@ async def create_task(request: VideoStudioTaskCreateRequest):
     print(f"[请求参数] group_count: {request.group_count}")
     if request.first_frame_url:
         print(f"[请求参数] first_frame_url: {request.first_frame_url[:100]}...")
+    if request.source_video_url:
+        print(f"[请求参数] source_video_url: {request.source_video_url[:100]}...")
+    if request.reference_image_url:
+        print(f"[请求参数] reference_image_url: {request.reference_image_url[:100]}...")
+    if request.mask_image_url:
+        print(f"[请求参数] mask_image_url: {request.mask_image_url[:100]}...")
     if request.reference_video_urls:
         print(f"[请求参数] reference_video_urls: {request.reference_video_urls}")
     print(f"[请求参数] prompt: {request.prompt[:200] if request.prompt else 'None'}...")
     print(f"{'#'*60}\n")
-    
+
     # 根据任务类型验证参数
+    source_metadata = None
     if request.task_type == "image_to_video":
         if not request.first_frame_url:
             raise HTTPException(status_code=400, detail="图生视频任务需要选择首帧图")
@@ -217,9 +386,27 @@ async def create_task(request: VideoStudioTaskCreateRequest):
             raise HTTPException(status_code=400, detail="首尾帧生视频任务需要选择首帧图")
         if not request.last_frame_url:
             raise HTTPException(status_code=400, detail="首尾帧生视频任务需要选择尾帧图")
+    elif request.task_type in {"video_repainting", "video_edit"}:
+        source_metadata = await _validate_vace_task_request(request)
     else:
         raise HTTPException(status_code=400, detail="不支持的任务类型")
-    
+
+    task_model = request.model
+    if request.task_type in {"video_repainting", "video_edit"}:
+        task_model = VACE_MODEL_NAME
+
+    task_size = request.size
+    if request.task_type == "video_edit":
+        task_size = request.size or "1280*720"
+    elif request.task_type == "video_repainting":
+        task_size = request.size or "1280*720"
+    elif request.task_type in {"reference_to_video", "text_to_video"}:
+        task_size = request.size or "1920*1080"
+
+    task_duration = request.duration
+    if request.task_type in {"video_repainting", "video_edit"} and source_metadata:
+        task_duration = _get_vace_task_duration(source_metadata)
+
     # 创建任务记录
     task = VideoStudioTask(
         project_id=request.project_id,
@@ -229,19 +416,29 @@ async def create_task(request: VideoStudioTaskCreateRequest):
         first_frame_url=request.first_frame_url,
         last_frame_url=request.last_frame_url,
         reference_video_urls=request.reference_video_urls,
+        source_video_url=request.source_video_url,
+        source_video_preview_url=request.source_video_preview_url,
+        reference_image_url=request.reference_image_url,
+        mask_image_url=request.mask_image_url,
+        mask_frame_id=request.mask_frame_id if request.task_type == "video_edit" else None,
         audio_url=request.audio_url,
         prompt=request.prompt,
         negative_prompt=request.negative_prompt,
-        model=request.model,
+        model=task_model,
         resolution=request.resolution,
-        duration=request.duration,
+        duration=task_duration,
         prompt_extend=request.prompt_extend,
         watermark=request.watermark,
         seed=request.seed,
         auto_audio=request.auto_audio,
         shot_type=request.shot_type,
-        size=request.size,
+        size=task_size,
         t2v_prompt_extend=request.t2v_prompt_extend,
+        control_condition=request.control_condition,
+        strength=request.strength,
+        mask_type=request.mask_type,
+        expand_ratio=request.expand_ratio,
+        expand_mode=request.expand_mode,
         group_count=request.group_count,
         status="processing"
     )
@@ -293,7 +490,11 @@ async def get_task_status(task_id: str):
     for api_task_id in task.task_ids:
         print(f"\n[视频工作室状态查询] 查询子任务: {api_task_id}")
         try:
-            if task_type == "reference_to_video" or (task.model and "r2v" in task.model):
+            if task_type in {"video_repainting", "video_edit"}:
+                print(f"[视频工作室状态查询] 使用 VACE 视频编辑服务 (HTTP)")
+                vace_service = VaceVideoEditService()
+                status, video_url = await vace_service.get_task_status(api_task_id, task.project_id)
+            elif task_type == "reference_to_video" or (task.model and "r2v" in task.model):
                 print(f"[视频工作室状态查询] 使用 参考生视频服务 (HTTP)")
                 r2v_service = ReferenceToVideoService()
                 status, video_url = await r2v_service.get_task_status(api_task_id, task.project_id)
@@ -400,6 +601,27 @@ async def update_task(task_id: str, request: VideoStudioTaskUpdateRequest):
         task.size = request.size
     if request.t2v_prompt_extend is not None:
         task.t2v_prompt_extend = request.t2v_prompt_extend
+    provided_fields = request.model_fields_set
+    if "source_video_url" in provided_fields:
+        task.source_video_url = request.source_video_url
+    if "source_video_preview_url" in provided_fields:
+        task.source_video_preview_url = request.source_video_preview_url
+    if "reference_image_url" in provided_fields:
+        task.reference_image_url = request.reference_image_url
+    if "mask_image_url" in provided_fields:
+        task.mask_image_url = request.mask_image_url
+    if "mask_frame_id" in provided_fields:
+        task.mask_frame_id = request.mask_frame_id
+    if "control_condition" in provided_fields:
+        task.control_condition = request.control_condition
+    if "strength" in provided_fields:
+        task.strength = request.strength
+    if "mask_type" in provided_fields:
+        task.mask_type = request.mask_type
+    if "expand_ratio" in provided_fields:
+        task.expand_ratio = request.expand_ratio
+    if "expand_mode" in provided_fields:
+        task.expand_mode = request.expand_mode
     if request.task_type is not None:
         task.task_type = request.task_type
     if request.group_count is not None:
@@ -459,14 +681,16 @@ async def regenerate_task(task_id: str):
             raise HTTPException(status_code=400, detail="任务没有首帧图")
         if not task.last_frame_url:
             raise HTTPException(status_code=400, detail="任务没有尾帧图")
-    
-    # 重置任务状态
-    task.status = "processing"
-    task.video_urls = []
-    task.error_message = None
-    task.task_ids = []
-    task.updated_at = datetime.now()
-    storage_service.save_video_studio_task(task)
+    elif task_type == "video_repainting":
+        if not task.source_video_url:
+            raise HTTPException(status_code=400, detail="任务没有源视频")
+        if not task.control_condition:
+            raise HTTPException(status_code=400, detail="视频重绘任务缺少控制条件")
+    elif task_type == "video_edit":
+        if not task.source_video_url:
+            raise HTTPException(status_code=400, detail="任务没有源视频")
+        if not task.mask_image_url:
+            raise HTTPException(status_code=400, detail="任务没有Mask")
 
     # 捕获用户上下文
     user_id = get_current_user_id()
@@ -481,6 +705,11 @@ async def regenerate_task(task_id: str):
         first_frame_url=task.first_frame_url,
         last_frame_url=task.last_frame_url,
         reference_video_urls=task.reference_video_urls or [],
+        source_video_url=task.source_video_url,
+        source_video_preview_url=task.source_video_preview_url,
+        reference_image_url=task.reference_image_url,
+        mask_image_url=task.mask_image_url,
+        mask_frame_id=task.mask_frame_id or VACE_MASK_FRAME_ID,
         audio_url=task.audio_url,
         prompt=task.prompt,
         negative_prompt=task.negative_prompt,
@@ -494,8 +723,25 @@ async def regenerate_task(task_id: str):
         shot_type=task.shot_type,
         size=task.size,
         t2v_prompt_extend=getattr(task, 't2v_prompt_extend', True),
+        control_condition=task.control_condition,
+        strength=task.strength,
+        mask_type=task.mask_type,
+        expand_ratio=task.expand_ratio,
+        expand_mode=task.expand_mode,
         group_count=task.group_count,
     )
+
+    if task_type in {"video_repainting", "video_edit"}:
+        source_metadata = await _validate_vace_task_request(regen_request)
+        task.duration = _get_vace_task_duration(source_metadata)
+
+    # 重置任务状态
+    task.status = "processing"
+    task.video_urls = []
+    task.error_message = None
+    task.task_ids = []
+    task.updated_at = datetime.now()
+    storage_service.save_video_studio_task(task)
 
     asyncio.create_task(_background_create_video_tasks(task, regen_request, user_id, user_config_dir))
 
@@ -750,7 +996,39 @@ async def _submit_api_tasks(
                 negative_prompt=request.negative_prompt or None,
             )
 
+        elif request.task_type == "video_repainting":
+            svc = VaceVideoEditService()
+            return await svc.create_video_repainting_task(
+                prompt=request.prompt,
+                source_video_url=request.source_video_url,
+                reference_image_url=request.reference_image_url,
+                control_condition=request.control_condition,
+                strength=request.strength,
+                prompt_extend=request.prompt_extend,
+                seed=current_seed,
+                watermark=request.watermark,
+                model=request.model,
+            )
+
+        elif request.task_type == "video_edit":
+            svc = VaceVideoEditService()
+            return await svc.create_video_edit_task(
+                prompt=request.prompt,
+                source_video_url=request.source_video_url,
+                mask_image_url=request.mask_image_url,
+                mask_frame_id=request.mask_frame_id or VACE_MASK_FRAME_ID,
+                reference_image_url=request.reference_image_url,
+                control_condition=request.control_condition,
+                mask_type=request.mask_type,
+                expand_ratio=request.expand_ratio,
+                expand_mode=request.expand_mode,
+                size=request.size,
+                prompt_extend=request.prompt_extend,
+                seed=current_seed,
+                watermark=request.watermark,
+                model=request.model,
+            )
+
         raise ValueError(f"不支持的任务类型: {request.task_type}")
 
     return list(await asyncio.gather(*[create_one(i) for i in range(request.group_count)]))
-

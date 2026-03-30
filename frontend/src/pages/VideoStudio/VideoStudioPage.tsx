@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { Card, Button, List, Modal, Input, Select, InputNumber, Switch, message, Popconfirm, Space, Empty, Spin, Row, Col, Tabs, Tag, Form, theme } from 'antd'
 import { PlusOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, VideoCameraOutlined, EditOutlined, ReloadOutlined, StarFilled, FlagOutlined, FlagFilled, CheckOutlined, CloseOutlined, StarOutlined, CameraOutlined } from '@ant-design/icons'
-import { videoStudioApi, galleryApi, audioApi, videoLibraryApi, settingsApi, VideoStudioTask, GalleryImage, AudioItem, VideoLibraryItem, VideoModelInfo, RefVideoModelInfo, TextToVideoModelInfo, KeyframeToVideoModelInfo } from '../../services/api'
+import { videoStudioApi, galleryApi, audioApi, videoLibraryApi, settingsApi, VideoStudioTask, GalleryImage, AudioItem, VideoLibraryItem, VideoModelInfo, RefVideoModelInfo, TextToVideoModelInfo, KeyframeToVideoModelInfo, VideoStudioTaskType, VaceVideoRepaintingModelInfo, VaceVideoEditModelInfo } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
+import MaskEditor, { type MaskEditorHandle, type MaskEditorTool } from './MaskEditor'
 
 const { TextArea } = Input
 const { Option } = Select
@@ -17,6 +18,20 @@ interface ReferenceItem {
   thumbnail?: string
   duration?: number  // 视频时长
 }
+
+interface SourceVideoMetadata {
+  width: number
+  height: number
+  fps: number
+  duration: number
+  frame_count: number
+  file_size: number
+  format: string
+  warnings: string[]
+}
+
+const VACE_MODEL_ID = 'wanx2.1-vace-plus'
+const MASK_BRUSH_SIZES = [8, 16, 32, 64]
 
 const VideoStudioPage = () => {
   const { token } = theme.useToken()
@@ -39,12 +54,28 @@ const VideoStudioPage = () => {
   const [videoLibraryItems, setVideoLibraryItems] = useState<VideoLibraryItem[]>([])
   
   // 创建任务表单
-  const [taskType, setTaskType] = useState<'image_to_video' | 'reference_to_video' | 'text_to_video' | 'keyframe_to_video'>('image_to_video')  // 任务类型
+  const [taskType, setTaskType] = useState<VideoStudioTaskType>('image_to_video')  // 任务类型
   const [taskName, setTaskName] = useState('')
   const [firstFrameUrl, setFirstFrameUrl] = useState('')
   const [lastFrameUrl, setLastFrameUrl] = useState('')  // 首尾帧生视频的尾帧图
   const [audioUrl, setAudioUrl] = useState('')
   const [referenceItems, setReferenceItems] = useState<ReferenceItem[]>([])  // 参考素材队列（视频+图片，有序）
+  const [sourceVideoUrl, setSourceVideoUrl] = useState('')
+  const [sourceVideoPreviewUrl, setSourceVideoPreviewUrl] = useState('')
+  const [sourceVideoPreviewDataUrl, setSourceVideoPreviewDataUrl] = useState('')
+  const [sourceVideoMetadata, setSourceVideoMetadata] = useState<SourceVideoMetadata | null>(null)
+  const [sourceVideoWarnings, setSourceVideoWarnings] = useState<string[]>([])
+  const [sourceVideoPreparing, setSourceVideoPreparing] = useState(false)
+  const [referenceImageUrl, setReferenceImageUrl] = useState('')
+  const [maskTool, setMaskTool] = useState<MaskEditorTool>('brush')
+  const [maskBrushSize, setMaskBrushSize] = useState(16)
+  const [maskHasContent, setMaskHasContent] = useState(false)
+  const [maskUploading, setMaskUploading] = useState(false)
+  const [controlCondition, setControlCondition] = useState('')
+  const [strength, setStrength] = useState(1)
+  const [maskType, setMaskType] = useState<'tracking' | 'fixed'>('tracking')
+  const [expandRatio, setExpandRatio] = useState(0.05)
+  const [expandMode, setExpandMode] = useState('hull')
   const [prompt, setPrompt] = useState('')
   const [negativePrompt, setNegativePrompt] = useState('')
   const [model, setModel] = useState('wan2.5-i2v-preview')
@@ -66,10 +97,13 @@ const VideoStudioPage = () => {
   const [refVideoModels, setRefVideoModels] = useState<Record<string, RefVideoModelInfo>>({})
   const [textToVideoModels, setTextToVideoModels] = useState<Record<string, TextToVideoModelInfo>>({})
   const [keyframeToVideoModels, setKeyframeToVideoModels] = useState<Record<string, KeyframeToVideoModelInfo>>({})
+  const [videoRepaintingModels, setVideoRepaintingModels] = useState<Record<string, VaceVideoRepaintingModelInfo>>({})
+  const [videoEditModels, setVideoEditModels] = useState<Record<string, VaceVideoEditModelInfo>>({})
   
   // 轮询
   const pollingRef = useRef<Set<string>>(new Set())
   const isMountedRef = useRef(true)
+  const maskEditorRef = useRef<MaskEditorHandle | null>(null)
 
   useEffect(() => {
     isMountedRef.current = true
@@ -102,6 +136,8 @@ const VideoStudioPage = () => {
       setRefVideoModels(settingsRes.available_ref_video_models || {})
       setTextToVideoModels(settingsRes.available_text_to_video_models || {})
       setKeyframeToVideoModels(settingsRes.available_keyframe_to_video_models || {})
+      setVideoRepaintingModels(settingsRes.available_video_repainting_models || {})
+      setVideoEditModels(settingsRes.available_video_edit_models || {})
       
       // 启动轮询
       tasksRes.tasks.forEach(task => {
@@ -114,6 +150,101 @@ const VideoStudioPage = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const getTaskTypeTag = (type: VideoStudioTaskType) => {
+    const tagMap: Record<VideoStudioTaskType, { color: string; text: string }> = {
+      image_to_video: { color: 'blue', text: '图生视频' },
+      reference_to_video: { color: 'green', text: '参考生视频' },
+      text_to_video: { color: 'purple', text: '文生视频' },
+      keyframe_to_video: { color: 'orange', text: '首尾帧生视频' },
+      video_repainting: { color: 'cyan', text: '视频重绘' },
+      video_edit: { color: 'magenta', text: '局部编辑' },
+    }
+    const item = tagMap[type]
+    return <Tag color={item.color}>{item.text}</Tag>
+  }
+
+  const getTaskPreviewUrl = (task: VideoStudioTask) => {
+    return task.first_frame_url || task.source_video_preview_url || ''
+  }
+
+  const resetVaceState = () => {
+    setSourceVideoUrl('')
+    setSourceVideoPreviewUrl('')
+    setSourceVideoPreviewDataUrl('')
+    setSourceVideoMetadata(null)
+    setSourceVideoWarnings([])
+    setSourceVideoPreparing(false)
+    setReferenceImageUrl('')
+    setMaskTool('brush')
+    setMaskBrushSize(16)
+    setMaskHasContent(false)
+    setMaskUploading(false)
+    setControlCondition('')
+    setStrength(1)
+    setMaskType('tracking')
+    setExpandRatio(0.05)
+    setExpandMode('hull')
+  }
+
+  const handlePrepareSourceVideo = async (videoUrl: string) => {
+    if (!projectId || !videoUrl) return
+    setSourceVideoUrl(videoUrl)
+    setSourceVideoPreparing(true)
+    setSourceVideoPreviewDataUrl('')
+    setSourceVideoPreviewUrl('')
+    setSourceVideoMetadata(null)
+    setSourceVideoWarnings([])
+    setMaskHasContent(false)
+    try {
+      const result = await videoStudioApi.prepareSourceVideo({
+        project_id: projectId,
+        video_url: videoUrl
+      })
+      setSourceVideoPreviewDataUrl(result.preview_image_data_url)
+      setSourceVideoPreviewUrl(result.preview_image_url || '')
+      setSourceVideoMetadata(result.metadata)
+      setSourceVideoWarnings(result.warnings || [])
+      if (taskType === 'video_edit') {
+        setSize(videoEditModels[VACE_MODEL_ID]?.default_size || '1280*720')
+      }
+    } catch (error: any) {
+      setSourceVideoPreviewDataUrl('')
+      setSourceVideoPreviewUrl('')
+      setSourceVideoMetadata(null)
+      setSourceVideoWarnings([])
+      message.error(error.message || '源视频准备失败')
+    } finally {
+      setSourceVideoPreparing(false)
+    }
+  }
+
+  const getApproxVideoDuration = () => {
+    if (!sourceVideoMetadata) return 5
+    return Math.max(1, Math.round(Math.min(sourceVideoMetadata.duration, 5)))
+  }
+
+  const isCreateDisabled = () => {
+    if (taskType === 'image_to_video') {
+      return !firstFrameUrl || (!!currentModelInfo?.requires_audio && !audioUrl)
+    }
+    if (taskType === 'reference_to_video') {
+      return referenceItems.length === 0
+    }
+    if (taskType === 'text_to_video') {
+      return !prompt
+    }
+    if (taskType === 'keyframe_to_video') {
+      return !firstFrameUrl || !lastFrameUrl
+    }
+    if (taskType === 'video_repainting') {
+      return !sourceVideoUrl || !prompt || !controlCondition || sourceVideoPreparing
+    }
+    if (taskType === 'video_edit') {
+      return !sourceVideoUrl || !prompt || !sourceVideoPreviewDataUrl || !maskHasContent || sourceVideoPreparing || maskUploading
+    }
+    return false
   }
 
   const startPolling = (taskId: string) => {
@@ -185,6 +316,38 @@ const VideoStudioPage = () => {
         return
       }
     }
+    if (taskType === 'video_repainting') {
+      if (!sourceVideoUrl) {
+        message.warning('请选择源视频')
+        return
+      }
+      if (!prompt) {
+        message.warning('请输入提示词')
+        return
+      }
+      if (!controlCondition) {
+        message.warning('请选择控制条件')
+        return
+      }
+    }
+    if (taskType === 'video_edit') {
+      if (!sourceVideoUrl) {
+        message.warning('请选择源视频')
+        return
+      }
+      if (!prompt) {
+        message.warning('请输入提示词')
+        return
+      }
+      if (!sourceVideoPreviewDataUrl || !sourceVideoMetadata) {
+        message.warning('请先准备源视频首帧')
+        return
+      }
+      if (!maskHasContent || !maskEditorRef.current?.hasMask()) {
+        message.warning('请先涂抹需要编辑的区域')
+        return
+      }
+    }
     
     setCreating(true)
     try {
@@ -197,6 +360,23 @@ const VideoStudioPage = () => {
         taskModel = model || 'wan2.6-t2v'
       } else if (taskType === 'keyframe_to_video') {
         taskModel = model || 'wan2.2-kf2v-flash'
+      } else if (taskType === 'video_repainting' || taskType === 'video_edit') {
+        taskModel = VACE_MODEL_ID
+      }
+
+      let uploadedMaskUrl: string | undefined
+      if (taskType === 'video_edit') {
+        const maskBlob = await maskEditorRef.current?.exportMask()
+        if (!maskBlob) {
+          throw new Error('导出Mask失败')
+        }
+        setMaskUploading(true)
+        const formData = new FormData()
+        formData.append('project_id', projectId)
+        formData.append('source_video_url', sourceVideoUrl)
+        formData.append('mask_file', maskBlob, 'video-edit-mask.png')
+        const uploadRes = await videoStudioApi.uploadMask(formData)
+        uploadedMaskUrl = uploadRes.mask_image_url
       }
       
       const result = await videoStudioApi.create({
@@ -209,22 +389,36 @@ const VideoStudioPage = () => {
         audio_url: taskType === 'image_to_video' ? (audioUrl || undefined) : (taskType === 'text_to_video' ? (audioUrl || undefined) : undefined),
         // 参考生视频参数（按顺序传递所有参考素材URL）
         reference_video_urls: taskType === 'reference_to_video' ? referenceItems.map(item => item.url) : undefined,
+        source_video_url: taskType === 'video_repainting' || taskType === 'video_edit' ? sourceVideoUrl : undefined,
+        source_video_preview_url: taskType === 'video_repainting' || taskType === 'video_edit' ? (sourceVideoPreviewUrl || undefined) : undefined,
+        reference_image_url: taskType === 'video_repainting' || taskType === 'video_edit' ? (referenceImageUrl || undefined) : undefined,
+        mask_image_url: taskType === 'video_edit' ? uploadedMaskUrl : undefined,
+        mask_frame_id: taskType === 'video_edit' ? 1 : undefined,
         // 通用参数
         prompt,
-        negative_prompt: negativePrompt,
+        negative_prompt: taskType === 'image_to_video' || taskType === 'reference_to_video' || taskType === 'text_to_video' || taskType === 'keyframe_to_video'
+          ? negativePrompt
+          : undefined,
         model: taskModel,
-        duration,
+        duration: taskType === 'video_repainting' || taskType === 'video_edit' ? getApproxVideoDuration() : duration,
         watermark,
         seed: seed || undefined,
-        auto_audio: autoAudio,
-        shot_type: shotType,
+        auto_audio: taskType === 'video_repainting' || taskType === 'video_edit' ? false : autoAudio,
+        shot_type: taskType === 'video_repainting' || taskType === 'video_edit' ? undefined : shotType,
         // 图生视频/首尾帧生视频专用
         resolution: (taskType === 'image_to_video' || taskType === 'keyframe_to_video') ? resolution : undefined,
-        prompt_extend: (taskType === 'image_to_video' || taskType === 'keyframe_to_video') ? promptExtend : undefined,
+        prompt_extend: (taskType === 'image_to_video' || taskType === 'keyframe_to_video' || taskType === 'video_repainting' || taskType === 'video_edit') ? promptExtend : undefined,
         // 参考生视频专用
-        size: taskType === 'reference_to_video' ? size : (taskType === 'text_to_video' ? size : undefined),
+        size: taskType === 'reference_to_video' ? size : (taskType === 'text_to_video' ? size : (taskType === 'video_edit' ? size : undefined)),
         // 文生视频专用
         t2v_prompt_extend: taskType === 'text_to_video' ? t2vPromptExtend : undefined,
+        control_condition: taskType === 'video_repainting'
+          ? controlCondition
+          : (taskType === 'video_edit' ? (controlCondition || undefined) : undefined),
+        strength: taskType === 'video_repainting' ? strength : undefined,
+        mask_type: taskType === 'video_edit' ? maskType : undefined,
+        expand_ratio: taskType === 'video_edit' && maskType === 'tracking' ? expandRatio : undefined,
+        expand_mode: taskType === 'video_edit' && maskType === 'tracking' ? expandMode : undefined,
         group_count: groupCount
       })
       
@@ -240,6 +434,7 @@ const VideoStudioPage = () => {
       message.error(error.message || '创建失败')
     } finally {
       setCreating(false)
+      setMaskUploading(false)
     }
   }
 
@@ -250,9 +445,11 @@ const VideoStudioPage = () => {
     setLastFrameUrl('')  // 重置尾帧图
     setAudioUrl('')
     setReferenceItems([])
+    resetVaceState()
     setPrompt('')
     setNegativePrompt('')
     setModel('wan2.5-i2v-preview')
+    setRefModel('wan2.6-r2v-flash')
     setResolution('1080P')  // 默认1080P
     setSize('1920*1080')  // 默认参考生视频分辨率
     setDuration(5)
@@ -331,7 +528,7 @@ const VideoStudioPage = () => {
   }
 
   // 编辑表单的额外状态（不在 Form 中管理的值）
-  const [editTaskType, setEditTaskType] = useState<'image_to_video' | 'reference_to_video' | 'text_to_video' | 'keyframe_to_video'>('image_to_video')
+  const [editTaskType, setEditTaskType] = useState<VideoStudioTaskType>('image_to_video')
   const [editFirstFrameUrl, setEditFirstFrameUrl] = useState('')
   const [editLastFrameUrl, setEditLastFrameUrl] = useState('')  // 首尾帧生视频的尾帧图
   const [editAudioUrl, setEditAudioUrl] = useState('')
@@ -339,6 +536,15 @@ const VideoStudioPage = () => {
   const [editGroupCount, setEditGroupCount] = useState(1)
   const [editModel, setEditModel] = useState('wan2.5-i2v-preview')  // 编辑弹窗中的当前模型
   const [editT2vPromptExtend, setEditT2vPromptExtend] = useState(true)  // 编辑弹窗中的t2v智能改写
+  const [editSourceVideoUrl, setEditSourceVideoUrl] = useState('')
+  const [editSourceVideoPreviewUrl, setEditSourceVideoPreviewUrl] = useState('')
+  const [editReferenceImageUrl, setEditReferenceImageUrl] = useState('')
+  const [editMaskImageUrl, setEditMaskImageUrl] = useState('')
+  const [editControlCondition, setEditControlCondition] = useState('')
+  const [editStrength, setEditStrength] = useState(1)
+  const [editMaskType, setEditMaskType] = useState<'tracking' | 'fixed'>('tracking')
+  const [editExpandRatio, setEditExpandRatio] = useState(0.05)
+  const [editExpandMode, setEditExpandMode] = useState('hull')
 
   // 获取编辑弹窗中当前模型的信息
   const getEditModelInfo = () => {
@@ -348,6 +554,12 @@ const VideoStudioPage = () => {
     if (editTaskType === 'text_to_video') {
       return textToVideoModels[editModel] || Object.values(textToVideoModels)[0]
     }
+    if (editTaskType === 'video_repainting') {
+      return videoRepaintingModels[editModel] || Object.values(videoRepaintingModels)[0]
+    }
+    if (editTaskType === 'video_edit') {
+      return videoEditModels[editModel] || Object.values(videoEditModels)[0]
+    }
     return videoModels[editModel]
   }
 
@@ -355,11 +567,20 @@ const VideoStudioPage = () => {
   const openEditModal = (task: VideoStudioTask) => {
     setSelectedTask(task)
     // 设置非 Form 管理的值
-    const taskTypeValue = (task.task_type || 'image_to_video') as 'image_to_video' | 'reference_to_video' | 'text_to_video' | 'keyframe_to_video'
+    const taskTypeValue = (task.task_type || 'image_to_video') as VideoStudioTaskType
     setEditTaskType(taskTypeValue)
     setEditFirstFrameUrl(task.first_frame_url || '')
     setEditLastFrameUrl(task.last_frame_url || '')  // 首尾帧生视频的尾帧图
     setEditAudioUrl(task.audio_url || '')
+    setEditSourceVideoUrl(task.source_video_url || '')
+    setEditSourceVideoPreviewUrl(task.source_video_preview_url || '')
+    setEditReferenceImageUrl(task.reference_image_url || '')
+    setEditMaskImageUrl(task.mask_image_url || '')
+    setEditControlCondition(task.control_condition || '')
+    setEditStrength(task.strength || 1)
+    setEditMaskType((task.mask_type as 'tracking' | 'fixed') || 'tracking')
+    setEditExpandRatio(task.expand_ratio || 0.05)
+    setEditExpandMode(task.expand_mode || 'hull')
     // 将已有的 reference_video_urls 转换为 ReferenceItem 格式
     const existingUrls = task.reference_video_urls || []
     const items: ReferenceItem[] = existingUrls.map((url, index) => {
@@ -402,8 +623,9 @@ const VideoStudioPage = () => {
     let defaultModel = 'wan2.5-i2v-preview'
     if (taskTypeValue === 'text_to_video') defaultModel = 'wan2.6-t2v'
     else if (taskTypeValue === 'keyframe_to_video') defaultModel = 'wan2.2-kf2v-flash'
+    else if (taskTypeValue === 'video_repainting' || taskTypeValue === 'video_edit') defaultModel = VACE_MODEL_ID
     setEditModel(task.model || defaultModel)
-    setEditT2vPromptExtend(task.prompt_extend !== false)  // 文生视频智能改写，默认true
+    setEditT2vPromptExtend(task.t2v_prompt_extend !== false)  // 文生视频智能改写，默认true
     
     editForm.setFieldsValue({
       name: task.name,
@@ -418,6 +640,11 @@ const VideoStudioPage = () => {
       seed: task.seed,
       auto_audio: task.auto_audio,
       shot_type: task.shot_type || 'single',
+      control_condition: task.control_condition,
+      strength: task.strength,
+      mask_type: task.mask_type || 'tracking',
+      expand_ratio: task.expand_ratio ?? 0.05,
+      expand_mode: task.expand_mode || 'hull',
     })
     setEditModalVisible(true)
   }
@@ -449,6 +676,34 @@ const VideoStudioPage = () => {
         return
       }
     }
+    if (editTaskType === 'video_repainting') {
+      if (!editSourceVideoUrl) {
+        message.warning('源视频缺失')
+        return
+      }
+      if (!editForm.getFieldValue('prompt')) {
+        message.warning('请输入提示词')
+        return
+      }
+      if (!editControlCondition) {
+        message.warning('请选择控制条件')
+        return
+      }
+    }
+    if (editTaskType === 'video_edit') {
+      if (!editSourceVideoUrl) {
+        message.warning('源视频缺失')
+        return
+      }
+      if (!editMaskImageUrl) {
+        message.warning('Mask缺失，请新建任务重新绘制')
+        return
+      }
+      if (!editForm.getFieldValue('prompt')) {
+        message.warning('请输入提示词')
+        return
+      }
+    }
     
     try {
       setSaving(true)
@@ -475,6 +730,29 @@ const VideoStudioPage = () => {
       } else if (editTaskType === 'keyframe_to_video') {
         updateData.first_frame_url = editFirstFrameUrl
         updateData.last_frame_url = editLastFrameUrl
+      } else if (editTaskType === 'video_repainting') {
+        updateData.source_video_url = editSourceVideoUrl
+        updateData.source_video_preview_url = editSourceVideoPreviewUrl || null
+        updateData.reference_image_url = editReferenceImageUrl || null
+        updateData.control_condition = editControlCondition
+        updateData.strength = editStrength
+        updateData.prompt_extend = values.prompt_extend
+        updateData.model = VACE_MODEL_ID
+        updateData.auto_audio = false
+      } else if (editTaskType === 'video_edit') {
+        updateData.source_video_url = editSourceVideoUrl
+        updateData.source_video_preview_url = editSourceVideoPreviewUrl || null
+        updateData.reference_image_url = editReferenceImageUrl || null
+        updateData.mask_image_url = editMaskImageUrl
+        updateData.mask_frame_id = 1
+        updateData.control_condition = editControlCondition || null
+        updateData.mask_type = editMaskType
+        updateData.expand_ratio = editMaskType === 'tracking' ? editExpandRatio : null
+        updateData.expand_mode = editMaskType === 'tracking' ? editExpandMode : null
+        updateData.size = values.size
+        updateData.prompt_extend = values.prompt_extend
+        updateData.model = VACE_MODEL_ID
+        updateData.auto_audio = false
       }
       
       const updatedTask = await videoStudioApi.update(selectedTask.id, updateData)
@@ -537,6 +815,8 @@ const VideoStudioPage = () => {
 
   const currentModelInfo = videoModels[model]
   const currentRefVideoModelInfo = refVideoModels[refModel] || Object.values(refVideoModels)[0]
+  const currentVideoRepaintingModelInfo = videoRepaintingModels[VACE_MODEL_ID] || Object.values(videoRepaintingModels)[0]
+  const currentVideoEditModelInfo = videoEditModels[VACE_MODEL_ID] || Object.values(videoEditModels)[0]
 
   return (
     <div style={{ padding: 24 }}>
@@ -593,9 +873,9 @@ const VideoStudioPage = () => {
                       }}
                       onClick={() => handleViewDetail(task)}
                     >
-                      {task.first_frame_url ? (
+                      {getTaskPreviewUrl(task) ? (
                         <img 
-                          src={task.first_frame_url} 
+                          src={getTaskPreviewUrl(task)} 
                           alt="首帧" 
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                         />
@@ -630,7 +910,10 @@ const VideoStudioPage = () => {
                     {task.name}
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    {getStatusTag(task.status)}
+                    <Space size={4}>
+                      {getTaskTypeTag(task.task_type)}
+                      {getStatusTag(task.status)}
+                    </Space>
                     <span style={{ fontSize: 12, color: token.colorTextSecondary }}>
                       {task.video_urls.length}/{task.group_count}
                     </span>
@@ -652,15 +935,7 @@ const VideoStudioPage = () => {
         }}
         onOk={handleCreate}
         confirmLoading={creating}
-        okButtonProps={{ 
-          disabled: taskType === 'image_to_video' 
-            ? (!firstFrameUrl || (currentModelInfo?.requires_audio && !audioUrl))
-            : taskType === 'reference_to_video'
-              ? referenceItems.length === 0
-              : taskType === 'keyframe_to_video'
-                ? !firstFrameUrl || !lastFrameUrl
-                : !prompt  // text_to_video 需要提示词
-        }}
+        okButtonProps={{ disabled: isCreateDisabled() }}
         width={700}
       >
         <Tabs
@@ -677,22 +952,48 @@ const VideoStudioPage = () => {
                       style={{ width: '100%' }}
                       value={taskType}
                       onChange={(v) => {
-                        setTaskType(v)
+                        const nextType = v as VideoStudioTaskType
+                        setTaskType(nextType)
                         // 切换类型时重置相关字段
-                        if (v === 'reference_to_video') {
+                        resetVaceState()
+                        if (nextType === 'reference_to_video') {
                           setFirstFrameUrl('')
                           setLastFrameUrl('')
                           setAudioUrl('')
-                        } else if (v === 'text_to_video') {
+                          setNegativePrompt('')
+                        } else if (nextType === 'text_to_video') {
                           setModel('wan2.6-t2v')
                           setFirstFrameUrl('')
                           setLastFrameUrl('')
                           setReferenceItems([])
-                        } else if (v === 'keyframe_to_video') {
+                        } else if (nextType === 'keyframe_to_video') {
                           setModel('wan2.2-kf2v-flash')
                           setReferenceItems([])
                           setAudioUrl('')
                           setResolution('720P')
+                        } else if (nextType === 'video_repainting') {
+                          setModel(VACE_MODEL_ID)
+                          setFirstFrameUrl('')
+                          setLastFrameUrl('')
+                          setReferenceItems([])
+                          setAudioUrl('')
+                          setNegativePrompt('')
+                          setPromptExtend(false)
+                          setControlCondition(videoRepaintingModels[VACE_MODEL_ID]?.default_control_condition || 'depth')
+                          setStrength(videoRepaintingModels[VACE_MODEL_ID]?.default_strength || 1)
+                        } else if (nextType === 'video_edit') {
+                          setModel(VACE_MODEL_ID)
+                          setFirstFrameUrl('')
+                          setLastFrameUrl('')
+                          setReferenceItems([])
+                          setAudioUrl('')
+                          setNegativePrompt('')
+                          setPromptExtend(false)
+                          setControlCondition('')
+                          setMaskType((videoEditModels[VACE_MODEL_ID]?.default_mask_type as 'tracking' | 'fixed') || 'tracking')
+                          setExpandRatio(videoEditModels[VACE_MODEL_ID]?.default_expand_ratio || 0.05)
+                          setExpandMode(videoEditModels[VACE_MODEL_ID]?.default_expand_mode || 'hull')
+                          setSize(videoEditModels[VACE_MODEL_ID]?.default_size || '1280*720')
                         } else {
                           setModel('wan2.5-i2v-preview')
                           setReferenceItems([])
@@ -722,6 +1023,18 @@ const VideoStudioPage = () => {
                         <Space>
                           <Tag color="orange">首尾帧生视频</Tag>
                           基于首帧和尾帧图生成平滑过渡视频
+                        </Space>
+                      </Option>
+                      <Option value="video_repainting">
+                        <Space>
+                          <Tag color="cyan">视频重绘</Tag>
+                          基于源视频动作与构图重绘新视频
+                        </Space>
+                      </Option>
+                      <Option value="video_edit">
+                        <Space>
+                          <Tag color="magenta">局部编辑</Tag>
+                          基于首帧Mask对视频局部区域做编辑
                         </Space>
                       </Option>
                     </Select>
@@ -1065,31 +1378,185 @@ const VideoStudioPage = () => {
                       </div>
                     </>
                   )}
+
+                  {(taskType === 'video_repainting' || taskType === 'video_edit') && (
+                    <>
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ marginBottom: 8 }}>源视频 *</div>
+                        <Select
+                          style={{ width: '100%' }}
+                          value={sourceVideoUrl || undefined}
+                          onChange={(url) => {
+                            setSourceVideoUrl(url)
+                            setSourceVideoPreviewDataUrl('')
+                            setSourceVideoPreviewUrl('')
+                            setSourceVideoMetadata(null)
+                            setSourceVideoWarnings([])
+                            setMaskHasContent(false)
+                            if (url) {
+                              void handlePrepareSourceVideo(url)
+                            }
+                          }}
+                          placeholder="从视频库选择源视频"
+                          optionLabelProp="label"
+                        >
+                          {videoLibraryItems.map(video => (
+                            <Option key={video.id} value={video.url} label={video.name}>
+                              <Space>
+                                <VideoCameraOutlined />
+                                {video.name}
+                              </Space>
+                            </Option>
+                          ))}
+                        </Select>
+                        {sourceVideoPreparing && (
+                          <div style={{ marginTop: 8 }}>
+                            <Space size={8}>
+                              <Spin size="small" />
+                              <span style={{ color: token.colorTextSecondary }}>正在提取源视频首帧与元数据...</span>
+                            </Space>
+                          </div>
+                        )}
+                        {sourceVideoMetadata && (
+                          <div style={{ marginTop: 8, fontSize: 12, color: token.colorTextSecondary }}>
+                            {sourceVideoMetadata.width} × {sourceVideoMetadata.height} · {sourceVideoMetadata.fps.toFixed(2)} FPS · {sourceVideoMetadata.duration.toFixed(2)} 秒
+                          </div>
+                        )}
+                        {sourceVideoWarnings.length > 0 && (
+                          <div style={{ marginTop: 8, padding: 10, borderRadius: 8, background: token.colorWarningBg }}>
+                            {sourceVideoWarnings.map((warning, index) => (
+                              <div key={index} style={{ fontSize: 12, color: token.colorWarningText }}>{warning}</div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ marginBottom: 8 }}>参考图</div>
+                        <Select
+                          style={{ width: '100%' }}
+                          value={referenceImageUrl || undefined}
+                          onChange={(url) => setReferenceImageUrl(url || '')}
+                          placeholder="从图库选择参考图（可选，最多1张）"
+                          allowClear
+                          optionLabelProp="label"
+                        >
+                          {galleryImages.map(img => (
+                            <Option key={img.id} value={img.url} label={img.name}>
+                              <Space>
+                                <img src={img.url} alt="" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4 }} />
+                                {img.name}
+                              </Space>
+                            </Option>
+                          ))}
+                        </Select>
+                        {referenceImageUrl && (
+                          <div style={{ marginTop: 8 }}>
+                            <img src={referenceImageUrl} alt="参考图预览" style={{ maxWidth: 200, maxHeight: 140, borderRadius: 8 }} />
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {taskType === 'video_edit' && (
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ marginBottom: 8 }}>局部编辑 Mask *</div>
+                      <div style={{ marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <Button
+                          type={maskTool === 'brush' ? 'primary' : 'default'}
+                          onClick={() => setMaskTool('brush')}
+                        >
+                          画笔
+                        </Button>
+                        <Button
+                          type={maskTool === 'polygon' ? 'primary' : 'default'}
+                          onClick={() => setMaskTool('polygon')}
+                        >
+                          多边形
+                        </Button>
+                        <Button
+                          type={maskTool === 'eraser' ? 'primary' : 'default'}
+                          onClick={() => setMaskTool('eraser')}
+                        >
+                          橡皮擦
+                        </Button>
+                        {MASK_BRUSH_SIZES.map(sizeValue => (
+                          <Button
+                            key={sizeValue}
+                            type={maskBrushSize === sizeValue ? 'primary' : 'default'}
+                            onClick={() => setMaskBrushSize(sizeValue)}
+                            disabled={maskTool === 'polygon'}
+                          >
+                            {sizeValue}px
+                          </Button>
+                        ))}
+                        <Button onClick={() => {
+                          maskEditorRef.current?.clearMask()
+                          setMaskHasContent(false)
+                        }}>
+                          清空蒙版
+                        </Button>
+                      </div>
+
+                      {sourceVideoPreviewDataUrl && sourceVideoMetadata ? (
+                        <MaskEditor
+                          ref={maskEditorRef}
+                          backgroundImageUrl={sourceVideoPreviewDataUrl}
+                          width={sourceVideoMetadata.width}
+                          height={sourceVideoMetadata.height}
+                          tool={maskTool}
+                          brushSize={maskBrushSize}
+                          onMaskStateChange={setMaskHasContent}
+                        />
+                      ) : (
+                        <div style={{
+                          padding: 16,
+                          borderRadius: 8,
+                          background: token.colorBgLayout,
+                          color: token.colorTextSecondary,
+                        }}>
+                          请选择源视频，系统会先提取首帧，再显示可涂抹的编辑区域。
+                        </div>
+                      )}
+                      {sourceVideoPreviewDataUrl && sourceVideoMetadata && maskTool === 'polygon' && (
+                        <div style={{ marginTop: 8, fontSize: 12, color: token.colorTextSecondary }}>
+                          多边形模式：在画面上逐点点击连线，按 Enter 闭环填充，按 Esc 取消当前未闭合区域。
+                        </div>
+                      )}
+                    </div>
+                  )}
                   
                   {!(taskType === 'image_to_video' && currentModelInfo?.supports_prompt === false) && (
                   <>
                   <div style={{ marginBottom: 16 }}>
-                    <div style={{ marginBottom: 8 }}>提示词{taskType === 'text_to_video' ? ' *' : ''}</div>
+                    <div style={{ marginBottom: 8 }}>提示词{taskType === 'text_to_video' || taskType === 'video_repainting' || taskType === 'video_edit' ? ' *' : ''}</div>
                     <TextArea
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
                       placeholder={taskType === 'reference_to_video' 
                         ? "描述视频内容，使用 character1/character2 指代参考视频中的主体" 
+                        : taskType === 'video_repainting'
+                          ? "描述重绘后的视频内容、风格与主体变化"
+                          : taskType === 'video_edit'
+                            ? "描述需要替换或新增的局部内容"
                         : "描述视频内容"
                       }
                       rows={3}
                     />
                   </div>
                   
-                  <div>
-                    <div style={{ marginBottom: 8 }}>负面提示词</div>
-                    <TextArea
-                      value={negativePrompt}
-                      onChange={(e) => setNegativePrompt(e.target.value)}
-                      placeholder="不希望出现的内容"
-                      rows={2}
-                    />
-                  </div>
+                  {(taskType === 'image_to_video' || taskType === 'reference_to_video' || taskType === 'text_to_video' || taskType === 'keyframe_to_video') && (
+                    <div>
+                      <div style={{ marginBottom: 8 }}>负面提示词</div>
+                      <TextArea
+                        value={negativePrompt}
+                        onChange={(e) => setNegativePrompt(e.target.value)}
+                        placeholder="不希望出现的内容"
+                        rows={2}
+                      />
+                    </div>
+                  )}
                   </>
                   )}
                 </div>
@@ -1799,6 +2266,247 @@ const VideoStudioPage = () => {
                   )}
                   
                   {/* 首尾帧生视频参数 */}
+                  {taskType === 'video_repainting' && (
+                    <>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>模型</div>
+                            <Select style={{ width: '100%' }} value={VACE_MODEL_ID} disabled>
+                              <Option value={VACE_MODEL_ID}>
+                                {currentVideoRepaintingModelInfo?.name || `视频重绘 ${VACE_MODEL_ID}`}
+                              </Option>
+                            </Select>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
+                              {currentVideoRepaintingModelInfo?.description}
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>生成组数</div>
+                            <InputNumber
+                              style={{ width: '100%' }}
+                              min={1}
+                              max={5}
+                              value={groupCount}
+                              onChange={(v) => setGroupCount(v || 1)}
+                            />
+                          </div>
+                        </Col>
+                      </Row>
+
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>控制条件 *</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={controlCondition || undefined}
+                              onChange={(value) => setControlCondition(value)}
+                            >
+                              {currentVideoRepaintingModelInfo?.supported_control_conditions?.map((value) => (
+                                <Option key={value} value={value}>{value}</Option>
+                              ))}
+                            </Select>
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>控制强度</div>
+                            <InputNumber
+                              style={{ width: '100%' }}
+                              min={currentVideoRepaintingModelInfo?.strength_range?.[0] ?? 0}
+                              max={currentVideoRepaintingModelInfo?.strength_range?.[1] ?? 1}
+                              step={0.05}
+                              value={strength}
+                              onChange={(value) => setStrength(Number(value ?? 1))}
+                            />
+                          </div>
+                        </Col>
+                      </Row>
+
+                      <Row gutter={16}>
+                        <Col span={8}>
+                          <div style={{ marginBottom: 16 }}>
+                            <Space>
+                              <Switch checked={promptExtend} onChange={setPromptExtend} />
+                              <span>智能改写</span>
+                            </Space>
+                          </div>
+                        </Col>
+                        <Col span={8}>
+                          <div style={{ marginBottom: 16 }}>
+                            <Space>
+                              <Switch checked={watermark} onChange={setWatermark} />
+                              <span>添加水印</span>
+                            </Space>
+                          </div>
+                        </Col>
+                        <Col span={8}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>随机种子</div>
+                            <InputNumber
+                              style={{ width: '100%' }}
+                              min={0}
+                              max={2147483647}
+                              value={seed}
+                              onChange={(value) => setSeed(value || undefined)}
+                              placeholder="留空随机"
+                            />
+                          </div>
+                        </Col>
+                      </Row>
+                    </>
+                  )}
+
+                  {taskType === 'video_edit' && (
+                    <>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>模型</div>
+                            <Select style={{ width: '100%' }} value={VACE_MODEL_ID} disabled>
+                              <Option value={VACE_MODEL_ID}>
+                                {currentVideoEditModelInfo?.name || `局部编辑 ${VACE_MODEL_ID}`}
+                              </Option>
+                            </Select>
+                            <div style={{ fontSize: 12, color: token.colorTextSecondary, marginTop: 4 }}>
+                              {currentVideoEditModelInfo?.description}
+                            </div>
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>输出分辨率</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={size}
+                              onChange={setSize}
+                            >
+                              {currentVideoEditModelInfo?.sizes?.map((item) => (
+                                <Option key={item.value} value={item.value}>{item.label}</Option>
+                              ))}
+                            </Select>
+                          </div>
+                        </Col>
+                      </Row>
+
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>控制条件</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={controlCondition || '__none__'}
+                              onChange={(value) => setControlCondition(value === '__none__' ? '' : value)}
+                            >
+                              <Option value="__none__">不提取</Option>
+                              {currentVideoEditModelInfo?.supported_control_conditions?.map((value) => (
+                                <Option key={value} value={value}>{value}</Option>
+                              ))}
+                            </Select>
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>生成组数</div>
+                            <InputNumber
+                              style={{ width: '100%' }}
+                              min={1}
+                              max={5}
+                              value={groupCount}
+                              onChange={(v) => setGroupCount(v || 1)}
+                            />
+                          </div>
+                        </Col>
+                      </Row>
+
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>Mask 模式</div>
+                            <Select
+                              style={{ width: '100%' }}
+                              value={maskType}
+                              onChange={(value) => setMaskType(value)}
+                            >
+                              <Option value="tracking">tracking</Option>
+                              <Option value="fixed">fixed</Option>
+                            </Select>
+                          </div>
+                        </Col>
+                        {maskType === 'tracking' && (
+                          <Col span={12}>
+                            <div style={{ marginBottom: 16 }}>
+                              <div style={{ marginBottom: 8 }}>扩展比例</div>
+                              <InputNumber
+                                style={{ width: '100%' }}
+                                min={currentVideoEditModelInfo?.expand_ratio_range?.[0] ?? 0}
+                                max={currentVideoEditModelInfo?.expand_ratio_range?.[1] ?? 1}
+                                step={0.01}
+                                value={expandRatio}
+                                onChange={(value) => setExpandRatio(Number(value ?? 0.05))}
+                              />
+                            </div>
+                          </Col>
+                        )}
+                      </Row>
+
+                      {maskType === 'tracking' && (
+                        <Row gutter={16}>
+                          <Col span={12}>
+                            <div style={{ marginBottom: 16 }}>
+                              <div style={{ marginBottom: 8 }}>包裹模式</div>
+                              <Select
+                                style={{ width: '100%' }}
+                                value={expandMode}
+                                onChange={setExpandMode}
+                              >
+                                {currentVideoEditModelInfo?.supported_expand_modes?.map((value) => (
+                                  <Option key={value} value={value}>{value}</Option>
+                                ))}
+                              </Select>
+                            </div>
+                          </Col>
+                        </Row>
+                      )}
+
+                      <Row gutter={16}>
+                        <Col span={8}>
+                          <div style={{ marginBottom: 16 }}>
+                            <Space>
+                              <Switch checked={promptExtend} onChange={setPromptExtend} />
+                              <span>智能改写</span>
+                            </Space>
+                          </div>
+                        </Col>
+                        <Col span={8}>
+                          <div style={{ marginBottom: 16 }}>
+                            <Space>
+                              <Switch checked={watermark} onChange={setWatermark} />
+                              <span>添加水印</span>
+                            </Space>
+                          </div>
+                        </Col>
+                        <Col span={8}>
+                          <div style={{ marginBottom: 16 }}>
+                            <div style={{ marginBottom: 8 }}>随机种子</div>
+                            <InputNumber
+                              style={{ width: '100%' }}
+                              min={0}
+                              max={2147483647}
+                              value={seed}
+                              onChange={(value) => setSeed(value || undefined)}
+                              placeholder="留空随机"
+                            />
+                          </div>
+                        </Col>
+                      </Row>
+                    </>
+                  )}
+
+                  {/* 首尾帧生视频参数 */}
                   {taskType === 'keyframe_to_video' && (
                     <>
                       <Row gutter={16}>
@@ -1971,12 +2679,59 @@ const VideoStudioPage = () => {
           <div>
             <div style={{ marginBottom: 16 }}>
               <Space>
+                {getTaskTypeTag(selectedTask.task_type)}
                 {getStatusTag(selectedTask.status)}
                 <span style={{ color: token.colorTextSecondary }}>
-                  {selectedTask.model} · {selectedTask.resolution} · {selectedTask.duration}秒
+                  {selectedTask.model}
+                  {selectedTask.task_type === 'video_edit'
+                    ? ` · ${selectedTask.size || '1280*720'}`
+                    : selectedTask.task_type === 'reference_to_video' || selectedTask.task_type === 'text_to_video'
+                      ? ` · ${selectedTask.size || '1920*1080'}`
+                      : selectedTask.task_type === 'video_repainting'
+                        ? ''
+                        : ` · ${selectedTask.resolution}`}
+                  {' · '}
+                  {selectedTask.duration}秒
                 </span>
               </Space>
             </div>
+
+            {(selectedTask.source_video_url || selectedTask.reference_image_url || selectedTask.mask_image_url) && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontWeight: 500, marginBottom: 8 }}>输入素材</div>
+                <Row gutter={16}>
+                  {selectedTask.source_video_url && (
+                    <Col span={12}>
+                      <Card size="small" title="源视频">
+                        <video controls style={{ width: '100%' }} src={selectedTask.source_video_url} />
+                      </Card>
+                    </Col>
+                  )}
+                  {selectedTask.reference_image_url && (
+                    <Col span={12}>
+                      <Card size="small" title="参考图">
+                        <img
+                          src={selectedTask.reference_image_url}
+                          alt="参考图"
+                          style={{ width: '100%', borderRadius: 8, objectFit: 'cover' }}
+                        />
+                      </Card>
+                    </Col>
+                  )}
+                  {selectedTask.mask_image_url && (
+                    <Col span={12}>
+                      <Card size="small" title="Mask">
+                        <img
+                          src={selectedTask.mask_image_url}
+                          alt="Mask"
+                          style={{ width: '100%', borderRadius: 8, objectFit: 'contain', background: token.colorBgLayout }}
+                        />
+                      </Card>
+                    </Col>
+                  )}
+                </Row>
+              </div>
+            )}
             
             {selectedTask.status === 'processing' && (
               <div style={{ textAlign: 'center', padding: 40 }}>
@@ -2107,6 +2862,10 @@ const VideoStudioPage = () => {
             ? !editFirstFrameUrl 
             : editTaskType === 'reference_to_video'
               ? editReferenceItems.length === 0  // 至少需要一个参考素材
+              : editTaskType === 'video_repainting'
+                ? !editSourceVideoUrl || !editControlCondition
+                : editTaskType === 'video_edit'
+                  ? !editSourceVideoUrl || !editMaskImageUrl
               : editTaskType === 'keyframe_to_video'
                 ? !editFirstFrameUrl || !editLastFrameUrl
                 : false  // text_to_video 只需要提示词，在 handleSaveEdit 中验证
@@ -2128,11 +2887,15 @@ const VideoStudioPage = () => {
                     <Tag color={
                       editTaskType === 'image_to_video' ? 'blue' : 
                       editTaskType === 'reference_to_video' ? 'green' : 
+                      editTaskType === 'video_repainting' ? 'cyan' :
+                      editTaskType === 'video_edit' ? 'magenta' :
                       editTaskType === 'keyframe_to_video' ? 'orange' : 
                       'purple'
                     }>
                       {editTaskType === 'image_to_video' ? '图生视频' : 
                        editTaskType === 'reference_to_video' ? '参考生视频' : 
+                       editTaskType === 'video_repainting' ? '视频重绘' :
+                       editTaskType === 'video_edit' ? '局部编辑' :
                        editTaskType === 'keyframe_to_video' ? '首尾帧生视频' :
                        '文生视频'}
                     </Tag>
@@ -2467,6 +3230,59 @@ const VideoStudioPage = () => {
                       </div>
                     </>
                   )}
+
+                  {(editTaskType === 'video_repainting' || editTaskType === 'video_edit') && (
+                    <>
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ marginBottom: 8 }}>源视频</div>
+                        <Input value={editSourceVideoUrl} disabled />
+                        {editSourceVideoPreviewUrl && (
+                          <div style={{ marginTop: 8 }}>
+                            <img
+                              src={editSourceVideoPreviewUrl}
+                              alt="源视频首帧"
+                              style={{ maxWidth: 220, maxHeight: 140, borderRadius: 8 }}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ marginBottom: 8 }}>参考图</div>
+                        <Select
+                          style={{ width: '100%' }}
+                          value={editReferenceImageUrl || undefined}
+                          onChange={(url) => setEditReferenceImageUrl(url || '')}
+                          placeholder="从图库选择参考图（可选）"
+                          allowClear
+                          optionLabelProp="label"
+                        >
+                          {galleryImages.map(img => (
+                            <Option key={img.id} value={img.url} label={img.name}>
+                              <Space>
+                                <img src={img.url} alt="" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4 }} />
+                                {img.name}
+                              </Space>
+                            </Option>
+                          ))}
+                        </Select>
+                      </div>
+
+                      {editTaskType === 'video_edit' && editMaskImageUrl && (
+                        <div style={{ marginBottom: 16 }}>
+                          <div style={{ marginBottom: 8 }}>当前 Mask</div>
+                          <img
+                            src={editMaskImageUrl}
+                            alt="当前Mask"
+                            style={{ maxWidth: 220, maxHeight: 140, borderRadius: 8, background: token.colorBgLayout }}
+                          />
+                          <div style={{ marginTop: 6, fontSize: 12, color: token.colorTextSecondary }}>
+                            当前编辑弹窗支持复用已有Mask；如需重新绘制，请新建任务。
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                   
                   {!(editTaskType === 'image_to_video' && (getEditModelInfo() as VideoModelInfo)?.supports_prompt === false) && (
                   <>
@@ -2474,9 +3290,11 @@ const VideoStudioPage = () => {
                     <TextArea rows={3} placeholder="描述想要生成的视频内容" />
                   </Form.Item>
                   
-                  <Form.Item name="negative_prompt" label="负向提示词">
-                    <TextArea rows={2} placeholder="不希望出现的内容" />
-                  </Form.Item>
+                  {(editTaskType === 'image_to_video' || editTaskType === 'reference_to_video' || editTaskType === 'text_to_video' || editTaskType === 'keyframe_to_video') && (
+                    <Form.Item name="negative_prompt" label="负向提示词">
+                      <TextArea rows={2} placeholder="不希望出现的内容" />
+                    </Form.Item>
+                  )}
                   </>
                   )}
                 </Form>
@@ -2528,6 +3346,10 @@ const VideoStudioPage = () => {
                               <Option key={key} value={key}>{info.name}</Option>
                             ))}
                           </Select>
+                        ) : editTaskType === 'video_repainting' || editTaskType === 'video_edit' ? (
+                          <Select disabled value={VACE_MODEL_ID}>
+                            <Option value={VACE_MODEL_ID}>{VACE_MODEL_ID}</Option>
+                          </Select>
                         ) : (
                           <Select
                             onChange={(v) => {
@@ -2552,7 +3374,7 @@ const VideoStudioPage = () => {
                       {editTaskType === 'image_to_video' ? (
                         <Form.Item name="resolution" label="分辨率">
                           <Select>
-                            {(getEditModelInfo()?.resolutions || [
+                            {(((getEditModelInfo() as VideoModelInfo | undefined)?.resolutions) || [
                               { value: '480P', label: '480P (标清)' },
                               { value: '720P', label: '720P (高清)' },
                               { value: '1080P', label: '1080P (全高清)' }
@@ -2575,6 +3397,18 @@ const VideoStudioPage = () => {
                               ))}
                             </Select.OptGroup>
                           </Select>
+                        </Form.Item>
+                      ) : editTaskType === 'video_edit' ? (
+                        <Form.Item name="size" label="分辨率">
+                          <Select>
+                            {(getEditModelInfo() as VaceVideoEditModelInfo | undefined)?.sizes?.map((item) => (
+                              <Option key={item.value} value={item.value}>{item.label}</Option>
+                            ))}
+                          </Select>
+                        </Form.Item>
+                      ) : editTaskType === 'video_repainting' ? (
+                        <Form.Item label="输出规则">
+                          <Input value="跟随源视频，超720P自动等比缩放" disabled />
                         </Form.Item>
                       ) : (
                         <Form.Item name="size" label="分辨率">
@@ -2606,7 +3440,7 @@ const VideoStudioPage = () => {
                     </Col>
                   </Row>
                   
-                  {(getEditModelInfo() as VideoModelInfo)?.supports_duration !== false && (
+                  {editTaskType !== 'video_repainting' && editTaskType !== 'video_edit' && (getEditModelInfo() as VideoModelInfo)?.supports_duration !== false && (
                   <Row gutter={16}>
                     <Col span={12}>
                       <Form.Item name="duration" label="视频时长">
@@ -2646,6 +3480,123 @@ const VideoStudioPage = () => {
                       </div>
                     </Col>
                   </Row>
+                  )}
+
+                  {editTaskType === 'video_repainting' && (
+                    <>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 24 }}>
+                            <div style={{ marginBottom: 8 }}>生成组数</div>
+                            <InputNumber
+                              style={{ width: '100%' }}
+                              min={1}
+                              max={5}
+                              value={editGroupCount}
+                              onChange={(v) => setEditGroupCount(v || 1)}
+                            />
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 24 }}>
+                            <div style={{ marginBottom: 8 }}>控制条件</div>
+                            <Select value={editControlCondition} onChange={setEditControlCondition}>
+                              {currentVideoRepaintingModelInfo?.supported_control_conditions?.map((value) => (
+                                <Option key={value} value={value}>{value}</Option>
+                              ))}
+                            </Select>
+                          </div>
+                        </Col>
+                      </Row>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 24 }}>
+                            <div style={{ marginBottom: 8 }}>控制强度</div>
+                            <InputNumber
+                              style={{ width: '100%' }}
+                              min={0}
+                              max={1}
+                              step={0.05}
+                              value={editStrength}
+                              onChange={(v) => setEditStrength(Number(v ?? 1))}
+                            />
+                          </div>
+                        </Col>
+                      </Row>
+                    </>
+                  )}
+
+                  {editTaskType === 'video_edit' && (
+                    <>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 24 }}>
+                            <div style={{ marginBottom: 8 }}>生成组数</div>
+                            <InputNumber
+                              style={{ width: '100%' }}
+                              min={1}
+                              max={5}
+                              value={editGroupCount}
+                              onChange={(v) => setEditGroupCount(v || 1)}
+                            />
+                          </div>
+                        </Col>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 24 }}>
+                            <div style={{ marginBottom: 8 }}>控制条件</div>
+                            <Select
+                              value={editControlCondition || '__none__'}
+                              onChange={(value) => setEditControlCondition(value === '__none__' ? '' : value)}
+                            >
+                              <Option value="__none__">不提取</Option>
+                              {currentVideoEditModelInfo?.supported_control_conditions?.map((value) => (
+                                <Option key={value} value={value}>{value}</Option>
+                              ))}
+                            </Select>
+                          </div>
+                        </Col>
+                      </Row>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <div style={{ marginBottom: 24 }}>
+                            <div style={{ marginBottom: 8 }}>Mask 模式</div>
+                            <Select value={editMaskType} onChange={setEditMaskType}>
+                              <Option value="tracking">tracking</Option>
+                              <Option value="fixed">fixed</Option>
+                            </Select>
+                          </div>
+                        </Col>
+                        {editMaskType === 'tracking' && (
+                          <Col span={12}>
+                            <div style={{ marginBottom: 24 }}>
+                              <div style={{ marginBottom: 8 }}>扩展比例</div>
+                              <InputNumber
+                                style={{ width: '100%' }}
+                                min={0}
+                                max={1}
+                                step={0.01}
+                                value={editExpandRatio}
+                                onChange={(v) => setEditExpandRatio(Number(v ?? 0.05))}
+                              />
+                            </div>
+                          </Col>
+                        )}
+                      </Row>
+                      {editMaskType === 'tracking' && (
+                        <Row gutter={16}>
+                          <Col span={12}>
+                            <div style={{ marginBottom: 24 }}>
+                              <div style={{ marginBottom: 8 }}>包裹模式</div>
+                              <Select value={editExpandMode} onChange={setEditExpandMode}>
+                                {currentVideoEditModelInfo?.supported_expand_modes?.map((value) => (
+                                  <Option key={value} value={value}>{value}</Option>
+                                ))}
+                              </Select>
+                            </div>
+                          </Col>
+                        </Row>
+                      )}
+                    </>
                   )}
 
                   {(getEditModelInfo() as VideoModelInfo)?.requires_audio && (
@@ -2694,7 +3645,7 @@ const VideoStudioPage = () => {
                             </Select>
                           </Form.Item>
                         </div>
-                      ) : (
+                      ) : editTaskType === 'text_to_video' ? (
                         <div style={{ marginBottom: 24 }}>
                           <div style={{ marginBottom: 8 }}>智能改写</div>
                           <Space>
@@ -2705,6 +3656,10 @@ const VideoStudioPage = () => {
                             <span style={{ color: token.colorTextSecondary, fontSize: 12 }}>使用大模型优化提示词</span>
                           </Space>
                         </div>
+                      ) : (
+                        <Form.Item name="prompt_extend" label="智能改写" valuePropName="checked">
+                          <Switch />
+                        </Form.Item>
                       )}
                     </Col>
                     <Col span={8}>
@@ -2720,7 +3675,7 @@ const VideoStudioPage = () => {
                   </Row>
                   )}
                   
-                  {(getEditModelInfo()?.supports_audio || editModel?.includes('wan2.5') || editModel?.includes('wan2.6')) && !(getEditModelInfo() as VideoModelInfo)?.requires_audio && (
+                  {editTaskType !== 'video_repainting' && editTaskType !== 'video_edit' && (getEditModelInfo()?.supports_audio || editModel?.includes('wan2.5') || editModel?.includes('wan2.6')) && !(getEditModelInfo() as VideoModelInfo)?.requires_audio && (
                     <div style={{ 
                       padding: 12, 
                       background: token.colorBgLayout, 
@@ -2769,7 +3724,7 @@ const VideoStudioPage = () => {
                   )}
                   
                   {/* 镜头类型 - 仅 wan2.6 支持 */}
-                  {(getEditModelInfo()?.supports_shot_type || editModel?.includes('wan2.6')) && (
+                  {editTaskType !== 'video_repainting' && editTaskType !== 'video_edit' && (((getEditModelInfo() as VideoModelInfo | RefVideoModelInfo | TextToVideoModelInfo | undefined)?.supports_shot_type) || editModel?.includes('wan2.6')) && (
                     <div style={{ 
                       padding: 12, 
                       background: token.colorBgLayout, 
@@ -2800,4 +3755,3 @@ const VideoStudioPage = () => {
 }
 
 export default VideoStudioPage
-

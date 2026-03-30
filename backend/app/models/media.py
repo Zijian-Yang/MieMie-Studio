@@ -59,11 +59,13 @@ class TextItem(BaseModel):
 class VideoStudioTask(BaseModel):
     """视频工作室任务
     
-    支持四种任务类型：
+    支持六种任务类型：
     1. 图生视频（image_to_video）：使用 first_frame_url
     2. 参考生视频（reference_to_video）：使用 reference_video_urls（支持视频+图片）
     3. 文生视频（text_to_video）：纯文本生成视频
     4. 首尾帧生视频（keyframe_to_video）：使用 first_frame_url 和 last_frame_url
+    5. 视频重绘（video_repainting）：使用 source_video_url，可选 reference_image_url
+    6. 局部编辑（video_edit）：使用 source_video_url + mask_image_url，可选 reference_image_url
     
     图生视频参数说明（根据官方文档）：
     - resolution: 分辨率档位，wan2.5/2.6 支持 480P/720P/1080P（默认1080P）
@@ -96,7 +98,7 @@ class VideoStudioTask(BaseModel):
     project_id: str
     name: str = ""  # 任务名称
     
-    # 任务类型: image_to_video(图生视频), reference_to_video(参考生视频), text_to_video(文生视频), keyframe_to_video(首尾帧生视频)
+    # 任务类型: image_to_video / reference_to_video / text_to_video / keyframe_to_video / video_repainting / video_edit
     task_type: str = "image_to_video"
     
     # 生成模式（图生视频使用）
@@ -108,6 +110,13 @@ class VideoStudioTask(BaseModel):
     
     # 输入参数 - 参考生视频
     reference_video_urls: List[str] = []  # 参考素材URL列表（视频+图片，总数≤5）
+
+    # 输入参数 - VACE 视频编辑
+    source_video_url: Optional[str] = None  # 源视频URL（从视频库选择）
+    source_video_preview_url: Optional[str] = None  # 源视频首帧预览图URL
+    reference_image_url: Optional[str] = None  # 单张参考图URL（从图库选择）
+    mask_image_url: Optional[str] = None  # 局部编辑mask图URL
+    mask_frame_id: Optional[int] = None  # mask对应帧ID，当前固定为1
     
     # 通用输入参数
     audio_url: Optional[str] = None  # 自定义音频URL
@@ -128,9 +137,16 @@ class VideoStudioTask(BaseModel):
     
     # 生成参数 - 参考生视频专用
     size: str = "1920*1080"  # 分辨率（宽*高格式）
-    
+
     # 生成参数 - 文生视频专用
     t2v_prompt_extend: bool = True  # 文生视频的智能改写，默认开启
+
+    # 生成参数 - VACE 专用
+    control_condition: Optional[str] = None  # 视频特征提取方式
+    strength: Optional[float] = None  # 视频重绘控制强度
+    mask_type: Optional[str] = None  # 局部编辑mask行为：tracking/fixed
+    expand_ratio: Optional[float] = None  # tracking时的向外扩展比例
+    expand_mode: Optional[str] = None  # tracking时的包裹模式：hull/bbox/original
     
     # 生成结果
     group_count: int = 1  # 生成组数
@@ -146,4 +162,3 @@ class VideoStudioTask(BaseModel):
     
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
-

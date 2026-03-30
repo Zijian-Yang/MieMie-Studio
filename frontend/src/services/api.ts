@@ -264,6 +264,61 @@ export interface RefVideoModelInfo {
   reference_video_max_size: string  // 单个视频最大大小
 }
 
+export interface VaceVideoRepaintingModelInfo {
+  name: string
+  description?: string
+  prompt_max_length: number
+  supports_prompt_extend: boolean
+  supports_watermark: boolean
+  supports_seed: boolean
+  supported_control_conditions: string[]
+  default_control_condition: string
+  strength_range: [number, number]
+  default_strength: number
+  max_reference_images: number
+  supported_image_formats: string[]
+  image_min_dimension: number
+  image_max_dimension: number
+  image_max_size_mb: number
+  supported_video_formats: string[]
+  video_min_fps: number
+  video_max_size_mb: number
+  video_max_duration_sec: number
+  output_max_pixels: number
+  supports_audio: boolean
+}
+
+export interface VaceVideoEditModelInfo {
+  name: string
+  description?: string
+  prompt_max_length: number
+  supports_prompt_extend: boolean
+  supports_watermark: boolean
+  supports_seed: boolean
+  supported_control_conditions: string[]
+  supported_mask_types: string[]
+  default_mask_type: string
+  expand_ratio_range: [number, number]
+  default_expand_ratio: number
+  supported_expand_modes: string[]
+  default_expand_mode: string
+  sizes: VideoResolutionOption[]
+  default_size: string
+  mask_frame_id_min: number
+  max_reference_images: number
+  supported_image_formats: string[]
+  image_min_dimension: number
+  image_max_dimension: number
+  image_max_size_mb: number
+  mask_max_size_mb: number
+  supported_video_formats: string[]
+  video_min_fps: number
+  video_max_size_mb: number
+  video_max_duration_sec: number
+  output_max_pixels: number
+  supports_audio: boolean
+}
+
 // OSS 配置
 export interface OSSConfig {
   enabled: boolean
@@ -304,6 +359,8 @@ export interface ConfigResponse {
   available_text_to_video_models: Record<string, TextToVideoModelInfo>  // 文生视频模型
   available_ref_video_models: Record<string, RefVideoModelInfo>  // 参考生视频模型
   available_keyframe_to_video_models: Record<string, KeyframeToVideoModelInfo>  // 首尾帧生视频模型
+  available_video_repainting_models: Record<string, VaceVideoRepaintingModelInfo>  // 视频重绘模型
+  available_video_edit_models: Record<string, VaceVideoEditModelInfo>  // 局部编辑模型
 }
 
 export interface ConfigUpdateRequest {
@@ -1367,13 +1424,21 @@ export const textLibraryApi = {
 }
 
 // ============ 视频工作室 API ============
+export type VideoStudioTaskType =
+  | 'image_to_video'
+  | 'reference_to_video'
+  | 'text_to_video'
+  | 'keyframe_to_video'
+  | 'video_repainting'
+  | 'video_edit'
+
 export interface VideoStudioTask {
   id: string
   project_id: string
   name: string
   
-  // 任务类型: image_to_video(图生视频), reference_to_video(参考生视频), text_to_video(文生视频), keyframe_to_video(首尾帧生视频)
-  task_type: 'image_to_video' | 'reference_to_video' | 'text_to_video' | 'keyframe_to_video'
+  // 任务类型: image_to_video / reference_to_video / text_to_video / keyframe_to_video / video_repainting / video_edit
+  task_type: VideoStudioTaskType
   
   // 图生视频参数
   mode: 'first_frame' | 'first_last_frame'
@@ -1383,6 +1448,13 @@ export interface VideoStudioTask {
   
   // 参考生视频参数（支持视频和图片，总数≤5）
   reference_video_urls?: string[]  // 参考素材URL列表（视频+图片）
+
+  // VACE 视频编辑参数
+  source_video_url?: string
+  source_video_preview_url?: string
+  reference_image_url?: string
+  mask_image_url?: string
+  mask_frame_id?: number
   
   // 通用参数
   prompt: string
@@ -1404,6 +1476,13 @@ export interface VideoStudioTask {
   
   // 文生视频专用
   t2v_prompt_extend?: boolean  // 文生视频智能改写
+
+  // VACE 专用
+  control_condition?: string
+  strength?: number | null
+  mask_type?: string
+  expand_ratio?: number | null
+  expand_mode?: string
   
   group_count: number
   video_urls: string[]
@@ -1421,16 +1500,44 @@ export const videoStudioApi = {
   list: (projectId: string) => api.get<any, { tasks: VideoStudioTask[] }>('/video-studio', { params: { project_id: projectId } }),
   get: (id: string) => api.get<any, VideoStudioTask>(`/video-studio/${id}`),
   getStatus: (id: string) => api.get<any, { task: VideoStudioTask }>(`/video-studio/${id}/status`),
+  prepareSourceVideo: (data: { project_id: string; video_url: string }) =>
+    api.post<any, {
+      preview_image_data_url: string
+      preview_image_url?: string | null
+      metadata: {
+        width: number
+        height: number
+        fps: number
+        duration: number
+        frame_count: number
+        file_size: number
+        format: string
+        warnings: string[]
+      }
+      warnings: string[]
+    }>('/video-studio/prepare-source-video', data),
+  uploadMask: (formData: FormData) =>
+    api.post<any, { mask_image_url: string; width: number; height: number }>(
+      '/video-studio/upload-mask',
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    ),
   create: (data: {
     project_id: string
     name?: string
-    task_type?: 'image_to_video' | 'reference_to_video' | 'text_to_video' | 'keyframe_to_video'
+    task_type?: VideoStudioTaskType
     mode?: string
     first_frame_url?: string  // 图生视频需要
     last_frame_url?: string
     audio_url?: string  // 自定义音频URL（图生视频/文生视频支持）
     // 参考生视频参数
     reference_video_urls?: string[]  // 参考生视频的参考素材（视频+图片）
+    // VACE 参数
+    source_video_url?: string
+    source_video_preview_url?: string
+    reference_image_url?: string
+    mask_image_url?: string
+    mask_frame_id?: number
     // 通用参数
     prompt?: string
     negative_prompt?: string
@@ -1448,12 +1555,18 @@ export const videoStudioApi = {
     r2v_prompt_extend?: boolean  // 参考生视频提示词改写（已废弃）
     // 文生视频专用
     t2v_prompt_extend?: boolean  // 文生视频智能改写
+    // VACE 专用
+    control_condition?: string
+    strength?: number
+    mask_type?: string
+    expand_ratio?: number
+    expand_mode?: string
     group_count?: number
   }) => api.post<any, { task: VideoStudioTask }>('/video-studio', data),
   update: (id: string, data: { 
     name?: string
     selected_video_url?: string
-    task_type?: 'image_to_video' | 'reference_to_video' | 'text_to_video' | 'keyframe_to_video'
+    task_type?: VideoStudioTaskType
     prompt?: string
     negative_prompt?: string
     model?: string
@@ -1471,6 +1584,16 @@ export const videoStudioApi = {
     r2v_prompt_extend?: boolean  // 参考生视频提示词改写（已废弃）
     t2v_prompt_extend?: boolean  // 文生视频智能改写
     group_count?: number
+    source_video_url?: string
+    source_video_preview_url?: string
+    reference_image_url?: string
+    mask_image_url?: string
+    mask_frame_id?: number
+    control_condition?: string
+    strength?: number
+    mask_type?: string
+    expand_ratio?: number
+    expand_mode?: string
   }) => 
     api.put<any, VideoStudioTask>(`/video-studio/${id}`, data),
   regenerate: (id: string) => 
