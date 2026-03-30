@@ -553,6 +553,26 @@ get_display_host() {
     fi
 }
 
+get_default_gunicorn_workers() {
+    local cpu_count=""
+
+    if command -v nproc &> /dev/null; then
+        cpu_count=$(nproc)
+    elif command -v sysctl &> /dev/null; then
+        cpu_count=$(sysctl -n hw.ncpu 2>/dev/null || true)
+    fi
+
+    if ! [[ "$cpu_count" =~ ^[0-9]+$ ]] || [ "$cpu_count" -le 0 ]; then
+        cpu_count=1
+    fi
+
+    if [ "$cpu_count" -ge 2 ]; then
+        echo 2
+    else
+        echo 1
+    fi
+}
+
 # 初始加载配置
 load_config
 
@@ -649,17 +669,22 @@ start_backend() {
     
     log_info "启动后端服务 (模式: $RUN_MODE)..."
     if [ "$RUN_MODE" = "prod" ]; then
+        local worker_count
+        worker_count="${MIEMIE_WORKERS:-$(get_default_gunicorn_workers)}"
+
         if ! backend_prod_deps_installed; then
             log_info "检测到生产模式依赖缺失，正在安装 gunicorn / slowapi ..."
             "$VENV_DIR/bin/pip" install -r "$PROJECT_DIR/requirements.txt" -q
         fi
+        log_info "生产模式 Gunicorn workers: $worker_count"
         screen -dmS "$BACKEND_SESSION" bash -c "
             cd '$BACKEND_DIR'
             source '$VENV_DIR/bin/activate'
             export MIEMIE_SERVE_FRONTEND=true
             export MIEMIE_FRONTEND_PORT=$FRONTEND_PORT
+            export MIEMIE_WORKERS=$worker_count
             gunicorn app.main:app \
-                -w \${MIEMIE_WORKERS:-4} \
+                -w \$MIEMIE_WORKERS \
                 -k uvicorn.workers.UvicornWorker \
                 --bind $LISTEN_HOST:$BACKEND_PORT \
                 --timeout 300 \
@@ -695,9 +720,11 @@ build_frontend() {
     fi
 
     log_info "构建前端生产版本..."
+    log_info "提示：Vite 构建在 'transforming...' 后可能静默几十秒到几分钟，低配服务器上属于正常现象"
     mkdir -p "$LOG_DIR"
     > "$FRONTEND_LOG"
     cd "$FRONTEND_DIR"
+    export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=4096}"
     set +e
     npm run build 2>&1 | tee -a "$FRONTEND_LOG"
     local build_exit=${PIPESTATUS[0]}
@@ -769,8 +796,16 @@ start_all() {
     check_lsof
     log_info "启动 MieMie-Studio (模式: $RUN_MODE)..."
     echo ""
-    start_backend || return 1
-    start_frontend || return 1
+    if [ "$RUN_MODE" = "prod" ]; then
+        build_frontend || return 1
+        start_backend || return 1
+        local display_host
+        display_host=$(get_display_host)
+        log_success "前端已构建，由后端统一服务 (http://${display_host}:$BACKEND_PORT)"
+    else
+        start_backend || return 1
+        start_frontend || return 1
+    fi
     echo ""
     log_success "MieMie-Studio 启动完成!"
     echo ""
