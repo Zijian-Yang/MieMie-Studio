@@ -8,7 +8,7 @@
 #
 # 命令行模式:
 #   start [--prod]  stop  restart [--prod]  status  logs  install  test
-#   update [--auto]  auto-update [enable|disable|status]  rollback
+#   update [--auto]  auto-update [enable|disable|status]  rollback  optimize
 #   network [on|off|status]  port [backend|frontend] <端口>  version  help
 #
 
@@ -488,6 +488,7 @@ install_frontend_deps() {
 }
 
 install_all_deps() {
+    maybe_offer_performance_profile "install" "false"
     install_backend_deps
     install_frontend_deps
     log_success "所有依赖安装完成"
@@ -504,15 +505,30 @@ MIEMIE_CONF="$PROJECT_DIR/.miemie.conf"
 # 默认仅本地访问
 LISTEN_HOST="127.0.0.1"
 ALLOWED_DOMAINS=""
+ENV_MIEMIE_WORKERS="${MIEMIE_WORKERS:-}"
+ENV_NODE_BUILD_MEMORY_MB="${NODE_BUILD_MEMORY_MB:-}"
+MIEMIE_WORKERS="$ENV_MIEMIE_WORKERS"
+NODE_BUILD_MEMORY_MB="$ENV_NODE_BUILD_MEMORY_MB"
+PERF_PROFILE_APPLIED="false"
+PERF_PROFILE_SIGNATURE=""
+SWAPFILE_PATH="/swapfile.miemie"
 
 # 从配置文件加载持久化设置
 load_config() {
+    local env_backend_port="${MIEMIE_BACKEND_PORT:-}"
+    local env_frontend_port="${MIEMIE_FRONTEND_PORT:-}"
+    local env_workers="$ENV_MIEMIE_WORKERS"
+    local env_node_build_memory_mb="$ENV_NODE_BUILD_MEMORY_MB"
+
     if [ -f "$MIEMIE_CONF" ]; then
         source "$MIEMIE_CONF"
     fi
+
     # 环境变量优先级最高
-    BACKEND_PORT="${MIEMIE_BACKEND_PORT:-$BACKEND_PORT}"
-    FRONTEND_PORT="${MIEMIE_FRONTEND_PORT:-$FRONTEND_PORT}"
+    BACKEND_PORT="${env_backend_port:-$BACKEND_PORT}"
+    FRONTEND_PORT="${env_frontend_port:-$FRONTEND_PORT}"
+    MIEMIE_WORKERS="${env_workers:-$MIEMIE_WORKERS}"
+    NODE_BUILD_MEMORY_MB="${env_node_build_memory_mb:-$NODE_BUILD_MEMORY_MB}"
 }
 
 # 保存设置到配置文件
@@ -523,6 +539,11 @@ LISTEN_HOST="$LISTEN_HOST"
 ALLOWED_DOMAINS="$ALLOWED_DOMAINS"
 BACKEND_PORT="$BACKEND_PORT"
 FRONTEND_PORT="$FRONTEND_PORT"
+MIEMIE_WORKERS="$MIEMIE_WORKERS"
+NODE_BUILD_MEMORY_MB="$NODE_BUILD_MEMORY_MB"
+PERF_PROFILE_APPLIED="$PERF_PROFILE_APPLIED"
+PERF_PROFILE_SIGNATURE="$PERF_PROFILE_SIGNATURE"
+SWAPFILE_PATH="$SWAPFILE_PATH"
 EOF
 }
 
@@ -571,6 +592,352 @@ get_default_gunicorn_workers() {
     else
         echo 1
     fi
+}
+
+is_interactive_shell() {
+    [ -t 0 ] && [ -t 1 ]
+}
+
+get_os_name() {
+    if [ -f /etc/os-release ]; then
+        # shellcheck disable=SC1091
+        source /etc/os-release
+        if [ -n "${PRETTY_NAME:-}" ]; then
+            echo "$PRETTY_NAME"
+            return 0
+        fi
+        if [ -n "${NAME:-}" ]; then
+            echo "${NAME}${VERSION_ID:+ $VERSION_ID}"
+            return 0
+        fi
+    fi
+    uname -s 2>/dev/null || echo "Unknown"
+}
+
+get_kernel_info() {
+    uname -sr 2>/dev/null || uname -a 2>/dev/null || echo "Unknown"
+}
+
+get_cpu_cores() {
+    local cpu_count=""
+    if command -v nproc &> /dev/null; then
+        cpu_count=$(nproc)
+    elif command -v sysctl &> /dev/null; then
+        cpu_count=$(sysctl -n hw.ncpu 2>/dev/null || true)
+    fi
+
+    if ! [[ "$cpu_count" =~ ^[0-9]+$ ]] || [ "$cpu_count" -le 0 ]; then
+        cpu_count=1
+    fi
+
+    echo "$cpu_count"
+}
+
+get_total_memory_mb() {
+    local mem_mb=""
+    if [ -r /proc/meminfo ]; then
+        mem_mb=$(awk '/MemTotal:/ {print int($2/1024)}' /proc/meminfo)
+    elif command -v sysctl &> /dev/null; then
+        local mem_bytes
+        mem_bytes=$(sysctl -n hw.memsize 2>/dev/null || true)
+        if [[ "$mem_bytes" =~ ^[0-9]+$ ]] && [ "$mem_bytes" -gt 0 ]; then
+            mem_mb=$((mem_bytes / 1024 / 1024))
+        fi
+    fi
+
+    if ! [[ "$mem_mb" =~ ^[0-9]+$ ]] || [ "$mem_mb" -le 0 ]; then
+        mem_mb=1024
+    fi
+
+    echo "$mem_mb"
+}
+
+get_total_swap_mb() {
+    local swap_mb=0
+
+    if [ -r /proc/swaps ]; then
+        swap_mb=$(awk 'NR>1 {sum += $3} END {print int(sum/1024)}' /proc/swaps)
+    elif command -v sysctl &> /dev/null; then
+        local swap_bytes
+        swap_bytes=$(sysctl -n vm.swapusage 2>/dev/null | awk -F'[ =M]' '/total/ {print int($7)}' || true)
+        if [[ "$swap_bytes" =~ ^[0-9]+$ ]] && [ "$swap_bytes" -gt 0 ]; then
+            swap_mb=$swap_bytes
+        fi
+    fi
+
+    if ! [[ "$swap_mb" =~ ^[0-9]+$ ]] || [ "$swap_mb" -lt 0 ]; then
+        swap_mb=0
+    fi
+
+    echo "$swap_mb"
+}
+
+format_mb() {
+    local value_mb="${1:-0}"
+    if ! [[ "$value_mb" =~ ^[0-9]+$ ]]; then
+        value_mb=0
+    fi
+
+    if [ "$value_mb" -ge 1024 ]; then
+        awk -v mb="$value_mb" 'BEGIN {printf "%.1fGB", mb / 1024}'
+    else
+        echo "${value_mb}MB"
+    fi
+}
+
+clamp_value() {
+    local value="$1"
+    local min_value="$2"
+    local max_value="$3"
+
+    if [ "$value" -lt "$min_value" ]; then
+        echo "$min_value"
+    elif [ "$value" -gt "$max_value" ]; then
+        echo "$max_value"
+    else
+        echo "$value"
+    fi
+}
+
+round_down_step() {
+    local value="$1"
+    local step="$2"
+
+    if [ "$value" -lt "$step" ]; then
+        echo "$value"
+    else
+        echo $(( (value / step) * step ))
+    fi
+}
+
+recommend_gunicorn_workers() {
+    local mem_mb="$1"
+    local cpu_cores="$2"
+    local max_by_mem=1
+
+    if [ "$mem_mb" -ge 12288 ]; then
+        max_by_mem=4
+    elif [ "$mem_mb" -ge 8192 ]; then
+        max_by_mem=3
+    elif [ "$mem_mb" -ge 4096 ]; then
+        max_by_mem=2
+    fi
+
+    if [ "$cpu_cores" -lt "$max_by_mem" ]; then
+        echo "$cpu_cores"
+    else
+        echo "$max_by_mem"
+    fi
+}
+
+recommend_node_build_memory_mb() {
+    local mem_mb="$1"
+    local target_mb=$(( mem_mb * 60 / 100 ))
+
+    target_mb=$(clamp_value "$target_mb" 768 4096)
+    target_mb=$(round_down_step "$target_mb" 256)
+
+    if [ "$target_mb" -lt 768 ]; then
+        target_mb=768
+    fi
+
+    echo "$target_mb"
+}
+
+recommend_swap_mb() {
+    local mem_mb="$1"
+    local swap_mb="$2"
+
+    if [ "$(uname -s)" != "Linux" ]; then
+        echo 0
+        return 0
+    fi
+
+    if [ "$mem_mb" -lt 4096 ] && [ "$swap_mb" -lt 2048 ]; then
+        echo 2048
+    else
+        echo 0
+    fi
+}
+
+build_perf_profile_signature() {
+    local kernel="$1"
+    local mem_mb="$2"
+    local cpu_cores="$3"
+    echo "${kernel}|${mem_mb}|${cpu_cores}"
+}
+
+append_line_if_missing() {
+    local file_path="$1"
+    local line="$2"
+
+    if grep -Fqx "$line" "$file_path" 2>/dev/null; then
+        return 0
+    fi
+
+    if [ "$(id -u)" -eq 0 ]; then
+        printf '%s\n' "$line" >> "$file_path"
+    else
+        printf '%s\n' "$line" | sudo tee -a "$file_path" >/dev/null
+    fi
+}
+
+show_server_profile_summary() {
+    local os_name="$1"
+    local kernel="$2"
+    local cpu_cores="$3"
+    local mem_mb="$4"
+    local swap_mb="$5"
+
+    echo ""
+    echo -e "  ${BOLD}服务器环境检测${NC}"
+    echo -e "  ${DIM}──────────────────────────────────────────────${NC}"
+    echo -e "  系统信息: ${BOLD}$os_name${NC}"
+    echo -e "  内核版本: ${BOLD}$kernel${NC}"
+    echo -e "  CPU 核数: ${BOLD}${cpu_cores}${NC}"
+    echo -e "  物理内存: ${BOLD}$(format_mb "$mem_mb")${NC}"
+    echo -e "  当前 Swap: ${BOLD}$(format_mb "$swap_mb")${NC}"
+}
+
+show_profile_apply_result() {
+    local expected_workers="$1"
+    local expected_node_build_memory_mb="$2"
+    local expected_swap_mb="$3"
+    local current_swap_mb
+    current_swap_mb=$(get_total_swap_mb)
+
+    echo ""
+    echo -e "  ${BOLD}应用结果校验${NC}"
+    echo -e "  ${DIM}──────────────────────────────────────────────${NC}"
+    echo -e "  Gunicorn workers: ${BOLD}${MIEMIE_WORKERS:-未设置}${NC}"
+    echo -e "  Node 构建内存: ${BOLD}${NODE_BUILD_MEMORY_MB:-未设置}MB${NC}"
+    echo -e "  当前 Swap: ${BOLD}$(format_mb "$current_swap_mb")${NC}"
+
+    if [ "$MIEMIE_WORKERS" = "$expected_workers" ] && [ "$NODE_BUILD_MEMORY_MB" = "$expected_node_build_memory_mb" ]; then
+        log_success "运行参数已写入配置并生效"
+    else
+        log_warn "检测到运行参数写入与预期不一致，请检查 $MIEMIE_CONF"
+    fi
+
+    if [ "$expected_swap_mb" -gt 0 ]; then
+        if [ "$current_swap_mb" -ge "$expected_swap_mb" ]; then
+            log_success "Swap 已达到推荐值"
+        else
+            log_warn "Swap 仍低于推荐值，可稍后再次进入维护菜单补充"
+        fi
+    fi
+}
+
+apply_swap_recommendation() {
+    local current_swap_mb="$1"
+    local recommended_swap_mb="$2"
+    local swap_delta_mb=$(( recommended_swap_mb - current_swap_mb ))
+
+    if [ "$(uname -s)" != "Linux" ] || [ "$recommended_swap_mb" -le 0 ] || [ "$swap_delta_mb" -le 0 ]; then
+        return 0
+    fi
+
+    if [ -z "$SWAPFILE_PATH" ]; then
+        SWAPFILE_PATH="/swapfile.miemie"
+    fi
+
+    if ! command -v mkswap &> /dev/null || ! command -v swapon &> /dev/null; then
+        log_error "当前系统缺少 mkswap 或 swapon，无法自动创建 Swap"
+        return 1
+    fi
+
+    if swapon --show=NAME --noheadings 2>/dev/null | grep -Fxq "$SWAPFILE_PATH"; then
+        log_warn "检测到 $SWAPFILE_PATH 已作为活动 Swap 使用，暂不自动调整大小"
+        return 1
+    fi
+
+    log_info "准备创建额外 Swap：$(format_mb "$swap_delta_mb") -> $SWAPFILE_PATH"
+
+    if [ -e "$SWAPFILE_PATH" ]; then
+        run_pkg_cmd rm -f "$SWAPFILE_PATH"
+    fi
+
+    if command -v fallocate &> /dev/null; then
+        run_pkg_cmd fallocate -l "${swap_delta_mb}M" "$SWAPFILE_PATH"
+    else
+        run_pkg_cmd dd if=/dev/zero of="$SWAPFILE_PATH" bs=1M count="$swap_delta_mb" status=progress
+    fi
+
+    run_pkg_cmd chmod 600 "$SWAPFILE_PATH"
+    run_pkg_cmd mkswap "$SWAPFILE_PATH"
+    run_pkg_cmd swapon "$SWAPFILE_PATH"
+    append_line_if_missing "/etc/fstab" "$SWAPFILE_PATH none swap sw 0 0"
+}
+
+maybe_offer_performance_profile() {
+    local context="${1:-manual}"
+    local force_prompt="${2:-false}"
+    local os_name kernel cpu_cores mem_mb swap_mb signature
+    local recommended_workers recommended_node_build_memory_mb recommended_swap_mb
+
+    if ! is_interactive_shell; then
+        return 0
+    fi
+
+    os_name=$(get_os_name)
+    kernel=$(get_kernel_info)
+    cpu_cores=$(get_cpu_cores)
+    mem_mb=$(get_total_memory_mb)
+    swap_mb=$(get_total_swap_mb)
+    signature=$(build_perf_profile_signature "$kernel" "$mem_mb" "$cpu_cores")
+
+    if [ "$force_prompt" != "true" ] && [ "$PERF_PROFILE_APPLIED" = "true" ] && [ "$PERF_PROFILE_SIGNATURE" = "$signature" ]; then
+        return 0
+    fi
+
+    recommended_workers=$(recommend_gunicorn_workers "$mem_mb" "$cpu_cores")
+    recommended_node_build_memory_mb=$(recommend_node_build_memory_mb "$mem_mb")
+    recommended_swap_mb=$(recommend_swap_mb "$mem_mb" "$swap_mb")
+
+    show_server_profile_summary "$os_name" "$kernel" "$cpu_cores" "$mem_mb" "$swap_mb"
+    echo ""
+    echo -e "  ${BOLD}推荐配置${NC}"
+    echo -e "  ${DIM}──────────────────────────────────────────────${NC}"
+    echo -e "  Gunicorn workers: ${BOLD}${recommended_workers}${NC}"
+    echo -e "  Node 构建内存上限: ${BOLD}${recommended_node_build_memory_mb}MB${NC}"
+    if [ "$recommended_swap_mb" -gt 0 ]; then
+        echo -e "  Swap 建议: ${BOLD}至少 $(format_mb "$recommended_swap_mb")${NC}"
+        echo -e "  ${DIM}小内存服务器推荐开启额外 Swap，可降低 build / 重启时卡死概率${NC}"
+    else
+        echo -e "  Swap 建议: ${DIM}当前无需额外创建${NC}"
+    fi
+    echo ""
+
+    if [ "$context" = "install" ]; then
+        echo -e "  ${DIM}这是首次安装/维护阶段的推荐，优先兼顾性能和稳定性。${NC}"
+    elif [ "$context" = "prod_start" ]; then
+        echo -e "  ${DIM}这是生产模式启动前的推荐，避免重启或构建时把小机器打满。${NC}"
+    fi
+    echo ""
+
+    read -p "  是否应用推荐的运行配置？[Y/n]: " apply_choice
+    if [[ "$apply_choice" =~ ^[Nn]$ ]]; then
+        log_info "已跳过自动优化配置"
+        return 0
+    fi
+
+    MIEMIE_WORKERS="$recommended_workers"
+    NODE_BUILD_MEMORY_MB="$recommended_node_build_memory_mb"
+    PERF_PROFILE_APPLIED="true"
+    PERF_PROFILE_SIGNATURE="$signature"
+    save_config
+
+    if [ "$recommended_swap_mb" -gt 0 ] && [ "$swap_mb" -lt "$recommended_swap_mb" ]; then
+        echo ""
+        read -p "  检测到内存较小，是否立即创建额外 Swap？[y/N]: " swap_choice
+        if [[ "$swap_choice" =~ ^[Yy]$ ]]; then
+            apply_swap_recommendation "$swap_mb" "$recommended_swap_mb" || log_warn "创建 Swap 失败，请按提示手动处理"
+        else
+            log_info "已跳过 Swap 创建"
+        fi
+    fi
+
+    show_profile_apply_result "$recommended_workers" "$recommended_node_build_memory_mb" "$recommended_swap_mb"
 }
 
 # 初始加载配置
@@ -724,7 +1091,10 @@ build_frontend() {
     mkdir -p "$LOG_DIR"
     > "$FRONTEND_LOG"
     cd "$FRONTEND_DIR"
-    export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=4096}"
+    local build_memory_mb
+    build_memory_mb="${NODE_BUILD_MEMORY_MB:-$(recommend_node_build_memory_mb "$(get_total_memory_mb)")}"
+    log_info "前端构建 Node 内存上限: ${build_memory_mb}MB"
+    export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=${build_memory_mb}}"
     set +e
     npm run build 2>&1 | tee -a "$FRONTEND_LOG"
     local build_exit=${PIPESTATUS[0]}
@@ -797,6 +1167,7 @@ start_all() {
     log_info "启动 MieMie-Studio (模式: $RUN_MODE)..."
     echo ""
     if [ "$RUN_MODE" = "prod" ]; then
+        maybe_offer_performance_profile "prod_start" "false"
         build_frontend || return 1
         start_backend || return 1
         local display_host
@@ -934,6 +1305,8 @@ show_status() {
     else
         echo -e "  公网访问    ${RED}○ 已关闭${NC}   仅本机可访问"
     fi
+    echo -e "  Workers     ${CYAN}${MIEMIE_WORKERS:-自动}${NC}"
+    echo -e "  构建内存    ${CYAN}${NODE_BUILD_MEMORY_MB:-自动}MB${NC}"
     
     # 后端状态
     local backend_port_pid=$(get_port_pid $BACKEND_PORT)
@@ -1821,9 +2194,10 @@ menu_maintenance() {
     echo -e "  ${GREEN}1${NC})  安装全部依赖    ${DIM}— 首次使用或依赖缺失时选择${NC}"
     echo -e "  ${GREEN}2${NC})  运行后端测试    ${DIM}— 运行 pytest 自动化测试${NC}"
     echo -e "  ${GREEN}3${NC})  清理与重置      ${DIM}— 清理日志、缓存，或重新安装依赖${NC}"
+    echo -e "  ${GREEN}4${NC})  服务器优化建议  ${DIM}— 自动检测内核/内存并推荐配置${NC}"
     echo -e "  ${RED}0${NC})  返回"
     echo ""
-    read -p "  请选择 [0-3]: " choice
+    read -p "  请选择 [0-4]: " choice
 
     case "$choice" in
         1)
@@ -1838,6 +2212,11 @@ menu_maintenance() {
             ;;
         3)
             clean_project
+            wait_key
+            ;;
+        4)
+            echo ""
+            maybe_offer_performance_profile "manual" "true"
             wait_key
             ;;
         *) ;;
@@ -1870,6 +2249,7 @@ show_help() {
     echo "  port [backend|frontend] <端口号>"
     echo "                       修改服务端口"
     echo "  test                 运行后端测试"
+    echo "  optimize             检测服务器并应用推荐配置"
     echo "  clean                清理缓存/重置依赖"
     echo "  version              版本信息"
     echo ""
@@ -1927,6 +2307,9 @@ main() {
             ;;
         test)
             run_tests
+            ;;
+        optimize)
+            maybe_offer_performance_profile "manual" "true"
             ;;
         port)
             shift
