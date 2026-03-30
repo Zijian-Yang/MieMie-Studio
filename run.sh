@@ -277,6 +277,61 @@ check_screen() {
     ensure_screen || exit 1
 }
 
+# 确保 lsof 已安装（端口检查/状态展示依赖）
+ensure_lsof() {
+    if command -v lsof &> /dev/null; then
+        return 0
+    fi
+
+    log_warn "lsof 未安装，正在自动安装..."
+
+    case "$(detect_pkg_manager)" in
+        apt)      auto_install_package "lsof" "lsof" ;;
+        yum|dnf)  auto_install_package "lsof" "lsof" ;;
+        brew)     auto_install_package "lsof" "lsof" ;;
+        pacman)   auto_install_package "lsof" "lsof" ;;
+        *)
+            log_error "lsof 未安装，请手动安装"
+            return 1
+            ;;
+    esac
+}
+
+check_lsof() {
+    ensure_lsof || exit 1
+}
+
+# 确保 FFmpeg/FFprobe 已安装（视频尾帧提取、视频拼接、视频编辑依赖）
+ensure_ffmpeg() {
+    if command -v ffmpeg &> /dev/null && command -v ffprobe &> /dev/null; then
+        return 0
+    fi
+
+    log_warn "FFmpeg/FFprobe 未安装，正在自动安装..."
+
+    case "$(detect_pkg_manager)" in
+        apt)      auto_install_package "ffmpeg" "FFmpeg" ;;
+        yum|dnf)  auto_install_package "ffmpeg" "FFmpeg" ;;
+        brew)     auto_install_package "ffmpeg" "FFmpeg" ;;
+        pacman)   auto_install_package "ffmpeg" "FFmpeg" ;;
+        *)
+            log_error "FFmpeg/FFprobe 未安装，请手动安装 ffmpeg"
+            return 1
+            ;;
+    esac
+
+    if command -v ffmpeg &> /dev/null && command -v ffprobe &> /dev/null; then
+        return 0
+    fi
+
+    log_error "FFmpeg 已尝试安装，但 ffmpeg/ffprobe 仍不可用"
+    return 1
+}
+
+check_ffmpeg() {
+    ensure_ffmpeg || exit 1
+}
+
 # ======================
 # 虚拟环境管理
 # ======================
@@ -339,18 +394,58 @@ activate_venv() {
 # 依赖管理
 # ======================
 
+REQUIRED_BACKEND_PACKAGES=(
+    fastapi
+    uvicorn
+    python-multipart
+    pydantic
+    dashscope
+    python-docx
+    pypdf
+    httpx
+    slowapi
+    oss2
+    Pillow
+    opencv-python-headless
+    bcrypt
+    python-dotenv
+    pytest
+    pytest-asyncio
+)
+
+REQUIRED_BACKEND_PROD_PACKAGES=(
+    gunicorn
+)
+
+python_packages_installed() {
+    local pip_bin="$VENV_DIR/bin/pip"
+    local package_name
+
+    if [ ! -x "$pip_bin" ]; then
+        return 1
+    fi
+
+    for package_name in "$@"; do
+        if ! "$pip_bin" show "$package_name" &> /dev/null; then
+            return 1
+        fi
+    done
+
+    return 0
+}
+
 backend_deps_installed() {
     if ! venv_exists; then
         return 1
     fi
-    "$VENV_DIR/bin/pip" show fastapi &> /dev/null
+    python_packages_installed "${REQUIRED_BACKEND_PACKAGES[@]}"
 }
 
 backend_prod_deps_installed() {
     if ! venv_exists; then
         return 1
     fi
-    "$VENV_DIR/bin/pip" show gunicorn &> /dev/null && "$VENV_DIR/bin/pip" show slowapi &> /dev/null
+    python_packages_installed "${REQUIRED_BACKEND_PROD_PACKAGES[@]}"
 }
 
 frontend_deps_installed() {
@@ -359,7 +454,9 @@ frontend_deps_installed() {
 
 install_backend_deps() {
     log_info "检查后端依赖..."
-    
+
+    check_ffmpeg
+
     create_venv
     
     if backend_deps_installed; then
@@ -530,6 +627,9 @@ start_backend() {
         log_warn "后端服务已在运行"
         return 0
     fi
+
+    check_lsof
+    check_ffmpeg
     
     # 检查端口是否被占用
     if ! check_port_and_handle $BACKEND_PORT "后端"; then
@@ -666,6 +766,7 @@ start_frontend() {
 
 start_all() {
     check_screen
+    check_lsof
     log_info "启动 MieMie-Studio (模式: $RUN_MODE)..."
     echo ""
     start_backend || return 1
@@ -772,6 +873,7 @@ stop_frontend() {
 }
 
 stop_all() {
+    check_lsof
     log_info "停止 MieMie-Studio..."
     stop_backend
     stop_frontend
@@ -783,6 +885,7 @@ stop_all() {
 # ======================
 
 show_status() {
+    check_lsof
     echo ""
     echo -e "  ${BOLD}服务状态${NC}"
     echo -e "  ${DIM}──────────────────────────────────────────────${NC}"

@@ -32,3 +32,7 @@ bcrypt>=4.0.0
 
 # 工具库
 python-dotenv>=1.0.0
+
+# 测试
+pytest>=8.0.0
+pytest-asyncio>=0.23.0

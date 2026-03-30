@@ -10,7 +10,6 @@ import uuid
 import tempfile
 import httpx
 import cv2
-import numpy as np
 from io import BytesIO
 from datetime import datetime
 
@@ -297,4 +296,3 @@ async def extract_last_frame(video_id: str, name: Optional[str] = None):
     except Exception as e:
         print(f"[视频尾帧提取] 错误: {e}")
         raise HTTPException(status_code=500, detail=f"提取尾帧失败: {str(e)}")
-
