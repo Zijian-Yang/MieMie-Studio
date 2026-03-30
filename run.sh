@@ -1380,6 +1380,9 @@ show_logs() {
     case "$service" in
         backend)
             if [ -f "$BACKEND_LOG" ]; then
+                echo ""
+                echo -e "  ${DIM}正在实时跟踪后端日志，按 Ctrl+C 返回上一级菜单${NC}"
+                echo ""
                 tail -f "$BACKEND_LOG"
             else
                 log_warn "后端日志文件不存在"
@@ -1387,15 +1390,21 @@ show_logs() {
             ;;
         frontend)
             if [ -f "$FRONTEND_LOG" ]; then
+                echo ""
+                echo -e "  ${DIM}正在实时跟踪前端日志，按 Ctrl+C 返回上一级菜单${NC}"
+                echo ""
                 tail -f "$FRONTEND_LOG"
             else
                 log_warn "前端日志文件不存在"
             fi
             ;;
         all)
-            echo "使用 Ctrl+C 退出日志查看"
             echo ""
-            echo "--- 连接到后端 screen 会话 (按 Ctrl+A, D 分离) ---"
+            echo -e "  ${DIM}即将连接到后端终端${NC}"
+            echo -e "  ${DIM}返回方式：先按 Ctrl+A，再按 D 分离并返回菜单${NC}"
+            echo -e "  ${DIM}不要直接按 Ctrl+C，否则可能中断前台进程${NC}"
+            echo ""
+            echo "--- 连接到后端 screen 会话 ---"
             if is_backend_running; then
                 screen -r "$BACKEND_SESSION"
             else
@@ -1774,7 +1783,9 @@ attach_session() {
     case "$service" in
         backend)
             if is_backend_running; then
-                log_info "连接到后端会话 (按 Ctrl+A, D 分离)"
+                log_info "连接到后端会话"
+                echo -e "  ${DIM}返回方式：先按 Ctrl+A，再按 D 分离并返回菜单${NC}"
+                echo -e "  ${DIM}不要直接按 Ctrl+C，否则可能中断前台进程${NC}"
                 screen -r "$BACKEND_SESSION"
             else
                 log_warn "后端未运行"
@@ -1782,7 +1793,9 @@ attach_session() {
             ;;
         frontend)
             if is_frontend_running; then
-                log_info "连接到前端会话 (按 Ctrl+A, D 分离)"
+                log_info "连接到前端会话"
+                echo -e "  ${DIM}返回方式：先按 Ctrl+A，再按 D 分离并返回菜单${NC}"
+                echo -e "  ${DIM}不要直接按 Ctrl+C，否则可能中断前台进程${NC}"
                 screen -r "$FRONTEND_SESSION"
             else
                 log_warn "前端未运行"
@@ -1996,8 +2009,9 @@ menu_network() {
 }
 
 wait_key() {
+    local prompt="${1:-  按回车键返回主菜单...}"
     echo ""
-    read -p "  按回车键返回主菜单..." _
+    read -p "$prompt" _
 }
 
 menu_main() {
@@ -2079,13 +2093,13 @@ menu_start() {
             RUN_MODE="dev"
             echo ""
             start_all
-            wait_key
+            wait_key "  服务已在后台运行，按回车键返回主菜单..."
             ;;
         2)
             RUN_MODE="prod"
             echo ""
             start_all
-            wait_key
+            wait_key "  服务已在后台运行，按回车键返回主菜单..."
             ;;
         *) ;;
     esac
@@ -2108,7 +2122,7 @@ menu_restart() {
             stop_all
             sleep 2
             start_all
-            wait_key
+            wait_key "  服务已重启完成，按回车键返回主菜单..."
             ;;
         2)
             RUN_MODE="prod"
@@ -2116,7 +2130,7 @@ menu_restart() {
             stop_all
             sleep 2
             start_all
-            wait_key
+            wait_key "  服务已重启完成，按回车键返回主菜单..."
             ;;
         *) ;;
     esac
@@ -2126,8 +2140,8 @@ menu_logs() {
     print_header
     echo -e "  ${BOLD}查看哪个服务的日志？${NC}"
     echo ""
-    echo -e "  ${GREEN}1${NC})  后端日志    ${DIM}— Python/FastAPI 服务的输出${NC}"
-    echo -e "  ${GREEN}2${NC})  前端日志    ${DIM}— React/Vite 开发服务器的输出${NC}"
+    echo -e "  ${GREEN}1${NC})  后端日志    ${DIM}— 实时跟踪输出（按 Ctrl+C 返回）${NC}"
+    echo -e "  ${GREEN}2${NC})  前端日志    ${DIM}— 实时跟踪输出（按 Ctrl+C 返回）${NC}"
     echo -e "  ${GREEN}3${NC})  连接后端终端  ${DIM}— 实时查看后端进程（按 Ctrl+A 再按 D 退出）${NC}"
     echo -e "  ${RED}0${NC})  返回"
     echo ""
