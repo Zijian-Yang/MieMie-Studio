@@ -15,11 +15,12 @@ import {
   Collapse,
   Space,
   theme,
-  Tooltip,
   Row,
   Col,
 } from 'antd'
-import { QuestionCircleOutlined, SettingOutlined } from '@ant-design/icons'
+import { SettingOutlined } from '@ant-design/icons'
+import type { HelpContent } from '../../services/api'
+import HoverInfoPopover from '../Help/HoverInfoPopover'
 
 const { TextArea } = Input
 const { Option } = Select
@@ -33,6 +34,7 @@ export type ParameterType =
   | 'boolean'
   | 'select'
   | 'multi_select'
+  | 'tags'
   | 'text'
   | 'image_url'
   | 'image_urls'
@@ -65,6 +67,7 @@ export interface ModelParameter {
   label: string
   type: ParameterType
   description?: string
+  help?: HelpContent
   required?: boolean
   default?: any
   constraint?: ParameterConstraint
@@ -147,6 +150,47 @@ const GROUP_LABELS: Record<string, string> = {
   advanced: '高级参数',
 }
 
+const buildFallbackHelp = (param: ModelParameter): HelpContent | undefined => {
+  const limits: string[] = []
+  const howToChoose: string[] = []
+
+  if (param.constraint?.min_value !== undefined || param.constraint?.max_value !== undefined) {
+    const minValue = param.constraint?.min_value
+    const maxValue = param.constraint?.max_value
+    if (minValue !== undefined && maxValue !== undefined) {
+      limits.push(`取值范围：${minValue} 到 ${maxValue}`)
+    } else if (minValue !== undefined) {
+      limits.push(`最小值：${minValue}`)
+    } else if (maxValue !== undefined) {
+      limits.push(`最大值：${maxValue}`)
+    }
+  }
+
+  if (param.constraint?.max_length !== undefined) {
+    limits.push(`最大长度：${param.constraint.max_length}`)
+  }
+
+  if (param.constraint?.options?.length) {
+    howToChoose.push(
+      ...param.constraint.options.map((option) => (
+        option.description
+          ? `${option.label}：${option.description}`
+          : `${option.label}`
+      ))
+    )
+  }
+
+  if (!param.description && limits.length === 0 && howToChoose.length === 0) {
+    return undefined
+  }
+
+  return {
+    summary: param.description,
+    limits: limits.length > 0 ? limits : undefined,
+    how_to_choose: howToChoose.length > 0 ? howToChoose : undefined,
+  }
+}
+
 /**
  * 渲染单个参数
  */
@@ -178,11 +222,7 @@ const ParameterField: React.FC<{
     <Space>
       {param.label}
       {param.required && <span style={{ color: token.colorError }}>*</span>}
-      {param.description && (
-        <Tooltip title={param.description}>
-          <QuestionCircleOutlined style={{ color: token.colorTextSecondary }} />
-        </Tooltip>
-      )}
+      <HoverInfoPopover title={param.label} help={param.help || buildFallbackHelp(param)} />
     </Space>
   )
   
@@ -253,15 +293,18 @@ const ParameterField: React.FC<{
             onChange={onChange}
             disabled={readOnly}
             style={{ width: '100%' }}
+            optionLabelProp="label"
           >
             {param.constraint?.options?.map((opt) => (
-              <Option key={opt.value} value={opt.value}>
-                {opt.label}
-                {opt.description && (
-                  <span style={{ color: token.colorTextSecondary, marginLeft: 8 }}>
-                    {opt.description}
-                  </span>
-                )}
+              <Option key={opt.value} value={opt.value} label={opt.label}>
+                <div>
+                  <div>{opt.label}</div>
+                  {opt.description && (
+                    <div style={{ color: token.colorTextSecondary, fontSize: 12, marginTop: 2 }}>
+                      {opt.description}
+                    </div>
+                  )}
+                </div>
               </Option>
             ))}
           </Select>
@@ -275,13 +318,34 @@ const ParameterField: React.FC<{
             onChange={onChange}
             disabled={readOnly}
             style={{ width: '100%' }}
+            optionLabelProp="label"
           >
             {param.constraint?.options?.map((opt) => (
-              <Option key={opt.value} value={opt.value}>
-                {opt.label}
+              <Option key={opt.value} value={opt.value} label={opt.label}>
+                <div>
+                  <div>{opt.label}</div>
+                  {opt.description && (
+                    <div style={{ color: token.colorTextSecondary, fontSize: 12, marginTop: 2 }}>
+                      {opt.description}
+                    </div>
+                  )}
+                </div>
               </Option>
             ))}
           </Select>
+        )
+
+      case 'tags':
+        return (
+          <Select
+            mode="tags"
+            value={Array.isArray(value) ? value : (value ? [value] : [])}
+            onChange={onChange}
+            disabled={readOnly}
+            style={{ width: '100%' }}
+            tokenSeparators={[',', '，', ' ']}
+            placeholder={param.description}
+          />
         )
       
       case 'image_url':
@@ -453,4 +517,3 @@ const DynamicModelForm: React.FC<DynamicModelFormProps> = ({
 }
 
 export default DynamicModelForm
-

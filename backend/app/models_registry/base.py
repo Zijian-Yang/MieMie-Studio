@@ -198,6 +198,37 @@ class ModelType(str, Enum):
     AUDIO_TO_TEXT = "audio_to_text"  # 语音识别
 
 
+class VideoTaskKind(str, Enum):
+    """视频任务能力类型"""
+    TEXT_TO_VIDEO = "text_to_video"
+    IMAGE_TO_VIDEO = "image_to_video"
+    KEYFRAME_TO_VIDEO = "keyframe_to_video"
+    REFERENCE_TO_VIDEO = "reference_to_video"
+    VIDEO_EDIT_GLOBAL = "video_edit_global"
+    VIDEO_EDIT_LOCAL = "video_edit_local"
+    VIDEO_REPAINTING = "video_repainting"
+
+
+class InputRole(str, Enum):
+    """视频任务输入角色"""
+    FIRST_FRAME = "first_frame"
+    LAST_FRAME = "last_frame"
+    REFERENCE_IMAGE = "reference_image"
+    REFERENCE_VIDEO = "reference_video"
+    BASE_VIDEO = "base_video"
+    FEATURE_VIDEO = "feature_video"
+    SOURCE_VIDEO = "source_video"
+    MASK_IMAGE = "mask_image"
+    AUDIO = "audio"
+
+
+class NarrativeMode(str, Enum):
+    """视频任务叙事模式"""
+    SINGLE = "single"
+    MULTI_SHOT_INTELLIGENCE = "multi_shot_intelligence"
+    MULTI_SHOT_CUSTOMIZE = "multi_shot_customize"
+
+
 class ModelCapability(BaseModel):
     """
     模型能力声明
@@ -230,6 +261,20 @@ class ModelCapability(BaseModel):
     supports_interleave: bool = False  # 支持图文混合模式
 
 
+class VideoTaskProfile(BaseModel):
+    """模型在某个视频任务能力下的画像"""
+    task_kind: VideoTaskKind
+    label: str
+    description: str = ""
+    input_roles: List[InputRole] = []
+    parameters: List[ModelParameter] = []
+    ui_hints: Dict[str, Any] = {}
+    supported_narrative_modes: List[NarrativeMode] = [NarrativeMode.SINGLE]
+
+    def get_default_values(self) -> Dict[str, Any]:
+        return {p.name: p.default for p in self.parameters if p.default is not None}
+
+
 class ModelInfo(BaseModel):
     """
     模型元信息
@@ -249,6 +294,11 @@ class ModelInfo(BaseModel):
     
     # 参数定义
     parameters: List[ModelParameter] = []
+
+    # 视频任务画像（多厂商视频模型使用）
+    supported_task_kinds: List[VideoTaskKind] = []
+    task_profiles: Dict[str, VideoTaskProfile] = {}
+    ui_hints: Dict[str, Any] = {}
     
     # 尺寸约束（图像/视频模型）
     size_constraints: Optional[SizeConstraints] = None
@@ -281,6 +331,10 @@ class ModelInfo(BaseModel):
     def get_default_values(self) -> Dict[str, Any]:
         """获取所有参数的默认值"""
         return {p.name: p.default for p in self.parameters if p.default is not None}
+
+    def get_task_profile(self, task_kind: Union[VideoTaskKind, str]) -> Optional[VideoTaskProfile]:
+        task_key = task_kind.value if isinstance(task_kind, VideoTaskKind) else str(task_kind)
+        return self.task_profiles.get(task_key)
     
     def validate_params(self, params: Dict[str, Any]) -> tuple[bool, List[str]]:
         """验证参数"""
@@ -472,10 +526,23 @@ class ModelRegistry:
                 "id": model_info.id,
                 "name": model_info.name,
                 "type": model_info.type.value,
+                "provider": model_info.provider,
                 "description": model_info.description,
                 "capabilities": model_info.capabilities.model_dump(),
                 "parameters": [p.model_dump() for p in model_info.parameters],
                 "default_values": model_info.get_default_values(),
+                "supported_task_kinds": [task_kind.value for task_kind in model_info.supported_task_kinds],
+                "task_profiles": {
+                    task_key: {
+                        **profile.model_dump(),
+                        "task_kind": profile.task_kind.value,
+                        "input_roles": [role.value for role in profile.input_roles],
+                        "supported_narrative_modes": [mode.value for mode in profile.supported_narrative_modes],
+                        "default_values": profile.get_default_values(),
+                    }
+                    for task_key, profile in model_info.task_profiles.items()
+                },
+                "ui_hints": model_info.ui_hints,
                 "deprecated": model_info.deprecated,
                 "deprecated_message": model_info.deprecated_message,
                 "recommended": model_info.recommended,
@@ -506,4 +573,3 @@ class ModelRegistry:
 
 # 全局注册中心实例
 registry = ModelRegistry()
-

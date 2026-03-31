@@ -9,6 +9,7 @@
 # 命令行模式:
 #   start [--prod]  stop  restart [--prod]  status  logs  install  test
 #   update [--auto]  auto-update [enable|disable|status]  rollback  optimize
+#   test-video-models [--provider ... --profile ... --scope ... --user-id ...]
 #   network [on|off|status]  port [backend|frontend] <端口>  version  help
 #
 
@@ -1690,6 +1691,31 @@ run_tests() {
     return $exit_code
 }
 
+run_video_model_tests() {
+    log_info "运行视频模型真实验证..."
+    PYTHON=$(check_python)
+    if [ -z "$PYTHON" ]; then
+        log_error "未找到 Python 环境"
+        return 1
+    fi
+
+    if [ -f "$VENV_DIR/bin/activate" ]; then
+        source "$VENV_DIR/bin/activate"
+    fi
+
+    cd "$BACKEND_DIR"
+    "$PYTHON" -m app.video_model_test_cli "$@"
+    local exit_code=$?
+    cd "$PROJECT_DIR"
+
+    if [ $exit_code -eq 0 ]; then
+        log_success "视频模型验证执行完成"
+    else
+        log_error "视频模型验证失败 (exit code: $exit_code)"
+    fi
+    return $exit_code
+}
+
 clean_project() {
     echo ""
     echo -e "  ${BOLD}清理与重置${NC}"
@@ -2321,6 +2347,10 @@ main() {
             ;;
         test)
             run_tests
+            ;;
+        test-video-models)
+            shift
+            run_video_model_tests "$@"
             ;;
         optimize)
             maybe_offer_performance_profile "manual" "true"

@@ -342,6 +342,13 @@ export interface OSSConfigResponse {
 export interface ConfigResponse {
   api_key_masked: string
   is_api_key_set: boolean
+  test_api_key_masked: string
+  is_test_api_key_set: boolean
+  production_api_key_masked: string
+  is_production_api_key_set: boolean
+  wan_key_profile: 'test' | 'production'
+  kling_key_profile: 'test' | 'production'
+  vidu_key_profile: 'test' | 'production'
   api_region: string
   base_url: string
   llm: LLMConfig
@@ -365,6 +372,11 @@ export interface ConfigResponse {
 
 export interface ConfigUpdateRequest {
   api_key?: string
+  test_api_key?: string
+  production_api_key?: string
+  wan_key_profile?: 'test' | 'production'
+  kling_key_profile?: 'test' | 'production'
+  vidu_key_profile?: 'test' | 'production'
   api_region?: string
   llm?: Partial<LLMConfig>
   image?: Partial<ImageConfig>
@@ -1424,6 +1436,15 @@ export const textLibraryApi = {
 }
 
 // ============ 视频工作室 API ============
+export type VideoTaskKind =
+  | 'image_to_video'
+  | 'reference_to_video'
+  | 'text_to_video'
+  | 'keyframe_to_video'
+  | 'video_edit_global'
+  | 'video_edit_local'
+  | 'video_repainting'
+
 export type VideoStudioTaskType =
   | 'image_to_video'
   | 'reference_to_video'
@@ -1431,6 +1452,66 @@ export type VideoStudioTaskType =
   | 'keyframe_to_video'
   | 'video_repainting'
   | 'video_edit'
+  | 'video_edit_global'
+
+export type VideoInputRole =
+  | 'first_frame'
+  | 'last_frame'
+  | 'reference_image'
+  | 'reference_video'
+  | 'base_video'
+  | 'feature_video'
+  | 'source_video'
+  | 'mask_image'
+  | 'audio'
+
+export type VideoNarrativeMode =
+  | 'single'
+  | 'multi_shot_intelligence'
+  | 'multi_shot_customize'
+
+export interface VideoTaskProfile {
+  task_kind: VideoTaskKind
+  label: string
+  description?: string
+  input_roles: VideoInputRole[]
+  parameters: ModelParameterDef[]
+  ui_hints?: Record<string, any> & {
+    asset_help?: Partial<Record<VideoInputRole, HelpContent | string>>
+    prompt_help?: HelpContent | string
+  }
+  supported_narrative_modes: VideoNarrativeMode[]
+  default_values?: Record<string, any>
+  verification_profiles?: Record<string, string[]>
+}
+
+export interface VideoCapabilityModel {
+  id: string
+  name: string
+  provider: string
+  type: string
+  description?: string
+  recommended?: boolean
+  doc_url?: string
+  supported_task_kinds: VideoTaskKind[]
+  task_profiles: Partial<Record<VideoTaskKind, VideoTaskProfile>>
+  ui_hints?: Record<string, any>
+}
+
+export interface VideoTaskKindInfo {
+  id: VideoTaskKind
+  label: string
+  description?: string
+  legacy_task_types: string[]
+  model_ids: string[]
+  default_model_id?: string | null
+}
+
+export interface VideoStudioCapabilitiesResponse {
+  task_kinds: VideoTaskKindInfo[]
+  models: Record<string, VideoCapabilityModel>
+  legacy_task_kind_map: Record<string, VideoTaskKind>
+}
 
 export interface VideoStudioTask {
   id: string
@@ -1439,6 +1520,15 @@ export interface VideoStudioTask {
   
   // 任务类型: image_to_video / reference_to_video / text_to_video / keyframe_to_video / video_repainting / video_edit
   task_type: VideoStudioTaskType
+  task_kind: VideoTaskKind
+  provider: string
+  key_profile?: 'test' | 'production' | null
+  model_id?: string
+  narrative_mode?: VideoNarrativeMode
+  input_assets?: Record<string, any>
+  normalized_params?: Record<string, any>
+  provider_payload_snapshot?: Record<string, any> | null
+  provider_result_meta?: Record<string, any>
   
   // 图生视频参数
   mode: 'first_frame' | 'first_last_frame'
@@ -1498,6 +1588,7 @@ export interface VideoStudioTask {
 
 export const videoStudioApi = {
   list: (projectId: string) => api.get<any, { tasks: VideoStudioTask[] }>('/video-studio', { params: { project_id: projectId } }),
+  getCapabilities: () => api.get<any, VideoStudioCapabilitiesResponse>('/video-studio/capabilities'),
   get: (id: string) => api.get<any, VideoStudioTask>(`/video-studio/${id}`),
   getStatus: (id: string) => api.get<any, { task: VideoStudioTask }>(`/video-studio/${id}/status`),
   prepareSourceVideo: (data: { project_id: string; video_url: string }) =>
@@ -1526,6 +1617,12 @@ export const videoStudioApi = {
     project_id: string
     name?: string
     task_type?: VideoStudioTaskType
+    task_kind?: VideoTaskKind
+    provider?: string
+    model_id?: string
+    narrative_mode?: VideoNarrativeMode
+    input_assets?: Record<string, any>
+    normalized_params?: Record<string, any>
     mode?: string
     first_frame_url?: string  // 图生视频需要
     last_frame_url?: string
@@ -1567,6 +1664,12 @@ export const videoStudioApi = {
     name?: string
     selected_video_url?: string
     task_type?: VideoStudioTaskType
+    task_kind?: VideoTaskKind
+    provider?: string
+    model_id?: string
+    narrative_mode?: VideoNarrativeMode
+    input_assets?: Record<string, any>
+    normalized_params?: Record<string, any>
     prompt?: string
     negative_prompt?: string
     model?: string
@@ -1618,6 +1721,7 @@ export type ModelParameterType =
   | 'boolean'
   | 'select'
   | 'multi_select'
+  | 'tags'
   | 'text'
   | 'image_url'
   | 'image_urls'
@@ -1630,6 +1734,15 @@ export interface ModelSelectOption {
   value: any
   label: string
   description?: string
+}
+
+export interface HelpContent {
+  summary?: string
+  meaning?: string
+  limits?: string[]
+  how_to_choose?: string[]
+  examples?: string[]
+  notes?: string[]
 }
 
 // 参数约束
@@ -1650,6 +1763,7 @@ export interface ModelParameterDef {
   label: string
   type: ModelParameterType
   description?: string
+  help?: HelpContent
   required?: boolean
   default?: any
   constraint?: ModelParameterConstraint

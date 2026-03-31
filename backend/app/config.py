@@ -844,6 +844,11 @@ class OSSConfig(BaseModel):
 class AppConfig(BaseModel):
     """应用配置模型"""
     dashscope_api_key: str = ""
+    test_api_key: str = ""
+    production_api_key: str = ""
+    wan_key_profile: str = "production"
+    kling_key_profile: str = "production"
+    vidu_key_profile: str = "production"
     api_region: str = "beijing"  # beijing 或 singapore
     
     # LLM 配置
@@ -883,6 +888,11 @@ logger = logging.getLogger(__name__)
 
 # 当前用户配置的上下文变量
 _current_user_config_dir: ContextVar[Optional[str]] = ContextVar('current_user_config_dir', default=None)
+_provider_key_profile_override: ContextVar[Optional[dict[str, str]]] = ContextVar(
+    'provider_key_profile_override',
+    default=None,
+)
+KEY_PROFILES = {"test", "production"}
 
 
 def set_user_config_dir(config_dir: Optional[str]):
@@ -893,6 +903,59 @@ def set_user_config_dir(config_dir: Optional[str]):
 def get_user_config_dir() -> Optional[str]:
     """获取当前请求的用户配置目录"""
     return _current_user_config_dir.get()
+
+
+def normalize_key_profile(profile: Optional[str]) -> str:
+    """规范化账号类型"""
+    if isinstance(profile, str) and profile in KEY_PROFILES:
+        return profile
+    return "production"
+
+
+def set_provider_key_profile_override(overrides: Optional[dict[str, str]]):
+    """设置当前上下文的 provider key profile 覆盖"""
+    if not overrides:
+        _provider_key_profile_override.set(None)
+        return
+
+    normalized = {
+        key: normalize_key_profile(value)
+        for key, value in overrides.items()
+        if key in {"wan", "kling", "vidu"}
+    }
+    _provider_key_profile_override.set(normalized or None)
+
+
+def get_provider_key_profile(
+    provider: str,
+    override_profile: Optional[str] = None,
+    config: Optional["AppConfig"] = None,
+) -> str:
+    """获取 provider 当前应使用的 key profile"""
+    if override_profile is not None:
+        return normalize_key_profile(override_profile)
+
+    context_override = _provider_key_profile_override.get()
+    if context_override and provider in context_override:
+        return normalize_key_profile(context_override[provider])
+
+    resolved = config or get_config()
+    if provider == "wan":
+        return normalize_key_profile(getattr(resolved, "wan_key_profile", "production"))
+    if provider == "kling":
+        return normalize_key_profile(getattr(resolved, "kling_key_profile", "production"))
+    if provider == "vidu":
+        return normalize_key_profile(getattr(resolved, "vidu_key_profile", "production"))
+    return "production"
+
+
+def get_provider_api_key(provider: str, override_profile: Optional[str] = None) -> str:
+    """获取指定 provider 当前应使用的 API Key"""
+    config = get_config()
+    profile = get_provider_key_profile(provider, override_profile=override_profile, config=config)
+    if profile == "test":
+        return config.test_api_key
+    return config.production_api_key or config.dashscope_api_key
 
 
 class ConfigManager:
@@ -995,11 +1058,12 @@ class ConfigManager:
     
     def get_api_key(self) -> str:
         """获取 API Key"""
-        return self.load().dashscope_api_key
-    
+        config = self.load()
+        return config.production_api_key or config.dashscope_api_key
+
     def set_api_key(self, api_key: str) -> None:
         """设置 API Key"""
-        self.update(dashscope_api_key=api_key)
+        self.update(dashscope_api_key=api_key, production_api_key=api_key)
 
 
 # 用户配置管理器缓存

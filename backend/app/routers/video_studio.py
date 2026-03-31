@@ -15,10 +15,11 @@ import os
 import subprocess
 import tempfile
 import uuid
+from copy import deepcopy
 import httpx
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 from app.models.media import VideoStudioTask
@@ -30,8 +31,15 @@ from app.services.dashscope.text_to_video import TextToVideoService
 from app.services.dashscope.keyframe_to_video import KeyframeToVideoService
 from app.services.dashscope.digital_human import DigitalHumanService
 from app.services.dashscope.vace_video_edit import VaceVideoEditService
+from app.services.video_adapters import (
+    NormalizedVideoTaskRequest,
+    VideoSubmitResult,
+    get_video_adapter,
+    infer_provider,
+)
+from app.services.video_capabilities import get_video_capabilities, LEGACY_TASK_KIND_MAP
 from app.services.oss import oss_service
-from app.config import set_user_config_dir, get_user_config_dir
+from app.config import set_user_config_dir, get_user_config_dir, get_provider_key_profile
 
 logger = logging.getLogger(__name__)
 
@@ -88,10 +96,16 @@ class VideoStudioTaskCreateRequest(BaseModel):
     """
     project_id: str
     name: str = ""
-    
+
     # 任务类型: image_to_video, reference_to_video, text_to_video, keyframe_to_video, video_repainting, video_edit
     task_type: str = "image_to_video"
-    
+    task_kind: Optional[str] = None
+    provider: Optional[str] = None
+    model_id: Optional[str] = None
+    narrative_mode: Optional[str] = None
+    input_assets: Optional[Dict[str, Any]] = None
+    normalized_params: Optional[Dict[str, Any]] = None
+
     # 图生视频参数
     mode: str = "first_frame"  # first_frame 或 first_last_frame
     first_frame_url: Optional[str] = None  # 首帧图URL
@@ -143,6 +157,12 @@ class VideoStudioTaskUpdateRequest(BaseModel):
     name: Optional[str] = None
     selected_video_url: Optional[str] = None
     task_type: Optional[str] = None  # 任务类型: image_to_video / reference_to_video / text_to_video
+    task_kind: Optional[str] = None
+    provider: Optional[str] = None
+    model_id: Optional[str] = None
+    narrative_mode: Optional[str] = None
+    input_assets: Optional[Dict[str, Any]] = None
+    normalized_params: Optional[Dict[str, Any]] = None
     # 支持编辑的字段
     prompt: Optional[str] = None
     negative_prompt: Optional[str] = None
@@ -185,6 +205,299 @@ VACE_EDIT_EXPAND_MODES = {"hull", "bbox", "original"}
 VACE_EDIT_SIZES = {"1280*720", "720*1280", "960*960", "832*1088", "1088*832"}
 VACE_MODEL_NAME = "wanx2.1-vace-plus"
 VACE_MASK_FRAME_ID = 1
+TASK_KIND_TO_LEGACY_TASK_TYPE = {
+    "image_to_video": "image_to_video",
+    "reference_to_video": "reference_to_video",
+    "text_to_video": "text_to_video",
+    "keyframe_to_video": "keyframe_to_video",
+    "video_repainting": "video_repainting",
+    "video_edit_local": "video_edit",
+    "video_edit_global": "video_edit_global",
+}
+
+
+def _resolve_task_kind(task_type: Optional[str], task_kind: Optional[str]) -> str:
+    if task_kind:
+        return task_kind
+    return LEGACY_TASK_KIND_MAP.get(task_type or "image_to_video", task_type or "image_to_video")
+
+
+def _default_model_for_task_kind(task_kind: str) -> str:
+    defaults = {
+        "image_to_video": "wan2.6-i2v-flash",
+        "reference_to_video": "wan2.6-r2v-flash",
+        "text_to_video": "wan2.6-t2v",
+        "keyframe_to_video": "wan2.2-kf2v-flash",
+        "video_repainting": VACE_MODEL_NAME,
+        "video_edit_local": VACE_MODEL_NAME,
+        "video_edit_global": "kling/kling-v3-omni-video-generation",
+    }
+    return defaults.get(task_kind, "wan2.6-i2v-flash")
+
+
+def _split_reference_assets(urls: List[str]) -> tuple[List[str], List[str]]:
+    image_urls: List[str] = []
+    video_urls: List[str] = []
+    for url in urls:
+        lowered = url.lower()
+        if any(ext in lowered for ext in [".mp4", ".mov", ".avi", ".m4v", ".webm"]):
+            video_urls.append(url)
+        else:
+            image_urls.append(url)
+    return image_urls, video_urls
+
+
+def _normalize_request(request: VideoStudioTaskCreateRequest) -> NormalizedVideoTaskRequest:
+    task_kind = _resolve_task_kind(request.task_type, request.task_kind)
+    legacy_task_type = TASK_KIND_TO_LEGACY_TASK_TYPE.get(task_kind, task_kind)
+    model_id = request.model_id or request.model or _default_model_for_task_kind(task_kind)
+    provider = request.provider or infer_provider(model_id, task_kind)
+    key_profile = get_provider_key_profile(provider)
+
+    if request.input_assets is not None:
+        input_assets = deepcopy(request.input_assets)
+    else:
+        reference_images, reference_videos = _split_reference_assets(request.reference_video_urls or [])
+        input_assets: Dict[str, Any] = {
+            "first_frame": [request.first_frame_url] if request.first_frame_url else [],
+            "last_frame": [request.last_frame_url] if request.last_frame_url else [],
+            "audio": [request.audio_url] if request.audio_url else [],
+            "reference_images": reference_images + ([request.reference_image_url] if request.reference_image_url else []),
+            "reference_videos": reference_videos,
+            "source_video": [request.source_video_url] if request.source_video_url else [],
+            "base_video": [request.source_video_url] if request.source_video_url and task_kind == "video_edit_global" else [],
+            "mask_image": [request.mask_image_url] if request.mask_image_url else [],
+        }
+
+    normalized_params = deepcopy(request.normalized_params or {})
+    normalized_params.setdefault("resolution", request.resolution)
+    normalized_params.setdefault("size", request.size)
+    normalized_params.setdefault("duration", request.duration)
+    normalized_params.setdefault("prompt_extend", request.prompt_extend if task_kind != "text_to_video" else request.t2v_prompt_extend)
+    normalized_params.setdefault("watermark", request.watermark)
+    normalized_params.setdefault("seed", request.seed)
+    normalized_params.setdefault("audio", request.auto_audio)
+    normalized_params.setdefault("shot_type", request.shot_type)
+    normalized_params.setdefault("control_condition", request.control_condition)
+    normalized_params.setdefault("strength", request.strength)
+    normalized_params.setdefault("mask_type", request.mask_type)
+    normalized_params.setdefault("expand_ratio", request.expand_ratio)
+    normalized_params.setdefault("expand_mode", request.expand_mode)
+    normalized_params.setdefault("mask_frame_id", request.mask_frame_id or VACE_MASK_FRAME_ID)
+
+    if task_kind == "video_edit_global":
+        input_assets.setdefault("base_video", input_assets.get("base_video") or input_assets.get("source_video") or [])
+    if task_kind in {"video_edit_local", "video_repainting"}:
+        input_assets.setdefault("source_video", input_assets.get("source_video") or [])
+
+    return NormalizedVideoTaskRequest(
+        project_id=request.project_id,
+        task_kind=task_kind,
+        provider=provider,
+        key_profile=key_profile,
+        model_id=model_id,
+        prompt=request.prompt,
+        negative_prompt=request.negative_prompt,
+        narrative_mode=request.narrative_mode or request.shot_type or "single",
+        input_assets=input_assets,
+        normalized_params=normalized_params,
+    )
+
+
+def _apply_normalized_fields_to_task(task: VideoStudioTask, normalized: NormalizedVideoTaskRequest) -> None:
+    params = normalized.normalized_params
+    assets = normalized.input_assets
+    task.task_kind = normalized.task_kind
+    task.task_type = TASK_KIND_TO_LEGACY_TASK_TYPE.get(normalized.task_kind, normalized.task_kind)
+    task.provider = normalized.provider
+    task.key_profile = normalized.key_profile
+    task.model_id = normalized.model_id
+    task.model = normalized.model_id
+    task.narrative_mode = normalized.narrative_mode
+    task.input_assets = deepcopy(assets)
+    task.normalized_params = deepcopy(params)
+
+    task.first_frame_url = (assets.get("first_frame") or [None])[0]
+    task.last_frame_url = (assets.get("last_frame") or [None])[0]
+    task.audio_url = (assets.get("audio") or [None])[0]
+    task.reference_video_urls = list(assets.get("reference_videos") or []) + list(assets.get("reference_images") or [])
+    source_video = assets.get("source_video") or assets.get("base_video") or []
+    task.source_video_url = source_video[0] if source_video else None
+    task.reference_image_url = (assets.get("reference_images") or [None])[0]
+    task.mask_image_url = (assets.get("mask_image") or [None])[0]
+    task.mask_frame_id = params.get("mask_frame_id") if normalized.task_kind == "video_edit_local" else None
+    task.prompt = normalized.prompt
+    task.negative_prompt = normalized.negative_prompt
+    task.duration = int(params.get("duration") or task.duration)
+    task.watermark = bool(params.get("watermark", task.watermark))
+    task.seed = params.get("seed")
+    task.auto_audio = bool(params.get("audio", task.auto_audio))
+    task.prompt_extend = bool(params.get("prompt_extend", task.prompt_extend))
+    task.t2v_prompt_extend = bool(params.get("prompt_extend", task.t2v_prompt_extend))
+    task.shot_type = params.get("shot_type")
+    task.resolution = params.get("resolution") or task.resolution
+    task.size = params.get("size") or task.size
+    task.control_condition = params.get("control_condition")
+    task.strength = params.get("strength")
+    task.mask_type = params.get("mask_type")
+    task.expand_ratio = params.get("expand_ratio")
+    task.expand_mode = params.get("expand_mode")
+
+
+def _normalized_request_from_task(task: VideoStudioTask) -> NormalizedVideoTaskRequest:
+    raw_task_type = getattr(task, "task_type", "image_to_video")
+    raw_task_kind = getattr(task, "task_kind", None)
+    if raw_task_kind and not (raw_task_kind == "image_to_video" and raw_task_type != "image_to_video"):
+        resolved_task_kind = raw_task_kind
+    else:
+        resolved_task_kind = _resolve_task_kind(raw_task_type, None)
+    resolved_model_id = getattr(task, "model_id", None) or getattr(task, "model", None) or _default_model_for_task_kind(resolved_task_kind)
+    resolved_provider = getattr(task, "provider", None) or infer_provider(resolved_model_id, resolved_task_kind)
+    resolved_key_profile = getattr(task, "key_profile", None) or get_provider_key_profile(resolved_provider)
+    input_assets = deepcopy(getattr(task, "input_assets", {}) or {})
+    if not input_assets:
+        reference_images, reference_videos = _split_reference_assets(getattr(task, "reference_video_urls", []) or [])
+        input_assets = {
+            "first_frame": [task.first_frame_url] if task.first_frame_url else [],
+            "last_frame": [task.last_frame_url] if task.last_frame_url else [],
+            "audio": [task.audio_url] if task.audio_url else [],
+            "reference_images": reference_images + ([task.reference_image_url] if task.reference_image_url else []),
+            "reference_videos": reference_videos,
+            "source_video": [task.source_video_url] if task.source_video_url else [],
+            "base_video": [task.source_video_url] if resolved_task_kind == "video_edit_global" and task.source_video_url else [],
+            "mask_image": [task.mask_image_url] if task.mask_image_url else [],
+        }
+    normalized_params = deepcopy(getattr(task, "normalized_params", {}) or {})
+    if not normalized_params:
+        normalized_size = task.size
+        if resolved_task_kind == "video_edit_local" and normalized_size not in VACE_EDIT_SIZES:
+            normalized_size = None
+        normalized_params = {
+            "resolution": task.resolution,
+            "size": normalized_size,
+            "duration": task.duration,
+            "prompt_extend": task.prompt_extend if getattr(task, "task_type", "") != "text_to_video" else getattr(task, "t2v_prompt_extend", True),
+            "watermark": task.watermark,
+            "seed": task.seed,
+            "audio": task.auto_audio,
+            "shot_type": task.shot_type,
+            "control_condition": task.control_condition,
+            "strength": task.strength,
+            "mask_type": task.mask_type,
+            "expand_ratio": task.expand_ratio,
+            "expand_mode": task.expand_mode,
+            "mask_frame_id": task.mask_frame_id or VACE_MASK_FRAME_ID,
+        }
+    return NormalizedVideoTaskRequest(
+        project_id=task.project_id,
+        task_kind=resolved_task_kind,
+        provider=resolved_provider,
+        key_profile=resolved_key_profile,
+        model_id=resolved_model_id,
+        prompt=task.prompt,
+        negative_prompt=task.negative_prompt,
+        narrative_mode=getattr(task, "narrative_mode", "single"),
+        input_assets=input_assets,
+        normalized_params=normalized_params,
+    )
+
+
+def _merge_update_request_into_normalized_request(
+    task: VideoStudioTask,
+    request: VideoStudioTaskUpdateRequest,
+) -> NormalizedVideoTaskRequest:
+    normalized = _normalized_request_from_task(task)
+    provided_fields = request.model_fields_set
+
+    if "task_kind" in provided_fields or "task_type" in provided_fields:
+        normalized.task_kind = _resolve_task_kind(
+            request.task_type if "task_type" in provided_fields else task.task_type,
+            request.task_kind if "task_kind" in provided_fields else normalized.task_kind,
+        )
+
+    if "model_id" in provided_fields and request.model_id is not None:
+        normalized.model_id = request.model_id
+    elif "model" in provided_fields and request.model is not None:
+        normalized.model_id = request.model
+
+    if "provider" in provided_fields and request.provider is not None:
+        normalized.provider = request.provider
+    else:
+        normalized.provider = infer_provider(normalized.model_id, normalized.task_kind)
+    if normalized.provider == getattr(task, "provider", None):
+        normalized.key_profile = getattr(task, "key_profile", None) or get_provider_key_profile(normalized.provider)
+    else:
+        normalized.key_profile = get_provider_key_profile(normalized.provider)
+
+    if "narrative_mode" in provided_fields and request.narrative_mode is not None:
+        normalized.narrative_mode = request.narrative_mode
+    elif "shot_type" in provided_fields and request.shot_type is not None:
+        normalized.narrative_mode = request.shot_type
+
+    if "prompt" in provided_fields and request.prompt is not None:
+        normalized.prompt = request.prompt
+    if "negative_prompt" in provided_fields and request.negative_prompt is not None:
+        normalized.negative_prompt = request.negative_prompt
+
+    if "input_assets" in provided_fields and request.input_assets is not None:
+        normalized.input_assets = deepcopy(request.input_assets)
+    else:
+        assets = deepcopy(normalized.input_assets)
+        if "first_frame_url" in provided_fields:
+            assets["first_frame"] = [request.first_frame_url] if request.first_frame_url else []
+        if "audio_url" in provided_fields:
+            assets["audio"] = [request.audio_url] if request.audio_url else []
+        if "reference_video_urls" in provided_fields:
+            reference_images, reference_videos = _split_reference_assets(request.reference_video_urls or [])
+            assets["reference_images"] = reference_images
+            assets["reference_videos"] = reference_videos
+        if "source_video_url" in provided_fields:
+            assets["source_video"] = [request.source_video_url] if request.source_video_url else []
+            if normalized.task_kind == "video_edit_global":
+                assets["base_video"] = [request.source_video_url] if request.source_video_url else []
+        if "reference_image_url" in provided_fields:
+            assets["reference_images"] = [request.reference_image_url] if request.reference_image_url else []
+        if "mask_image_url" in provided_fields:
+            assets["mask_image"] = [request.mask_image_url] if request.mask_image_url else []
+        normalized.input_assets = assets
+
+    if "normalized_params" in provided_fields and request.normalized_params is not None:
+        normalized.normalized_params = deepcopy(request.normalized_params)
+    else:
+        params = deepcopy(normalized.normalized_params)
+        if "resolution" in provided_fields:
+            params["resolution"] = request.resolution
+        if "duration" in provided_fields:
+            params["duration"] = request.duration
+        if "prompt_extend" in provided_fields:
+            params["prompt_extend"] = request.prompt_extend
+        if "watermark" in provided_fields:
+            params["watermark"] = request.watermark
+        if "seed" in provided_fields:
+            params["seed"] = request.seed
+        if "auto_audio" in provided_fields:
+            params["audio"] = request.auto_audio
+        if "shot_type" in provided_fields:
+            params["shot_type"] = request.shot_type
+        if "size" in provided_fields:
+            params["size"] = request.size
+        if "t2v_prompt_extend" in provided_fields:
+            params["prompt_extend"] = request.t2v_prompt_extend
+        if "control_condition" in provided_fields:
+            params["control_condition"] = request.control_condition
+        if "strength" in provided_fields:
+            params["strength"] = request.strength
+        if "mask_type" in provided_fields:
+            params["mask_type"] = request.mask_type
+        if "expand_ratio" in provided_fields:
+            params["expand_ratio"] = request.expand_ratio
+        if "expand_mode" in provided_fields:
+            params["expand_mode"] = request.expand_mode
+        if "mask_frame_id" in provided_fields:
+            params["mask_frame_id"] = request.mask_frame_id
+        normalized.normalized_params = params
+
+    return normalized
 
 
 def _get_vace_task_duration(source_metadata: dict) -> int:
@@ -277,6 +590,12 @@ async def list_tasks(project_id: str):
     return {"tasks": tasks}
 
 
+@router.get("/capabilities")
+async def get_capabilities():
+    """获取视频工作室能力 schema"""
+    return get_video_capabilities()
+
+
 @router.post("/prepare-source-video")
 async def prepare_source_video(request: PrepareSourceVideoRequest):
     """提取源视频首帧并返回元数据与预览"""
@@ -321,129 +640,43 @@ async def get_task(task_id: str):
 
 @router.post("")
 async def create_task(request: VideoStudioTaskCreateRequest):
-    """创建并启动视频生成任务
-    
-    支持六种任务类型：
-    1. image_to_video（图生视频）：需要 first_frame_url
-    2. reference_to_video（参考生视频）：需要 reference_video_urls（支持视频+图片）
-    3. text_to_video（文生视频）：需要 prompt
-    4. keyframe_to_video（首尾帧生视频）：需要 first_frame_url 和 last_frame_url
-    5. video_repainting（视频重绘）：需要 source_video_url
-    6. video_edit（局部编辑）：需要 source_video_url 和 mask_image_url
-    """
-    # 打印详细请求信息
-    print(f"\n{'#'*60}")
-    print(f"# 视频工作室 - 创建任务")
-    print(f"{'#'*60}")
-    print(f"[请求参数] task_type: {request.task_type}")
-    print(f"[请求参数] project_id: {request.project_id}")
-    print(f"[请求参数] name: {request.name}")
-    print(f"[请求参数] model: {request.model}")
-    print(f"[请求参数] mode: {request.mode}")
-    print(f"[请求参数] resolution: {request.resolution}")
-    print(f"[请求参数] size: {request.size}")
-    print(f"[请求参数] duration: {request.duration}")
-    print(f"[请求参数] prompt_extend: {request.prompt_extend}")
-    print(f"[请求参数] t2v_prompt_extend: {request.t2v_prompt_extend}")
-    print(f"[请求参数] watermark: {request.watermark}")
-    print(f"[请求参数] seed: {request.seed}")
-    print(f"[请求参数] auto_audio: {request.auto_audio}")
-    print(f"[请求参数] shot_type: {request.shot_type}")
-    print(f"[请求参数] group_count: {request.group_count}")
-    if request.first_frame_url:
-        print(f"[请求参数] first_frame_url: {request.first_frame_url[:100]}...")
-    if request.source_video_url:
-        print(f"[请求参数] source_video_url: {request.source_video_url[:100]}...")
-    if request.reference_image_url:
-        print(f"[请求参数] reference_image_url: {request.reference_image_url[:100]}...")
-    if request.mask_image_url:
-        print(f"[请求参数] mask_image_url: {request.mask_image_url[:100]}...")
-    if request.reference_video_urls:
-        print(f"[请求参数] reference_video_urls: {request.reference_video_urls}")
-    print(f"[请求参数] prompt: {request.prompt[:200] if request.prompt else 'None'}...")
-    print(f"{'#'*60}\n")
+    """创建并启动视频生成任务（兼容旧 task_type 与新 task_kind 协议）"""
+    normalized = _normalize_request(request)
+    adapter = get_video_adapter(normalized.provider)
+    try:
+        await adapter.validate(normalized)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    # 根据任务类型验证参数
-    source_metadata = None
-    if request.task_type == "image_to_video":
-        if not request.first_frame_url:
-            raise HTTPException(status_code=400, detail="图生视频任务需要选择首帧图")
-        if request.model == "wan2.2-s2v":
-            if not request.audio_url:
-                raise HTTPException(status_code=400, detail="数字人模型需要选择音频")
-        elif request.mode == "first_last_frame" and not request.last_frame_url:
-            raise HTTPException(status_code=400, detail="首尾帧模式需要选择尾帧图")
-    elif request.task_type == "reference_to_video":
-        if not request.reference_video_urls:
-            raise HTTPException(status_code=400, detail="参考生视频任务需要选择参考素材（视频或图片）")
-        if len(request.reference_video_urls) > 5:
-            raise HTTPException(status_code=400, detail="参考素材总数最多5个（视频≤3，图片≤5）")
-    elif request.task_type == "text_to_video":
-        if not request.prompt:
-            raise HTTPException(status_code=400, detail="文生视频任务需要输入提示词")
-    elif request.task_type == "keyframe_to_video":
-        if not request.first_frame_url:
-            raise HTTPException(status_code=400, detail="首尾帧生视频任务需要选择首帧图")
-        if not request.last_frame_url:
-            raise HTTPException(status_code=400, detail="首尾帧生视频任务需要选择尾帧图")
-    elif request.task_type in {"video_repainting", "video_edit"}:
-        source_metadata = await _validate_vace_task_request(request)
-    else:
-        raise HTTPException(status_code=400, detail="不支持的任务类型")
-
-    task_model = request.model
-    if request.task_type in {"video_repainting", "video_edit"}:
-        task_model = VACE_MODEL_NAME
-
-    task_size = request.size
-    if request.task_type == "video_edit":
-        task_size = request.size or "1280*720"
-    elif request.task_type == "video_repainting":
-        task_size = request.size or "1280*720"
-    elif request.task_type in {"reference_to_video", "text_to_video"}:
-        task_size = request.size or "1920*1080"
-
-    task_duration = request.duration
-    if request.task_type in {"video_repainting", "video_edit"} and source_metadata:
+    task_duration = int(normalized.normalized_params.get("duration") or request.duration or 5)
+    if normalized.task_kind in {"video_repainting", "video_edit_local"}:
+        source_video = (normalized.input_assets.get("source_video") or [None])[0]
+        source_metadata = await VaceVideoEditService().validate_source_video(source_video)
         task_duration = _get_vace_task_duration(source_metadata)
+        normalized.normalized_params["duration"] = task_duration
 
-    # 创建任务记录
     task = VideoStudioTask(
         project_id=request.project_id,
         name=request.name or f"视频任务 {datetime.now().strftime('%Y%m%d_%H%M%S')}",
-        task_type=request.task_type,
-        mode=request.mode,
-        first_frame_url=request.first_frame_url,
-        last_frame_url=request.last_frame_url,
-        reference_video_urls=request.reference_video_urls,
-        source_video_url=request.source_video_url,
-        source_video_preview_url=request.source_video_preview_url,
-        reference_image_url=request.reference_image_url,
-        mask_image_url=request.mask_image_url,
-        mask_frame_id=request.mask_frame_id if request.task_type == "video_edit" else None,
-        audio_url=request.audio_url,
-        prompt=request.prompt,
-        negative_prompt=request.negative_prompt,
-        model=task_model,
-        resolution=request.resolution,
+        task_type=TASK_KIND_TO_LEGACY_TASK_TYPE.get(normalized.task_kind, normalized.task_kind),
+        task_kind=normalized.task_kind,
+        provider=normalized.provider,
+        key_profile=normalized.key_profile,
+        model_id=normalized.model_id,
+        narrative_mode=normalized.narrative_mode,
+        input_assets=deepcopy(normalized.input_assets),
+        normalized_params=deepcopy(normalized.normalized_params),
+        prompt=normalized.prompt,
+        negative_prompt=normalized.negative_prompt,
+        model=normalized.model_id,
         duration=task_duration,
-        prompt_extend=request.prompt_extend,
-        watermark=request.watermark,
-        seed=request.seed,
-        auto_audio=request.auto_audio,
-        shot_type=request.shot_type,
-        size=task_size,
-        t2v_prompt_extend=request.t2v_prompt_extend,
-        control_condition=request.control_condition,
-        strength=request.strength,
-        mask_type=request.mask_type,
-        expand_ratio=request.expand_ratio,
-        expand_mode=request.expand_mode,
         group_count=request.group_count,
-        status="processing"
+        status="processing",
     )
-    
-    # 先保存任务（processing 状态），立即返回
+    _apply_normalized_fields_to_task(task, normalized)
+    if normalized.task_kind in {"video_repainting", "video_edit_local"}:
+        task.source_video_preview_url = request.source_video_preview_url
+
     storage_service.save_video_studio_task(task)
 
     # 捕获用户上下文（后台任务需要）
@@ -451,7 +684,7 @@ async def create_task(request: VideoStudioTaskCreateRequest):
     user_config_dir = get_user_config_dir()
 
     # 后台执行 API 调用，不阻塞请求
-    asyncio.create_task(_background_create_video_tasks(task, request, user_id, user_config_dir))
+    asyncio.create_task(_background_create_video_tasks(task, normalized, user_id, user_config_dir))
 
     return {"task": task}
 
@@ -459,99 +692,62 @@ async def create_task(request: VideoStudioTaskCreateRequest):
 @router.get("/{task_id}/status")
 async def get_task_status(task_id: str):
     """查询任务状态"""
-    print(f"\n[视频工作室状态查询] task_id: {task_id}")
-    
     task = storage_service.get_video_studio_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
-    
-    print(f"[视频工作室状态查询] 任务名: {task.name}")
-    print(f"[视频工作室状态查询] 任务类型: {getattr(task, 'task_type', 'image_to_video')}")
-    print(f"[视频工作室状态查询] 模型: {task.model}")
-    print(f"[视频工作室状态查询] 当前状态: {task.status}")
-    print(f"[视频工作室状态查询] API任务IDs: {task.task_ids}")
-    
+
     if task.status != "processing":
-        print(f"[视频工作室状态查询] 任务已完成，无需轮询")
         return {"task": task}
-    
-    # 后台任务还没提交完 API 任务（task_ids 为空），保持 processing
+
     if not task.task_ids:
-        print(f"[视频工作室状态查询] API 任务尚未提交完成，等待中...")
         return {"task": task}
-    
+
+    normalized = _normalized_request_from_task(task)
+    adapter = get_video_adapter(normalized.provider)
     all_succeeded = True
     all_finished = True
     video_urls = []
-    
-    # 根据任务类型选择服务
-    task_type = getattr(task, 'task_type', 'image_to_video')
-    
+    provider_meta = deepcopy(task.provider_result_meta or {})
+
     for api_task_id in task.task_ids:
-        print(f"\n[视频工作室状态查询] 查询子任务: {api_task_id}")
-        try:
-            if task_type in {"video_repainting", "video_edit"}:
-                print(f"[视频工作室状态查询] 使用 VACE 视频编辑服务 (HTTP)")
-                vace_service = VaceVideoEditService()
-                status, video_url = await vace_service.get_task_status(api_task_id, task.project_id)
-            elif task_type == "reference_to_video" or (task.model and "r2v" in task.model):
-                print(f"[视频工作室状态查询] 使用 参考生视频服务 (HTTP)")
-                r2v_service = ReferenceToVideoService()
-                status, video_url = await r2v_service.get_task_status(api_task_id, task.project_id)
-            elif task_type == "text_to_video":
-                print(f"[视频工作室状态查询] 使用 文生视频服务 (HTTP)")
-                t2v_service = TextToVideoService()
-                status, video_url = await t2v_service.get_task_status(api_task_id, task.project_id)
-            elif task_type == "keyframe_to_video":
-                print(f"[视频工作室状态查询] 使用 首尾帧生视频服务 (HTTP)")
-                kf2v_service = KeyframeToVideoService()
-                status, video_url = await kf2v_service.get_task_status(api_task_id, task.project_id)
-            elif task.model == "wan2.2-s2v":
-                print(f"[视频工作室状态查询] 使用 数字人视频服务 (HTTP)")
-                s2v_service = DigitalHumanService()
-                status, video_url = await s2v_service.get_task_status(api_task_id, task.project_id)
-            else:
-                i2v_service = ImageToVideoService()
-                use_http = 'wan2.6' in task.model
-                print(f"[视频工作室状态查询] 使用 图生视频服务 (HTTP={use_http})")
-                status, video_url = await i2v_service.get_task_status(api_task_id, task.project_id, use_http=use_http)
-            
-            print(f"[视频工作室状态查询] 子任务 {api_task_id} 状态: {status}")
-            
-            if status == "SUCCEEDED" and video_url:
-                # 注意：服务层已经处理了 OSS 上传（传入了 task.project_id）
-                # 这里不需要重复上传
-                video_urls.append(video_url)
-                print(f"[视频工作室状态查询] 子任务成功，视频URL已获取")
-            elif status == "FAILED":
-                all_succeeded = False
-                print(f"[视频工作室状态查询] 子任务失败")
-            elif status in ["PENDING", "RUNNING"]:
-                all_finished = False
-                print(f"[视频工作室状态查询] 子任务进行中")
-                
-        except Exception as e:
+        result = await adapter.fetch(normalized, api_task_id)
+        provider_meta[api_task_id] = {
+            "provider": normalized.provider,
+            "key_profile": result.key_profile or normalized.key_profile,
+            "request_id": result.request_id,
+            "usage": result.usage,
+            "error_code": result.error_code,
+            "error_message": result.error_message,
+            "raw_output": result.raw_output,
+            "finished_at": datetime.now().isoformat(),
+        }
+        normalized_status = str(result.status).upper()
+        if normalized_status == "SUCCEEDED" and result.video_url:
+            video_urls.append(result.video_url)
+        elif normalized_status == "FAILED":
             all_succeeded = False
-            task.error_message = str(e)
-            print(f"[视频工作室状态查询] 查询子任务异常: {e}")
+            if result.error_message:
+                task.error_message = result.error_message
+        elif normalized_status in {"PENDING", "RUNNING", "UNKNOWN"}:
+            all_finished = False
+        else:
+            all_succeeded = False
+            task.error_message = result.error_message or f"未知任务状态: {result.status}"
     
     # 更新任务状态
     task.video_urls = video_urls
+    task.provider_result_meta = provider_meta
     
     if all_finished:
         if not video_urls and not task.task_ids:
             pass
         elif all_succeeded and video_urls and len(video_urls) == len(task.task_ids):
             task.status = "succeeded"
-            print(f"[视频工作室状态查询] 所有任务成功完成！共 {len(video_urls)} 个视频")
         else:
             task.status = "failed"
             if not task.error_message:
                 failed_count = len(task.task_ids) - len(video_urls)
                 task.error_message = f"视频生成失败（{failed_count}/{len(task.task_ids)} 个失败）"
-            print(f"[视频工作室状态查询] 任务失败: {task.error_message}")
-    else:
-        print(f"[视频工作室状态查询] 任务进行中，已完成 {len(video_urls)}/{len(task.task_ids)}")
     
     task.updated_at = datetime.now()
     storage_service.save_video_studio_task(task)
@@ -565,67 +761,59 @@ async def update_task(task_id: str, request: VideoStudioTaskUpdateRequest):
     task = storage_service.get_video_studio_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
-    
-    # 更新各字段
+
     if request.name is not None:
         task.name = request.name
     if request.selected_video_url is not None:
         task.selected_video_url = request.selected_video_url
-    if request.prompt is not None:
-        task.prompt = request.prompt
-    if request.negative_prompt is not None:
-        task.negative_prompt = request.negative_prompt
-    if request.model is not None:
-        task.model = request.model
-    if request.resolution is not None:
-        task.resolution = request.resolution
-    if request.duration is not None:
-        task.duration = request.duration
-    if request.prompt_extend is not None:
-        task.prompt_extend = request.prompt_extend
-    if request.watermark is not None:
-        task.watermark = request.watermark
-    if request.seed is not None:
-        task.seed = request.seed
-    if request.auto_audio is not None:
-        task.auto_audio = request.auto_audio
-    if request.shot_type is not None:
-        task.shot_type = request.shot_type
-    if request.first_frame_url is not None:
-        task.first_frame_url = request.first_frame_url
-    if request.audio_url is not None:
-        task.audio_url = request.audio_url
-    if request.reference_video_urls is not None:
-        task.reference_video_urls = request.reference_video_urls
-    if request.size is not None:
-        task.size = request.size
-    if request.t2v_prompt_extend is not None:
-        task.t2v_prompt_extend = request.t2v_prompt_extend
+
     provided_fields = request.model_fields_set
-    if "source_video_url" in provided_fields:
-        task.source_video_url = request.source_video_url
     if "source_video_preview_url" in provided_fields:
         task.source_video_preview_url = request.source_video_preview_url
-    if "reference_image_url" in provided_fields:
-        task.reference_image_url = request.reference_image_url
-    if "mask_image_url" in provided_fields:
-        task.mask_image_url = request.mask_image_url
-    if "mask_frame_id" in provided_fields:
-        task.mask_frame_id = request.mask_frame_id
-    if "control_condition" in provided_fields:
-        task.control_condition = request.control_condition
-    if "strength" in provided_fields:
-        task.strength = request.strength
-    if "mask_type" in provided_fields:
-        task.mask_type = request.mask_type
-    if "expand_ratio" in provided_fields:
-        task.expand_ratio = request.expand_ratio
-    if "expand_mode" in provided_fields:
-        task.expand_mode = request.expand_mode
-    if request.task_type is not None:
-        task.task_type = request.task_type
     if request.group_count is not None:
         task.group_count = request.group_count
+
+    canonical_update_fields = {
+        "task_type",
+        "task_kind",
+        "provider",
+        "model_id",
+        "model",
+        "narrative_mode",
+        "input_assets",
+        "normalized_params",
+        "prompt",
+        "negative_prompt",
+        "resolution",
+        "duration",
+        "prompt_extend",
+        "watermark",
+        "seed",
+        "auto_audio",
+        "shot_type",
+        "first_frame_url",
+        "audio_url",
+        "reference_video_urls",
+        "size",
+        "t2v_prompt_extend",
+        "source_video_url",
+        "reference_image_url",
+        "mask_image_url",
+        "mask_frame_id",
+        "control_condition",
+        "strength",
+        "mask_type",
+        "expand_ratio",
+        "expand_mode",
+    }
+    if canonical_update_fields & provided_fields:
+        normalized = _merge_update_request_into_normalized_request(task, request)
+        adapter = get_video_adapter(normalized.provider)
+        try:
+            await adapter.validate(normalized)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        _apply_normalized_fields_to_task(task, normalized)
     
     task.updated_at = datetime.now()
     storage_service.save_video_studio_task(task)
@@ -661,89 +849,28 @@ async def regenerate_task(task_id: str):
     task = storage_service.get_video_studio_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
-    
-    # 根据任务类型验证
-    task_type = getattr(task, 'task_type', 'image_to_video')
-    
-    if task_type == "image_to_video":
-        if not task.first_frame_url:
-            raise HTTPException(status_code=400, detail="任务没有首帧图")
-        if task.model == "wan2.2-s2v" and not task.audio_url:
-            raise HTTPException(status_code=400, detail="数字人模型需要音频")
-    elif task_type == "reference_to_video":
-        if not task.reference_video_urls:
-            raise HTTPException(status_code=400, detail="任务没有参考视频")
-    elif task_type == "text_to_video":
-        if not task.prompt:
-            raise HTTPException(status_code=400, detail="任务没有提示词")
-    elif task_type == "keyframe_to_video":
-        if not task.first_frame_url:
-            raise HTTPException(status_code=400, detail="任务没有首帧图")
-        if not task.last_frame_url:
-            raise HTTPException(status_code=400, detail="任务没有尾帧图")
-    elif task_type == "video_repainting":
-        if not task.source_video_url:
-            raise HTTPException(status_code=400, detail="任务没有源视频")
-        if not task.control_condition:
-            raise HTTPException(status_code=400, detail="视频重绘任务缺少控制条件")
-    elif task_type == "video_edit":
-        if not task.source_video_url:
-            raise HTTPException(status_code=400, detail="任务没有源视频")
-        if not task.mask_image_url:
-            raise HTTPException(status_code=400, detail="任务没有Mask")
+    normalized = _normalized_request_from_task(task)
+    adapter = get_video_adapter(normalized.provider)
+    try:
+        await adapter.validate(normalized)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     # 捕获用户上下文
     user_id = get_current_user_id()
     user_config_dir = get_user_config_dir()
-
-    # 构造一个伪 request 用于复用后台函数
-    regen_request = VideoStudioTaskCreateRequest(
-        project_id=task.project_id,
-        name=task.name,
-        task_type=task_type,
-        mode=task.mode,
-        first_frame_url=task.first_frame_url,
-        last_frame_url=task.last_frame_url,
-        reference_video_urls=task.reference_video_urls or [],
-        source_video_url=task.source_video_url,
-        source_video_preview_url=task.source_video_preview_url,
-        reference_image_url=task.reference_image_url,
-        mask_image_url=task.mask_image_url,
-        mask_frame_id=task.mask_frame_id or VACE_MASK_FRAME_ID,
-        audio_url=task.audio_url,
-        prompt=task.prompt,
-        negative_prompt=task.negative_prompt,
-        model=task.model,
-        resolution=task.resolution,
-        duration=task.duration,
-        prompt_extend=task.prompt_extend,
-        watermark=task.watermark,
-        seed=task.seed,
-        auto_audio=task.auto_audio,
-        shot_type=task.shot_type,
-        size=task.size,
-        t2v_prompt_extend=getattr(task, 't2v_prompt_extend', True),
-        control_condition=task.control_condition,
-        strength=task.strength,
-        mask_type=task.mask_type,
-        expand_ratio=task.expand_ratio,
-        expand_mode=task.expand_mode,
-        group_count=task.group_count,
-    )
-
-    if task_type in {"video_repainting", "video_edit"}:
-        source_metadata = await _validate_vace_task_request(regen_request)
-        task.duration = _get_vace_task_duration(source_metadata)
 
     # 重置任务状态
     task.status = "processing"
     task.video_urls = []
     task.error_message = None
     task.task_ids = []
+    task.request_ids = []
+    task.provider_result_meta = {}
     task.updated_at = datetime.now()
     storage_service.save_video_studio_task(task)
 
-    asyncio.create_task(_background_create_video_tasks(task, regen_request, user_id, user_config_dir))
+    asyncio.create_task(_background_create_video_tasks(task, normalized, user_id, user_config_dir))
 
     return {"task": task}
 
@@ -894,7 +1021,7 @@ async def delete_all_tasks(project_id: str):
 
 async def _background_create_video_tasks(
     task: VideoStudioTask,
-    request: VideoStudioTaskCreateRequest,
+    request: NormalizedVideoTaskRequest,
     user_id: Optional[str],
     user_config_dir: Optional[str],
 ):
@@ -920,115 +1047,27 @@ async def _background_create_video_tasks(
 
 async def _submit_api_tasks(
     task: VideoStudioTask,
-    request: VideoStudioTaskCreateRequest,
+    request: NormalizedVideoTaskRequest,
 ) -> list:
     """并发提交所有 group 的 API 任务，返回 task_id 列表"""
 
-    async def create_one(idx: int) -> str:
-        current_seed = request.seed + idx if request.seed is not None else None
+    adapter = get_video_adapter(request.provider)
 
-        if request.task_type == "image_to_video":
-            if request.model == "wan2.2-s2v":
-                svc = DigitalHumanService()
-                return await svc.create_task(
-                    image_url=request.first_frame_url,
-                    audio_url=request.audio_url,
-                    model=request.model,
-                    resolution=request.resolution,
-                )
-            svc = ImageToVideoService()
-            return await svc.create_task(
-                image_url=request.first_frame_url,
-                prompt=request.prompt,
-                model=request.model,
-                resolution=request.resolution,
-                duration=request.duration,
-                prompt_extend=request.prompt_extend,
-                watermark=request.watermark,
-                seed=current_seed,
-                audio_url=request.audio_url,
-                audio=request.auto_audio if not request.audio_url else None,
-                negative_prompt=request.negative_prompt or None,
-                shot_type=request.shot_type,
-            )
+    async def create_one(idx: int) -> VideoSubmitResult:
+        return await adapter.submit(request, seed_offset=idx)
 
-        elif request.task_type == "reference_to_video":
-            svc = ReferenceToVideoService()
-            return await svc.create_task(
-                reference_urls=request.reference_video_urls,
-                prompt=request.prompt,
-                model=request.model,
-                size=request.size,
-                duration=request.duration,
-                shot_type=request.shot_type,
-                watermark=request.watermark,
-                seed=current_seed,
-                negative_prompt=request.negative_prompt or None,
-                audio=request.auto_audio if request.model and "r2v-flash" in request.model else None,
-            )
-
-        elif request.task_type == "text_to_video":
-            svc = TextToVideoService()
-            return await svc.create_task(
-                prompt=request.prompt,
-                model=request.model,
-                size=request.size,
-                duration=request.duration,
-                prompt_extend=request.t2v_prompt_extend,
-                shot_type=request.shot_type,
-                watermark=request.watermark,
-                seed=current_seed,
-                audio_url=request.audio_url,
-                negative_prompt=request.negative_prompt or None,
-            )
-
-        elif request.task_type == "keyframe_to_video":
-            svc = KeyframeToVideoService()
-            return await svc.create_task(
-                first_frame_url=request.first_frame_url,
-                last_frame_url=request.last_frame_url,
-                prompt=request.prompt or None,
-                model=request.model,
-                resolution=request.resolution,
-                prompt_extend=request.prompt_extend,
-                watermark=request.watermark,
-                seed=current_seed,
-                negative_prompt=request.negative_prompt or None,
-            )
-
-        elif request.task_type == "video_repainting":
-            svc = VaceVideoEditService()
-            return await svc.create_video_repainting_task(
-                prompt=request.prompt,
-                source_video_url=request.source_video_url,
-                reference_image_url=request.reference_image_url,
-                control_condition=request.control_condition,
-                strength=request.strength,
-                prompt_extend=request.prompt_extend,
-                seed=current_seed,
-                watermark=request.watermark,
-                model=request.model,
-            )
-
-        elif request.task_type == "video_edit":
-            svc = VaceVideoEditService()
-            return await svc.create_video_edit_task(
-                prompt=request.prompt,
-                source_video_url=request.source_video_url,
-                mask_image_url=request.mask_image_url,
-                mask_frame_id=request.mask_frame_id or VACE_MASK_FRAME_ID,
-                reference_image_url=request.reference_image_url,
-                control_condition=request.control_condition,
-                mask_type=request.mask_type,
-                expand_ratio=request.expand_ratio,
-                expand_mode=request.expand_mode,
-                size=request.size,
-                prompt_extend=request.prompt_extend,
-                seed=current_seed,
-                watermark=request.watermark,
-                model=request.model,
-            )
-
-        raise ValueError(f"不支持的任务类型: {request.task_type}")
-
-    return list(await asyncio.gather(*[create_one(i) for i in range(request.group_count)]))
+    results = list(await asyncio.gather(*[create_one(i) for i in range(task.group_count)]))
+    task.request_ids = [result.request_id for result in results if result.request_id]
+    if results:
+        task.provider_payload_snapshot = results[0].provider_payload
+        task.key_profile = results[0].key_profile or request.key_profile
+    task.provider_result_meta = {
+        result.task_id: {
+            "provider": request.provider,
+            "key_profile": result.key_profile or request.key_profile,
+            "request_id": result.request_id,
+            "submitted_at": datetime.now().isoformat(),
+        }
+        for result in results
+    }
+    return [result.task_id for result in results]

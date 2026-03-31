@@ -30,11 +30,24 @@ def _format_model_for_frontend(model) -> dict:
         "id": model.id,
         "name": model.name,
         "type": model.type.value,
+        "provider": model.provider,
         "description": model.description,
         "version": model.version,
         "capabilities": model.capabilities.model_dump(),
         "parameters": [p.model_dump() for p in model.parameters],
         "default_values": model.get_default_values(),
+        "supported_task_kinds": [task_kind.value for task_kind in model.supported_task_kinds],
+        "task_profiles": {
+            task_key: {
+                **profile.model_dump(),
+                "task_kind": profile.task_kind.value,
+                "input_roles": [role.value for role in profile.input_roles],
+                "supported_narrative_modes": [mode.value for mode in profile.supported_narrative_modes],
+                "default_values": profile.get_default_values(),
+            }
+            for task_key, profile in model.task_profiles.items()
+        },
+        "ui_hints": model.ui_hints,
         "size_constraints": model.size_constraints.model_dump() if model.size_constraints else None,
         "common_sizes": model.get_common_sizes_for_frontend(),
         "doc_url": model.doc_url,
@@ -229,4 +242,3 @@ async def list_model_types():
             for mt, models in models_by_type.items()
         ]
     }
-

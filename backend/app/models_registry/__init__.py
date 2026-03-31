@@ -43,6 +43,10 @@ from .base import (
     ModelType,
     ModelCapability,
     ModelInfo,
+    VideoTaskKind,
+    InputRole,
+    NarrativeMode,
+    VideoTaskProfile,
     TaskStatus,
     TaskResult,
     # 尺寸定义
@@ -83,6 +87,10 @@ __all__ = [
     "ModelType",
     "ModelCapability",
     "ModelInfo",
+    "VideoTaskKind",
+    "InputRole",
+    "NarrativeMode",
+    "VideoTaskProfile",
     "TaskStatus",
     "TaskResult",
     # 尺寸定义
@@ -94,4 +102,3 @@ __all__ = [
     "ModelRegistry",
     "registry",
 ]
-

@@ -3,7 +3,7 @@
 """
 
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 import uuid
 
@@ -98,8 +98,19 @@ class VideoStudioTask(BaseModel):
     project_id: str
     name: str = ""  # 任务名称
     
-    # 任务类型: image_to_video / reference_to_video / text_to_video / keyframe_to_video / video_repainting / video_edit
+    # 兼容旧任务类型: image_to_video / reference_to_video / text_to_video / keyframe_to_video / video_repainting / video_edit
     task_type: str = "image_to_video"
+    task_kind: str = "image_to_video"
+    provider: str = "wan"
+    key_profile: Optional[str] = None
+    model_id: Optional[str] = None
+    narrative_mode: str = "single"
+
+    # 新架构的规范化输入与参数
+    input_assets: Dict[str, Any] = {}
+    normalized_params: Dict[str, Any] = {}
+    provider_payload_snapshot: Optional[Dict[str, Any]] = None
+    provider_result_meta: Dict[str, Any] = {}
     
     # 生成模式（图生视频使用）
     mode: str = "first_frame"  # first_frame: 首帧生视频, first_last_frame: 首尾帧生视频

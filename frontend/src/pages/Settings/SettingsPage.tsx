@@ -36,6 +36,9 @@ const SettingsPage = () => {
       
       form.setFieldsValue({
         api_region: data.api_region,
+        wan_key_profile: data.wan_key_profile,
+        kling_key_profile: data.kling_key_profile,
+        vidu_key_profile: data.vidu_key_profile,
         // 文本模型配置
         llm_model: data.llm.model,
         llm_max_tokens: data.llm.max_tokens,
@@ -58,21 +61,33 @@ const SettingsPage = () => {
     }
   }
 
-  const handleSaveApiKey = async () => {
-    const apiKey = form.getFieldValue('api_key')
-    if (!apiKey) {
-      message.warning('请输入 API Key')
-      return
+  const handleSaveKeyRouting = async () => {
+    const values = form.getFieldsValue()
+    const payload: Record<string, any> = {
+      wan_key_profile: values.wan_key_profile,
+      kling_key_profile: values.kling_key_profile,
+      vidu_key_profile: values.vidu_key_profile,
     }
-    
+    if (values.test_api_key) {
+      payload.test_api_key = values.test_api_key
+    }
+    if (values.production_api_key) {
+      payload.production_api_key = values.production_api_key
+    }
+
     setSaving(true)
     try {
-      await settingsApi.setApiKey(apiKey)
-      message.success('API Key 已保存')
-      form.setFieldValue('api_key', '')
+      await settingsApi.updateSettings(payload)
+      message.success('Key 与路由设置已保存')
+      form.setFieldValue('test_api_key', '')
+      form.setFieldValue('production_api_key', '')
       fetchSettings()
     } catch (error) {
-      message.error('保存失败')
+      if (error instanceof Error) {
+        message.error(error.message)
+      } else {
+        message.error('保存失败')
+      }
     } finally {
       setSaving(false)
     }
@@ -84,6 +99,11 @@ const SettingsPage = () => {
       const values = form.getFieldsValue()
       
       await settingsApi.updateSettings({
+        test_api_key: values.test_api_key || undefined,
+        production_api_key: values.production_api_key || undefined,
+        wan_key_profile: values.wan_key_profile,
+        kling_key_profile: values.kling_key_profile,
+        vidu_key_profile: values.vidu_key_profile,
         api_region: values.api_region,
         llm: {
           model: values.llm_model,
@@ -105,6 +125,8 @@ const SettingsPage = () => {
         },
       })
       message.success('设置已保存')
+      form.setFieldValue('test_api_key', '')
+      form.setFieldValue('production_api_key', '')
       fetchSettings()
     } catch (error) {
       if (error instanceof Error) {
@@ -237,46 +259,125 @@ const SettingsPage = () => {
       />
 
       {/* API Key 设置 */}
-      <Card 
-        title="百炼 DashScope API Key" 
+      <Card
+        title="模型账号 Key 与路由"
         style={{ marginBottom: 24 }}
       >
         <Alert
           message={
-            config?.is_api_key_set ? (
+            config?.is_test_api_key_set ? (
               <span>
                 <CheckCircleOutlined style={{ color: token.colorSuccess, marginRight: 8 }} />
-                API Key 已设置：{config.api_key_masked}
+                测试账号 Key 已设置：{config.test_api_key_masked}
               </span>
             ) : (
               <span>
                 <CloseCircleOutlined style={{ color: token.colorError, marginRight: 8 }} />
-                尚未设置 API Key
+                测试账号 Key 尚未设置
               </span>
             )
           }
-          type={config?.is_api_key_set ? 'success' : 'warning'}
+          type={config?.is_test_api_key_set ? 'success' : 'warning'}
+          style={{ marginBottom: 12 }}
+        />
+
+        <Alert
+          message={
+            config?.is_production_api_key_set ? (
+              <span>
+                <CheckCircleOutlined style={{ color: token.colorSuccess, marginRight: 8 }} />
+                生产账号 Key 已设置：{config.production_api_key_masked}
+              </span>
+            ) : (
+              <span>
+                <CloseCircleOutlined style={{ color: token.colorError, marginRight: 8 }} />
+                生产账号 Key 尚未设置
+              </span>
+            )
+          }
+          type={config?.is_production_api_key_set ? 'success' : 'warning'}
           style={{ marginBottom: 16 }}
         />
 
         <Form form={form} layout="vertical">
-          <Form.Item
-            name="api_key"
-            label="输入新的 API Key"
-            extra="API Key 将被安全保存，您可以在阿里云百炼控制台获取"
-          >
-            <Input.Password
-              placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-              iconRender={(visible) => (visible ? <EyeOutlined /> : <EyeInvisibleOutlined />)}
-            />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="test_api_key"
+                label="测试账号 Key"
+                extra="留空表示不修改，主要用于模型联调和真实验证"
+              >
+                <Input.Password
+                  placeholder="输入新的测试账号 Key"
+                  iconRender={(visible) => (visible ? <EyeOutlined /> : <EyeInvisibleOutlined />)}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="production_api_key"
+                label="生产账号 Key"
+                extra="留空表示不修改，旧的 DashScope API Key 兼容映射到这里"
+              >
+                <Input.Password
+                  placeholder="输入新的生产账号 Key"
+                  iconRender={(visible) => (visible ? <EyeOutlined /> : <EyeInvisibleOutlined />)}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item
+                name="wan_key_profile"
+                label="万相走哪个 Key"
+                initialValue="production"
+              >
+                <Select
+                  options={[
+                    { label: '测试账号 Key', value: 'test' },
+                    { label: '生产账号 Key', value: 'production' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name="kling_key_profile"
+                label="Kling 走哪个 Key"
+                initialValue="production"
+              >
+                <Select
+                  options={[
+                    { label: '测试账号 Key', value: 'test' },
+                    { label: '生产账号 Key', value: 'production' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name="vidu_key_profile"
+                label="Vidu 走哪个 Key"
+                initialValue="production"
+              >
+                <Select
+                  options={[
+                    { label: '测试账号 Key', value: 'test' },
+                    { label: '生产账号 Key', value: 'production' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
           <Button
             type="primary"
             icon={<SaveOutlined />}
-            onClick={handleSaveApiKey}
+            onClick={handleSaveKeyRouting}
             loading={saving}
           >
-            保存 API Key
+            保存 Key 与路由
           </Button>
         </Form>
       </Card>

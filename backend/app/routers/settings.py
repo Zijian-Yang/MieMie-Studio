@@ -9,7 +9,7 @@ from typing import Optional, List, Dict, Any
 from app.config import (
     config_manager, AppConfig, LLMConfig, ImageConfig, ImageEditConfig, VideoConfig, TextToVideoConfig, RefVideoConfig, OSSConfig,
     API_REGIONS, LLM_MODELS, IMAGE_MODELS, IMAGE_EDIT_MODELS, VIDEO_MODELS, TEXT_TO_VIDEO_MODELS, REF_VIDEO_MODELS,
-    KEYFRAME_TO_VIDEO_MODELS, VIDEO_REPAINTING_MODELS, VIDEO_EDIT_MODELS
+    KEYFRAME_TO_VIDEO_MODELS, VIDEO_REPAINTING_MODELS, VIDEO_EDIT_MODELS, normalize_key_profile
 )
 from app.services.oss import oss_service
 
@@ -105,6 +105,11 @@ class OSSConfigRequest(BaseModel):
 class ConfigUpdateRequest(BaseModel):
     """配置更新请求"""
     api_key: Optional[str] = None
+    test_api_key: Optional[str] = None
+    production_api_key: Optional[str] = None
+    wan_key_profile: Optional[str] = None
+    kling_key_profile: Optional[str] = None
+    vidu_key_profile: Optional[str] = None
     api_region: Optional[str] = None
     llm: Optional[LLMConfigRequest] = None
     image: Optional[ImageConfigRequest] = None
@@ -130,6 +135,13 @@ class ConfigResponse(BaseModel):
     """完整配置响应"""
     api_key_masked: str
     is_api_key_set: bool
+    test_api_key_masked: str
+    is_test_api_key_set: bool
+    production_api_key_masked: str
+    is_production_api_key_set: bool
+    wan_key_profile: str
+    kling_key_profile: str
+    vidu_key_profile: str
     api_region: str
     base_url: str
     
@@ -200,9 +212,18 @@ async def get_settings():
         prefix=oss_config.prefix
     )
     
+    production_api_key = config.production_api_key or config.dashscope_api_key
+
     return ConfigResponse(
-        api_key_masked=mask_api_key(config.dashscope_api_key),
-        is_api_key_set=bool(config.dashscope_api_key),
+        api_key_masked=mask_api_key(production_api_key),
+        is_api_key_set=bool(production_api_key),
+        test_api_key_masked=mask_api_key(config.test_api_key),
+        is_test_api_key_set=bool(config.test_api_key),
+        production_api_key_masked=mask_api_key(production_api_key),
+        is_production_api_key_set=bool(production_api_key),
+        wan_key_profile=normalize_key_profile(config.wan_key_profile),
+        kling_key_profile=normalize_key_profile(config.kling_key_profile),
+        vidu_key_profile=normalize_key_profile(config.vidu_key_profile),
         api_region=config.api_region,
         base_url=config.base_url,
         llm=config.llm.model_dump(),
@@ -229,9 +250,26 @@ async def get_settings():
 async def update_settings(request: ConfigUpdateRequest):
     """更新设置"""
     update_data = {}
-    
+
     if request.api_key is not None:
         update_data["dashscope_api_key"] = request.api_key
+        update_data["production_api_key"] = request.api_key
+
+    if request.test_api_key is not None:
+        update_data["test_api_key"] = request.test_api_key
+
+    if request.production_api_key is not None:
+        update_data["production_api_key"] = request.production_api_key
+        update_data["dashscope_api_key"] = request.production_api_key
+
+    if request.wan_key_profile is not None:
+        update_data["wan_key_profile"] = normalize_key_profile(request.wan_key_profile)
+
+    if request.kling_key_profile is not None:
+        update_data["kling_key_profile"] = normalize_key_profile(request.kling_key_profile)
+
+    if request.vidu_key_profile is not None:
+        update_data["vidu_key_profile"] = normalize_key_profile(request.vidu_key_profile)
     
     if request.api_region is not None:
         if request.api_region not in API_REGIONS:
@@ -331,7 +369,7 @@ async def get_api_key():
 @router.delete("/api-key")
 async def delete_api_key():
     """删除 API Key"""
-    config_manager.set_api_key("")
+    config_manager.update(dashscope_api_key="", production_api_key="")
     return {"message": "API Key 已删除"}
 
 
