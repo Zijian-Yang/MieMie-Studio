@@ -7,6 +7,7 @@ VACE 视频编辑服务
 """
 
 import base64
+import json
 import os
 import re
 import tempfile
@@ -65,6 +66,10 @@ class VaceVideoEditService:
         parameters = {
             "control_condition": control_condition,
         }
+        if reference_image_url:
+            # VACE 当前在传入参考图时要求同步声明图像用途；
+            # 现阶段视频工作室仅支持单图主体参考，因此默认按 obj 处理。
+            parameters["obj_or_bg"] = ["obj"]
         if strength is not None:
             parameters["strength"] = strength
         if prompt_extend is not None:
@@ -105,6 +110,9 @@ class VaceVideoEditService:
             input_data["ref_images_url"] = [reference_image_url]
 
         parameters = {}
+        if reference_image_url:
+            # 当前前端只支持单张参考图，默认按主体参考处理。
+            parameters["obj_or_bg"] = ["obj"]
         if control_condition:
             parameters["control_condition"] = control_condition
         if mask_type:
@@ -134,8 +142,29 @@ class VaceVideoEditService:
 
         output = result.get("output", {})
         status = output.get("task_status", "UNKNOWN")
+        request_id = result.get("request_id", "N/A")
+        print(f"[VACE任务状态查询] status_code: {response.status_code}")
+        print(f"[VACE任务状态查询] request_id: {request_id}")
+        print(f"[VACE任务状态查询] task_status: {status}")
         if response.status_code != 200:
             raise Exception(f"查询任务状态失败: {result.get('code', 'Unknown')} - {result.get('message', 'Unknown error')}")
+
+        if status == "FAILED":
+            error_code = output.get("code") or result.get("code") or "Unknown"
+            error_message = output.get("message") or result.get("message") or "未知错误"
+            print(f"\n{'!'*60}")
+            print("[VACE任务失败] 详细错误信息:")
+            print(json.dumps({
+                "request_id": request_id,
+                "output": {
+                    "task_id": task_id,
+                    "task_status": status,
+                    "code": error_code,
+                    "message": error_message,
+                }
+            }, ensure_ascii=False, indent=4))
+            print(f"{'!'*60}\n")
+            raise Exception(f"VACE任务失败: {error_code} - {error_message}")
 
         video_url = output.get("video_url") if status == "SUCCEEDED" else None
         if status == "SUCCEEDED" and video_url:

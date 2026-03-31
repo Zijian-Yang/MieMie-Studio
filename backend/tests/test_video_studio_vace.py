@@ -1,7 +1,10 @@
 import io
 
+import pytest
+
 from app.models.media import VideoStudioTask
 from app.routers import video_studio as video_studio_router
+from app.services.dashscope.vace_video_edit import VaceVideoEditService
 from app.services.storage import storage_service, set_current_user
 
 
@@ -20,6 +23,54 @@ def _patch_async_create_task(monkeypatch):
 
 
 class TestVideoStudioVace:
+    @pytest.mark.asyncio
+    async def test_create_video_edit_with_reference_sets_obj_or_bg(self, monkeypatch):
+        captured = {}
+
+        async def fake_create(self, model_name: str, input_data: dict, parameters: dict):
+            captured["model_name"] = model_name
+            captured["input_data"] = input_data
+            captured["parameters"] = parameters
+            return "task-1"
+
+        monkeypatch.setattr(VaceVideoEditService, "_create_task", fake_create)
+
+        svc = VaceVideoEditService()
+        task_id = await svc.create_video_edit_task(
+            prompt="替换成机械臂",
+            source_video_url="https://oss.example.com/source.mp4",
+            mask_image_url="https://oss.example.com/mask.png",
+            reference_image_url="https://oss.example.com/ref.png",
+        )
+
+        assert task_id == "task-1"
+        assert captured["input_data"]["ref_images_url"] == ["https://oss.example.com/ref.png"]
+        assert captured["parameters"]["obj_or_bg"] == ["obj"]
+
+    @pytest.mark.asyncio
+    async def test_create_video_repainting_with_reference_sets_obj_or_bg(self, monkeypatch):
+        captured = {}
+
+        async def fake_create(self, model_name: str, input_data: dict, parameters: dict):
+            captured["model_name"] = model_name
+            captured["input_data"] = input_data
+            captured["parameters"] = parameters
+            return "task-2"
+
+        monkeypatch.setattr(VaceVideoEditService, "_create_task", fake_create)
+
+        svc = VaceVideoEditService()
+        task_id = await svc.create_video_repainting_task(
+            prompt="替换成机器人",
+            source_video_url="https://oss.example.com/source.mp4",
+            reference_image_url="https://oss.example.com/ref.png",
+            control_condition="depth",
+        )
+
+        assert task_id == "task-2"
+        assert captured["input_data"]["ref_images_url"] == ["https://oss.example.com/ref.png"]
+        assert captured["parameters"]["obj_or_bg"] == ["obj"]
+
     def test_prepare_source_video_success(self, client, auth_header, monkeypatch):
         async def fake_prepare(self, project_id: str, video_url: str):
             return {
@@ -167,3 +218,32 @@ class TestVideoStudioVace:
         data = resp.json()["task"]
         assert data["status"] == "succeeded"
         assert data["video_urls"] == ["https://oss.example.com/result.mp4"]
+
+    def test_get_vace_task_status_failure_keeps_detail(self, client, auth_header, registered_user, monkeypatch):
+        project_id = _create_project(client, auth_header)
+        _, user = registered_user
+        set_current_user(user["id"])
+        task = VideoStudioTask(
+            project_id=project_id,
+            name="局部编辑失败任务",
+            task_type="video_edit",
+            model="wanx2.1-vace-plus",
+            prompt="把招牌换成霓虹灯",
+            source_video_url="https://oss.example.com/source.mp4",
+            mask_image_url="https://oss.example.com/mask.png",
+            mask_frame_id=1,
+            task_ids=["api-task-failed"],
+            status="processing",
+        )
+        storage_service.save_video_studio_task(task)
+
+        async def fake_status(self, task_id: str, project_id: str = ""):
+            raise Exception("VACE任务失败: InvalidParameter - ref_images_url and obj_or_bg must be the same length")
+
+        monkeypatch.setattr(video_studio_router.VaceVideoEditService, "get_task_status", fake_status)
+
+        resp = client.get(f"/api/video-studio/{task.id}/status", headers=auth_header)
+        assert resp.status_code == 200
+        data = resp.json()["task"]
+        assert data["status"] == "failed"
+        assert "obj_or_bg" in data["error_message"]
