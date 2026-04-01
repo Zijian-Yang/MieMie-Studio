@@ -1362,8 +1362,12 @@ show_status() {
     
     # 自动更新状态
     echo ""
-    if crontab -l 2>/dev/null | grep -q "$AUTO_UPDATE_CRON_TAG"; then
-        echo -e "  自动更新      ${GREEN}✓ 已开启${NC}  ${DIM}每日 03:00${NC}"
+    local auto_update_line auto_update_expr auto_update_desc
+    auto_update_line="$(get_auto_update_cron_line)"
+    if [ -n "$auto_update_line" ]; then
+        auto_update_expr="$(echo "$auto_update_line" | awk '{print $1" "$2" "$3" "$4" "$5}')"
+        auto_update_desc="$(format_auto_update_schedule "$auto_update_expr")"
+        echo -e "  自动更新      ${GREEN}✓ 已开启${NC}  ${DIM}${auto_update_desc}${NC}"
     else
         echo -e "  自动更新      ${DIM}未开启${NC}"
     fi
@@ -1531,13 +1535,16 @@ update_project() {
 AUTO_UPDATE_CRON_TAG="miemie-studio-auto-update"
 UPDATE_LOG="$LOG_DIR/update.log"
 BACKUP_DIR="$PROJECT_DIR/backups"
+AUTO_UPDATE_DEFAULT_HOUR="3"
+AUTO_UPDATE_DEFAULT_MINUTE="0"
 
 auto_update_manage() {
     local action="${1:-status}"
 
     case "$action" in
         enable)
-            auto_update_enable
+            shift || true
+            auto_update_enable "$@"
             ;;
         disable)
             auto_update_disable
@@ -1547,25 +1554,131 @@ auto_update_manage() {
             ;;
         *)
             log_error "未知操作: $action"
-            echo "用法: ./run.sh auto-update [enable|disable|status]"
+            echo "用法:"
+            echo "  ./run.sh auto-update enable"
+            echo "  ./run.sh auto-update enable --every 30"
+            echo "  ./run.sh auto-update enable --daily 3"
+            echo "  ./run.sh auto-update enable --daily 03:30"
+            echo "  ./run.sh auto-update disable"
+            echo "  ./run.sh auto-update status"
             ;;
     esac
 }
 
-auto_update_enable() {
-    local cron_cmd="0 3 * * * cd '$PROJECT_DIR' && '$PROJECT_DIR/run.sh' update --auto >> '$UPDATE_LOG' 2>&1"
+get_auto_update_cron_line() {
+    crontab -l 2>/dev/null | grep "$AUTO_UPDATE_CRON_TAG" | head -n 1
+}
+
+remove_auto_update_cron() {
+    if crontab -l 2>/dev/null | grep -q "$AUTO_UPDATE_CRON_TAG"; then
+        crontab -l 2>/dev/null | grep -v "$AUTO_UPDATE_CRON_TAG" | crontab -
+    fi
+}
+
+build_auto_update_job_command() {
+    echo "cd '$PROJECT_DIR' && '$PROJECT_DIR/run.sh' update --auto >> '$UPDATE_LOG' 2>&1"
+}
+
+format_auto_update_schedule() {
+    local cron_expr="$1"
+    local minute_field hour_field
+    minute_field=$(echo "$cron_expr" | awk '{print $1}')
+    hour_field=$(echo "$cron_expr" | awk '{print $2}')
+
+    if [[ "$minute_field" =~ ^\*/([0-9]+)$ ]] && [ "$hour_field" = "*" ]; then
+        echo "每 ${BASH_REMATCH[1]} 分钟"
+        return
+    fi
+
+    if [ "$minute_field" = "0" ] && [[ "$hour_field" =~ ^\*/([0-9]+)$ ]]; then
+        local hours="${BASH_REMATCH[1]}"
+        echo "每 $((hours * 60)) 分钟"
+        return
+    fi
+
+    if [[ "$minute_field" =~ ^[0-9]+$ ]] && [[ "$hour_field" =~ ^[0-9]+$ ]]; then
+        printf "每日 %02d:%02d" "$hour_field" "$minute_field"
+        return
+    fi
+
+    echo "自定义计划"
+}
+
+auto_update_install_cron() {
+    local cron_expr="$1"
+    local cron_cmd
+    cron_cmd="$(build_auto_update_job_command)"
 
     # 检查是否已存在
     if crontab -l 2>/dev/null | grep -q "$AUTO_UPDATE_CRON_TAG"; then
-        log_warn "自动更新已启用"
-        return 0
+        remove_auto_update_cron
     fi
 
     # 添加 cron 任务
-    (crontab -l 2>/dev/null; echo "$cron_cmd # $AUTO_UPDATE_CRON_TAG") | crontab -
+    (crontab -l 2>/dev/null; echo "$cron_expr $cron_cmd # $AUTO_UPDATE_CRON_TAG") | crontab -
     mkdir -p "$LOG_DIR"
-    log_success "自动更新已启用（每日凌晨 3:00 执行）"
+    log_success "自动更新已启用（$(format_auto_update_schedule "$cron_expr")）"
     echo "  更新日志: $UPDATE_LOG"
+}
+
+auto_update_enable_every() {
+    local interval="$1"
+    local cron_expr=""
+
+    if ! [[ "$interval" =~ ^[0-9]+$ ]] || [ "$interval" -le 0 ]; then
+        log_error "分钟数必须是大于 0 的整数"
+        return 1
+    fi
+
+    if [ "$interval" -lt 60 ]; then
+        cron_expr="*/$interval * * * *"
+    elif [ $((interval % 60)) -eq 0 ] && [ $((interval / 60)) -le 23 ]; then
+        cron_expr="0 */$((interval / 60)) * * *"
+    else
+        log_error "当前仅支持 1-59 分钟，或 60 的整数倍且不超过 1380 分钟"
+        echo "  例如：5、15、30、60、120、180、360"
+        return 1
+    fi
+
+    auto_update_install_cron "$cron_expr"
+}
+
+auto_update_enable_daily() {
+    local schedule="$1"
+    local hour minute cron_expr
+
+    if [[ "$schedule" =~ ^([0-9]{1,2}):([0-9]{1,2})$ ]]; then
+        hour="${BASH_REMATCH[1]}"
+        minute="${BASH_REMATCH[2]}"
+    elif [[ "$schedule" =~ ^[0-9]{1,2}$ ]]; then
+        hour="$schedule"
+        minute="$AUTO_UPDATE_DEFAULT_MINUTE"
+    else
+        log_error "每天更新时间格式不正确，请使用小时或 HH:MM"
+        return 1
+    fi
+
+    if [ "$hour" -lt 0 ] || [ "$hour" -gt 23 ] || [ "$minute" -lt 0 ] || [ "$minute" -gt 59 ]; then
+        log_error "每天更新时间必须在 00:00 到 23:59 之间"
+        return 1
+    fi
+
+    printf -v cron_expr "%d %d * * *" "$minute" "$hour"
+    auto_update_install_cron "$cron_expr"
+}
+
+auto_update_enable() {
+    if [ "$1" = "--every" ] && [ -n "$2" ]; then
+        auto_update_enable_every "$2"
+        return $?
+    fi
+
+    if [ "$1" = "--daily" ] && [ -n "$2" ]; then
+        auto_update_enable_daily "$2"
+        return $?
+    fi
+
+    auto_update_enable_daily "${AUTO_UPDATE_DEFAULT_HOUR}:${AUTO_UPDATE_DEFAULT_MINUTE}"
 }
 
 auto_update_disable() {
@@ -1579,12 +1692,16 @@ auto_update_disable() {
 }
 
 auto_update_status() {
+    local cron_line cron_expr schedule_text
+    cron_line="$(get_auto_update_cron_line)"
     echo ""
     echo "========== 自动更新状态 =========="
     echo ""
-    if crontab -l 2>/dev/null | grep -q "$AUTO_UPDATE_CRON_TAG"; then
-        echo -e "  状态: ${GREEN}已启用${NC} (每日 03:00)"
-        echo "  Cron: $(crontab -l 2>/dev/null | grep "$AUTO_UPDATE_CRON_TAG" | sed "s/ # $AUTO_UPDATE_CRON_TAG//")"
+    if [ -n "$cron_line" ]; then
+        cron_expr="$(echo "$cron_line" | awk '{print $1" "$2" "$3" "$4" "$5}')"
+        schedule_text="$(format_auto_update_schedule "$cron_expr")"
+        echo -e "  状态: ${GREEN}已启用${NC} ($schedule_text)"
+        echo "  Cron: $(echo "$cron_line" | sed "s/ # $AUTO_UPDATE_CRON_TAG//")"
     else
         echo -e "  状态: ${RED}未启用${NC}"
     fi
@@ -2184,35 +2301,49 @@ menu_logs() {
 menu_auto_update() {
     print_header
     echo -e "  ${BOLD}自动更新管理${NC}"
-    echo -e "  ${DIM}开启后，系统每天凌晨 3:00 自动检查 GitHub 上的新版本。${NC}"
+    echo -e "  ${DIM}开启后，可按分钟间隔或每天固定时间自动检查 GitHub 上的新版本。${NC}"
     echo -e "  ${DIM}更新过程会自动备份你的数据，不会丢失任何内容。${NC}"
     echo ""
 
-    if crontab -l 2>/dev/null | grep -q "$AUTO_UPDATE_CRON_TAG"; then
-        echo -e "  当前状态: ${GREEN}已开启${NC}"
+    local cron_line cron_expr schedule_text interval_minutes daily_time
+    cron_line="$(get_auto_update_cron_line)"
+    if [ -n "$cron_line" ]; then
+        cron_expr="$(echo "$cron_line" | awk '{print $1" "$2" "$3" "$4" "$5}')"
+        schedule_text="$(format_auto_update_schedule "$cron_expr")"
+        echo -e "  当前状态: ${GREEN}已开启${NC}  ${DIM}${schedule_text}${NC}"
     else
         echo -e "  当前状态: ${YELLOW}未开启${NC}"
     fi
     echo ""
-    echo -e "  ${GREEN}1${NC})  开启自动更新"
-    echo -e "  ${GREEN}2${NC})  关闭自动更新"
-    echo -e "  ${GREEN}3${NC})  查看更新日志"
+    echo -e "  ${GREEN}1${NC})  设置每 N 分钟自动更新"
+    echo -e "  ${GREEN}2${NC})  设置每天固定时间自动更新"
+    echo -e "  ${GREEN}3${NC})  关闭自动更新"
+    echo -e "  ${GREEN}4${NC})  查看更新日志"
     echo -e "  ${RED}0${NC})  返回"
     echo ""
-    read -p "  请选择 [0-3]: " choice
+    read -p "  请选择 [0-4]: " choice
 
     case "$choice" in
         1)
             echo ""
-            auto_update_enable
+            read -p "  请输入间隔分钟数（支持 1-59，或 60 的整数倍如 60/120）: " interval_minutes
+            echo ""
+            auto_update_enable_every "$interval_minutes"
             wait_key
             ;;
         2)
             echo ""
-            auto_update_disable
+            read -p "  请输入每天更新时间（小时或 HH:MM，例如 3 或 03:30）: " daily_time
+            echo ""
+            auto_update_enable_daily "$daily_time"
             wait_key
             ;;
         3)
+            echo ""
+            auto_update_disable
+            wait_key
+            ;;
+        4)
             echo ""
             if [ -f "$UPDATE_LOG" ]; then
                 echo "  最近更新日志（最后 20 行）:"
