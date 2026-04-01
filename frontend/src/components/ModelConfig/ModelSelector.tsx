@@ -4,7 +4,6 @@
  * 统一的模型选择器，支持：
  * - 自动从 modelRegistryStore 加载模型
  * - 按类型/分类过滤
- * - 显示推荐标签
  * - 显示模型能力标签
  * - 废弃模型警告
  * 
@@ -32,7 +31,6 @@ import {
   ThunderboltOutlined,
   SoundOutlined,
   PictureOutlined,
-  StarOutlined,
 } from '@ant-design/icons'
 import { useModelRegistry } from '../../hooks/useModelRegistry'
 import { RegisteredModelInfo, ModelCapabilities } from '../../services/api'
@@ -74,21 +72,10 @@ interface ModelSelectorProps {
  */
 const CapabilityTags: React.FC<{ 
   capabilities?: ModelCapabilities
-  recommended?: boolean 
-}> = ({ capabilities, recommended }) => {
-  if (!capabilities && !recommended) return null
+}> = ({ capabilities }) => {
+  if (!capabilities) return null
   
   const tags = []
-  
-  if (recommended) {
-    tags.push(
-      <Tooltip key="recommended" title="推荐模型">
-        <Tag color="gold" style={{ marginRight: 4 }}>
-          <StarOutlined /> 推荐
-        </Tag>
-      </Tooltip>
-    )
-  }
   
   if (capabilities?.supports_reference_images) {
     tags.push(
@@ -181,10 +168,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
       models = models.filter(filter)
     }
     
-    // 排序：推荐的在前，废弃的在后
+    // 排序：废弃的在后
     return models.sort((a, b) => {
-      if (a.recommended && !b.recommended) return -1
-      if (!a.recommended && b.recommended) return 1
       if (a.deprecated && !b.deprecated) return 1
       if (!a.deprecated && b.deprecated) return -1
       return 0
@@ -228,11 +213,6 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
             <div>
               <div style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span>{model.name} <span style={{ color: token.colorTextSecondary, fontWeight: 400 }}>{model.id}</span></span>
-                {model.recommended && (
-                  <Tag color="gold" style={{ margin: 0 }}>
-                    <StarOutlined /> 推荐
-                  </Tag>
-                )}
                 {model.deprecated && (
                   <Tag color="red" style={{ margin: 0 }}>
                     已废弃
@@ -252,10 +232,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
       {/* 显示选中模型的能力标签 */}
       {showCapabilities && selectedModel && (
         <div style={{ marginTop: 8 }}>
-          <CapabilityTags 
-            capabilities={selectedModel.capabilities} 
-            recommended={selectedModel.recommended}
-          />
+          <CapabilityTags capabilities={selectedModel.capabilities} />
         </div>
       )}
       

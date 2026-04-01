@@ -258,6 +258,10 @@ class BaseVideoProviderAdapter(ABC):
     async def fetch(self, request: NormalizedVideoTaskRequest, task_id: str) -> VideoStatusResult:
         raise NotImplementedError
 
+    @abstractmethod
+    def build_provider_payload(self, request: NormalizedVideoTaskRequest, seed_offset: int = 0) -> Dict[str, Any]:
+        raise NotImplementedError
+
 
 class WanVideoAdapter(BaseVideoProviderAdapter):
     provider = "wan"
@@ -397,7 +401,7 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
                 watermark=params.get("watermark"),
                 seed=params.get("seed"),
                 audio_url=audio_url,
-                audio=params.get("audio"),
+                audio=params.get("audio") if request.model_id == "wan2.6-i2v-flash" else None,
                 negative_prompt=request.negative_prompt or None,
                 shot_type=params.get("shot_type"),
             )
@@ -539,6 +543,91 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
                 key_profile=self._resolve_key_profile(request),
             )
 
+    def build_provider_payload(self, request: NormalizedVideoTaskRequest, seed_offset: int = 0) -> Dict[str, Any]:
+        params = dict(request.normalized_params)
+        assets = request.input_assets
+        if params.get("seed") is not None:
+            params["seed"] = int(params["seed"]) + seed_offset
+
+        base_payload: Dict[str, Any] = {"model": request.model_id, "input": {}, "parameters": {}}
+        if request.prompt:
+            base_payload["input"]["prompt"] = request.prompt
+        if request.negative_prompt:
+            base_payload["input"]["negative_prompt"] = request.negative_prompt
+
+        if request.task_kind == "image_to_video":
+            base_payload["input"]["img_url"] = (assets.get("first_frame") or [None])[0]
+            audio_url = (assets.get("audio") or [None])[0]
+            if audio_url:
+                base_payload["input"]["audio_url"] = audio_url
+            if request.model_id == "wan2.2-s2v":
+                base_payload["parameters"]["resolution"] = params.get("resolution")
+                return base_payload
+            for key in ("resolution", "duration", "prompt_extend", "watermark", "seed", "shot_type"):
+                if params.get(key) is not None:
+                    base_payload["parameters"][key] = params.get(key)
+            if request.model_id == "wan2.6-i2v-flash" and params.get("audio") is not None:
+                base_payload["parameters"]["audio"] = params.get("audio")
+            return base_payload
+
+        if request.task_kind == "text_to_video":
+            audio_url = (assets.get("audio") or [None])[0]
+            if audio_url:
+                base_payload["input"]["audio_url"] = audio_url
+            for key in ("size", "duration", "prompt_extend", "shot_type", "watermark", "seed"):
+                if params.get(key) is not None:
+                    base_payload["parameters"][key] = params.get(key)
+            return base_payload
+
+        if request.task_kind == "reference_to_video":
+            base_payload["input"]["reference_urls"] = list(assets.get("reference_videos") or []) + list(assets.get("reference_images") or [])
+            for key in ("size", "duration", "shot_type", "watermark", "seed", "audio"):
+                if params.get(key) is not None:
+                    base_payload["parameters"][key] = params.get(key)
+            return base_payload
+
+        if request.task_kind == "keyframe_to_video":
+            base_payload["input"]["first_frame_url"] = (assets.get("first_frame") or [None])[0]
+            base_payload["input"]["last_frame_url"] = (assets.get("last_frame") or [None])[0]
+            for key in ("resolution", "prompt_extend", "watermark", "seed"):
+                if params.get(key) is not None:
+                    base_payload["parameters"][key] = params.get(key)
+            return base_payload
+
+        if request.task_kind == "video_repainting":
+            base_payload["input"] = {
+                "function": "video_repainting",
+                "prompt": request.prompt,
+                "video_url": (assets.get("source_video") or [None])[0],
+            }
+            reference_image = (assets.get("reference_images") or [None])[0]
+            if reference_image:
+                base_payload["input"]["ref_images_url"] = [reference_image]
+                base_payload["parameters"]["obj_or_bg"] = ["obj"]
+            for key in ("control_condition", "strength", "prompt_extend", "seed", "watermark"):
+                if params.get(key) is not None:
+                    base_payload["parameters"][key] = params.get(key)
+            return base_payload
+
+        if request.task_kind == "video_edit_local":
+            base_payload["input"] = {
+                "function": "video_edit",
+                "prompt": request.prompt,
+                "video_url": (assets.get("source_video") or [None])[0],
+                "mask_image_url": (assets.get("mask_image") or [None])[0],
+                "mask_frame_id": params.get("mask_frame_id") or VACE_MASK_FRAME_ID,
+            }
+            reference_image = (assets.get("reference_images") or [None])[0]
+            if reference_image:
+                base_payload["input"]["ref_images_url"] = [reference_image]
+                base_payload["parameters"]["obj_or_bg"] = ["obj"]
+            for key in ("control_condition", "mask_type", "expand_ratio", "expand_mode", "size", "prompt_extend", "seed", "watermark"):
+                if params.get(key) is not None:
+                    base_payload["parameters"][key] = params.get(key)
+            return base_payload
+
+        return base_payload
+
 
 class KlingVideoAdapter(BaseVideoProviderAdapter):
     provider = "kling"
@@ -641,7 +730,7 @@ class KlingVideoAdapter(BaseVideoProviderAdapter):
         raise ValueError(f"Kling 暂不支持任务类型: {request.task_kind}")
 
     async def submit(self, request: NormalizedVideoTaskRequest, seed_offset: int = 0) -> VideoSubmitResult:
-        payload = self._build_payload(request, seed_offset)
+        payload = self.build_provider_payload(request, seed_offset)
         service = DashScopeGenericVideoService("kling", request.key_profile)
         return await service.create_task(payload)
 
@@ -649,7 +738,7 @@ class KlingVideoAdapter(BaseVideoProviderAdapter):
         service = DashScopeGenericVideoService("kling", request.key_profile)
         return await service.get_task_status(task_id, request.project_id)
 
-    def _build_payload(self, request: NormalizedVideoTaskRequest, seed_offset: int = 0) -> Dict[str, Any]:
+    def build_provider_payload(self, request: NormalizedVideoTaskRequest, seed_offset: int = 0) -> Dict[str, Any]:
         params = dict(request.normalized_params)
         element_ids = _parse_element_ids(params.get("element_ids"))
         if params.get("seed") is not None:
@@ -659,10 +748,10 @@ class KlingVideoAdapter(BaseVideoProviderAdapter):
         parameters: Dict[str, Any] = {
             "mode": params.get("mode", "pro"),
             "duration": int(params.get("duration") or 5),
-            "watermark": bool(params.get("watermark", True)),
+            "watermark": bool(params.get("watermark", False)),
         }
         if "audio" in params:
-            parameters["audio"] = bool(params.get("audio", False))
+            parameters["audio"] = bool(params.get("audio", True))
         if params.get("aspect_ratio"):
             parameters["aspect_ratio"] = params["aspect_ratio"]
 
@@ -818,7 +907,7 @@ class ViduVideoAdapter(BaseVideoProviderAdapter):
             raise ValueError("Vidu Q2 系列时长必须在 1 到 10 秒之间")
 
     async def submit(self, request: NormalizedVideoTaskRequest, seed_offset: int = 0) -> VideoSubmitResult:
-        payload = self._build_payload(request, seed_offset)
+        payload = self.build_provider_payload(request, seed_offset)
         service = DashScopeGenericVideoService("vidu", request.key_profile)
         return await service.create_task(payload)
 
@@ -826,7 +915,7 @@ class ViduVideoAdapter(BaseVideoProviderAdapter):
         service = DashScopeGenericVideoService("vidu", request.key_profile)
         return await service.get_task_status(task_id, request.project_id)
 
-    def _build_payload(self, request: NormalizedVideoTaskRequest, seed_offset: int = 0) -> Dict[str, Any]:
+    def build_provider_payload(self, request: NormalizedVideoTaskRequest, seed_offset: int = 0) -> Dict[str, Any]:
         params = dict(request.normalized_params)
         if params.get("seed") is not None:
             params["seed"] = int(params["seed"]) + seed_offset
@@ -835,7 +924,7 @@ class ViduVideoAdapter(BaseVideoProviderAdapter):
         parameters: Dict[str, Any] = {
             "resolution": params.get("resolution", "720P"),
             "duration": int(params["duration"]) if params.get("duration") is not None else 5,
-            "watermark": bool(params.get("watermark", True)),
+            "watermark": bool(params.get("watermark", False)),
         }
         if params.get("size"):
             parameters["size"] = params["size"]

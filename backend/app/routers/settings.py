@@ -110,6 +110,7 @@ class ConfigUpdateRequest(BaseModel):
     wan_key_profile: Optional[str] = None
     kling_key_profile: Optional[str] = None
     vidu_key_profile: Optional[str] = None
+    video_task_notifications_enabled: Optional[bool] = None
     api_region: Optional[str] = None
     llm: Optional[LLMConfigRequest] = None
     image: Optional[ImageConfigRequest] = None
@@ -142,6 +143,7 @@ class ConfigResponse(BaseModel):
     wan_key_profile: str
     kling_key_profile: str
     vidu_key_profile: str
+    video_task_notifications_enabled: bool
     api_region: str
     base_url: str
     
@@ -224,6 +226,7 @@ async def get_settings():
         wan_key_profile=normalize_key_profile(config.wan_key_profile),
         kling_key_profile=normalize_key_profile(config.kling_key_profile),
         vidu_key_profile=normalize_key_profile(config.vidu_key_profile),
+        video_task_notifications_enabled=bool(getattr(config, "video_task_notifications_enabled", False)),
         api_region=config.api_region,
         base_url=config.base_url,
         llm=config.llm.model_dump(),
@@ -270,6 +273,9 @@ async def update_settings(request: ConfigUpdateRequest):
 
     if request.vidu_key_profile is not None:
         update_data["vidu_key_profile"] = normalize_key_profile(request.vidu_key_profile)
+
+    if request.video_task_notifications_enabled is not None:
+        update_data["video_task_notifications_enabled"] = bool(request.video_task_notifications_enabled)
     
     if request.api_region is not None:
         if request.api_region not in API_REGIONS:

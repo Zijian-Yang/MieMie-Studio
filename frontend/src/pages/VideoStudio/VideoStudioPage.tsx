@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { Card, Button, List, Modal, Input, Select, InputNumber, Switch, message, Popconfirm, Space, Empty, Spin, Row, Col, Tabs, Tag, Form, theme } from 'antd'
+import { Card, Button, List, Modal, Input, Select, InputNumber, Switch, message, Popconfirm, Space, Empty, Spin, Row, Col, Tabs, Tag, Form, theme, Collapse } from 'antd'
 import { PlusOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, VideoCameraOutlined, EditOutlined, ReloadOutlined, StarFilled, FlagOutlined, FlagFilled, CheckOutlined, CloseOutlined, StarOutlined, CameraOutlined } from '@ant-design/icons'
-import { videoStudioApi, galleryApi, audioApi, videoLibraryApi, VideoStudioTask, GalleryImage, AudioItem, VideoLibraryItem, VideoModelInfo, RefVideoModelInfo, TextToVideoModelInfo, KeyframeToVideoModelInfo, VideoStudioTaskType, VaceVideoRepaintingModelInfo, VaceVideoEditModelInfo, VideoTaskKind } from '../../services/api'
+import { videoStudioApi, galleryApi, audioApi, videoLibraryApi, settingsApi, VideoStudioTask, GalleryImage, AudioItem, VideoLibraryItem, VideoModelInfo, RefVideoModelInfo, TextToVideoModelInfo, KeyframeToVideoModelInfo, VideoStudioTaskType, VaceVideoRepaintingModelInfo, VaceVideoEditModelInfo, VideoTaskKind } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 import MaskEditor, { type MaskEditorHandle, type MaskEditorTool } from './MaskEditor'
 import CapabilityCreateModal from './CapabilityCreateModal'
@@ -136,11 +136,13 @@ const VideoStudioPage = () => {
   const [keyframeToVideoModels, setKeyframeToVideoModels] = useState<Record<string, KeyframeToVideoModelInfo>>({})
   const [videoRepaintingModels, setVideoRepaintingModels] = useState<Record<string, VaceVideoRepaintingModelInfo>>({})
   const [videoEditModels, setVideoEditModels] = useState<Record<string, VaceVideoEditModelInfo>>({})
+  const [videoTaskNotificationsEnabled, setVideoTaskNotificationsEnabled] = useState(false)
   
   // 轮询
   const pollingRef = useRef<Set<string>>(new Set())
   const isMountedRef = useRef(true)
   const maskEditorRef = useRef<MaskEditorHandle | null>(null)
+  const notifiedResultsRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     isMountedRef.current = true
@@ -158,16 +160,18 @@ const VideoStudioPage = () => {
     if (!projectId) return
     setLoading(true)
     try {
-      const [tasksRes, galleryRes, audioRes, videoLibRes] = await Promise.all([
+      const [tasksRes, galleryRes, audioRes, videoLibRes, settingsRes] = await Promise.all([
         videoStudioApi.list(projectId),
         galleryApi.list(projectId),
         audioApi.list(projectId),
         videoLibraryApi.list(projectId),
+        settingsApi.getSettings(),
       ])
       setTasks(tasksRes.tasks)
       setGalleryImages(galleryRes.images)
       setAudioItems(audioRes.audios)
       setVideoLibraryItems(videoLibRes.videos)
+      setVideoTaskNotificationsEnabled(!!settingsRes.video_task_notifications_enabled)
       setVideoModels({})
       setRefVideoModels({})
       setTextToVideoModels({})
@@ -276,7 +280,7 @@ const VideoStudioPage = () => {
   }
 
   const getTaskPreviewUrl = (task: VideoStudioTask) => {
-    return task.first_frame_url || task.source_video_preview_url || ''
+    return task.thumbnail_url || task.first_frame_url || task.source_video_preview_url || ''
   }
 
   const resetVaceState = () => {
@@ -357,6 +361,25 @@ const VideoStudioPage = () => {
     return false
   }
 
+  const maybeNotifyTaskFinished = (task: VideoStudioTask) => {
+    if (!videoTaskNotificationsEnabled) return
+    if (typeof window === 'undefined' || !('Notification' in window)) return
+    if (Notification.permission !== 'granted') return
+    const dedupeKey = `${task.id}:${task.status}`
+    if (notifiedResultsRef.current.has(dedupeKey)) return
+    notifiedResultsRef.current.add(dedupeKey)
+    const title = task.status === 'succeeded' ? '视频任务已完成' : '视频任务失败'
+    const body = task.status === 'succeeded'
+      ? `${task.name || '未命名任务'} 已生成完成`
+      : `${task.name || '未命名任务'} 失败：${task.error_message || '未知错误'}`
+    try {
+      const notification = new Notification(title, { body, tag: dedupeKey })
+      notification.onclick = () => window.focus()
+    } catch {
+      // ignore notification failures
+    }
+  }
+
   const startPolling = (taskId: string) => {
     if (pollingRef.current.has(taskId)) return
     pollingRef.current.add(taskId)
@@ -379,6 +402,7 @@ const VideoStudioPage = () => {
         
         if (result.task.status === 'succeeded' || result.task.status === 'failed') {
           pollingRef.current.delete(taskId)
+          maybeNotifyTaskFinished(result.task)
           if (result.task.status === 'succeeded') {
             message.success('视频生成完成')
           } else {
@@ -2955,25 +2979,35 @@ const VideoStudioPage = () => {
               </div>
             )}
             
-            {/* 追踪ID显示 */}
-            {((selectedTask.task_ids?.length ?? 0) > 0 || (selectedTask.request_ids?.length ?? 0) > 0) && (
-              <div style={{ 
-                marginTop: 16, 
-                padding: '8px 12px', 
-                background: token.colorBgLayout, 
-                borderRadius: 6,
-                fontSize: 11,
-                color: token.colorTextTertiary,
-                fontFamily: 'monospace'
-              }}>
-                {(selectedTask.task_ids?.length ?? 0) > 0 && selectedTask.task_ids!.map((tid, idx) => (
-                  <div key={`tid-${idx}`}>Task ID [{idx + 1}]: {tid}</div>
-                ))}
-                {(selectedTask.request_ids?.length ?? 0) > 0 && selectedTask.request_ids!.map((rid, idx) => (
-                  <div key={`rid-${idx}`}>Request ID [{idx + 1}]: {rid}</div>
-                ))}
-              </div>
-            )}
+            <Collapse
+              style={{ marginTop: 16 }}
+              items={[
+                {
+                  key: 'developer-mode',
+                  label: '开发者模式',
+                  children: (
+                    <div>
+                      <div style={{ marginBottom: 8, fontWeight: 500 }}>Task IDs</div>
+                      <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout, marginBottom: 12 }}>
+                        {JSON.stringify(selectedTask.task_ids || [], null, 2)}
+                      </pre>
+                      <div style={{ marginBottom: 8, fontWeight: 500 }}>Request IDs</div>
+                      <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout, marginBottom: 12 }}>
+                        {JSON.stringify(selectedTask.request_ids || [], null, 2)}
+                      </pre>
+                      <div style={{ marginBottom: 8, fontWeight: 500 }}>厂商请求体快照</div>
+                      <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout, marginBottom: 12 }}>
+                        {JSON.stringify(selectedTask.provider_payload_snapshot || {}, null, 2)}
+                      </pre>
+                      <div style={{ marginBottom: 8, fontWeight: 500 }}>厂商结果元信息</div>
+                      <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout }}>
+                        {JSON.stringify(selectedTask.provider_result_meta || {}, null, 2)}
+                      </pre>
+                    </div>
+                  ),
+                },
+              ]}
+            />
                 </>
               )
             })()}

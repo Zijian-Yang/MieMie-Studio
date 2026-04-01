@@ -349,6 +349,7 @@ export interface ConfigResponse {
   wan_key_profile: 'test' | 'production'
   kling_key_profile: 'test' | 'production'
   vidu_key_profile: 'test' | 'production'
+  video_task_notifications_enabled: boolean
   api_region: string
   base_url: string
   llm: LLMConfig
@@ -377,6 +378,7 @@ export interface ConfigUpdateRequest {
   wan_key_profile?: 'test' | 'production'
   kling_key_profile?: 'test' | 'production'
   vidu_key_profile?: 'test' | 'production'
+  video_task_notifications_enabled?: boolean
   api_region?: string
   llm?: Partial<LLMConfig>
   image?: Partial<ImageConfig>
@@ -1491,7 +1493,6 @@ export interface VideoCapabilityModel {
   provider: string
   type: string
   description?: string
-  recommended?: boolean
   doc_url?: string
   supported_task_kinds: VideoTaskKind[]
   task_profiles: Partial<Record<VideoTaskKind, VideoTaskProfile>>
@@ -1577,6 +1578,7 @@ export interface VideoStudioTask {
   group_count: number
   video_urls: string[]
   selected_video_url?: string
+  thumbnail_url?: string
   video_markers?: Record<string, string[]>  // {video_url: [marker_type, ...]}
   task_ids: string[]
   request_ids?: string[]  // 各组的请求ID（用于追踪）
@@ -1591,6 +1593,48 @@ export const videoStudioApi = {
   getCapabilities: () => api.get<any, VideoStudioCapabilitiesResponse>('/video-studio/capabilities'),
   get: (id: string) => api.get<any, VideoStudioTask>(`/video-studio/${id}`),
   getStatus: (id: string) => api.get<any, { task: VideoStudioTask }>(`/video-studio/${id}/status`),
+  previewPayload: (data: {
+    project_id: string
+    name?: string
+    task_type?: VideoStudioTaskType
+    task_kind?: VideoTaskKind
+    provider?: string
+    model_id?: string
+    narrative_mode?: VideoNarrativeMode
+    input_assets?: Record<string, any>
+    normalized_params?: Record<string, any>
+    prompt?: string
+    negative_prompt?: string
+    group_count?: number
+    source_video_preview_url?: string
+    model?: string
+    duration?: number
+    resolution?: string
+    size?: string
+    watermark?: boolean
+    auto_audio?: boolean
+    shot_type?: string
+    prompt_extend?: boolean
+    t2v_prompt_extend?: boolean
+    seed?: number
+    first_frame_url?: string
+    last_frame_url?: string
+    audio_url?: string
+    reference_video_urls?: string[]
+    source_video_url?: string
+    reference_image_url?: string
+    mask_image_url?: string
+    mask_frame_id?: number
+    control_condition?: string
+    strength?: number
+    mask_type?: string
+    expand_ratio?: number
+    expand_mode?: string
+  }) => api.post<any, {
+    canonical_request: Record<string, any>
+    provider_payload: Record<string, any> | null
+    validation_warnings: string[]
+  }>('/video-studio/preview-payload', data),
   prepareSourceVideo: (data: { project_id: string; video_url: string }) =>
     api.post<any, {
       preview_image_data_url: string

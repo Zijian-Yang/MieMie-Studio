@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
   Col,
+  Collapse,
   Divider,
   Empty,
   Input,
@@ -12,7 +13,6 @@ import {
   Select,
   Space,
   Spin,
-  Switch,
   Tabs,
   Tag,
   Typography,
@@ -215,6 +215,12 @@ const CapabilityCreateModal = ({
   const [multiShotSegments, setMultiShotSegments] = useState<MultiShotSegment[]>([
     { id: 'segment-1', prompt: '', duration: 5 },
   ])
+  const [previewPayload, setPreviewPayload] = useState<{
+    canonical_request: Record<string, any>
+    provider_payload: Record<string, any> | null
+    validation_warnings: string[]
+  } | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
   const maskEditorRef = useRef<MaskEditorHandle | null>(null)
 
   const resetLocalState = (defaults: Record<string, any> = {}) => {
@@ -241,6 +247,8 @@ const CapabilityCreateModal = ({
     setMaskHasContent(false)
     setMaskUploading(false)
     setMultiShotSegments([{ id: `segment-${Date.now()}`, prompt: '', duration: 5 }])
+    setPreviewPayload(null)
+    setPreviewLoading(false)
   }
 
   const populateFromTask = (response: VideoStudioCapabilitiesResponse, currentTask: VideoStudioTask) => {
@@ -473,6 +481,18 @@ const CapabilityCreateModal = ({
     })
   }
 
+  const getEffectiveProfile = () => {
+    if (!currentProfile || !currentModel) return null
+    const params = currentProfile.parameters.filter((param) => {
+      if (param.name === 'keep_original_sound') {
+        if (taskKind === 'video_edit_global') return Boolean(baseVideoUrl)
+        if (taskKind === 'reference_to_video') return referenceVideoUrls.length > 0
+      }
+      return true
+    })
+    return { ...currentProfile, parameters: params }
+  }
+
   const handlePrepareSourceVideo = async (videoUrl: string) => {
     if (!videoUrl) return
     setSourceVideoPreparing(true)
@@ -547,6 +567,103 @@ const CapabilityCreateModal = ({
     }
     return inputAssets
   }
+
+  const buildPreviewDraft = async () => {
+    const effectiveProfile = getEffectiveProfile()
+    if (!currentModel || !effectiveProfile) return null
+    const normalizedParams = { ...dynamicValues }
+    if (currentProvider === 'kling' && taskKind === 'text_to_video' && narrativeMode === 'multi_shot_customize') {
+      normalizedParams.multi_prompt_segments = multiShotSegments.map((segment) => ({
+        prompt: segment.prompt,
+        duration: segment.duration,
+      }))
+    }
+    const inputAssets = await (async () => {
+      const assets: Record<string, any> = {}
+      if (firstFrameUrl) assets.first_frame = [firstFrameUrl]
+      if (lastFrameUrl) assets.last_frame = [lastFrameUrl]
+      if (audioUrl) assets.audio = [audioUrl]
+      if (referenceImageUrls.length > 0) assets.reference_images = referenceImageUrls
+      if (referenceVideoUrls.length > 0) assets.reference_videos = referenceVideoUrls
+      if (referenceFirstFrameUrl) assets.first_frame = [referenceFirstFrameUrl]
+      if (baseVideoUrl) assets.base_video = [baseVideoUrl]
+      if (sourceVideoUrl) assets.source_video = [sourceVideoUrl]
+      if (taskKind === 'video_edit_local') {
+        const maskUrl = isEditMode ? existingMaskImageUrl : undefined
+        if (maskUrl) assets.mask_image = [maskUrl]
+      }
+      return assets
+    })()
+    return {
+      project_id: projectId,
+      name: taskName || undefined,
+      task_kind: taskKind,
+      task_type: (taskKind === 'video_edit_local' ? 'video_edit' : taskKind) as any,
+      provider: currentProvider,
+      model_id: modelId,
+      model: modelId,
+      narrative_mode: narrativeMode,
+      input_assets: inputAssets,
+      normalized_params: normalizedParams,
+      prompt: prompt.trim(),
+      negative_prompt: negativePrompt.trim(),
+      group_count: groupCount,
+      source_video_preview_url: sourceVideoPreviewUrl || undefined,
+    }
+  }
+
+  useEffect(() => {
+    if (!open || !currentModel || !currentProfile) return
+    let cancelled = false
+    const timer = window.setTimeout(async () => {
+      try {
+        setPreviewLoading(true)
+        const draft = await buildPreviewDraft()
+        if (!draft) return
+        const result = await videoStudioApi.previewPayload(draft)
+        if (!cancelled) {
+          setPreviewPayload(result)
+        }
+      } catch {
+        if (!cancelled) {
+          setPreviewPayload(null)
+        }
+      } finally {
+        if (!cancelled) {
+          setPreviewLoading(false)
+        }
+      }
+    }, 250)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [
+    open,
+    projectId,
+    currentModel,
+    currentProfile,
+    currentProvider,
+    taskKind,
+    modelId,
+    taskName,
+    prompt,
+    negativePrompt,
+    groupCount,
+    JSON.stringify(dynamicValues),
+    firstFrameUrl,
+    lastFrameUrl,
+    referenceFirstFrameUrl,
+    audioUrl,
+    baseVideoUrl,
+    sourceVideoUrl,
+    sourceVideoPreviewUrl,
+    existingMaskImageUrl,
+    referenceImageUrls.join('|'),
+    referenceVideoUrls.join('|'),
+    narrativeMode,
+    multiShotSegments.map((s) => `${s.prompt}-${s.duration}`).join('|'),
+  ])
 
   const validateBeforeSubmit = () => {
     if (!currentModel || !currentProfile) {
@@ -997,7 +1114,6 @@ const CapabilityCreateModal = ({
                   <Tag color={currentProvider === 'wan' ? 'blue' : currentProvider === 'kling' ? 'purple' : 'green'}>
                     {currentProvider.toUpperCase()}
                   </Tag>
-                  {currentModel.recommended && <Tag color="gold">推荐</Tag>}
                 </div>
               </div>
             </Col>
@@ -1100,7 +1216,7 @@ const CapabilityCreateModal = ({
 
           <Divider orientation="left">模型参数</Divider>
           <DynamicModelForm
-            modelInfo={buildProfileModel(currentProfile, currentModel)}
+            modelInfo={buildProfileModel(getEffectiveProfile() || currentProfile, currentModel)}
             value={dynamicValues}
             onChange={setDynamicValues}
             columns={2}
@@ -1111,15 +1227,6 @@ const CapabilityCreateModal = ({
               <div style={{ marginTop: 16 }}>
                 <div style={{ marginBottom: 8 }}>生成组数</div>
                 <InputNumber style={{ width: '100%' }} min={1} max={5} value={groupCount} onChange={(value) => setGroupCount(value || 1)} />
-              </div>
-            </Col>
-            <Col span={12}>
-              <div style={{ marginTop: 16, paddingTop: 28 }}>
-                <Switch
-                  checked={!!currentModel.recommended}
-                  disabled
-                />
-                <span style={{ marginLeft: 8, color: token.colorTextSecondary }}>当前选择的推荐状态由平台预设</span>
               </div>
             </Col>
           </Row>
@@ -1135,6 +1242,45 @@ const CapabilityCreateModal = ({
           {!currentTaskInfo.model_ids.length && (
             <Empty description="当前能力暂无可用模型" />
           )}
+
+          <Collapse
+            style={{ marginTop: 16 }}
+            items={[
+              {
+                key: 'developer-mode',
+                label: '开发者模式',
+                children: (
+                  <div>
+                    <div style={{ marginBottom: 8, fontWeight: 500 }}>提交状态</div>
+                    <div style={{ marginBottom: 12, color: token.colorTextSecondary }}>
+                      {isEditMode && task ? `任务 ID: ${task.id}` : '尚未提交'}
+                    </div>
+                    {previewLoading ? (
+                      <Spin size="small" />
+                    ) : (
+                      <>
+                        {previewPayload?.validation_warnings?.length ? (
+                          <div style={{ marginBottom: 12, padding: 10, borderRadius: 8, background: token.colorWarningBg }}>
+                            {previewPayload.validation_warnings.map((warning, index) => (
+                              <div key={index} style={{ color: token.colorWarningText, fontSize: 12 }}>{warning}</div>
+                            ))}
+                          </div>
+                        ) : null}
+                        <div style={{ marginBottom: 8, fontWeight: 500 }}>Canonical 请求体</div>
+                        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout, marginBottom: 12 }}>
+                          {JSON.stringify(previewPayload?.canonical_request || {}, null, 2)}
+                        </pre>
+                        <div style={{ marginBottom: 8, fontWeight: 500 }}>厂商请求体</div>
+                        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout }}>
+                          {JSON.stringify(previewPayload?.provider_payload || {}, null, 2)}
+                        </pre>
+                      </>
+                    )}
+                  </div>
+                ),
+              },
+            ]}
+          />
         </>
       )}
     </Modal>

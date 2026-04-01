@@ -849,6 +849,7 @@ class AppConfig(BaseModel):
     wan_key_profile: str = "production"
     kling_key_profile: str = "production"
     vidu_key_profile: str = "production"
+    video_task_notifications_enabled: bool = False
     api_region: str = "beijing"  # beijing 或 singapore
     
     # LLM 配置

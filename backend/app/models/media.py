@@ -163,6 +163,7 @@ class VideoStudioTask(BaseModel):
     group_count: int = 1  # 生成组数
     video_urls: List[str] = []  # 生成的视频URL列表
     selected_video_url: Optional[str] = None  # 选中的视频URL
+    thumbnail_url: Optional[str] = None  # 任务封面缩略图URL
     video_markers: dict = {}  # 视频标记 {video_url: [marker_type, ...]}, marker: star/flag/check/cross
     
     # 任务状态

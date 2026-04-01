@@ -316,7 +316,6 @@ def _build_model(
         "provider": provider,
         "type": supported_task_kinds[0] if supported_task_kinds else "video",
         "description": description,
-        "recommended": recommended,
         "doc_url": doc_url,
         "supported_task_kinds": supported_task_kinds,
         "task_profiles": normalized_profiles,
@@ -381,19 +380,23 @@ def _wan_text_to_video_models() -> Dict[str, Dict[str, Any]]:
                     description="单镜头或多镜头",
                     help=_help(
                         summary="控制视频叙事是单镜头还是多镜头。",
+                        limits=["仅在开启智能改写时生效"],
                         how_to_choose=["产品展示、单段动作优先用单镜头", "故事表达或多个动作节奏可尝试多镜头"],
+                        notes=["关闭智能改写后该参数会自动禁用并清空。", "该参数生效时会优先覆盖 prompt 中的镜头描述。"],
                     ),
                     default=info.get("default_shot_type", "single"),
                     group="generation",
                     order=4,
+                    depends_on="prompt_extend",
+                    depends_value=True,
                     options=[
                         _select_option("single", "单镜头"),
                         _select_option("multi", "多镜头"),
                     ],
                 )
             )
-        if info.get("supports_audio"):
-            parameters.append(_bool_param("audio", "自动配音", info.get("default_audio", False), "自动生成声音", 6, help=_audio_help("控制是否让模型自动生成声音。")))
+        if info.get("supports_audio_toggle"):
+            parameters.append(_bool_param("audio", "自动配音", True, "自动生成声音", 6, help=_audio_help("控制是否让模型自动生成声音。", ["如果同时提供自定义音频，模型会优先使用音频素材。"])))
         if info.get("supports_seed"):
             parameters.append(
                 _param(
@@ -422,17 +425,25 @@ def _wan_text_to_video_models() -> Dict[str, Dict[str, Any]]:
                 "text_to_video": {
                     "label": "文生视频",
                     "description": info.get("description", ""),
-                    "input_roles": [],
+                    "input_roles": ["audio"] if info.get("supports_audio") else [],
                     "parameters": parameters,
                     "supported_narrative_modes": ["single", "multi_shot_intelligence"],
                     "ui_hints": {
                         "prompt_max_length": info.get("prompt_max_length", 1500),
                         "negative_prompt_max_length": info.get("negative_prompt_max_length", 500),
+                        "asset_help": {
+                            "audio": _asset_help(
+                                "可选自定义音频会优先覆盖自动音频生成。",
+                                limits=["仅 Wan 2.5 / 2.6 文生视频支持", "请优先使用音频库中可长期访问的音频 URL"],
+                                how_to_choose=["需要明确旁白、配音或现成音轨时使用", "只想让模型自动生成环境音时可留空"],
+                            ),
+                        },
                         "prompt_help": _help(
                             summary="Prompt 用于描述画面主体、动作、场景、镜头语言和风格。",
                             limits=[f"提示词最大长度：{info.get('prompt_max_length', 1500)} 字符"],
                             how_to_choose=["先写主体和动作，再补场景、镜头、风格", "想更稳定时用明确、具体的描述"],
                             examples=["例如：工业机械臂在仓库中平稳打开柜门，镜头缓慢推进，冷色工业风。"],
+                            notes=["Wan 2.6 的镜头类型参数仅在开启智能改写时生效。"],
                         ),
                     },
                 }
@@ -488,17 +499,25 @@ def _wan_image_to_video_models() -> Dict[str, Dict[str, Any]]:
                     "镜头类型",
                     "select",
                     description="单镜头或多镜头",
+                    help=_help(
+                        summary="控制视频叙事是单镜头还是多镜头。",
+                        limits=["仅在开启智能改写时生效"],
+                        how_to_choose=["人物/物体单段动作优先用单镜头", "想让模型拆分多个镜头节奏时再尝试多镜头"],
+                        notes=["关闭智能改写后该参数会自动禁用并清空。", "该参数生效时会优先覆盖 prompt 中的镜头描述。"],
+                    ),
                     default=info.get("default_shot_type", "single"),
                     group="generation",
                     order=4,
+                    depends_on="prompt_extend",
+                    depends_value=True,
                     options=[
                         _select_option("single", "单镜头"),
                         _select_option("multi", "多镜头"),
                     ],
                 )
             )
-        if info.get("supports_audio"):
-            parameters.append(_bool_param("audio", "自动配音", info.get("default_audio", False), "自动生成声音", 6, help=_audio_help("控制是否让模型自动生成背景音或音效。")))
+        if info.get("supports_audio_toggle"):
+            parameters.append(_bool_param("audio", "自动配音", True, "自动生成声音", 6, help=_audio_help("控制是否让模型自动生成背景音或音效。", ["如果同时提供自定义音频，模型会优先使用音频素材。"])))
         if info.get("supports_seed"):
             parameters.append(
                 _param(
@@ -527,15 +546,23 @@ def _wan_image_to_video_models() -> Dict[str, Dict[str, Any]]:
                 "image_to_video": {
                     "label": "首帧生视频",
                     "description": info.get("description", ""),
-                    "input_roles": ["first_frame"] + (["audio"] if info.get("requires_audio") else []),
+                    "input_roles": ["first_frame"] + (["audio"] if (info.get("requires_audio") or model_id.startswith("wan2.5") or model_id.startswith("wan2.6")) else []),
                     "parameters": parameters,
                     "supported_narrative_modes": ["single", "multi_shot_intelligence"] if info.get("supports_shot_type") else ["single"],
                     "ui_hints": {
                         "requires_audio": info.get("requires_audio", False),
                         "supports_prompt": info.get("supports_prompt", True),
+                        "asset_help": {
+                            "audio": _asset_help(
+                                "自定义音频会作为首帧生视频的音轨输入。",
+                                limits=["Wan 2.5 / 2.6 首帧生视频支持自定义音频", "wan2.6-i2v-flash 中若同时开启自动音频并提供自定义音频，模型会优先使用音频素材"],
+                                how_to_choose=["需要明确旁白、对白或现成声音时使用", "只想让模型自动补声音时可留空"],
+                            ),
+                        },
                         "prompt_help": _help(
                             summary="Prompt 用于描述首帧之后的视频运动、镜头和风格。",
                             how_to_choose=["先描述‘怎么动’，再描述镜头和氛围", "若模型更依赖首帧，prompt 可更聚焦动作和镜头变化"],
+                            notes=["Wan 首帧生视频不需要手动选择 size，输出尺寸会跟随输入图比例并按模型要求做 16 倍数微调。", "Wan 2.6 的镜头类型参数仅在开启智能改写时生效。"],
                         ),
                     },
                 }
@@ -589,6 +616,10 @@ def _wan_reference_to_video_models() -> Dict[str, Dict[str, Any]]:
                     "镜头类型",
                     "select",
                     description="单镜头或多镜头",
+                    help=_help(
+                        summary="控制参考生视频是单镜头还是多镜头叙事。",
+                        how_to_choose=["参考素材较少、动作简单时优先单镜头", "想让模型根据提示做多段镜头演绎时可尝试多镜头"],
+                    ),
                     default=info.get("default_shot_type", "single"),
                     group="generation",
                     order=3,
@@ -599,7 +630,7 @@ def _wan_reference_to_video_models() -> Dict[str, Dict[str, Any]]:
                 )
             )
         if info.get("supports_audio_toggle"):
-            parameters.append(_bool_param("audio", "有声视频", info.get("default_audio", True), "是否保留声音", 5, help=_audio_help("控制输出是否保留声音。")))
+            parameters.append(_bool_param("audio", "有声视频", True, "是否保留声音", 5, help=_audio_help("控制输出是否保留声音。")))
         if info.get("supports_seed"):
             parameters.append(
                 _param(
@@ -638,6 +669,7 @@ def _wan_reference_to_video_models() -> Dict[str, Dict[str, Any]]:
                         "prompt_help": _help(
                             summary="Prompt 用于说明参考素材要如何被组合、演绎或转化成新视频。",
                             how_to_choose=["写清楚主体关系、动作、镜头和氛围", "若参考素材很多，prompt 更要明确主次关系"],
+                            notes=["前端会分别收集参考图和参考视频，但提交时会按照官方 reference_urls 语义组合成混合参考列表。", "如果你在 prompt 中写 character1、character2 等引用，请确保它们与素材添加顺序一致。"],
                         ),
                     },
                 }
@@ -1041,8 +1073,8 @@ def _kling_models() -> Dict[str, Dict[str, Any]]:
             group="generation",
             order=2,
         ),
-        _bool_param("audio", "生成音频", False, "开启后模型会自动生成背景音乐或音效。", 4, help=_audio_help("控制是否让可灵为视频自动补声音。")),
-        _bool_param("watermark", "添加水印", True, "是否保留“可灵AI”水印。", 5, help=_watermark_help("可灵水印文案通常为“可灵AI”。")),
+        _bool_param("audio", "生成音频", True, "开启后模型会自动生成背景音乐或音效。", 4, help=_audio_help("控制是否让可灵为视频自动补声音。")),
+        _bool_param("watermark", "添加水印", False, "是否保留“可灵AI”水印。", 5, help=_watermark_help("开启后保留可灵侧的 AI 生成水印。")),
     ]
     element_ids_param = _tags_param(
         "element_ids",
@@ -1525,7 +1557,7 @@ def _vidu_model(
             group="generation",
             order=2,
         ),
-        _bool_param("watermark", "添加水印", True, "是否添加“内容由AI生成”水印。", 4, help=_watermark_help("Vidu 水印文案为“内容由AI生成”。")),
+        _bool_param("watermark", "添加水印", False, "是否添加“内容由AI生成”水印。", 4, help=_watermark_help("开启后保留 Vidu 的 AI 生成水印。")),
     ]
     if size_options_by_resolution:
         parameters.insert(
@@ -1552,7 +1584,7 @@ def _vidu_model(
             ),
         )
     if supports_audio:
-        parameters.insert(3, _bool_param("audio", "生成音频", False, "开启后模型会自动生成背景音乐或音效。", 3, help=_audio_help("控制是否让 Vidu 自动生成声音。")))
+        parameters.insert(3, _bool_param("audio", "生成音频", True, "开启后模型会自动生成背景音乐或音效。", 3, help=_audio_help("控制是否让 Vidu 自动生成声音。")))
     parameters.append(
         _param(
             "seed",
@@ -1755,7 +1787,6 @@ def get_video_capabilities() -> Dict[str, Any]:
             for model_id, model in models.items()
             if task_def["id"] in model.get("supported_task_kinds", [])
         ]
-        supported_models.sort(key=lambda model_id: (not models[model_id].get("recommended", False), models[model_id]["name"]))
         task_kinds.append(
             {
                 **task_def,

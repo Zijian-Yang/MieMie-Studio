@@ -15,6 +15,7 @@ import os
 import subprocess
 import tempfile
 import uuid
+from dataclasses import asdict
 from copy import deepcopy
 import httpx
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
@@ -196,6 +197,10 @@ class PrepareSourceVideoRequest(BaseModel):
     """准备源视频首帧与元数据"""
     project_id: str
     video_url: str
+
+
+class PreviewPayloadRequest(VideoStudioTaskCreateRequest):
+    """预览 canonical 请求与厂商 payload"""
 
 
 VACE_REPAINTING_CONTROL_CONDITIONS = {"posebodyface", "posebody", "depth", "scribble"}
@@ -610,6 +615,31 @@ async def prepare_source_video(request: PrepareSourceVideoRequest):
     return result
 
 
+@router.post("/preview-payload")
+async def preview_payload(request: PreviewPayloadRequest):
+    """预览标准化请求和厂商请求体，不真正提交任务"""
+    normalized = _normalize_request(request)
+    adapter = get_video_adapter(normalized.provider)
+    validation_warnings: List[str] = []
+    provider_payload: Optional[Dict[str, Any]] = None
+
+    try:
+        await adapter.validate(normalized)
+    except ValueError as exc:
+        validation_warnings.append(str(exc))
+
+    try:
+        provider_payload = adapter.build_provider_payload(normalized)
+    except Exception as exc:
+        validation_warnings.append(f"构造厂商请求体失败: {str(exc)}")
+
+    return {
+        "canonical_request": asdict(normalized),
+        "provider_payload": provider_payload,
+        "validation_warnings": validation_warnings,
+    }
+
+
 @router.post("/upload-mask")
 async def upload_mask(
     project_id: str = Form(...),
@@ -743,6 +773,14 @@ async def get_task_status(task_id: str):
             pass
         elif all_succeeded and video_urls and len(video_urls) == len(task.task_ids):
             task.status = "succeeded"
+            if not task.selected_video_url:
+                task.selected_video_url = video_urls[0]
+            if not task.thumbnail_url:
+                preview_target = task.selected_video_url or video_urls[0]
+                try:
+                    task.thumbnail_url = await _extract_video_thumbnail_to_oss(preview_target, task.project_id)
+                except Exception as exc:
+                    logger.warning(f"[视频工作室] 任务 {task.id} 生成缩略图失败: {exc}")
         else:
             task.status = "failed"
             if not task.error_message:
@@ -993,6 +1031,46 @@ async def _ffmpeg_extract_last_frame(video_url: str) -> bytes:
     finally:
         os.unlink(tmp_video.name)
         os.unlink(tmp_output.name)
+
+
+async def _ffmpeg_extract_first_frame(video_url: str) -> bytes:
+    """下载视频并提取首帧，返回 JPEG 字节"""
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        resp = await client.get(video_url)
+        if resp.status_code != 200:
+            raise HTTPException(status_code=400, detail=f"无法下载视频: HTTP {resp.status_code}")
+        video_content = resp.content
+
+    tmp_video = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+    tmp_output = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+    tmp_video.write(video_content)
+    tmp_video.close()
+    tmp_output.close()
+
+    try:
+        result = subprocess.run(
+            ['ffmpeg', '-ss', '0', '-i', tmp_video.name, '-frames:v', '1', '-vf', 'format=yuvj420p', '-q:v', '2', '-y', tmp_output.name],
+            capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"ffmpeg 提取失败: {result.stderr}")
+        with open(tmp_output.name, 'rb') as f:
+            image_data = f.read()
+        if not image_data:
+            raise RuntimeError("ffmpeg 未输出任何图像数据")
+        return image_data
+    finally:
+        os.unlink(tmp_video.name)
+        os.unlink(tmp_output.name)
+
+
+async def _extract_video_thumbnail_to_oss(video_url: str, project_id: str) -> str:
+    """提取视频首帧缩略图并上传到 OSS"""
+    if not oss_service.is_enabled():
+        raise RuntimeError("OSS 未启用，无法保存视频缩略图")
+    image_bytes = await _ffmpeg_extract_first_frame(video_url)
+    filename = f"{datetime.now().strftime('%Y%m%d/%H%M%S')}_{uuid.uuid4().hex[:8]}.jpg"
+    return oss_service.upload_bytes(image_bytes, f"video_studio/{project_id}/thumbnails/{filename}")
 
 
 @router.delete("/{task_id}")
