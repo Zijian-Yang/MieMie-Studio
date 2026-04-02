@@ -14,7 +14,7 @@ import {
 } from '@ant-design/icons'
 import { 
   studioApi, galleryApi, charactersApi, scenesApi, propsApi, stylesApi, settingsApi,
-  StudioTask, GalleryImage, Character, Scene, Prop, Style
+  StudioTask, GalleryImage, Character, Scene, Prop, Style, HelpContent
 } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 import { useModelRegistry } from '../../hooks/useModelRegistry'
@@ -64,12 +64,56 @@ const TASK_KIND_OPTIONS: Array<{ value: ImageTaskKind; label: string; help: stri
 ]
 
 const WAN27_MODELS = new Set(['wan2.7-image-pro', 'wan2.7-image'])
+const WAN27_MIN_TOTAL_PIXELS = 768 * 768
+const WAN27_PRO_MAX_TOTAL_PIXELS = 4096 * 4096
+const WAN27_STANDARD_MAX_TOTAL_PIXELS = 2048 * 2048
+const WAN27_MIN_RATIO = 1 / 8
+const WAN27_MAX_RATIO = 8
+const WAN27_MAX_CUSTOM_DIMENSION = 12000
 const DEFAULT_MODEL_BY_TASK_KIND: Record<ImageTaskKind, string> = {
   text_to_image: 'wan2.7-image-pro',
   image_edit: 'wan2.7-image-pro',
   interactive_edit: 'wan2.7-image-pro',
   sequential_generation: 'wan2.7-image-pro',
 }
+
+const mergeHelpContent = (...helps: Array<HelpContent | string | null | undefined>): HelpContent | null => {
+  const merged: HelpContent = {}
+  for (const help of helps) {
+    if (!help) continue
+    const normalized: HelpContent = typeof help === 'string' ? { summary: help } : help
+    if (normalized.summary) {
+      merged.summary = merged.summary ? `${merged.summary} ${normalized.summary}` : normalized.summary
+    }
+    if (normalized.meaning) {
+      merged.meaning = merged.meaning ? `${merged.meaning} ${normalized.meaning}` : normalized.meaning
+    }
+    ;(['limits', 'how_to_choose', 'examples', 'notes'] as const).forEach((key) => {
+      const incoming = normalized[key]
+      if (!incoming?.length) return
+      const existing = merged[key] || []
+      merged[key] = [...existing, ...incoming.filter(item => !existing.includes(item))]
+    })
+  }
+  return Object.keys(merged).length ? merged : null
+}
+
+const getWan27DefaultN = (taskKind: ImageTaskKind) => (
+  taskKind === 'sequential_generation' ? 12 : 4
+)
+
+const getWan27CustomSizeLimits = (
+  modelId: string,
+  taskKind: ImageTaskKind,
+  referenceCount: number,
+) => ({
+  minTotalPixels: WAN27_MIN_TOTAL_PIXELS,
+  maxTotalPixels: modelId === 'wan2.7-image-pro' && taskKind === 'text_to_image' && referenceCount === 0
+    ? WAN27_PRO_MAX_TOTAL_PIXELS
+    : WAN27_STANDARD_MAX_TOTAL_PIXELS,
+  minRatio: WAN27_MIN_RATIO,
+  maxRatio: WAN27_MAX_RATIO,
+})
 
 const getTaskKindLabel = (taskKind?: string) => (
   TASK_KIND_OPTIONS.find(item => item.value === taskKind)?.label || '图像编辑'
@@ -120,6 +164,7 @@ const StudioPage = () => {
     provider_payload: Record<string, any>
     validation_warnings: string[]
   } | null>(null)
+  const [wan27BBoxList, setWan27BBoxList] = useState<number[][][]>([])
   
   // 使用统一的模型注册中心
   const { models: registryModels } = useModelRegistry()
@@ -189,7 +234,7 @@ const StudioPage = () => {
         <span>{paramMeta?.label || fallbackLabel}</span>
         <HoverInfoPopover
           title={paramMeta?.label || fallbackLabel}
-          help={extraHelp || paramMeta?.help || paramMeta?.description}
+          help={mergeHelpContent(paramMeta?.help || paramMeta?.description, extraHelp)}
         />
       </Space>
     )
@@ -215,15 +260,33 @@ const StudioPage = () => {
   const isWan27Model = WAN27_MODELS.has(activeModelId)
   const shouldShowReferences = activeTaskKind !== 'text_to_image'
   const shouldShowGroupCount = !isWan27Model
+  const wan27CustomSizeLimits = useMemo(
+    () => getWan27CustomSizeLimits(activeModelId, activeTaskKind, selectedReferenceItems.length),
+    [activeModelId, activeTaskKind, selectedReferenceItems.length]
+  )
+  const wan27PresetOptions = useMemo(() => {
+    if (!isWan27Model) return []
+    const allow4K = activeModelId === 'wan2.7-image-pro' && activeTaskKind === 'text_to_image' && selectedReferenceItems.length === 0
+    const presets = allow4K ? ['1K', '2K', '4K'] : ['1K', '2K']
+    const ratioLabel = selectedReferenceItems.length > 0 ? '跟随最后一张输入图比例' : '默认正方形输出'
+    return presets.map((preset) => ({ value: preset, label: `${preset}（${ratioLabel}）` }))
+  }, [activeModelId, activeTaskKind, isWan27Model, selectedReferenceItems.length])
 
-  const moveReference = useCallback((index: number, direction: -1 | 1) => {
-    const current = [...(form.getFieldValue('references') || [])]
-    const targetIndex = index + direction
-    if (targetIndex < 0 || targetIndex >= current.length) return
-    const [item] = current.splice(index, 1)
-    current.splice(targetIndex, 0, item)
-    form.setFieldValue('references', current)
-  }, [form])
+  const validateWan27CustomDimension = useCallback(async (_: any, value: number | null | undefined) => {
+    if (!isWan27Model || watchedSizeMode !== 'custom') return Promise.resolve()
+    const width = Number(form.getFieldValue('custom_width') ?? (value ?? 0))
+    const height = Number(form.getFieldValue('custom_height') ?? (value ?? 0))
+    if (!width || !height) return Promise.resolve()
+    const ratio = width / height
+    const pixels = width * height
+    if (ratio < wan27CustomSizeLimits.minRatio || ratio > wan27CustomSizeLimits.maxRatio) {
+      return Promise.reject(new Error('自定义尺寸宽高比需在 1:8 到 8:1 之间'))
+    }
+    if (pixels < wan27CustomSizeLimits.minTotalPixels || pixels > wan27CustomSizeLimits.maxTotalPixels) {
+      return Promise.reject(new Error(`当前模型和模式下，总像素需在 ${wan27CustomSizeLimits.minTotalPixels} 到 ${wan27CustomSizeLimits.maxTotalPixels} 之间`))
+    }
+    return Promise.resolve()
+  }, [form, isWan27Model, wan27CustomSizeLimits.maxRatio, wan27CustomSizeLimits.maxTotalPixels, wan27CustomSizeLimits.minRatio, wan27CustomSizeLimits.minTotalPixels, watchedSizeMode])
 
   const computeEffectiveSize = useCallback((values: any) => {
     if (WAN27_MODELS.has(values.model)) {
@@ -241,6 +304,7 @@ const StudioPage = () => {
       return { type, id }
     })
     const effectiveSize = computeEffectiveSize(values)
+    const effectiveBBoxList = WAN27_MODELS.has(values.model) ? (values.bbox_list || wan27BBoxList || []) : (values.bbox_list || [])
     return {
       name: values.name || '未命名任务',
       description: values.description,
@@ -258,7 +322,7 @@ const StudioPage = () => {
       max_images: values.max_images,
       enable_sequential: values.task_kind === 'sequential_generation',
       thinking_mode: values.thinking_mode ?? null,
-      bbox_list: values.bbox_list || [],
+      bbox_list: effectiveBBoxList,
       color_palette: values.color_palette || [],
       size_mode: values.size_mode,
       size_preset: values.size_mode === 'preset' ? values.size_preset : undefined,
@@ -266,7 +330,7 @@ const StudioPage = () => {
       custom_height: values.size_mode === 'custom' ? values.custom_height : undefined,
       references,
     }
-  }, [computeEffectiveSize])
+  }, [computeEffectiveSize, wan27BBoxList])
 
   const requestPayloadPreview = useCallback(async () => {
     if (!projectId || !isModalOpen) return
@@ -277,6 +341,7 @@ const StudioPage = () => {
     })
     let finalPrompt = values.prompt || ''
     let finalNegativePrompt = values.negative_prompt || ''
+    const effectiveBBoxList = WAN27_MODELS.has(values.model) ? (values.bbox_list || wan27BBoxList || []) : values.bbox_list
     const styleId = values.style_id || selectedStyleId
     if (styleId) {
       const style = styles.find(s => s.id === styleId)
@@ -316,7 +381,7 @@ const StudioPage = () => {
         max_images: values.max_images,
         enable_sequential: values.enable_sequential,
         thinking_mode: values.thinking_mode,
-        bbox_list: values.bbox_list,
+        bbox_list: effectiveBBoxList,
         color_palette: values.color_palette,
         size_mode: values.size_mode,
         size_preset: values.size_preset,
@@ -332,7 +397,7 @@ const StudioPage = () => {
         setPreviewPayload(null)
       }
     }
-  }, [computeEffectiveSize, form, isModalOpen, projectId, selectedStyleId, styles])
+  }, [computeEffectiveSize, form, isModalOpen, projectId, selectedStyleId, styles, wan27BBoxList])
 
   useEffect(() => {
     isMountedRef.current = true
@@ -491,6 +556,7 @@ const StudioPage = () => {
   useEffect(() => {
     if (!isModalOpen) return
     if (!isWan27Model) {
+      setWan27BBoxList([])
       form.setFieldsValue({
         enable_sequential: false,
         thinking_mode: null,
@@ -519,26 +585,34 @@ const StudioPage = () => {
       form.setFieldValue('thinking_mode', true)
     }
     if (activeTaskKind !== 'interactive_edit') {
+      if (wan27BBoxList.length > 0) {
+        message.info('已清除交互式框选区域，因为当前任务类型不再是交互式编辑')
+      }
+      setWan27BBoxList([])
       form.setFieldValue('bbox_list', [])
     }
     if (activeTaskKind === 'sequential_generation') {
       form.setFieldValue('color_palette', [])
       if ((form.getFieldValue('n') || 0) > 12 || !form.getFieldValue('n')) {
-        form.setFieldValue('n', 4)
+        form.setFieldValue('n', getWan27DefaultN('sequential_generation'))
       }
     } else if ((form.getFieldValue('n') || 0) > 4 || !form.getFieldValue('n')) {
-      form.setFieldValue('n', 1)
+      form.setFieldValue('n', getWan27DefaultN(activeTaskKind))
     }
-  }, [activeTaskKind, form, isModalOpen, isWan27Model, selectedReferenceItems.length])
+  }, [activeTaskKind, form, isModalOpen, isWan27Model, selectedReferenceItems.length, wan27BBoxList.length])
 
   useEffect(() => {
     if (!isModalOpen || !isWan27Model || activeTaskKind !== 'interactive_edit') return
-    const currentBoxes = form.getFieldValue('bbox_list') || []
+    const currentBoxes = wan27BBoxList
     const targetLength = selectedReferenceItems.length
     if (currentBoxes.length === targetLength) return
     const nextBoxes = Array.from({ length: targetLength }, (_, index) => currentBoxes[index] || [])
+    if (currentBoxes.length > targetLength) {
+      message.info('输入图片数量已变化，已移除超出范围的框选区域')
+    }
+    setWan27BBoxList(nextBoxes)
     form.setFieldValue('bbox_list', nextBoxes)
-  }, [activeTaskKind, form, isModalOpen, isWan27Model, selectedReferenceItems.length])
+  }, [activeTaskKind, form, isModalOpen, isWan27Model, selectedReferenceItems.length, wan27BBoxList])
 
   // 新建模式状态
   const [isCreating, setIsCreating] = useState(false)
@@ -549,6 +623,7 @@ const StudioPage = () => {
     setSelectedTask(null)
     setSelectedImages(new Set())
     setPreviewPayload(null)
+    setWan27BBoxList([])
     form.resetFields()
     form.setFieldsValue({
       name: '',
@@ -557,7 +632,7 @@ const StudioPage = () => {
       model: 'wan2.7-image-pro',
       prompt: '',
       negative_prompt: '',
-      n: 1,
+      n: getWan27DefaultN('text_to_image'),
       group_count: 1,
       prompt_extend: true,
       watermark: false,
@@ -626,6 +701,7 @@ const StudioPage = () => {
       const isQwenImage2 = values.model === 'qwen-image-2.0-pro' || values.model === 'qwen-image-2.0'
       const isWan27 = WAN27_MODELS.has(values.model)
       const refCount = references.length
+      const effectiveBBoxList = isWan27 ? (values.bbox_list || wan27BBoxList || []) : (values.bbox_list || [])
       
       if (isQwenEditModel && refCount === 0) {
         message.warning('qwen-image-edit 系列模型需要 1-3 张参考图作为输入')
@@ -645,7 +721,7 @@ const StudioPage = () => {
           message.warning('交互式编辑至少需要 1 张输入图片')
           return
         }
-        if (!values.bbox_list || values.bbox_list.length !== refCount) {
+        if (!effectiveBBoxList || effectiveBBoxList.length !== refCount) {
           message.warning('请为交互式编辑中的每张输入图准备对应的框选区域')
           return
         }
@@ -731,6 +807,7 @@ const StudioPage = () => {
     setSelectedImages(new Set())
     setSelectedStyleId(null)
     setPreviewPayload(null)
+    setWan27BBoxList(task.bbox_list || [])
     form.setFieldsValue({
       name: task.name,
       description: task.description,
@@ -738,7 +815,7 @@ const StudioPage = () => {
       model: task.model,
       prompt: task.prompt,
       negative_prompt: task.negative_prompt,
-      n: task.n || 4,
+      n: task.n || getWan27DefaultN((task.task_kind || getModelTaskKinds(task.model)[0]) as ImageTaskKind),
       group_count: task.group_count || 1,
       // 加载保存的高级参数（如果有），否则使用默认值
       size: task.size || '',
@@ -776,12 +853,53 @@ const StudioPage = () => {
       autoSavingRef.current = false
     }
   }, [selectedTask, isCreating, form, safeSetState, buildStudioRequestPayload])
+
+  const queueStudioAutoSave = useCallback(() => {
+    if (isCreating || !selectedTask) return
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current)
+    }
+    autoSaveTimerRef.current = setTimeout(() => {
+      autoSaveTask()
+    }, 800)
+  }, [autoSaveTask, isCreating, selectedTask])
+
+  const syncWan27BBoxList = useCallback((nextBoxes: number[][][]) => {
+    setWan27BBoxList(nextBoxes)
+    form.setFieldValue('bbox_list', nextBoxes)
+    queueStudioAutoSave()
+  }, [form, queueStudioAutoSave])
+
+  const moveReference = useCallback((index: number, direction: -1 | 1) => {
+    const current = [...(form.getFieldValue('references') || [])]
+    const targetIndex = index + direction
+    if (targetIndex < 0 || targetIndex >= current.length) return
+    const [item] = current.splice(index, 1)
+    current.splice(targetIndex, 0, item)
+    form.setFieldValue('references', current)
+    if (isWan27Model && activeTaskKind === 'interactive_edit') {
+      const currentBoxes = [...wan27BBoxList]
+      const [boxGroup] = currentBoxes.splice(index, 1)
+      currentBoxes.splice(targetIndex, 0, boxGroup || [])
+      syncWan27BBoxList(currentBoxes)
+    } else {
+      queueStudioAutoSave()
+    }
+  }, [activeTaskKind, form, isWan27Model, queueStudioAutoSave, syncWan27BBoxList, wan27BBoxList])
   
   const handleFormValuesChange = useCallback((changedValues: any) => {
     if (changedValues.task_kind) {
       const nextKind = changedValues.task_kind as ImageTaskKind
       const compatibleModels = getModelsForTaskKind(nextKind)
       const currentModel = form.getFieldValue('model')
+      if (WAN27_MODELS.has(currentModel)) {
+        const currentN = form.getFieldValue('n')
+        if (nextKind === 'sequential_generation') {
+          form.setFieldValue('n', getWan27DefaultN(nextKind))
+        } else if (!currentN || currentN > 4 || currentN === 12) {
+          form.setFieldValue('n', getWan27DefaultN(nextKind))
+        }
+      }
       if (!compatibleModels.some(model => model.id === currentModel)) {
         const preferredModel = compatibleModels.find(model => model.id === DEFAULT_MODEL_BY_TASK_KIND[nextKind]) || compatibleModels[0]
         if (preferredModel) {
@@ -798,7 +916,7 @@ const StudioPage = () => {
           group_count: 1,
           size_mode: form.getFieldValue('size_mode') || 'preset',
           size_preset: form.getFieldValue('size_preset') || '2K',
-          n: activeTaskKind === 'sequential_generation' ? 4 : 1,
+          n: getWan27DefaultN(activeTaskKind),
           watermark: false,
         })
       } else if (model === 'qwen-image-max' || model === 'qwen-image-plus') {
@@ -820,9 +938,11 @@ const StudioPage = () => {
 
     if (changedValues.references) {
       const refs = changedValues.references || []
-      const currentBoxes = form.getFieldValue('bbox_list') || []
+      const currentBoxes = wan27BBoxList
       if (activeTaskKind === 'interactive_edit' && WAN27_MODELS.has(form.getFieldValue('model'))) {
-        form.setFieldValue('bbox_list', Array.from({ length: refs.length }, (_, index) => currentBoxes[index] || []))
+        syncWan27BBoxList(Array.from({ length: refs.length }, (_, index) => currentBoxes[index] || []))
+      } else {
+        queueStudioAutoSave()
       }
     }
 
@@ -840,7 +960,7 @@ const StudioPage = () => {
     autoSaveTimerRef.current = setTimeout(() => {
       autoSaveTask()
     }, 800)
-  }, [activeTaskKind, autoSaveTask, form, getModelsForTaskKind, isCreating, selectedTask])
+  }, [activeTaskKind, autoSaveTask, form, getModelsForTaskKind, isCreating, queueStudioAutoSave, selectedTask, syncWan27BBoxList, wan27BBoxList])
   
   useEffect(() => {
     return () => {
@@ -859,6 +979,7 @@ const StudioPage = () => {
     const isQwenEditModel = values.model?.startsWith('qwen-image-edit')
     const isQwenImage2 = values.model === 'qwen-image-2.0-pro' || values.model === 'qwen-image-2.0'
     const isWan27 = WAN27_MODELS.has(values.model)
+    const effectiveBBoxList = isWan27 ? (values.bbox_list || wan27BBoxList || []) : (values.bbox_list || [])
     
     // 从表单中解析参考图
     const formReferences = (values.references || []).map((ref: string) => {
@@ -918,7 +1039,7 @@ const StudioPage = () => {
         message.warning('交互式编辑至少需要 1 张输入图片')
         return
       }
-      if (!values.bbox_list || values.bbox_list.length !== refCount) {
+      if (!effectiveBBoxList || effectiveBBoxList.length !== refCount) {
         message.warning('请为交互式编辑中的每张输入图准备对应的框选区域')
         return
       }
@@ -1230,15 +1351,9 @@ const StudioPage = () => {
     return (
       <div style={{ marginTop: 16 }}>
         <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontWeight: 500 }}>交互式框选区域</span>
-          <HoverInfoPopover
-            title="交互式框选区域"
-            help={{
-              summary: '为每张输入图标出需要引用或摆放的位置，坐标使用原图绝对像素。',
-              limits: ['bbox_list 长度必须和输入图片数量一致。', '每张图最多 2 个框。'],
-              how_to_choose: ['不需要框选的图片保持空列表。', '图像顺序变化后，框选也会跟着同索引变化。'],
-            }}
-          />
+          <span style={{ fontWeight: 500 }}>
+            {renderFormLabel(activeModelId, 'bbox_list', '交互式框选区域')}
+          </span>
         </div>
         <Space direction="vertical" style={{ width: '100%' }} size={16}>
           {selectedReferenceItems.map((item, index) => (
@@ -1246,11 +1361,11 @@ const StudioPage = () => {
               <div style={{ marginBottom: 8, fontWeight: 500 }}>图 {index + 1}</div>
               <BBoxEditor
                 imageUrl={item.url}
-                value={watchedBBoxList[index] || []}
+                value={wan27BBoxList[index] || []}
                 onChange={(boxes) => {
-                  const current = [...(form.getFieldValue('bbox_list') || [])]
+                  const current = [...wan27BBoxList]
                   current[index] = boxes
-                  form.setFieldValue('bbox_list', current)
+                  syncWan27BBoxList(current)
                 }}
               />
             </div>
@@ -1461,17 +1576,7 @@ const StudioPage = () => {
                   {shouldShowReferences && (
                     <>
                       <h4 style={{ margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span>选择输入图片</span>
-                        <HoverInfoPopover
-                          title="输入图片"
-                          help={{
-                            summary: '图片顺序会影响多图引用、输出比例和交互式编辑的 bbox_list 对位。',
-                            how_to_choose: [
-                              '多图编辑时，可在提示词中使用图1、图2、图3描述不同素材。',
-                              'wan2.7 使用规格档位时，输出比例会跟随最后一张输入图。',
-                            ],
-                          }}
-                        />
+                        <span>{renderFormLabel(activeModelId, 'images', '输入图片')}</span>
                       </h4>
                       <Form.Item 
                         name="references"
@@ -1602,10 +1707,7 @@ const StudioPage = () => {
                     <div style={{ marginBottom: 16 }}>
                       <Form.Item 
                         name="references"
-                        label={renderFormLabel(activeModelId, 'images', '输入图片', {
-                          summary: '按顺序选择参考素材，顺序会影响多图引用与输出比例。',
-                          how_to_choose: ['多图编辑时可在提示词中用图1、图2描述不同输入。'],
-                        })}
+                        label={renderFormLabel(activeModelId, 'images', '输入图片')}
                         extra={
                           <span style={{ color: token.colorTextSecondary, fontSize: 12 }}>
                             按顺序选择参考素材，可在提示词中使用“图1”“图2”等引用不同素材
@@ -1779,7 +1881,7 @@ const StudioPage = () => {
                     label={renderFormLabel(activeModelId, 'n', activeTaskKind === 'sequential_generation' ? '最大组图数' : '生图数量')}
                     extra={(() => {
                       const model = activeModelId
-                      if (WAN27_MODELS.has(model)) return activeTaskKind === 'sequential_generation' ? '组图模式下为最大组图数，范围 1-12' : '普通模式下范围 1-4'
+                      if (WAN27_MODELS.has(model)) return activeTaskKind === 'sequential_generation' ? '组图模式下为最大组图数，范围 1-12，默认 12' : '普通模式下范围 1-4，默认 4'
                       if (model?.startsWith('qwen-image-edit')) return '最多6张'
                       if (model === 'qwen-image-2.0-pro' || model === 'qwen-image-2.0') return '最多6张'
                       if (model === 'qwen-image-max' || model === 'qwen-image-plus') return '固定1张，用并发组数控制总量'
@@ -1850,23 +1952,17 @@ const StudioPage = () => {
                         当前能力：{getTaskKindLabel(activeTaskKind)}
                       </div>
                       <div style={{ color: token.colorTextTertiary, fontSize: 12 }}>
-                        {activeTaskKind === 'text_to_image' && '纯文生图。无输入图时可启用思考模式，规格档位默认输出正方形。'}
-                        {activeTaskKind === 'image_edit' && '图像编辑/多图参考生成。输入图片顺序会影响提示词引用和输出比例。'}
-                        {activeTaskKind === 'interactive_edit' && '交互式编辑。需要为每张输入图提供同索引的 bbox_list 框选区域。'}
-                        {activeTaskKind === 'sequential_generation' && '组图生成。enable_sequential 自动开启，n 代表最大组图数。'}
+                        {activeTaskKind === 'text_to_image' && '纯文生图。无输入图时可启用思考模式；规格档位默认输出正方形，自定义像素适合精确版式。'}
+                        {activeTaskKind === 'image_edit' && '图像编辑/多图参考生成。输入图片顺序会影响图1、图2等提示词引用，规格档位输出比例跟随最后一张图。'}
+                        {activeTaskKind === 'interactive_edit' && '交互式编辑。bbox_list 必须和输入图一一对应，不需要框选的图位也要保留空数组 []。'}
+                        {activeTaskKind === 'sequential_generation' && '组图生成。enable_sequential 自动开启，n 代表最大组图数，模型可能少于该上限返回。'}
                       </div>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                       <Form.Item
                         name="size_mode"
-                        label={renderFormLabel(activeModelId, 'size', '尺寸模式', {
-                          summary: 'wan2.7 支持规格档位和自定义像素，两种方式不可混用。',
-                          how_to_choose: [
-                            '优先使用规格档位 1K / 2K / 4K。',
-                            '需要精确像素时再切到自定义尺寸。',
-                          ],
-                        })}
+                        label={renderFormLabel(activeModelId, 'size', '尺寸模式')}
                         style={{ marginBottom: 0 }}
                       >
                         <Select
@@ -1892,16 +1988,7 @@ const StudioPage = () => {
                         style={{ marginBottom: 12 }}
                       >
                         <Select
-                          options={(() => {
-                            const options = activeModelId === 'wan2.7-image-pro'
-                              ? (
-                                activeTaskKind === 'text_to_image' && selectedReferenceItems.length === 0
-                                  ? ['1K', '2K', '4K']
-                                  : ['1K', '2K']
-                              )
-                              : ['1K', '2K']
-                            return options.map(option => ({ value: option, label: option }))
-                          })()}
+                          options={wan27PresetOptions}
                         />
                       </Form.Item>
                     ) : (
@@ -1910,16 +1997,21 @@ const StudioPage = () => {
                           name="custom_width"
                           label={renderFormLabel(activeModelId, 'size', '自定义宽度')}
                           style={{ marginBottom: 0 }}
+                          rules={[{ validator: validateWan27CustomDimension }]}
                         >
-                          <InputNumber min={768} max={4096} style={{ width: '100%' }} />
+                          <InputNumber min={1} max={WAN27_MAX_CUSTOM_DIMENSION} style={{ width: '100%' }} />
                         </Form.Item>
                         <Form.Item
                           name="custom_height"
                           label={renderFormLabel(activeModelId, 'size', '自定义高度')}
                           style={{ marginBottom: 0 }}
+                          rules={[{ validator: validateWan27CustomDimension }]}
                         >
-                          <InputNumber min={768} max={4096} style={{ width: '100%' }} />
+                          <InputNumber min={1} max={WAN27_MAX_CUSTOM_DIMENSION} style={{ width: '100%' }} />
                         </Form.Item>
+                        <div style={{ gridColumn: '1 / -1', color: token.colorTextSecondary, fontSize: 12 }}>
+                          当前模式下总像素需在 {wan27CustomSizeLimits.minTotalPixels} 到 {wan27CustomSizeLimits.maxTotalPixels} 之间，宽高比需在 1:8 到 8:1 之间。
+                        </div>
                       </div>
                     )}
 

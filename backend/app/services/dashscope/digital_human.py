@@ -30,6 +30,11 @@ class DigitalHumanService:
         config = get_config()
         self.api_key = config.dashscope_api_key
         self.base_url = config.base_url
+        self.last_request_id: Optional[str] = None
+        self.last_usage: dict = {}
+        self.last_error_code: Optional[str] = None
+        self.last_error_message: Optional[str] = None
+        self.last_raw_output: dict = {}
 
     async def create_task(
         self,
@@ -106,6 +111,7 @@ class DigitalHumanService:
                 message = result.get("message", "未知错误")
                 raise Exception(f"创建数字人视频任务失败: {code} - {message}")
 
+            self.last_request_id = result.get("request_id")
             task_id = result.get("output", {}).get("task_id")
             if not task_id:
                 raise Exception("创建数字人视频任务失败: 未返回任务ID")
@@ -134,6 +140,11 @@ class DigitalHumanService:
             result = response.json()
             output = result.get("output", {})
             status = output.get("task_status", "UNKNOWN")
+            self.last_request_id = result.get("request_id")
+            self.last_usage = result.get("usage") or {}
+            self.last_error_code = output.get("code") or result.get("code")
+            self.last_error_message = output.get("message") or result.get("message")
+            self.last_raw_output = output
 
             print(f"[HTTP 数字人视频状态查询] status_code: {response.status_code}")
             print(f"[HTTP 数字人视频状态查询] request_id: {result.get('request_id', 'N/A')}")

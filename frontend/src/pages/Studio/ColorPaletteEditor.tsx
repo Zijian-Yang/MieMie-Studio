@@ -78,7 +78,7 @@ const ColorPaletteEditor = ({ value = DEFAULT_COLORS, onChange }: ColorPaletteEd
       </div>
       <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ color: total === 100 ? token.colorSuccess : token.colorWarning, fontSize: 12 }}>
-          当前总和：{total.toFixed(2)}%
+          当前总和：{total.toFixed(2)}%。需保持 3-10 种颜色，比例总和精确为 100.00%。
         </div>
         <Space size={8}>
           <Button

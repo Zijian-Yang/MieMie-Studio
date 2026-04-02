@@ -41,6 +41,11 @@ class VaceVideoEditService:
         config = get_config()
         self.api_key = config.dashscope_api_key
         self.base_url = config.base_url
+        self.last_request_id: Optional[str] = None
+        self.last_usage: dict = {}
+        self.last_error_code: Optional[str] = None
+        self.last_error_message: Optional[str] = None
+        self.last_raw_output: dict = {}
 
     async def create_video_repainting_task(
         self,
@@ -143,6 +148,11 @@ class VaceVideoEditService:
         output = result.get("output", {})
         status = output.get("task_status", "UNKNOWN")
         request_id = result.get("request_id", "N/A")
+        self.last_request_id = result.get("request_id")
+        self.last_usage = result.get("usage") or {}
+        self.last_error_code = output.get("code") or result.get("code")
+        self.last_error_message = output.get("message") or result.get("message")
+        self.last_raw_output = output
         print(f"[VACE任务状态查询] status_code: {response.status_code}")
         print(f"[VACE任务状态查询] request_id: {request_id}")
         print(f"[VACE任务状态查询] task_status: {status}")
@@ -270,6 +280,7 @@ class VaceVideoEditService:
         if response.status_code != 200:
             raise Exception(f"创建任务失败: {result.get('code', 'Unknown')} - {result.get('message', 'Unknown error')}")
 
+        self.last_request_id = result.get("request_id")
         task_id = result.get("output", {}).get("task_id")
         if not task_id:
             raise Exception("创建任务失败: 未返回 task_id")

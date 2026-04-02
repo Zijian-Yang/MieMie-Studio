@@ -26,6 +26,7 @@ from app.models.gallery import GalleryImage
 from app.services.storage import storage_service, set_current_user, get_current_user_id
 from app.services.dashscope.image_to_image import ImageToImageService
 from app.services.oss import oss_service
+from app.services.remote_media_validation import inspect_remote_image
 from app.config import get_config, get_provider_api_key, get_provider_key_profile, set_user_config_dir, get_user_config_dir
 
 logger = logging.getLogger(__name__)
@@ -189,6 +190,13 @@ QWEN_IMAGE_MODELS = {
     "qwen-image-2.0",
 }
 
+WAN27_ALLOWED_IMAGE_FORMATS = {"JPEG", "JPG", "PNG", "BMP", "WEBP"}
+WAN27_MIN_IMAGE_DIM = 240
+WAN27_MAX_IMAGE_DIM = 8000
+WAN27_MAX_IMAGE_BYTES = 20 * 1024 * 1024
+WAN27_MIN_RATIO = 0.125
+WAN27_MAX_RATIO = 8.0
+
 IMAGE_TASK_KIND_SUPPORT: Dict[str, List[str]] = {
     "wan2.7-image-pro": ["text_to_image", "image_edit", "interactive_edit", "sequential_generation"],
     "wan2.7-image": ["text_to_image", "image_edit", "interactive_edit", "sequential_generation"],
@@ -287,6 +295,8 @@ def _build_wan27_size(
     custom_height: Optional[int],
     has_images: bool,
 ) -> str:
+    if size_mode == "custom" and (custom_width is None or custom_height is None):
+        raise HTTPException(status_code=400, detail="自定义尺寸需要同时填写宽度和高度")
     if size_mode == "custom" and custom_width and custom_height:
         return f"{custom_width}*{custom_height}"
     if size_mode == "preset" and size_preset:
@@ -296,6 +306,65 @@ def _build_wan27_size(
     if model_name == "wan2.7-image-pro" and task_kind == "text_to_image" and not has_images:
         return "2K"
     return "2K"
+
+
+async def _inspect_and_validate_wan27_images(ref_urls: List[str]) -> List[Dict[str, Any]]:
+    metadata_list: List[Dict[str, Any]] = []
+    for index, url in enumerate(ref_urls, start=1):
+        try:
+            metadata = await inspect_remote_image(url)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"第 {index} 张输入图片无法读取: {exc}") from exc
+
+        image_format = (metadata.get("format") or "").upper()
+        width = int(metadata.get("width") or 0)
+        height = int(metadata.get("height") or 0)
+        ratio = float(metadata.get("aspect_ratio") or 0)
+        file_size = int(metadata.get("file_size") or 0)
+
+        if image_format not in WAN27_ALLOWED_IMAGE_FORMATS:
+            raise HTTPException(status_code=400, detail=f"第 {index} 张输入图片格式不支持，仅支持 JPEG/JPG/PNG/BMP/WEBP")
+        if metadata.get("has_alpha"):
+            raise HTTPException(status_code=400, detail=f"第 {index} 张输入图片不支持透明通道，请使用不带透明的 PNG/JPG")
+        if not (WAN27_MIN_IMAGE_DIM <= width <= WAN27_MAX_IMAGE_DIM and WAN27_MIN_IMAGE_DIM <= height <= WAN27_MAX_IMAGE_DIM):
+            raise HTTPException(status_code=400, detail=f"第 {index} 张输入图片宽高需在 {WAN27_MIN_IMAGE_DIM} 到 {WAN27_MAX_IMAGE_DIM} 像素之间")
+        if ratio < WAN27_MIN_RATIO or ratio > WAN27_MAX_RATIO:
+            raise HTTPException(status_code=400, detail=f"第 {index} 张输入图片宽高比需在 1:8 到 8:1 之间")
+        if file_size > WAN27_MAX_IMAGE_BYTES:
+            raise HTTPException(status_code=400, detail=f"第 {index} 张输入图片大小不能超过 20MB")
+
+        metadata_list.append(metadata)
+    return metadata_list
+
+
+def _normalize_bbox_list(
+    bbox_list: Optional[List[List[List[int]]]],
+    image_metadata: List[Dict[str, Any]],
+) -> Optional[List[List[List[int]]]]:
+    if bbox_list is None:
+        return None
+    if len(bbox_list) != len(image_metadata):
+        raise HTTPException(status_code=400, detail="bbox_list 长度必须与输入图片数量一致")
+
+    normalized_bbox_list: List[List[List[int]]] = []
+    for box_group, metadata in zip(bbox_list, image_metadata):
+        width = int(metadata.get("width") or 0)
+        height = int(metadata.get("height") or 0)
+        normalized_group: List[List[int]] = []
+        for box in box_group:
+            if len(box) != 4:
+                raise HTTPException(status_code=400, detail="框选坐标格式必须为 [x1, y1, x2, y2]")
+            left, right = sorted((int(round(box[0])), int(round(box[2]))))
+            top, bottom = sorted((int(round(box[1])), int(round(box[3]))))
+            left = max(0, min(left, width))
+            right = max(0, min(right, width))
+            top = max(0, min(top, height))
+            bottom = max(0, min(bottom, height))
+            if right <= left or bottom <= top:
+                raise HTTPException(status_code=400, detail="框选区域无效，请重新绘制")
+            normalized_group.append([left, top, right, bottom])
+        normalized_bbox_list.append(normalized_group)
+    return normalized_bbox_list
 
 
 def _validate_wan27_request(
@@ -323,6 +392,8 @@ def _validate_wan27_request(
     else:
         if not 1 <= n <= 4:
             raise HTTPException(status_code=400, detail="wan2.7 普通模式下 n 必须在 1-4 之间")
+        if thinking_mode and ref_urls:
+            warnings.append("有输入图片时 thinking_mode 不生效，已忽略")
 
     if task_kind == "interactive_edit":
         if not ref_urls:
@@ -711,6 +782,10 @@ async def preview_payload(request: PreviewPayloadRequest):
     """预览当前草稿对应的 canonical request 与厂商 payload"""
     references = _resolve_reference_items(request.references)
     ref_urls = [ref.url for ref in references if ref.url]
+    bbox_list = request.bbox_list
+    if request.model in WAN27_MODELS and ref_urls:
+        image_metadata = await _inspect_and_validate_wan27_images(ref_urls)
+        bbox_list = _normalize_bbox_list(request.bbox_list, image_metadata)
     canonical, provider_payload, warnings = _build_provider_payload(
         model_name=request.model,
         prompt=request.prompt,
@@ -726,7 +801,7 @@ async def preview_payload(request: PreviewPayloadRequest):
         max_images=request.max_images or 5,
         enable_sequential=bool(request.enable_sequential),
         thinking_mode=request.thinking_mode,
-        bbox_list=request.bbox_list,
+        bbox_list=bbox_list,
         color_palette=_serialize_color_palette(request.color_palette),
         size_mode=request.size_mode,
         size_preset=request.size_preset,
@@ -871,6 +946,10 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
     model_name = task.model or "wan2.5-i2i-preview"
     is_text_to_image = model_name in IMAGE_MODELS
     ref_urls = [ref.url for ref in task.references if ref.url]
+    normalized_bbox_list = request.bbox_list if request.bbox_list is not None else task.bbox_list
+    if model_name in WAN27_MODELS and ref_urls:
+        image_metadata = await _inspect_and_validate_wan27_images(ref_urls)
+        normalized_bbox_list = _normalize_bbox_list(normalized_bbox_list, image_metadata)
 
     # --- 同步验证（在返回前完成）---
     enable_interleave = request.enable_interleave if hasattr(request, 'enable_interleave') else False
@@ -903,7 +982,7 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
         max_images=task.max_images,
         enable_sequential=task.enable_sequential,
         thinking_mode=task.thinking_mode,
-        bbox_list=task.bbox_list,
+        bbox_list=normalized_bbox_list,
         color_palette=color_palette,
         size_mode=task.size_mode,
         size_preset=task.size_preset,
@@ -916,6 +995,7 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
     task.model_id = canonical.model_id
     task.input_assets = canonical.input_assets
     task.normalized_params = canonical.normalized_params
+    task.bbox_list = normalized_bbox_list or []
     task.provider_payload_snapshot = provider_payload
     task.provider_result_meta = {}
     task.task_ids = []
@@ -955,7 +1035,7 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
         max_images=max_images,
         enable_sequential=bool(request.enable_sequential if request.enable_sequential is not None else task.enable_sequential),
         thinking_mode=request.thinking_mode if request.thinking_mode is not None else task.thinking_mode,
-        bbox_list=request.bbox_list if request.bbox_list is not None else task.bbox_list,
+        bbox_list=normalized_bbox_list,
         color_palette=_serialize_color_palette(request.color_palette) if request.color_palette is not None else task.color_palette,
         size_mode=request.size_mode if request.size_mode is not None else task.size_mode,
         size_preset=request.size_preset if request.size_preset is not None else task.size_preset,

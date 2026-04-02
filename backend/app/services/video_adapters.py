@@ -367,6 +367,7 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
     async def submit(self, request: NormalizedVideoTaskRequest, seed_offset: int = 0) -> VideoSubmitResult:
         params = dict(request.normalized_params)
         assets = request.input_assets
+        provider_payload = self.build_provider_payload(request, seed_offset)
         seed = params.get("seed")
         if seed is not None:
             params["seed"] = int(seed) + seed_offset
@@ -387,7 +388,12 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
                     model=request.model_id,
                     resolution=params.get("resolution"),
                 )
-                return VideoSubmitResult(task_id=task_id, key_profile=key_profile)
+                return VideoSubmitResult(
+                    task_id=task_id,
+                    request_id=getattr(svc, "last_request_id", None),
+                    provider_payload=provider_payload,
+                    key_profile=key_profile,
+                )
 
             svc = ImageToVideoService()
             key_profile = self._apply_service_key(svc, request)
@@ -405,7 +411,12 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
                 negative_prompt=request.negative_prompt or None,
                 shot_type=params.get("shot_type"),
             )
-            return VideoSubmitResult(task_id=task_id, key_profile=key_profile)
+            return VideoSubmitResult(
+                task_id=task_id,
+                request_id=getattr(svc, "last_request_id", None),
+                provider_payload=provider_payload,
+                key_profile=key_profile,
+            )
 
         if request.task_kind == "text_to_video":
             svc = TextToVideoService()
@@ -422,7 +433,12 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
                 audio_url=(assets.get("audio") or [None])[0] if isinstance(assets.get("audio"), list) else assets.get("audio"),
                 negative_prompt=request.negative_prompt or None,
             )
-            return VideoSubmitResult(task_id=task_id, key_profile=key_profile)
+            return VideoSubmitResult(
+                task_id=task_id,
+                request_id=getattr(svc, "last_request_id", None),
+                provider_payload=provider_payload,
+                key_profile=key_profile,
+            )
 
         if request.task_kind == "reference_to_video":
             svc = ReferenceToVideoService()
@@ -440,7 +456,12 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
                 negative_prompt=request.negative_prompt or None,
                 audio=params.get("audio"),
             )
-            return VideoSubmitResult(task_id=task_id, key_profile=key_profile)
+            return VideoSubmitResult(
+                task_id=task_id,
+                request_id=getattr(svc, "last_request_id", None),
+                provider_payload=provider_payload,
+                key_profile=key_profile,
+            )
 
         if request.task_kind == "keyframe_to_video":
             svc = KeyframeToVideoService()
@@ -458,7 +479,12 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
                 seed=params.get("seed"),
                 negative_prompt=request.negative_prompt or None,
             )
-            return VideoSubmitResult(task_id=task_id, key_profile=key_profile)
+            return VideoSubmitResult(
+                task_id=task_id,
+                request_id=getattr(svc, "last_request_id", None),
+                provider_payload=provider_payload,
+                key_profile=key_profile,
+            )
 
         if request.task_kind == "video_repainting":
             svc = VaceVideoEditService()
@@ -476,7 +502,12 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
                 watermark=params.get("watermark"),
                 model=request.model_id,
             )
-            return VideoSubmitResult(task_id=task_id, key_profile=key_profile)
+            return VideoSubmitResult(
+                task_id=task_id,
+                request_id=getattr(svc, "last_request_id", None),
+                provider_payload=provider_payload,
+                key_profile=key_profile,
+            )
 
         if request.task_kind == "video_edit_local":
             svc = VaceVideoEditService()
@@ -500,7 +531,12 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
                 watermark=params.get("watermark"),
                 model=request.model_id,
             )
-            return VideoSubmitResult(task_id=task_id, key_profile=key_profile)
+            return VideoSubmitResult(
+                task_id=task_id,
+                request_id=getattr(svc, "last_request_id", None),
+                provider_payload=provider_payload,
+                key_profile=key_profile,
+            )
 
         raise ValueError(f"不支持的万相任务类型: {request.task_kind}")
 
@@ -510,32 +546,86 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
                 svc = ReferenceToVideoService()
                 key_profile = self._apply_service_key(svc, request)
                 status, video_url = await svc.get_task_status(task_id, request.project_id)
-                return VideoStatusResult(status=status, video_url=video_url, key_profile=key_profile)
+                return VideoStatusResult(
+                    status=status,
+                    video_url=video_url,
+                    request_id=getattr(svc, "last_request_id", None),
+                    key_profile=key_profile,
+                    usage=getattr(svc, "last_usage", {}) or {},
+                    error_code=getattr(svc, "last_error_code", None),
+                    error_message=getattr(svc, "last_error_message", None),
+                    raw_output=getattr(svc, "last_raw_output", {}) or {},
+                )
             if request.task_kind == "text_to_video":
                 svc = TextToVideoService()
                 key_profile = self._apply_service_key(svc, request)
                 status, video_url = await svc.get_task_status(task_id, request.project_id)
-                return VideoStatusResult(status=status, video_url=video_url, key_profile=key_profile)
+                return VideoStatusResult(
+                    status=status,
+                    video_url=video_url,
+                    request_id=getattr(svc, "last_request_id", None),
+                    key_profile=key_profile,
+                    usage=getattr(svc, "last_usage", {}) or {},
+                    error_code=getattr(svc, "last_error_code", None),
+                    error_message=getattr(svc, "last_error_message", None),
+                    raw_output=getattr(svc, "last_raw_output", {}) or {},
+                )
             if request.task_kind == "keyframe_to_video":
                 svc = KeyframeToVideoService()
                 key_profile = self._apply_service_key(svc, request)
                 status, video_url = await svc.get_task_status(task_id, request.project_id)
-                return VideoStatusResult(status=status, video_url=video_url, key_profile=key_profile)
+                return VideoStatusResult(
+                    status=status,
+                    video_url=video_url,
+                    request_id=getattr(svc, "last_request_id", None),
+                    key_profile=key_profile,
+                    usage=getattr(svc, "last_usage", {}) or {},
+                    error_code=getattr(svc, "last_error_code", None),
+                    error_message=getattr(svc, "last_error_message", None),
+                    raw_output=getattr(svc, "last_raw_output", {}) or {},
+                )
             if request.task_kind in {"video_repainting", "video_edit_local"}:
                 svc = VaceVideoEditService()
                 key_profile = self._apply_service_key(svc, request)
                 status, video_url = await svc.get_task_status(task_id, request.project_id)
-                return VideoStatusResult(status=status, video_url=video_url, key_profile=key_profile)
+                return VideoStatusResult(
+                    status=status,
+                    video_url=video_url,
+                    request_id=getattr(svc, "last_request_id", None),
+                    key_profile=key_profile,
+                    usage=getattr(svc, "last_usage", {}) or {},
+                    error_code=getattr(svc, "last_error_code", None),
+                    error_message=getattr(svc, "last_error_message", None),
+                    raw_output=getattr(svc, "last_raw_output", {}) or {},
+                )
             if request.model_id == "wan2.2-s2v":
                 svc = DigitalHumanService()
                 key_profile = self._apply_service_key(svc, request)
                 status, video_url = await svc.get_task_status(task_id, request.project_id)
-                return VideoStatusResult(status=status, video_url=video_url, key_profile=key_profile)
+                return VideoStatusResult(
+                    status=status,
+                    video_url=video_url,
+                    request_id=getattr(svc, "last_request_id", None),
+                    key_profile=key_profile,
+                    usage=getattr(svc, "last_usage", {}) or {},
+                    error_code=getattr(svc, "last_error_code", None),
+                    error_message=getattr(svc, "last_error_message", None),
+                    raw_output=getattr(svc, "last_raw_output", {}) or {},
+                )
 
             svc = ImageToVideoService()
             key_profile = self._apply_service_key(svc, request)
             status, video_url = await svc.get_task_status(task_id, request.project_id, use_http="wan2.6" in request.model_id)
-            return VideoStatusResult(status=status, video_url=video_url, key_profile=key_profile)
+            return VideoStatusResult(
+                status=status,
+                video_url=video_url,
+                request_id=getattr(svc, "last_request_id", None),
+                key_profile=key_profile,
+                usage=getattr(svc, "last_usage", {}) or {},
+                error_code=getattr(svc, "last_error_code", None),
+                error_message=getattr(svc, "last_error_message", None),
+                raw_output=getattr(svc, "last_raw_output", {}) or {},
+            )
         except Exception as exc:
             return VideoStatusResult(
                 status="FAILED",

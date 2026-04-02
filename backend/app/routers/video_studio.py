@@ -252,6 +252,87 @@ def _split_reference_assets(urls: List[str]) -> tuple[List[str], List[str]]:
     return image_urls, video_urls
 
 
+def _hydrate_task_developer_metadata(task: VideoStudioTask) -> bool:
+    """尽量补全开发者模式所需的提交元信息。"""
+    changed = False
+
+    if task.task_kind and task.provider and task.model_id and not task.provider_payload_snapshot:
+        try:
+            normalized = _normalized_request_from_task(task)
+            adapter = get_video_adapter(normalized.provider)
+            task.provider_payload_snapshot = adapter.build_provider_payload(normalized)
+            changed = True
+        except Exception as exc:
+            logger.debug(f"[视频工作室] 任务 {task.id} 回填厂商请求体失败: {exc}")
+
+    if not task.request_ids and task.provider_result_meta:
+        request_ids: List[str] = []
+        for meta in task.provider_result_meta.values():
+            request_id = (meta or {}).get("request_id")
+            if request_id and request_id not in request_ids:
+                request_ids.append(request_id)
+        if request_ids:
+            task.request_ids = request_ids
+            changed = True
+
+    return changed
+
+
+def _developer_metadata_incomplete(task: VideoStudioTask) -> bool:
+    if not task.task_ids:
+        return False
+    if not task.provider_payload_snapshot:
+        return True
+    if not task.request_ids:
+        return True
+    for task_id in task.task_ids:
+        meta = (task.provider_result_meta or {}).get(task_id, {}) or {}
+        if not meta.get("request_id") or not meta.get("raw_output"):
+            return True
+    return False
+
+
+async def _refresh_task_provider_metadata(task: VideoStudioTask) -> bool:
+    if task.status != "processing":
+        return False
+    if not task.task_ids:
+        return False
+
+    normalized = _normalized_request_from_task(task)
+    adapter = get_video_adapter(normalized.provider)
+    provider_meta = deepcopy(task.provider_result_meta or {})
+    changed = False
+
+    for api_task_id in task.task_ids:
+        try:
+            result = await adapter.fetch(normalized, api_task_id)
+        except Exception as exc:
+            logger.debug(f"[视频工作室] 任务 {task.id} 刷新开发者元信息失败: {exc}")
+            continue
+
+        existing_meta = provider_meta.get(api_task_id, {}) or {}
+        merged_meta = {
+            "provider": normalized.provider,
+            "key_profile": result.key_profile or normalized.key_profile,
+            "request_id": result.request_id or existing_meta.get("request_id"),
+            "submitted_at": existing_meta.get("submitted_at"),
+            "usage": result.usage or existing_meta.get("usage") or {},
+            "error_code": result.error_code or existing_meta.get("error_code"),
+            "error_message": result.error_message or existing_meta.get("error_message"),
+            "raw_output": result.raw_output or existing_meta.get("raw_output") or {},
+            "finished_at": existing_meta.get("finished_at") or datetime.now().isoformat(),
+        }
+        if merged_meta != existing_meta:
+            provider_meta[api_task_id] = merged_meta
+            changed = True
+
+    if changed:
+        task.provider_result_meta = provider_meta
+        _hydrate_task_developer_metadata(task)
+
+    return changed
+
+
 def _normalize_request(request: VideoStudioTaskCreateRequest) -> NormalizedVideoTaskRequest:
     task_kind = _resolve_task_kind(request.task_type, request.task_kind)
     legacy_task_type = TASK_KIND_TO_LEGACY_TASK_TYPE.get(task_kind, task_kind)
@@ -592,6 +673,9 @@ async def _validate_vace_task_request(request: VideoStudioTaskCreateRequest) -> 
 async def list_tasks(project_id: str):
     """获取项目所有视频工作室任务"""
     tasks = storage_service.get_video_studio_tasks(project_id)
+    for task in tasks:
+        if _hydrate_task_developer_metadata(task):
+            storage_service.save_video_studio_task(task)
     return {"tasks": tasks}
 
 
@@ -665,6 +749,11 @@ async def get_task(task_id: str):
     task = storage_service.get_video_studio_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
+    if _developer_metadata_incomplete(task):
+        if await _refresh_task_provider_metadata(task):
+            storage_service.save_video_studio_task(task)
+    if _hydrate_task_developer_metadata(task):
+        storage_service.save_video_studio_task(task)
     return task
 
 
@@ -741,14 +830,16 @@ async def get_task_status(task_id: str):
 
     for api_task_id in task.task_ids:
         result = await adapter.fetch(normalized, api_task_id)
+        existing_meta = provider_meta.get(api_task_id, {}) or {}
         provider_meta[api_task_id] = {
             "provider": normalized.provider,
             "key_profile": result.key_profile or normalized.key_profile,
-            "request_id": result.request_id,
-            "usage": result.usage,
-            "error_code": result.error_code,
-            "error_message": result.error_message,
-            "raw_output": result.raw_output,
+            "request_id": result.request_id or existing_meta.get("request_id"),
+            "submitted_at": existing_meta.get("submitted_at"),
+            "usage": result.usage or existing_meta.get("usage") or {},
+            "error_code": result.error_code or existing_meta.get("error_code"),
+            "error_message": result.error_message or existing_meta.get("error_message"),
+            "raw_output": result.raw_output or existing_meta.get("raw_output") or {},
             "finished_at": datetime.now().isoformat(),
         }
         normalized_status = str(result.status).upper()
@@ -767,6 +858,7 @@ async def get_task_status(task_id: str):
     # 更新任务状态
     task.video_urls = video_urls
     task.provider_result_meta = provider_meta
+    _hydrate_task_developer_metadata(task)
     
     if all_finished:
         if not video_urls and not task.task_ids:

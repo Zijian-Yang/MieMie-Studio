@@ -5,6 +5,7 @@ from app.routers import video_studio as video_studio_router
 from app.services.video_adapters import (
     KlingVideoAdapter,
     NormalizedVideoTaskRequest,
+    WanVideoAdapter,
     ViduVideoAdapter,
     infer_provider,
 )
@@ -142,6 +143,77 @@ def test_update_task_with_canonical_fields_persists_normalized_state(client, aut
     assert data["model"] == "kling/kling-v3-omni-video-generation"
     assert data["normalized_params"]["aspect_ratio"] == "16:9"
     assert data["group_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_wan_submit_result_keeps_request_id_and_provider_payload(monkeypatch):
+    adapter = WanVideoAdapter()
+
+    async def fake_create_task(self, *args, **kwargs):
+        self.last_request_id = "req-wan-submit-1"
+        return "task-wan-submit-1"
+
+    monkeypatch.setattr("app.services.video_adapters.TextToVideoService.create_task", fake_create_task)
+
+    result = await adapter.submit(
+        NormalizedVideoTaskRequest(
+            project_id="p1",
+            task_kind="text_to_video",
+            provider="wan",
+            model_id="wan2.6-t2v",
+            prompt="机械臂打开仓库柜门",
+            normalized_params={
+                "size": "1920*1080",
+                "duration": 5,
+                "prompt_extend": True,
+                "watermark": False,
+            },
+        )
+    )
+
+    assert result.task_id == "task-wan-submit-1"
+    assert result.request_id == "req-wan-submit-1"
+    assert result.provider_payload is not None
+    assert result.provider_payload["model"] == "wan2.6-t2v"
+
+
+def test_get_task_backfills_provider_payload_snapshot(client, auth_header, registered_user):
+    project_id = _create_project(client, auth_header)
+    _, user = registered_user
+    set_current_user(user["id"])
+    task = VideoStudioTask(
+        project_id=project_id,
+        name="缺少开发者快照的任务",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.6-t2v",
+        model="wan2.6-t2v",
+        prompt="机械臂在仓库中开门",
+        normalized_params={
+            "size": "1920*1080",
+            "duration": 5,
+            "prompt_extend": True,
+            "watermark": False,
+        },
+        input_assets={},
+        task_ids=["api-task-1"],
+        provider_result_meta={
+            "api-task-1": {
+                "provider": "wan",
+                "key_profile": "test",
+                "request_id": "req-from-meta",
+            }
+        },
+        status="succeeded",
+    )
+    storage_service.save_video_studio_task(task)
+
+    resp = client.get(f"/api/video-studio/{task.id}", headers=auth_header)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["provider_payload_snapshot"]["model"] == "wan2.6-t2v"
+    assert data["request_ids"] == ["req-from-meta"]
 
 
 def test_regenerate_legacy_video_edit_task_uses_canonical_mapping(client, auth_header, registered_user, monkeypatch):
