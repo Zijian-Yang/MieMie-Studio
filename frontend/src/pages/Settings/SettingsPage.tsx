@@ -40,6 +40,7 @@ const SettingsPage = () => {
         kling_key_profile: data.kling_key_profile,
         vidu_key_profile: data.vidu_key_profile,
         video_task_notifications_enabled: data.video_task_notifications_enabled,
+        image_task_notifications_enabled: data.image_task_notifications_enabled,
         // 文本模型配置
         llm_model: data.llm.model,
         llm_max_tokens: data.llm.max_tokens,
@@ -106,6 +107,7 @@ const SettingsPage = () => {
         kling_key_profile: values.kling_key_profile,
         vidu_key_profile: values.vidu_key_profile,
         video_task_notifications_enabled: values.video_task_notifications_enabled,
+        image_task_notifications_enabled: values.image_task_notifications_enabled,
         api_region: values.api_region,
         llm: {
           model: values.llm_model,
@@ -391,6 +393,25 @@ const SettingsPage = () => {
             label="视频任务完成通知"
             valuePropName="checked"
             extra="启用后，视频工作室任务成功或失败时会尝试发送浏览器通知。"
+          >
+            <Switch
+              onChange={async (checked) => {
+                if (!checked || typeof window === 'undefined' || !('Notification' in window)) return
+                if (Notification.permission === 'default') {
+                  try {
+                    await Notification.requestPermission()
+                  } catch {
+                    message.warning('浏览器通知权限请求失败，请手动检查浏览器设置')
+                  }
+                }
+              }}
+            />
+          </Form.Item>
+          <Form.Item
+            name="image_task_notifications_enabled"
+            label="图片任务完成通知"
+            valuePropName="checked"
+            extra="启用后，图片工作室任务成功或失败时会尝试发送浏览器通知。"
           >
             <Switch
               onChange={async (checked) => {

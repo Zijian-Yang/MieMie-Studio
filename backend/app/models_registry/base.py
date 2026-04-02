@@ -78,6 +78,7 @@ class ModelParameter(BaseModel):
     label: str  # 显示名称
     type: ParameterType
     description: str = ""
+    help: Optional[Dict[str, Any]] = None
     required: bool = False
     default: Optional[Any] = None
     constraint: Optional[ParameterConstraint] = None

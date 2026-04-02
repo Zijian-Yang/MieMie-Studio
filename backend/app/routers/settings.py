@@ -111,6 +111,7 @@ class ConfigUpdateRequest(BaseModel):
     kling_key_profile: Optional[str] = None
     vidu_key_profile: Optional[str] = None
     video_task_notifications_enabled: Optional[bool] = None
+    image_task_notifications_enabled: Optional[bool] = None
     api_region: Optional[str] = None
     llm: Optional[LLMConfigRequest] = None
     image: Optional[ImageConfigRequest] = None
@@ -144,6 +145,7 @@ class ConfigResponse(BaseModel):
     kling_key_profile: str
     vidu_key_profile: str
     video_task_notifications_enabled: bool
+    image_task_notifications_enabled: bool
     api_region: str
     base_url: str
     
@@ -227,6 +229,7 @@ async def get_settings():
         kling_key_profile=normalize_key_profile(config.kling_key_profile),
         vidu_key_profile=normalize_key_profile(config.vidu_key_profile),
         video_task_notifications_enabled=bool(getattr(config, "video_task_notifications_enabled", False)),
+        image_task_notifications_enabled=bool(getattr(config, "image_task_notifications_enabled", False)),
         api_region=config.api_region,
         base_url=config.base_url,
         llm=config.llm.model_dump(),
@@ -276,6 +279,8 @@ async def update_settings(request: ConfigUpdateRequest):
 
     if request.video_task_notifications_enabled is not None:
         update_data["video_task_notifications_enabled"] = bool(request.video_task_notifications_enabled)
+    if request.image_task_notifications_enabled is not None:
+        update_data["image_task_notifications_enabled"] = bool(request.image_task_notifications_enabled)
     
     if request.api_region is not None:
         if request.api_region not in API_REGIONS:

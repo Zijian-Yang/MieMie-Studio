@@ -23,7 +23,7 @@ from http import HTTPStatus
 import dashscope
 from dashscope import ImageSynthesis
 
-from app.config import get_config, IMAGE_EDIT_MODELS, IMAGE_MODELS
+from app.config import get_config, get_provider_api_key, IMAGE_EDIT_MODELS, IMAGE_MODELS
 from app.services.oss import oss_service
 
 
@@ -32,7 +32,7 @@ class ImageToImageService:
 
     def __init__(self):
         config = get_config()
-        self.api_key = config.dashscope_api_key
+        self.api_key = get_provider_api_key("wan")
         self.image_edit_config = config.image_edit
         self.image_config = config.image
         self.base_url = config.base_url
