@@ -55,6 +55,14 @@ const formatSizeLabel = (size: string | { width: number; height: number; label?:
 }
 
 type ImageTaskKind = 'text_to_image' | 'image_edit' | 'interactive_edit' | 'sequential_generation'
+type ImageSizeUiMode = 'preset_only' | 'preset_plus_custom_with_templates'
+type ImageSizeTemplate = {
+  ratio: string
+  orientation: string
+  width: number
+  height: number
+  label: string
+}
 
 const TASK_KIND_OPTIONS: Array<{ value: ImageTaskKind; label: string; help: string }> = [
   { value: 'text_to_image', label: '文生图', help: '只用提示词生成图片，不依赖输入图。' },
@@ -70,12 +78,27 @@ const WAN27_STANDARD_MAX_TOTAL_PIXELS = 2048 * 2048
 const WAN27_MIN_RATIO = 1 / 8
 const WAN27_MAX_RATIO = 8
 const WAN27_MAX_CUSTOM_DIMENSION = 12000
+const WAN25_T2I_MIN_TOTAL_PIXELS = 768 * 768
+const WAN25_T2I_MAX_TOTAL_PIXELS = 1440 * 1440
+const WAN25_I2I_MIN_TOTAL_PIXELS = 768 * 768
+const WAN25_I2I_MAX_TOTAL_PIXELS = 1280 * 1280
+const WAN25_MIN_RATIO = 1 / 4
+const WAN25_MAX_RATIO = 4
 const DEFAULT_MODEL_BY_TASK_KIND: Record<ImageTaskKind, string> = {
   text_to_image: 'wan2.7-image-pro',
   image_edit: 'wan2.7-image-pro',
   interactive_edit: 'wan2.7-image-pro',
   sequential_generation: 'wan2.7-image-pro',
 }
+
+const IMAGE_TEMPLATE_RATIOS: Array<{ ratio: string; orientation: string; value: number }> = [
+  { ratio: '1:1', orientation: '方图', value: 1 },
+  { ratio: '4:3', orientation: '横版', value: 4 / 3 },
+  { ratio: '3:4', orientation: '竖版', value: 3 / 4 },
+  { ratio: '16:9', orientation: '横版', value: 16 / 9 },
+  { ratio: '9:16', orientation: '竖版', value: 9 / 16 },
+  { ratio: '21:9', orientation: '横版', value: 21 / 9 },
+]
 
 const mergeHelpContent = (...helps: Array<HelpContent | string | null | undefined>): HelpContent | null => {
   const merged: HelpContent = {}
@@ -115,6 +138,57 @@ const getWan27CustomSizeLimits = (
   maxRatio: WAN27_MAX_RATIO,
 })
 
+const getImageCustomSizeLimits = (
+  modelId: string,
+  taskKind: ImageTaskKind,
+  referenceCount: number,
+) => {
+  if (WAN27_MODELS.has(modelId)) {
+    return getWan27CustomSizeLimits(modelId, taskKind, referenceCount)
+  }
+  if (modelId === 'wan2.5-t2i-preview') {
+    return {
+      minTotalPixels: WAN25_T2I_MIN_TOTAL_PIXELS,
+      maxTotalPixels: WAN25_T2I_MAX_TOTAL_PIXELS,
+      minRatio: WAN25_MIN_RATIO,
+      maxRatio: WAN25_MAX_RATIO,
+    }
+  }
+  if (modelId === 'wan2.5-i2i-preview') {
+    return {
+      minTotalPixels: WAN25_I2I_MIN_TOTAL_PIXELS,
+      maxTotalPixels: WAN25_I2I_MAX_TOTAL_PIXELS,
+      minRatio: WAN25_MIN_RATIO,
+      maxRatio: WAN25_MAX_RATIO,
+    }
+  }
+  return null
+}
+
+const buildImageSizeTemplates = (
+  limits: { minTotalPixels: number; maxTotalPixels: number; minRatio: number; maxRatio: number } | null,
+): ImageSizeTemplate[] => {
+  if (!limits) return []
+  return IMAGE_TEMPLATE_RATIOS
+    .filter((item) => item.value >= limits.minRatio && item.value <= limits.maxRatio)
+    .map((item) => {
+      let width = Math.max(1, Math.floor(Math.sqrt(limits.maxTotalPixels * item.value)))
+      let height = Math.max(1, Math.floor(Math.sqrt(limits.maxTotalPixels / item.value)))
+      while (width * height > limits.maxTotalPixels && width > 1 && height > 1) {
+        width -= 1
+        height -= 1
+      }
+      return {
+        ratio: item.ratio,
+        orientation: item.orientation,
+        width,
+        height,
+        label: `${item.ratio} ${item.orientation} ${width}×${height}`,
+      }
+    })
+    .filter((item) => item.width * item.height >= limits.minTotalPixels)
+}
+
 const getTaskKindLabel = (taskKind?: string) => (
   TASK_KIND_OPTIONS.find(item => item.value === taskKind)?.label || '图像编辑'
 )
@@ -138,6 +212,7 @@ const StudioPage = () => {
   const watchedReferences = Form.useWatch('references', form) || []
   const watchedEnableSequential = Form.useWatch('enable_sequential', form)
   const watchedSizeMode = Form.useWatch('size_mode', form)
+  const watchedN = Form.useWatch('n', form)
   const watchedBBoxList = Form.useWatch('bbox_list', form) || []
   const watchedColorPalette = Form.useWatch('color_palette', form) || []
   
@@ -187,6 +262,7 @@ const StudioPage = () => {
           parameters: model.parameters,
           common_sizes: model.common_sizes || current.common_sizes || [],
           supported_task_kinds: current.supported_task_kinds,
+          size_ui_mode: current.size_ui_mode,
         }
       }
     })
@@ -258,11 +334,17 @@ const StudioPage = () => {
   const activeModelId = (watchedModel || selectedTask?.model || '') as string
   const activeTaskKind = (watchedTaskKind || selectedTask?.task_kind || 'text_to_image') as ImageTaskKind
   const isWan27Model = WAN27_MODELS.has(activeModelId)
+  const isWan25CustomSizeModel = activeModelId === 'wan2.5-t2i-preview' || activeModelId === 'wan2.5-i2i-preview'
+  const activeSizeUiMode = (availableModels[activeModelId]?.size_ui_mode || (isWan27Model || isWan25CustomSizeModel ? 'preset_plus_custom_with_templates' : 'preset_only')) as ImageSizeUiMode
   const shouldShowReferences = activeTaskKind !== 'text_to_image'
   const shouldShowGroupCount = !isWan27Model
-  const wan27CustomSizeLimits = useMemo(
-    () => getWan27CustomSizeLimits(activeModelId, activeTaskKind, selectedReferenceItems.length),
+  const activeCustomSizeLimits = useMemo(
+    () => getImageCustomSizeLimits(activeModelId, activeTaskKind, selectedReferenceItems.length),
     [activeModelId, activeTaskKind, selectedReferenceItems.length]
+  )
+  const sizeTemplateOptions = useMemo(
+    () => activeSizeUiMode === 'preset_plus_custom_with_templates' ? buildImageSizeTemplates(activeCustomSizeLimits) : [],
+    [activeCustomSizeLimits, activeSizeUiMode]
   )
   const wan27PresetOptions = useMemo(() => {
     if (!isWan27Model) return []
@@ -272,28 +354,29 @@ const StudioPage = () => {
     return presets.map((preset) => ({ value: preset, label: `${preset}（${ratioLabel}）` }))
   }, [activeModelId, activeTaskKind, isWan27Model, selectedReferenceItems.length])
 
-  const validateWan27CustomDimension = useCallback(async (_: any, value: number | null | undefined) => {
-    if (!isWan27Model || watchedSizeMode !== 'custom') return Promise.resolve()
+  const validateCustomDimension = useCallback(async (_: any, value: number | null | undefined) => {
+    if (activeSizeUiMode !== 'preset_plus_custom_with_templates' || watchedSizeMode !== 'custom' || !activeCustomSizeLimits) return Promise.resolve()
     const width = Number(form.getFieldValue('custom_width') ?? (value ?? 0))
     const height = Number(form.getFieldValue('custom_height') ?? (value ?? 0))
     if (!width || !height) return Promise.resolve()
     const ratio = width / height
     const pixels = width * height
-    if (ratio < wan27CustomSizeLimits.minRatio || ratio > wan27CustomSizeLimits.maxRatio) {
-      return Promise.reject(new Error('自定义尺寸宽高比需在 1:8 到 8:1 之间'))
+    const ratioText = activeCustomSizeLimits.minRatio === WAN27_MIN_RATIO ? '1:8 到 8:1' : '1:4 到 4:1'
+    if (ratio < activeCustomSizeLimits.minRatio || ratio > activeCustomSizeLimits.maxRatio) {
+      return Promise.reject(new Error(`自定义尺寸宽高比需在 ${ratioText} 之间`))
     }
-    if (pixels < wan27CustomSizeLimits.minTotalPixels || pixels > wan27CustomSizeLimits.maxTotalPixels) {
-      return Promise.reject(new Error(`当前模型和模式下，总像素需在 ${wan27CustomSizeLimits.minTotalPixels} 到 ${wan27CustomSizeLimits.maxTotalPixels} 之间`))
+    if (pixels < activeCustomSizeLimits.minTotalPixels || pixels > activeCustomSizeLimits.maxTotalPixels) {
+      return Promise.reject(new Error(`当前模型和模式下，总像素需在 ${activeCustomSizeLimits.minTotalPixels} 到 ${activeCustomSizeLimits.maxTotalPixels} 之间`))
     }
     return Promise.resolve()
-  }, [form, isWan27Model, wan27CustomSizeLimits.maxRatio, wan27CustomSizeLimits.maxTotalPixels, wan27CustomSizeLimits.minRatio, wan27CustomSizeLimits.minTotalPixels, watchedSizeMode])
+  }, [activeCustomSizeLimits, activeSizeUiMode, form, watchedSizeMode])
 
   const computeEffectiveSize = useCallback((values: any) => {
-    if (WAN27_MODELS.has(values.model)) {
+    if (WAN27_MODELS.has(values.model) || values.model === 'wan2.5-t2i-preview' || values.model === 'wan2.5-i2i-preview') {
       if (values.size_mode === 'custom' && values.custom_width && values.custom_height) {
         return `${values.custom_width}*${values.custom_height}`
       }
-      return values.size_preset || values.size || '2K'
+      return values.size_preset || values.size || (WAN27_MODELS.has(values.model) ? '2K' : '1024*1024')
     }
     return values.size
   }, [])
@@ -557,16 +640,22 @@ const StudioPage = () => {
     if (!isModalOpen) return
     if (!isWan27Model) {
       setWan27BBoxList([])
-      form.setFieldsValue({
+      const resetValues: Record<string, any> = {
         enable_sequential: false,
         thinking_mode: null,
         bbox_list: [],
         color_palette: [],
-        size_mode: null,
-        size_preset: null,
-        custom_width: null,
-        custom_height: null,
-      })
+      }
+      if (activeSizeUiMode !== 'preset_plus_custom_with_templates') {
+        resetValues.size_mode = null
+        resetValues.size_preset = null
+        resetValues.custom_width = null
+        resetValues.custom_height = null
+      } else if (!form.getFieldValue('size_mode')) {
+        resetValues.size_mode = 'preset'
+        resetValues.size_preset = form.getFieldValue('size_preset') || '1024*1024'
+      }
+      form.setFieldsValue(resetValues)
       return
     }
     if (form.getFieldValue('group_count') !== 1) {
@@ -599,7 +688,7 @@ const StudioPage = () => {
     } else if ((form.getFieldValue('n') || 0) > 4 || !form.getFieldValue('n')) {
       form.setFieldValue('n', getWan27DefaultN(activeTaskKind))
     }
-  }, [activeTaskKind, form, isModalOpen, isWan27Model, selectedReferenceItems.length, wan27BBoxList.length])
+  }, [activeSizeUiMode, activeTaskKind, form, isModalOpen, isWan27Model, selectedReferenceItems.length, wan27BBoxList.length])
 
   useEffect(() => {
     if (!isModalOpen || !isWan27Model || activeTaskKind !== 'interactive_edit') return
@@ -613,6 +702,14 @@ const StudioPage = () => {
     setWan27BBoxList(nextBoxes)
     form.setFieldValue('bbox_list', nextBoxes)
   }, [activeTaskKind, form, isModalOpen, isWan27Model, selectedReferenceItems.length, wan27BBoxList])
+
+  useEffect(() => {
+    if (!isModalOpen) return
+    if (!(activeModelId || '').startsWith('qwen-image-edit')) return
+    if (Number(watchedN || 1) <= 1) return
+    if (!form.getFieldValue('size')) return
+    form.setFieldValue('size', '')
+  }, [activeModelId, form, isModalOpen, watchedN])
 
   // 新建模式状态
   const [isCreating, setIsCreating] = useState(false)
@@ -864,6 +961,16 @@ const StudioPage = () => {
     }, 800)
   }, [autoSaveTask, isCreating, selectedTask])
 
+  const applyCustomSizeTemplate = useCallback((template: ImageSizeTemplate) => {
+    form.setFieldsValue({
+      size_mode: 'custom',
+      size_preset: undefined,
+      custom_width: template.width,
+      custom_height: template.height,
+    })
+    queueStudioAutoSave()
+  }, [form, queueStudioAutoSave])
+
   const syncWan27BBoxList = useCallback((nextBoxes: number[][][]) => {
     setWan27BBoxList(nextBoxes)
     form.setFieldValue('bbox_list', nextBoxes)
@@ -926,13 +1033,52 @@ const StudioPage = () => {
       } else if (model === 'wan2.6-t2i') {
         form.setFieldsValue({ n: 4, size: '1280*1280', watermark: false })
       } else if (model === 'wan2.5-t2i-preview') {
-        form.setFieldsValue({ n: 1, size: '1024*1024', watermark: false })
+        form.setFieldsValue({
+          n: 1,
+          size: undefined,
+          size_mode: 'preset',
+          size_preset: '1024*1024',
+          custom_width: undefined,
+          custom_height: undefined,
+          watermark: false,
+        })
       } else if (model === 'wan2.5-i2i-preview') {
-        form.setFieldsValue({ n: 1, size: '1024*1024' })
+        form.setFieldsValue({
+          n: 1,
+          size: undefined,
+          size_mode: 'preset',
+          size_preset: '1024*1024',
+          custom_width: undefined,
+          custom_height: undefined,
+          watermark: false,
+        })
       } else if (model?.startsWith('qwen-image-edit')) {
-        form.setFieldsValue({ n: 1, size: '', watermark: false })
+        form.setFieldsValue({
+          n: 1,
+          size: '',
+          size_mode: undefined,
+          size_preset: undefined,
+          custom_width: undefined,
+          custom_height: undefined,
+          watermark: false,
+        })
       } else if (model === 'qwen-image-2.0-pro' || model === 'qwen-image-2.0') {
-        form.setFieldsValue({ n: 1, size: '1024*1024', watermark: false })
+        form.setFieldsValue({
+          n: 1,
+          size: '1024*1024',
+          size_mode: undefined,
+          size_preset: undefined,
+          custom_width: undefined,
+          custom_height: undefined,
+          watermark: false,
+        })
+      } else {
+        form.setFieldsValue({
+          size_mode: undefined,
+          size_preset: undefined,
+          custom_width: undefined,
+          custom_height: undefined,
+        })
       }
     }
 
@@ -951,6 +1097,12 @@ const StudioPage = () => {
     }
     if (changedValues.size_mode === 'custom') {
       form.setFieldsValue({ size_preset: undefined })
+    }
+    if ((changedValues.n !== undefined || changedValues.model) && (form.getFieldValue('model') || '').startsWith('qwen-image-edit')) {
+      const nextN = Number(form.getFieldValue('n') || 1)
+      if (nextN > 1 && form.getFieldValue('size')) {
+        form.setFieldValue('size', '')
+      }
     }
     
     if (isCreating || !selectedTask) return
@@ -1992,27 +2144,41 @@ const StudioPage = () => {
                         />
                       </Form.Item>
                     ) : (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                        <Form.Item
-                          name="custom_width"
-                          label={renderFormLabel(activeModelId, 'size', '自定义宽度')}
-                          style={{ marginBottom: 0 }}
-                          rules={[{ validator: validateWan27CustomDimension }]}
-                        >
-                          <InputNumber min={1} max={WAN27_MAX_CUSTOM_DIMENSION} style={{ width: '100%' }} />
-                        </Form.Item>
-                        <Form.Item
-                          name="custom_height"
-                          label={renderFormLabel(activeModelId, 'size', '自定义高度')}
-                          style={{ marginBottom: 0 }}
-                          rules={[{ validator: validateWan27CustomDimension }]}
-                        >
-                          <InputNumber min={1} max={WAN27_MAX_CUSTOM_DIMENSION} style={{ width: '100%' }} />
-                        </Form.Item>
-                        <div style={{ gridColumn: '1 / -1', color: token.colorTextSecondary, fontSize: 12 }}>
-                          当前模式下总像素需在 {wan27CustomSizeLimits.minTotalPixels} 到 {wan27CustomSizeLimits.maxTotalPixels} 之间，宽高比需在 1:8 到 8:1 之间。
+                      <>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                          <Form.Item
+                            name="custom_width"
+                            label={renderFormLabel(activeModelId, 'size', '自定义宽度')}
+                            style={{ marginBottom: 0 }}
+                            rules={[{ validator: validateCustomDimension }]}
+                          >
+                            <InputNumber min={1} max={WAN27_MAX_CUSTOM_DIMENSION} style={{ width: '100%' }} />
+                          </Form.Item>
+                          <Form.Item
+                            name="custom_height"
+                            label={renderFormLabel(activeModelId, 'size', '自定义高度')}
+                            style={{ marginBottom: 0 }}
+                            rules={[{ validator: validateCustomDimension }]}
+                          >
+                            <InputNumber min={1} max={WAN27_MAX_CUSTOM_DIMENSION} style={{ width: '100%' }} />
+                          </Form.Item>
                         </div>
-                      </div>
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ marginBottom: 8, color: token.colorTextSecondary, fontSize: 12 }}>常用比例模板</div>
+                          <Space wrap>
+                            {sizeTemplateOptions.map((template) => (
+                              <Button key={template.label} size="small" onClick={() => applyCustomSizeTemplate(template)}>
+                                {template.label}
+                              </Button>
+                            ))}
+                          </Space>
+                          {activeCustomSizeLimits && (
+                            <div style={{ marginTop: 8, color: token.colorTextSecondary, fontSize: 12 }}>
+                              当前模式下总像素需在 {activeCustomSizeLimits.minTotalPixels} 到 {activeCustomSizeLimits.maxTotalPixels} 之间，宽高比需在 1:8 到 8:1 之间。
+                            </div>
+                          )}
+                        </div>
+                      </>
                     )}
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
@@ -2048,8 +2214,115 @@ const StudioPage = () => {
                   </div>
                 )}
 
+                {/* wan2.5 文生图参数 */}
+                {(watchedModel || selectedTask?.model) === 'wan2.5-t2i-preview' && (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ marginBottom: 8, color: token.colorTextSecondary, fontSize: 12 }}>
+                      Wan2.5 文生图参数
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                      <Form.Item
+                        name="size_mode"
+                        label={renderFormLabel(activeModelId, 'size', '尺寸模式', {
+                          summary: '支持预设尺寸和自定义像素。常用比例模板只是快捷填充器，底层仍提交真实宽高。',
+                          limits: ['总像素需在 768×768 到 1440×1440 之间。', '宽高比需在 1:4 到 4:1 之间。'],
+                        })}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Select
+                          options={[
+                            { value: 'preset', label: '预设尺寸' },
+                            { value: 'custom', label: '自定义像素' },
+                          ]}
+                        />
+                      </Form.Item>
+                      <Form.Item
+                        name="seed"
+                        label={renderFormLabel(activeModelId, 'seed', '随机种子')}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <InputNumber min={0} max={2147483647} style={{ width: '100%' }} placeholder="随机" />
+                      </Form.Item>
+                    </div>
+                    {watchedSizeMode !== 'custom' ? (
+                      <Form.Item
+                        name="size_preset"
+                        label={renderFormLabel(activeModelId, 'size', '预设尺寸')}
+                        style={{ marginBottom: 12 }}
+                      >
+                        <Select
+                          options={availableModels[activeModelId]?.common_sizes?.map((size: any) => ({
+                            value: size.value || (typeof size === 'string' ? size : `${size.width}*${size.height}`),
+                            label: size.label || formatSizeLabel(size),
+                          }))}
+                        />
+                      </Form.Item>
+                    ) : (
+                      <>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                          <Form.Item
+                            name="custom_width"
+                            label={renderFormLabel(activeModelId, 'size', '自定义宽度')}
+                            style={{ marginBottom: 0 }}
+                            rules={[{ validator: validateCustomDimension }]}
+                          >
+                            <InputNumber min={1} max={12000} style={{ width: '100%' }} />
+                          </Form.Item>
+                          <Form.Item
+                            name="custom_height"
+                            label={renderFormLabel(activeModelId, 'size', '自定义高度')}
+                            style={{ marginBottom: 0 }}
+                            rules={[{ validator: validateCustomDimension }]}
+                          >
+                            <InputNumber min={1} max={12000} style={{ width: '100%' }} />
+                          </Form.Item>
+                        </div>
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ marginBottom: 8, color: token.colorTextSecondary, fontSize: 12 }}>常用比例模板</div>
+                          <Space wrap>
+                            {sizeTemplateOptions.map((template) => (
+                              <Button key={template.label} size="small" onClick={() => applyCustomSizeTemplate(template)}>
+                                {template.label}
+                              </Button>
+                            ))}
+                          </Space>
+                          {activeCustomSizeLimits && (
+                            <div style={{ marginTop: 8, color: token.colorTextSecondary, fontSize: 12 }}>
+                              当前模式下总像素需在 {activeCustomSizeLimits.minTotalPixels} 到 {activeCustomSizeLimits.maxTotalPixels} 之间，宽高比需在 1:4 到 4:1 之间。
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <Form.Item
+                        name="prompt_extend"
+                        label={renderFormLabel(activeModelId, 'prompt_extend', '智能改写')}
+                        valuePropName="checked"
+                        initialValue={true}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Switch checkedChildren="开" unCheckedChildren="关" />
+                      </Form.Item>
+                      <Form.Item
+                        name="watermark"
+                        label={renderFormLabel(activeModelId, 'watermark', '水印')}
+                        valuePropName="checked"
+                        initialValue={false}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Switch checkedChildren="开" unCheckedChildren="关" />
+                      </Form.Item>
+                    </div>
+                  </div>
+                )}
+
                 {/* 文生图模型参数 */}
-                {availableModels[watchedModel || selectedTask?.model || '']?.model_type === 'text_to_image' && (
+                {availableModels[watchedModel || selectedTask?.model || '']?.model_type === 'text_to_image' &&
+                  (watchedModel || selectedTask?.model) !== 'wan2.5-t2i-preview' &&
+                  (watchedModel || selectedTask?.model) !== 'qwen-image-2.0-pro' &&
+                  (watchedModel || selectedTask?.model) !== 'qwen-image-2.0' &&
+                  !isWan27Model && (
                   <div style={{ 
                     marginBottom: 16
                   }}>
@@ -2110,6 +2383,109 @@ const StudioPage = () => {
                     </div>
                     <div style={{ marginTop: 8, color: token.colorTextTertiary, fontSize: 11 }}>
                       提示：文生图模型不需要参考图片，只需要输入提示词
+                    </div>
+                  </div>
+                )}
+
+                {/* wan2.5 图生图参数 */}
+                {(watchedModel || selectedTask?.model) === 'wan2.5-i2i-preview' && (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ marginBottom: 8, color: token.colorTextSecondary, fontSize: 12 }}>
+                      Wan2.5 图生图参数
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                      <Form.Item
+                        name="size_mode"
+                        label={renderFormLabel(activeModelId, 'size', '尺寸模式', {
+                          summary: '支持预设尺寸和自定义像素。多图参考时建议先用模板，再按构图微调。',
+                          limits: ['总像素需在 768×768 到 1280×1280 之间。', '宽高比需在 1:4 到 4:1 之间。'],
+                        })}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Select
+                          options={[
+                            { value: 'preset', label: '预设尺寸' },
+                            { value: 'custom', label: '自定义像素' },
+                          ]}
+                        />
+                      </Form.Item>
+                      <Form.Item
+                        name="seed"
+                        label={renderFormLabel(activeModelId, 'seed', '随机种子')}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <InputNumber min={0} max={2147483647} style={{ width: '100%' }} placeholder="随机" />
+                      </Form.Item>
+                    </div>
+                    {watchedSizeMode !== 'custom' ? (
+                      <Form.Item
+                        name="size_preset"
+                        label={renderFormLabel(activeModelId, 'size', '预设尺寸')}
+                        style={{ marginBottom: 12 }}
+                      >
+                        <Select
+                          options={availableModels[activeModelId]?.common_sizes?.map((size: any) => ({
+                            value: size.value || (typeof size === 'string' ? size : `${size.width}*${size.height}`),
+                            label: size.label || formatSizeLabel(size),
+                          }))}
+                        />
+                      </Form.Item>
+                    ) : (
+                      <>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                          <Form.Item
+                            name="custom_width"
+                            label={renderFormLabel(activeModelId, 'size', '自定义宽度')}
+                            style={{ marginBottom: 0 }}
+                            rules={[{ validator: validateCustomDimension }]}
+                          >
+                            <InputNumber min={1} max={12000} style={{ width: '100%' }} />
+                          </Form.Item>
+                          <Form.Item
+                            name="custom_height"
+                            label={renderFormLabel(activeModelId, 'size', '自定义高度')}
+                            style={{ marginBottom: 0 }}
+                            rules={[{ validator: validateCustomDimension }]}
+                          >
+                            <InputNumber min={1} max={12000} style={{ width: '100%' }} />
+                          </Form.Item>
+                        </div>
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ marginBottom: 8, color: token.colorTextSecondary, fontSize: 12 }}>常用比例模板</div>
+                          <Space wrap>
+                            {sizeTemplateOptions.map((template) => (
+                              <Button key={template.label} size="small" onClick={() => applyCustomSizeTemplate(template)}>
+                                {template.label}
+                              </Button>
+                            ))}
+                          </Space>
+                          {activeCustomSizeLimits && (
+                            <div style={{ marginTop: 8, color: token.colorTextSecondary, fontSize: 12 }}>
+                              当前模式下总像素需在 {activeCustomSizeLimits.minTotalPixels} 到 {activeCustomSizeLimits.maxTotalPixels} 之间，宽高比需在 1:4 到 4:1 之间。
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <Form.Item
+                        name="prompt_extend"
+                        label={renderFormLabel(activeModelId, 'prompt_extend', '智能改写')}
+                        valuePropName="checked"
+                        initialValue={true}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Switch checkedChildren="开" unCheckedChildren="关" />
+                      </Form.Item>
+                      <Form.Item
+                        name="watermark"
+                        label={renderFormLabel(activeModelId, 'watermark', '水印')}
+                        valuePropName="checked"
+                        initialValue={false}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Switch checkedChildren="开" unCheckedChildren="关" />
+                      </Form.Item>
                     </div>
                   </div>
                 )}
@@ -2243,6 +2619,7 @@ const StudioPage = () => {
                 {(watchedModel || selectedTask?.model)?.startsWith('qwen-image-edit') && (() => {
                   const currentQwenModel = watchedModel || selectedTask?.model || 'qwen-image-edit-max'
                   const qwenModelInfo = availableModels[currentQwenModel]
+                  const qwenEditSizeDisabled = Number(watchedN || 1) > 1
                   return (
                     <div style={{ marginBottom: 16 }}>
                       <div style={{ marginBottom: 8, color: token.colorTextSecondary, fontSize: 12 }}>
@@ -2252,9 +2629,11 @@ const StudioPage = () => {
                         <Form.Item 
                           name="size" 
                           label={renderFormLabel(activeModelId, 'size', '输出尺寸')}
+                          extra={qwenEditSizeDisabled ? '当前 n > 1，该模型的 size 不生效，已自动禁用。' : undefined}
                           style={{ marginBottom: 0 }}
                         >
                           <Select
+                            disabled={qwenEditSizeDisabled}
                             allowClear
                             placeholder="默认（保持原图比例）"
                             options={
@@ -2308,6 +2687,9 @@ const StudioPage = () => {
                         </div>
                         <div style={{ color: token.colorTextTertiary, marginTop: 2 }}>
                           • 多图时用"图1"、"图2"、"图3"指代不同图片，输出比例以最后一张为准
+                        </div>
+                        <div style={{ color: token.colorTextQuaternary, marginTop: 2 }}>
+                          • 当 n &gt; 1 时，size 不生效，平台会按模型默认行为处理输出尺寸
                         </div>
                         <div style={{ color: token.colorTextQuaternary, marginTop: 2 }}>
                           输入图建议：384-3072px，格式 JPG/PNG/BMP/WEBP/TIFF，≤10MB

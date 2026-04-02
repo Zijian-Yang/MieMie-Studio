@@ -1369,6 +1369,7 @@ export const studioApi = {
       name: string
       description?: string
       supported_task_kinds?: Array<'text_to_image' | 'image_edit' | 'interactive_edit' | 'sequential_generation'>
+      size_ui_mode?: 'preset_only' | 'preset_plus_custom_with_templates'
       capabilities?: {
         supports_batch?: boolean
         supports_async?: boolean

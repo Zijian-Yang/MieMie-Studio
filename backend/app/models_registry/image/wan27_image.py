@@ -35,7 +35,8 @@ from ..base import (
 )
 
 
-WAN27_API_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
+WAN27_SYNC_API_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
+WAN27_ASYNC_API_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation"
 
 WAN27_HELP_SIZE = {
     "summary": "输出尺寸参数，支持规格档位或自定义像素，两种方式不可混用。",
@@ -360,7 +361,8 @@ class Wan27ImageService(BaseModelService[List[str]]):
 
     def __init__(self, model_info: ModelInfo = WAN27_PRO_MODEL_INFO):
         super().__init__(model_info)
-        self._api_url = WAN27_API_URL
+        # wan2.7 的 HTTP 异步创建任务端点与同步端点不同。
+        self._api_url = WAN27_ASYNC_API_URL
         self.last_request_id: Optional[str] = None
         self.last_usage: Dict[str, Any] = {}
         self.last_error_code: Optional[str] = None
@@ -371,7 +373,7 @@ class Wan27ImageService(BaseModelService[List[str]]):
     def configure(self, api_key: str, base_url: str = ""):
         super().configure(api_key, base_url)
         if base_url:
-            self._api_url = base_url.rstrip("/") + "/services/aigc/multimodal-generation/generation"
+            self._api_url = base_url.rstrip("/") + "/services/aigc/image-generation/generation"
 
     def build_payload(
         self,

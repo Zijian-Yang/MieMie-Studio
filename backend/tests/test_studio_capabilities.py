@@ -1,4 +1,8 @@
+import pytest
+
 from app.models.studio import ReferenceItem
+from app.models_registry.image.wan27_image import Wan27ImageService
+from app.routers.studio import get_image_size_templates
 
 
 def _mock_reference_items(urls):
@@ -27,6 +31,24 @@ def test_get_available_image_models_preserves_registry_metadata(client, auth_hea
     assert any(param["name"] == "enable_interleave" for param in data["wan2.6-image"]["parameters"])
     assert data["qwen-image-max"]["parameters"]
     assert any(param["name"] == "size" for param in data["qwen-image-max"]["parameters"])
+    assert data["wan2.7-image-pro"]["size_ui_mode"] == "preset_plus_custom_with_templates"
+    assert data["wan2.5-t2i-preview"]["size_ui_mode"] == "preset_plus_custom_with_templates"
+    assert data["qwen-image-edit-plus"]["size_ui_mode"] == "preset_only"
+
+
+def test_wan27_size_templates_are_legal_for_pure_text_mode():
+    templates = get_image_size_templates(
+        model_name="wan2.7-image-pro",
+        task_kind="text_to_image",
+        has_images=False,
+        enable_sequential=False,
+    )
+    assert templates
+    assert any(item["ratio"] == "21:9" for item in templates)
+    for item in templates:
+        assert 768 * 768 <= item["width"] * item["height"] <= 4096 * 4096
+        ratio = item["width"] / item["height"]
+        assert (1 / 8) <= ratio <= 8
 
 
 def test_preview_payload_rejects_incompatible_model_task_kind(client, auth_header):
@@ -198,3 +220,124 @@ def test_preview_payload_rejects_wan27_invalid_custom_size_ratio(client, auth_he
     )
     assert resp.status_code == 400
     assert "宽高比" in resp.json()["detail"]
+
+
+def test_preview_payload_accepts_wan25_t2i_custom_size(client, auth_header):
+    resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "wan2.5-t2i-preview",
+            "task_kind": "text_to_image",
+            "prompt": "生成一张电影感海报",
+            "n": 1,
+            "size_mode": "custom",
+            "custom_width": 1536,
+            "custom_height": 1024,
+            "references": [],
+        },
+    )
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["provider_payload"]["parameters"]["size"] == "1536*1024"
+    assert payload["canonical_request"]["normalized_params"]["size_mode"] == "custom"
+
+
+def test_preview_payload_rejects_wan25_i2i_invalid_custom_size(client, auth_header, monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.studio._resolve_reference_items",
+        lambda _refs: _mock_reference_items(["https://oss.example.com/ref.png"]),
+    )
+    resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "wan2.5-i2i-preview",
+            "task_kind": "image_edit",
+            "prompt": "把图1做成超长横幅",
+            "n": 1,
+            "size_mode": "custom",
+            "custom_width": 4000,
+            "custom_height": 400,
+            "references": [{"type": "gallery", "id": "g1"}],
+        },
+    )
+    assert resp.status_code == 400
+    assert "宽高比" in resp.json()["detail"] or "总像素" in resp.json()["detail"]
+
+
+def test_preview_payload_rejects_qwen_image_edit_size_when_n_gt_one(client, auth_header, monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.studio._resolve_reference_items",
+        lambda _refs: _mock_reference_items(["https://oss.example.com/ref.png"]),
+    )
+    resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "qwen-image-edit-plus",
+            "task_kind": "image_edit",
+            "prompt": "把图1做成广告主视觉",
+            "n": 2,
+            "size": "1024*1024",
+            "references": [{"type": "gallery", "id": "g1"}],
+        },
+    )
+    assert resp.status_code == 400
+    assert "n=1" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_wan27_async_create_uses_image_generation_endpoint(monkeypatch):
+    captured = {}
+
+    class MockResponse:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {
+                "request_id": "req-123",
+                "output": {
+                    "task_id": "task-123",
+                    "task_status": "PENDING",
+                },
+            }
+
+    class MockAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, headers=None, json=None):
+            captured["url"] = url
+            captured["headers"] = headers or {}
+            captured["payload"] = json or {}
+            return MockResponse()
+
+    monkeypatch.setattr("app.models_registry.image.wan27_image.httpx.AsyncClient", MockAsyncClient)
+
+    service = Wan27ImageService()
+    service.configure("sk-test")
+
+    task_id = await service.create_task(
+        prompt="把图2的机械臂替换到图1中",
+        images=["https://oss.example.com/a.png", "https://oss.example.com/b.jpg"],
+        size="2K",
+        n=1,
+        bbox_list=[[[0, 0, 10, 10]], [[5, 5, 20, 20]]],
+        watermark=False,
+    )
+
+    assert task_id == "task-123"
+    assert captured["url"].endswith("/services/aigc/image-generation/generation")
+    assert captured["headers"]["X-DashScope-Async"] == "enable"
+    assert captured["payload"]["model"] == "wan2.7-image-pro"

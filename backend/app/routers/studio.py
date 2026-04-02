@@ -15,6 +15,7 @@
 import asyncio
 import copy
 import logging
+import math
 from dataclasses import asdict, dataclass
 from typing import Optional, List, Any, Tuple, Dict
 
@@ -190,7 +191,29 @@ QWEN_IMAGE_MODELS = {
     "qwen-image-2.0",
 }
 
+IMAGE_TEMPLATE_RATIOS: List[Tuple[str, str, float]] = [
+    ("1:1", "方图", 1.0),
+    ("4:3", "横版", 4 / 3),
+    ("3:4", "竖版", 3 / 4),
+    ("16:9", "横版", 16 / 9),
+    ("9:16", "竖版", 9 / 16),
+    ("21:9", "横版", 21 / 9),
+]
+
+WAN25_T2I_MIN_PIXELS = 768 * 768
+WAN25_T2I_MAX_PIXELS = 1440 * 1440
+WAN25_T2I_MIN_RATIO = 0.25
+WAN25_T2I_MAX_RATIO = 4.0
+
+WAN25_I2I_MIN_PIXELS = 768 * 768
+WAN25_I2I_MAX_PIXELS = 1280 * 1280
+WAN25_I2I_MIN_RATIO = 0.25
+WAN25_I2I_MAX_RATIO = 4.0
+
 WAN27_ALLOWED_IMAGE_FORMATS = {"JPEG", "JPG", "PNG", "BMP", "WEBP"}
+WAN27_MIN_TOTAL_PIXELS = 768 * 768
+WAN27_PRO_MAX_TOTAL_PIXELS = 4096 * 4096
+WAN27_STANDARD_MAX_TOTAL_PIXELS = 2048 * 2048
 WAN27_MIN_IMAGE_DIM = 240
 WAN27_MAX_IMAGE_DIM = 8000
 WAN27_MAX_IMAGE_BYTES = 20 * 1024 * 1024
@@ -211,6 +234,12 @@ IMAGE_TASK_KIND_SUPPORT: Dict[str, List[str]] = {
     "qwen-image-2.0-pro": ["text_to_image", "image_edit"],
     "qwen-image-2.0": ["text_to_image", "image_edit"],
 }
+
+
+def _get_image_size_ui_mode(model_id: str) -> str:
+    if model_id in {"wan2.7-image-pro", "wan2.7-image", "wan2.5-t2i-preview", "wan2.5-i2i-preview"}:
+        return "preset_plus_custom_with_templates"
+    return "preset_only"
 
 
 @dataclass
@@ -306,6 +335,122 @@ def _build_wan27_size(
     if model_name == "wan2.7-image-pro" and task_kind == "text_to_image" and not has_images:
         return "2K"
     return "2K"
+
+
+def _resolve_preset_or_custom_size(
+    *,
+    size: Optional[str],
+    size_mode: Optional[str],
+    size_preset: Optional[str],
+    custom_width: Optional[int],
+    custom_height: Optional[int],
+    default_size: str,
+) -> str:
+    if size_mode == "custom":
+        if custom_width is None or custom_height is None:
+            raise HTTPException(status_code=400, detail="自定义尺寸需要同时填写宽度和高度")
+        return f"{custom_width}*{custom_height}"
+    if size_mode == "preset":
+        if size_preset:
+            return size_preset
+        return default_size
+    if custom_width is not None and custom_height is not None:
+        return f"{custom_width}*{custom_height}"
+    if size_preset:
+        return size_preset
+    return size or default_size
+
+
+def _parse_custom_size(size_value: str) -> Tuple[int, int]:
+    try:
+        width_text, height_text = size_value.split("*", 1)
+        width = int(width_text)
+        height = int(height_text)
+    except (ValueError, AttributeError) as exc:
+        raise HTTPException(status_code=400, detail="自定义尺寸格式必须为 宽*高") from exc
+    if width <= 0 or height <= 0:
+        raise HTTPException(status_code=400, detail="自定义尺寸宽高必须为正整数")
+    return width, height
+
+
+def _validate_custom_size(
+    *,
+    size_value: str,
+    min_pixels: int,
+    max_pixels: int,
+    min_ratio: float,
+    max_ratio: float,
+    error_prefix: str,
+) -> Tuple[int, int]:
+    width, height = _parse_custom_size(size_value)
+    ratio = width / height if height else 0
+    if ratio < min_ratio or ratio > max_ratio:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{error_prefix}宽高比必须在 {min_ratio:.2f} 到 {max_ratio:.2f} 之间",
+        )
+    pixels = width * height
+    if pixels < min_pixels or pixels > max_pixels:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{error_prefix}总像素必须在 {min_pixels} 到 {max_pixels} 之间",
+        )
+    return width, height
+
+
+def get_image_size_templates(
+    *,
+    model_name: str,
+    task_kind: str,
+    has_images: bool,
+    enable_sequential: bool = False,
+) -> List[Dict[str, Any]]:
+    if model_name == "wan2.7-image-pro":
+        max_pixels = WAN27_PRO_MAX_TOTAL_PIXELS if task_kind == "text_to_image" and not has_images and not enable_sequential else WAN27_STANDARD_MAX_TOTAL_PIXELS
+        min_pixels = WAN27_MIN_TOTAL_PIXELS
+        min_ratio = WAN27_MIN_RATIO
+        max_ratio = WAN27_MAX_RATIO
+    elif model_name == "wan2.7-image":
+        max_pixels = WAN27_STANDARD_MAX_TOTAL_PIXELS
+        min_pixels = WAN27_MIN_TOTAL_PIXELS
+        min_ratio = WAN27_MIN_RATIO
+        max_ratio = WAN27_MAX_RATIO
+    elif model_name == "wan2.5-t2i-preview":
+        max_pixels = WAN25_T2I_MAX_PIXELS
+        min_pixels = WAN25_T2I_MIN_PIXELS
+        min_ratio = WAN25_T2I_MIN_RATIO
+        max_ratio = WAN25_T2I_MAX_RATIO
+    elif model_name == "wan2.5-i2i-preview":
+        max_pixels = WAN25_I2I_MAX_PIXELS
+        min_pixels = WAN25_I2I_MIN_PIXELS
+        min_ratio = WAN25_I2I_MIN_RATIO
+        max_ratio = WAN25_I2I_MAX_RATIO
+    else:
+        return []
+
+    templates: List[Dict[str, Any]] = []
+    for ratio_text, orientation, ratio in IMAGE_TEMPLATE_RATIOS:
+        if ratio < min_ratio or ratio > max_ratio:
+            continue
+        width = max(1, int(math.sqrt(max_pixels * ratio)))
+        height = max(1, int(math.sqrt(max_pixels / ratio)))
+        pixels = width * height
+        while pixels > max_pixels and width > 1 and height > 1:
+            width -= 1
+            height -= 1
+            pixels = width * height
+        if pixels < min_pixels:
+            continue
+        templates.append(
+            {
+                "ratio": ratio_text,
+                "orientation": orientation,
+                "width": width,
+                "height": height,
+                "label": f"{ratio_text} {orientation} {width}×{height}",
+            }
+        )
+    return templates
 
 
 async def _inspect_and_validate_wan27_images(ref_urls: List[str]) -> List[Dict[str, Any]]:
@@ -577,7 +722,7 @@ def _build_provider_payload(
         if enable_interleave:
             provider_payload["parameters"]["enable_interleave"] = True
             provider_payload["parameters"]["max_images"] = max_images
-    elif model_name in {"wan2.6-t2i", "wan2.5-t2i-preview"}:
+    elif model_name == "wan2.6-t2i":
         if ref_urls:
             raise HTTPException(status_code=400, detail=f"{model_name} 不支持输入图片")
         normalized_params.update({"size": size or "1024*1024", "prompt_extend": prompt_extend, "seed": seed})
@@ -598,10 +743,79 @@ def _build_provider_payload(
             provider_payload["input"]["negative_prompt"] = negative_prompt
         if seed is not None:
             provider_payload["parameters"]["seed"] = seed
-    elif model_name in {"wan2.5-i2i-preview"}:
+    elif model_name == "wan2.5-t2i-preview":
+        if ref_urls:
+            raise HTTPException(status_code=400, detail="wan2.5-t2i-preview 不支持输入图片")
+        final_size = _resolve_preset_or_custom_size(
+            size=size,
+            size_mode=size_mode,
+            size_preset=size_preset,
+            custom_width=custom_width,
+            custom_height=custom_height,
+            default_size="1024*1024",
+        )
+        _validate_custom_size(
+            size_value=final_size,
+            min_pixels=WAN25_T2I_MIN_PIXELS,
+            max_pixels=WAN25_T2I_MAX_PIXELS,
+            min_ratio=WAN25_T2I_MIN_RATIO,
+            max_ratio=WAN25_T2I_MAX_RATIO,
+            error_prefix="wan2.5-t2i-preview 自定义尺寸",
+        )
+        normalized_params.update({
+            "size": final_size,
+            "prompt_extend": prompt_extend,
+            "seed": seed,
+            "size_mode": size_mode or ("custom" if "*" in final_size else "preset"),
+            "size_preset": size_preset or (final_size if "*" not in final_size else None),
+            "custom_width": custom_width,
+            "custom_height": custom_height,
+        })
+        input_assets = {"images": []}
+        provider_payload = {
+            "model": model_name,
+            "input": {
+                "prompt": prompt,
+            },
+            "parameters": {
+                "size": final_size,
+                "n": max(1, min(n, 4)),
+                "prompt_extend": prompt_extend,
+                "watermark": watermark,
+            },
+        }
+        if negative_prompt:
+            provider_payload["input"]["negative_prompt"] = negative_prompt
+        if seed is not None:
+            provider_payload["parameters"]["seed"] = seed
+    elif model_name == "wan2.5-i2i-preview":
         if not ref_urls:
             raise HTTPException(status_code=400, detail="wan2.5-i2i-preview 需要至少 1 张参考图")
-        normalized_params.update({"size": size or "1024*1024", "prompt_extend": prompt_extend, "seed": seed})
+        final_size = _resolve_preset_or_custom_size(
+            size=size,
+            size_mode=size_mode,
+            size_preset=size_preset,
+            custom_width=custom_width,
+            custom_height=custom_height,
+            default_size="1024*1024",
+        )
+        _validate_custom_size(
+            size_value=final_size,
+            min_pixels=WAN25_I2I_MIN_PIXELS,
+            max_pixels=WAN25_I2I_MAX_PIXELS,
+            min_ratio=WAN25_I2I_MIN_RATIO,
+            max_ratio=WAN25_I2I_MAX_RATIO,
+            error_prefix="wan2.5-i2i-preview 自定义尺寸",
+        )
+        normalized_params.update({
+            "size": final_size,
+            "prompt_extend": prompt_extend,
+            "seed": seed,
+            "size_mode": size_mode or ("custom" if "*" in final_size else "preset"),
+            "size_preset": size_preset or (final_size if "*" not in final_size else None),
+            "custom_width": custom_width,
+            "custom_height": custom_height,
+        })
         input_assets = {"images": ref_urls}
         provider_payload = {
             "model": model_name,
@@ -610,7 +824,7 @@ def _build_provider_payload(
                 "images": ref_urls,
             },
             "parameters": {
-                "size": size or "1024*1024",
+                "size": final_size,
                 "n": max(1, min(n, 4)),
                 "prompt_extend": prompt_extend,
             },
@@ -624,6 +838,8 @@ def _build_provider_payload(
             raise HTTPException(status_code=400, detail=f"{model_name} 不支持输入图片")
         if model_name in {"qwen-image-edit-plus", "qwen-image-edit-max"} and not ref_urls:
             raise HTTPException(status_code=400, detail=f"{model_name} 需要至少 1 张输入图片")
+        if model_name in {"qwen-image-edit-plus", "qwen-image-edit-max"} and size and n > 1:
+            raise HTTPException(status_code=400, detail=f"{model_name} 的 size 仅在 n=1 时生效")
         if model_name in {"qwen-image-2.0-pro", "qwen-image-2.0"} and task_kind_resolved == "image_edit" and not ref_urls:
             raise HTTPException(status_code=400, detail=f"{model_name} 的图像编辑模式至少需要 1 张输入图片")
         input_assets = {"images": ref_urls}
@@ -1152,7 +1368,13 @@ async def _background_generate(
                 seed=seed,
             )
         else:
-            images, request_ids = await generate_with_wanx_i2i(task=task, ref_urls=ref_urls)
+            images, request_ids = await generate_with_wanx_i2i(
+                task=task,
+                ref_urls=ref_urls,
+                size=size,
+                prompt_extend=prompt_extend,
+                seed=seed,
+            )
 
         task.images = images
         task.task_ids = task_ids or task.task_ids or ([task.last_task_id] if task.last_task_id else [])
@@ -1523,7 +1745,10 @@ async def generate_with_wan26_image(
 
 async def generate_with_wanx_i2i(
     task: StudioTask,
-    ref_urls: List[str]
+    ref_urls: List[str],
+    size: Optional[str] = None,
+    prompt_extend: bool = True,
+    seed: Optional[int] = None,
 ) -> Tuple[List[StudioTaskImage], List[str]]:
     """使用万相图生图模型生成
 
@@ -1538,10 +1763,25 @@ async def generate_with_wanx_i2i(
     
     async def generate_single_group(group_index: int) -> List[StudioTaskImage]:
         try:
+            width = None
+            height = None
+            if size:
+                try:
+                    width_text, height_text = size.split("*", 1)
+                    width = int(width_text)
+                    height = int(height_text)
+                except ValueError:
+                    width = None
+                    height = None
             urls, rid = await i2i_service.generate_with_multi_images(
                 prompt=task.prompt,
                 image_urls=ref_urls,
                 negative_prompt=task.negative_prompt,
+                width=width,
+                height=height,
+                model=task.model,
+                prompt_extend=prompt_extend,
+                seed=seed,
                 n=n,
                 project_id=task.project_id
             )
@@ -1915,6 +2155,7 @@ async def get_available_models():
             "parameters": [p.model_dump() for p in model.parameters] if model.parameters else [],
             "common_sizes": model.get_common_sizes_for_frontend(),
             "supported_task_kinds": IMAGE_TASK_KIND_SUPPORT.get(model.id, ["image_edit"]),
+            "size_ui_mode": _get_image_size_ui_mode(model.id),
         }
     
     # 获取 registry 中的文生图模型
@@ -1929,6 +2170,7 @@ async def get_available_models():
             "parameters": [p.model_dump() for p in model.parameters] if model.parameters else [],
             "common_sizes": model.get_common_sizes_for_frontend(),
             "supported_task_kinds": IMAGE_TASK_KIND_SUPPORT.get(model.id, ["text_to_image"]),
+            "size_ui_mode": _get_image_size_ui_mode(model.id),
         }
     
     # 添加文生图模型（从 IMAGE_MODELS 配置，兼容旧代码）
@@ -1959,6 +2201,7 @@ async def get_available_models():
             "parameters": [],
             "common_sizes": model_info.get("common_sizes", []),
             "supported_task_kinds": IMAGE_TASK_KIND_SUPPORT.get(model_id, ["text_to_image"]),
+            "size_ui_mode": _get_image_size_ui_mode(model_id),
         }
     
     return {"models": result}
