@@ -46,6 +46,7 @@ const LEGACY_TASK_KIND_MAP: Record<string, VideoTaskKind> = {
   reference_to_video: 'reference_to_video',
   text_to_video: 'text_to_video',
   keyframe_to_video: 'keyframe_to_video',
+  video_extension: 'video_extension',
   video_repainting: 'video_repainting',
   video_edit: 'video_edit_local',
   video_edit_global: 'video_edit_global',
@@ -140,6 +141,7 @@ function buildFallbackInputAssets(task: VideoStudioTask, taskKind: VideoTaskKind
   return {
     first_frame: task.first_frame_url ? [task.first_frame_url] : [],
     last_frame: task.last_frame_url ? [task.last_frame_url] : [],
+    first_clip: task.first_clip_url ? [task.first_clip_url] : [],
     audio: task.audio_url ? [task.audio_url] : [],
     reference_images: [...referenceImages],
     reference_videos: task.reference_video_urls || [],
@@ -162,6 +164,8 @@ function buildFallbackNormalizedParams(task: VideoStudioTask) {
     watermark: task.watermark,
     seed: task.seed,
     audio: task.auto_audio,
+    ratio: task.ratio,
+    audio_setting: task.audio_setting,
     shot_type: task.shot_type,
     control_condition: task.control_condition,
     strength: task.strength,
@@ -199,6 +203,7 @@ const CapabilityCreateModal = ({
   const [lastFrameUrl, setLastFrameUrl] = useState('')
   const [referenceFirstFrameUrl, setReferenceFirstFrameUrl] = useState('')
   const [audioUrl, setAudioUrl] = useState('')
+  const [firstClipUrl, setFirstClipUrl] = useState('')
   const [baseVideoUrl, setBaseVideoUrl] = useState('')
   const [sourceVideoUrl, setSourceVideoUrl] = useState('')
   const [referenceImageUrls, setReferenceImageUrls] = useState<string[]>([])
@@ -233,6 +238,7 @@ const CapabilityCreateModal = ({
     setLastFrameUrl('')
     setReferenceFirstFrameUrl('')
     setAudioUrl('')
+    setFirstClipUrl('')
     setBaseVideoUrl('')
     setSourceVideoUrl('')
     setReferenceImageUrls([])
@@ -284,6 +290,7 @@ const CapabilityCreateModal = ({
     setLastFrameUrl((assets.last_frame || [])[0] || '')
     setReferenceFirstFrameUrl(resolvedTaskKind === 'reference_to_video' ? ((assets.first_frame || [])[0] || '') : '')
     setAudioUrl((assets.audio || [])[0] || '')
+    setFirstClipUrl((assets.first_clip || [])[0] || currentTask.first_clip_url || '')
     setBaseVideoUrl((assets.base_video || [])[0] || '')
     setSourceVideoUrl((assets.source_video || [])[0] || '')
     setReferenceImageUrls([...(assets.reference_images || [])])
@@ -391,6 +398,29 @@ const CapabilityCreateModal = ({
         limits: ['格式支持 MP4 / MOV', '时长需在 3 到 10 秒之间', '帧率需在 24 到 60 FPS 之间', '宽高需在 720 到 2160 像素之间'],
         how_to_choose: ['优先使用单镜头、主体清晰的视频', '复杂剪辑视频更容易触发模型限制或编辑失真'],
         examples: ['例如：10 秒以内的机械臂操作视频、人物走动镜头、产品展示镜头'],
+      }
+    }
+    if (currentProvider === 'wan' && role === 'first_clip') {
+      return {
+        summary: 'Wan2.7 视频续写会把首段视频作为前情片段，继续生成后续内容。',
+        limits: ['格式支持 MP4 / MOV', '时长需在 2 到 10 秒之间', '宽高需在 240 到 4096 像素之间', '宽高比需在 1:8 到 8:1 之间', '文件大小不超过 100MB'],
+        how_to_choose: ['优先使用单镜头、动作连续、节奏明确的视频片段', '如果还想指定结尾画面，可额外提供尾帧图'],
+        examples: ['例如：一段 4 秒的机械臂起手动作视频，续写后生成完整开柜门过程'],
+      }
+    }
+    if (currentProvider === 'wan' && role === 'base_video') {
+      return {
+        summary: 'Wan2.7 视频编辑的待编辑视频是被改造的原视频。',
+        limits: ['格式支持 MP4 / MOV', '时长需在 2 到 10 秒之间', '宽高需在 240 到 4096 像素之间', '宽高比需在 1:8 到 8:1 之间', '文件大小不超过 100MB'],
+        how_to_choose: ['优先使用单镜头、主体明确的视频', '如果只做风格迁移，可以不传参考图'],
+        examples: ['例如：人物走动镜头、机械臂操作镜头、产品展示镜头'],
+      }
+    }
+    if (currentProvider === 'wan' && role === 'reference_image' && taskKind === 'video_edit_global') {
+      return {
+        summary: 'Wan2.7 视频编辑可选参考图，用于做服饰、物体或风格引导。',
+        limits: ['最多 3 张参考图', '格式支持 JPEG / JPG / PNG / BMP / WEBP', '不支持透明通道 PNG', '宽高需在 240 到 8000 像素之间', '宽高比需在 1:8 到 8:1 之间', '文件大小不超过 20MB'],
+        how_to_choose: ['不传参考图时更像整体风格修改', '传参考图时更适合做主体外观、服饰或材质替换'],
       }
     }
     if (currentProvider === 'kling' && role === 'reference_video') {
@@ -531,6 +561,7 @@ const CapabilityCreateModal = ({
     const inputAssets: Record<string, any> = {}
     if (firstFrameUrl) inputAssets.first_frame = [firstFrameUrl]
     if (lastFrameUrl) inputAssets.last_frame = [lastFrameUrl]
+    if (firstClipUrl) inputAssets.first_clip = [firstClipUrl]
     if (audioUrl) inputAssets.audio = [audioUrl]
     if (referenceImageUrls.length > 0) inputAssets.reference_images = referenceImageUrls
     if (referenceVideoUrls.length > 0) inputAssets.reference_videos = referenceVideoUrls
@@ -582,6 +613,7 @@ const CapabilityCreateModal = ({
       const assets: Record<string, any> = {}
       if (firstFrameUrl) assets.first_frame = [firstFrameUrl]
       if (lastFrameUrl) assets.last_frame = [lastFrameUrl]
+      if (firstClipUrl) assets.first_clip = [firstClipUrl]
       if (audioUrl) assets.audio = [audioUrl]
       if (referenceImageUrls.length > 0) assets.reference_images = referenceImageUrls
       if (referenceVideoUrls.length > 0) assets.reference_videos = referenceVideoUrls
@@ -655,6 +687,7 @@ const CapabilityCreateModal = ({
     lastFrameUrl,
     referenceFirstFrameUrl,
     audioUrl,
+    firstClipUrl,
     baseVideoUrl,
     sourceVideoUrl,
     sourceVideoPreviewUrl,
@@ -674,6 +707,9 @@ const CapabilityCreateModal = ({
     }
     if (taskKind === 'keyframe_to_video' && (!firstFrameUrl || !lastFrameUrl)) {
       throw new Error('请选择首帧图和尾帧图')
+    }
+    if (taskKind === 'video_extension' && !firstClipUrl) {
+      throw new Error('请选择首段视频')
     }
     if (taskKind === 'reference_to_video' && referenceImageUrls.length === 0 && referenceVideoUrls.length === 0) {
       throw new Error('请至少添加一项参考素材')
@@ -781,14 +817,18 @@ const CapabilityCreateModal = ({
     }
 
     if (role === 'last_frame') {
+      const required = taskKind === 'keyframe_to_video'
       return (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ marginBottom: 8 }}>{renderFieldLabel('尾帧图', getAssetHelp('last_frame'), true)}</div>
+          <div style={{ marginBottom: 8 }}>
+            {renderFieldLabel('尾帧图', getAssetHelp('last_frame'), required)}
+            {!required && <span style={{ marginLeft: 6, color: token.colorTextSecondary }}>（可选）</span>}
+          </div>
           <Select
             style={{ width: '100%' }}
             value={lastFrameUrl || undefined}
             onChange={(value) => setLastFrameUrl(value || '')}
-            placeholder="从图库选择尾帧图"
+            placeholder={required ? '从图库选择尾帧图' : '从图库选择尾帧图（可选）'}
             optionLabelProp="label"
           >
             {galleryImages.map((image) => (
@@ -818,6 +858,30 @@ const CapabilityCreateModal = ({
             {audioItems.map((audio) => (
               <Select.Option key={audio.id} value={audio.url}>
                 {audio.name}
+              </Select.Option>
+            ))}
+          </Select>
+        </div>
+      )
+    }
+
+    if (role === 'first_clip') {
+      return (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 8 }}>{renderFieldLabel('首段视频', getAssetHelp('first_clip'), true)}</div>
+          <Select
+            style={{ width: '100%' }}
+            value={firstClipUrl || undefined}
+            onChange={(value) => setFirstClipUrl(value || '')}
+            placeholder="从视频库选择首段视频"
+            optionLabelProp="label"
+          >
+            {videoLibraryItems.map((video) => (
+              <Select.Option key={video.id} value={video.url} label={video.name}>
+                <Space>
+                  <VideoCameraOutlined />
+                  {video.name}
+                </Space>
               </Select.Option>
             ))}
           </Select>
@@ -1145,7 +1209,7 @@ const CapabilityCreateModal = ({
             />
           </div>
 
-          {['wan'].includes(currentProvider) && !['video_edit_local', 'video_repainting', 'video_edit_global'].includes(taskKind) && (
+          {['wan'].includes(currentProvider) && !['video_edit_local', 'video_repainting'].includes(taskKind) && (
             <div style={{ marginBottom: 16 }}>
               <div style={{ marginBottom: 8 }}>负面提示词</div>
               <TextArea

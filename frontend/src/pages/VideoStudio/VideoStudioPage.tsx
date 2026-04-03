@@ -38,6 +38,7 @@ const LEGACY_TASK_KIND_MAP: Record<string, VideoTaskKind> = {
   reference_to_video: 'reference_to_video',
   text_to_video: 'text_to_video',
   keyframe_to_video: 'keyframe_to_video',
+  video_extension: 'video_extension',
   video_repainting: 'video_repainting',
   video_edit: 'video_edit_local',
   video_edit_global: 'video_edit_global',
@@ -47,6 +48,7 @@ const TASK_KIND_META: Record<VideoTaskKind, { color: string; text: string }> = {
   reference_to_video: { color: 'green', text: '参考生视频' },
   text_to_video: { color: 'purple', text: '文生视频' },
   keyframe_to_video: { color: 'orange', text: '首尾帧生视频' },
+  video_extension: { color: 'gold', text: '视频续写' },
   video_repainting: { color: 'cyan', text: '视频重绘' },
   video_edit_local: { color: 'magenta', text: '局部编辑' },
   video_edit_global: { color: 'geekblue', text: '视频编辑' },
@@ -59,6 +61,8 @@ const PARAM_LABELS: Record<string, string> = {
   shot_type: '镜头类型',
   resolution: '分辨率',
   size: '输出尺寸',
+  ratio: '画面比例',
+  audio_setting: '声音设置',
   audio: '音频',
   watermark: '水印',
   prompt_extend: '智能改写',
@@ -215,6 +219,7 @@ const VideoStudioPage = () => {
     return {
       first_frame: task.first_frame_url ? [task.first_frame_url] : [],
       last_frame: task.last_frame_url ? [task.last_frame_url] : [],
+      first_clip: task.first_clip_url ? [task.first_clip_url] : [],
       audio: task.audio_url ? [task.audio_url] : [],
       reference_images: task.reference_image_url ? [task.reference_image_url] : [],
       reference_videos: task.reference_video_urls || [],
@@ -236,6 +241,8 @@ const VideoStudioPage = () => {
       watermark: task.watermark,
       seed: task.seed,
       audio: task.auto_audio,
+      ratio: task.ratio,
+      audio_setting: task.audio_setting,
       shot_type: task.shot_type,
       narrative_mode: task.narrative_mode,
       control_condition: task.control_condition,
@@ -2775,6 +2782,7 @@ const VideoStudioPage = () => {
               const paramEntries = getTaskParameterEntries(selectedTask)
               const sourceVideos = [...(inputAssets.source_video || [])]
               const baseVideos = [...(inputAssets.base_video || [])]
+              const firstClips = [...(inputAssets.first_clip || [])]
               const firstFrames = [...(inputAssets.first_frame || [])]
               const lastFrames = [...(inputAssets.last_frame || [])]
               const audioAssets = [...(inputAssets.audio || [])]
@@ -2795,7 +2803,7 @@ const VideoStudioPage = () => {
               </Space>
             </div>
 
-            {(sourceVideos.length > 0 || baseVideos.length > 0 || firstFrames.length > 0 || lastFrames.length > 0 || referenceImages.length > 0 || referenceVideos.length > 0 || maskImages.length > 0 || audioAssets.length > 0) && (
+            {(sourceVideos.length > 0 || baseVideos.length > 0 || firstClips.length > 0 || firstFrames.length > 0 || lastFrames.length > 0 || referenceImages.length > 0 || referenceVideos.length > 0 || maskImages.length > 0 || audioAssets.length > 0) && (
               <div style={{ marginBottom: 16 }}>
                 <div style={{ fontWeight: 500, marginBottom: 8 }}>输入素材</div>
                 <Row gutter={16}>
@@ -2809,6 +2817,13 @@ const VideoStudioPage = () => {
                   {baseVideos.map((url, index) => (
                     <Col key={`base-${index}`} span={12}>
                       <Card size="small" title="待编辑视频">
+                        <video controls style={{ width: '100%' }} src={url} />
+                      </Card>
+                    </Col>
+                  ))}
+                  {firstClips.map((url, index) => (
+                    <Col key={`first-clip-${index}`} span={12}>
+                      <Card size="small" title="首段视频">
                         <video controls style={{ width: '100%' }} src={url} />
                       </Card>
                     </Col>

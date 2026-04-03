@@ -1,12 +1,13 @@
 """
 视频工作室 API 路由
-支持六种任务类型：
+支持七种任务类型：
 1. 图生视频（image_to_video）：基于首帧图生成视频
 2. 参考生视频（reference_to_video）：基于参考视频/图片生成新视频
 3. 文生视频（text_to_video）：基于文本提示词生成视频
 4. 首尾帧生视频（keyframe_to_video）：基于首帧和尾帧图片生成平滑过渡视频
-5. 视频重绘（video_repainting）：基于源视频重绘新视频
-6. 局部编辑（video_edit）：基于首帧Mask编辑视频局部区域
+5. 视频续写（video_extension）：基于首段视频续写生成后续内容
+6. 视频重绘（video_repainting）：基于源视频重绘新视频
+7. 局部编辑（video_edit）：基于首帧Mask编辑视频局部区域
 """
 
 import asyncio
@@ -50,13 +51,14 @@ router = APIRouter()
 class VideoStudioTaskCreateRequest(BaseModel):
     """创建视频生成任务请求
     
-    支持六种任务类型：
+    支持七种任务类型：
     1. image_to_video（图生视频）：使用 first_frame_url
     2. reference_to_video（参考生视频）：使用 reference_video_urls（支持视频和图片，总数≤5）
     3. text_to_video（文生视频）：使用 prompt 生成视频
     4. keyframe_to_video（首尾帧生视频）：使用 first_frame_url 和 last_frame_url
-    5. video_repainting（视频重绘）：使用 source_video_url，可选 reference_image_url
-    6. video_edit（局部编辑）：使用 source_video_url + mask_image_url，可选 reference_image_url
+    5. video_extension（视频续写）：使用 first_clip_url，可选 last_frame_url
+    6. video_repainting（视频重绘）：使用 source_video_url，可选 reference_image_url
+    7. video_edit（局部编辑）：使用 source_video_url + mask_image_url，可选 reference_image_url
     
     图生视频参数说明（根据官方文档）：
     - resolution: 分辨率档位，wan2.5/2.6 支持 480P/720P/1080P（默认1080P）
@@ -98,7 +100,7 @@ class VideoStudioTaskCreateRequest(BaseModel):
     project_id: str
     name: str = ""
 
-    # 任务类型: image_to_video, reference_to_video, text_to_video, keyframe_to_video, video_repainting, video_edit
+    # 任务类型: image_to_video, reference_to_video, text_to_video, keyframe_to_video, video_extension, video_repainting, video_edit
     task_type: str = "image_to_video"
     task_kind: Optional[str] = None
     provider: Optional[str] = None
@@ -111,6 +113,7 @@ class VideoStudioTaskCreateRequest(BaseModel):
     mode: str = "first_frame"  # first_frame 或 first_last_frame
     first_frame_url: Optional[str] = None  # 首帧图URL
     last_frame_url: Optional[str] = None  # 尾帧图URL（首尾帧模式）
+    first_clip_url: Optional[str] = None  # 视频续写首段视频URL
     audio_url: Optional[str] = None  # 自定义音频URL
     
     # 参考生视频参数（支持视频和图片，总数≤5）
@@ -136,6 +139,8 @@ class VideoStudioTaskCreateRequest(BaseModel):
     # 图生视频专用
     resolution: str = "1080P"  # 默认1080P
     prompt_extend: bool = True  # 智能改写
+    ratio: Optional[str] = None  # 画面比例（wan2.7-videoedit）
+    audio_setting: Optional[str] = None  # 声音设置（wan2.7-videoedit）
 
     # 参考生视频专用
     size: Optional[str] = None  # 分辨率（宽*高格式）
@@ -176,9 +181,13 @@ class VideoStudioTaskUpdateRequest(BaseModel):
     auto_audio: Optional[bool] = None
     shot_type: Optional[str] = None  # 镜头类型
     first_frame_url: Optional[str] = None
+    last_frame_url: Optional[str] = None
+    first_clip_url: Optional[str] = None
     audio_url: Optional[str] = None
     reference_video_urls: Optional[List[str]] = None  # 参考素材URL列表（视频+图片）
     size: Optional[str] = None  # 参考生视频/文生视频分辨率
+    ratio: Optional[str] = None
+    audio_setting: Optional[str] = None
     t2v_prompt_extend: Optional[bool] = None  # 文生视频的智能改写
     group_count: Optional[int] = None  # 生成组数
     source_video_url: Optional[str] = None
@@ -215,6 +224,7 @@ TASK_KIND_TO_LEGACY_TASK_TYPE = {
     "reference_to_video": "reference_to_video",
     "text_to_video": "text_to_video",
     "keyframe_to_video": "keyframe_to_video",
+    "video_extension": "video_extension",
     "video_repainting": "video_repainting",
     "video_edit_local": "video_edit",
     "video_edit_global": "video_edit_global",
@@ -233,6 +243,7 @@ def _default_model_for_task_kind(task_kind: str) -> str:
         "reference_to_video": "wan2.6-r2v-flash",
         "text_to_video": "wan2.6-t2v",
         "keyframe_to_video": "wan2.2-kf2v-flash",
+        "video_extension": "wan2.7-i2v",
         "video_repainting": VACE_MODEL_NAME,
         "video_edit_local": VACE_MODEL_NAME,
         "video_edit_global": "kling/kling-v3-omni-video-generation",
@@ -347,6 +358,7 @@ def _normalize_request(request: VideoStudioTaskCreateRequest) -> NormalizedVideo
         input_assets: Dict[str, Any] = {
             "first_frame": [request.first_frame_url] if request.first_frame_url else [],
             "last_frame": [request.last_frame_url] if request.last_frame_url else [],
+            "first_clip": [request.first_clip_url] if request.first_clip_url else [],
             "audio": [request.audio_url] if request.audio_url else [],
             "reference_images": reference_images + ([request.reference_image_url] if request.reference_image_url else []),
             "reference_videos": reference_videos,
@@ -363,6 +375,8 @@ def _normalize_request(request: VideoStudioTaskCreateRequest) -> NormalizedVideo
     normalized_params.setdefault("watermark", request.watermark)
     normalized_params.setdefault("seed", request.seed)
     normalized_params.setdefault("audio", request.auto_audio)
+    normalized_params.setdefault("ratio", request.ratio)
+    normalized_params.setdefault("audio_setting", request.audio_setting)
     normalized_params.setdefault("shot_type", request.shot_type)
     normalized_params.setdefault("control_condition", request.control_condition)
     normalized_params.setdefault("strength", request.strength)
@@ -373,6 +387,8 @@ def _normalize_request(request: VideoStudioTaskCreateRequest) -> NormalizedVideo
 
     if task_kind == "video_edit_global":
         input_assets.setdefault("base_video", input_assets.get("base_video") or input_assets.get("source_video") or [])
+    if task_kind == "video_extension":
+        input_assets.setdefault("first_clip", input_assets.get("first_clip") or [])
     if task_kind in {"video_edit_local", "video_repainting"}:
         input_assets.setdefault("source_video", input_assets.get("source_video") or [])
 
@@ -405,6 +421,7 @@ def _apply_normalized_fields_to_task(task: VideoStudioTask, normalized: Normaliz
 
     task.first_frame_url = (assets.get("first_frame") or [None])[0]
     task.last_frame_url = (assets.get("last_frame") or [None])[0]
+    task.first_clip_url = (assets.get("first_clip") or [None])[0]
     task.audio_url = (assets.get("audio") or [None])[0]
     task.reference_video_urls = list(assets.get("reference_videos") or []) + list(assets.get("reference_images") or [])
     source_video = assets.get("source_video") or assets.get("base_video") or []
@@ -423,6 +440,8 @@ def _apply_normalized_fields_to_task(task: VideoStudioTask, normalized: Normaliz
     task.shot_type = params.get("shot_type")
     task.resolution = params.get("resolution") or task.resolution
     task.size = params.get("size") or task.size
+    task.ratio = params.get("ratio")
+    task.audio_setting = params.get("audio_setting")
     task.control_condition = params.get("control_condition")
     task.strength = params.get("strength")
     task.mask_type = params.get("mask_type")
@@ -446,6 +465,7 @@ def _normalized_request_from_task(task: VideoStudioTask) -> NormalizedVideoTaskR
         input_assets = {
             "first_frame": [task.first_frame_url] if task.first_frame_url else [],
             "last_frame": [task.last_frame_url] if task.last_frame_url else [],
+            "first_clip": [getattr(task, "first_clip_url", None)] if getattr(task, "first_clip_url", None) else [],
             "audio": [task.audio_url] if task.audio_url else [],
             "reference_images": reference_images + ([task.reference_image_url] if task.reference_image_url else []),
             "reference_videos": reference_videos,
@@ -466,6 +486,8 @@ def _normalized_request_from_task(task: VideoStudioTask) -> NormalizedVideoTaskR
             "watermark": task.watermark,
             "seed": task.seed,
             "audio": task.auto_audio,
+            "ratio": getattr(task, "ratio", None),
+            "audio_setting": getattr(task, "audio_setting", None),
             "shot_type": task.shot_type,
             "control_condition": task.control_condition,
             "strength": task.strength,
@@ -531,6 +553,10 @@ def _merge_update_request_into_normalized_request(
         assets = deepcopy(normalized.input_assets)
         if "first_frame_url" in provided_fields:
             assets["first_frame"] = [request.first_frame_url] if request.first_frame_url else []
+        if "last_frame_url" in provided_fields:
+            assets["last_frame"] = [request.last_frame_url] if request.last_frame_url else []
+        if "first_clip_url" in provided_fields:
+            assets["first_clip"] = [request.first_clip_url] if request.first_clip_url else []
         if "audio_url" in provided_fields:
             assets["audio"] = [request.audio_url] if request.audio_url else []
         if "reference_video_urls" in provided_fields:
@@ -563,6 +589,10 @@ def _merge_update_request_into_normalized_request(
             params["seed"] = request.seed
         if "auto_audio" in provided_fields:
             params["audio"] = request.auto_audio
+        if "ratio" in provided_fields:
+            params["ratio"] = request.ratio
+        if "audio_setting" in provided_fields:
+            params["audio_setting"] = request.audio_setting
         if "shot_type" in provided_fields:
             params["shot_type"] = request.shot_type
         if "size" in provided_fields:
@@ -922,9 +952,13 @@ async def update_task(task_id: str, request: VideoStudioTaskUpdateRequest):
         "auto_audio",
         "shot_type",
         "first_frame_url",
+        "last_frame_url",
+        "first_clip_url",
         "audio_url",
         "reference_video_urls",
         "size",
+        "ratio",
+        "audio_setting",
         "t2v_prompt_extend",
         "source_video_url",
         "reference_image_url",

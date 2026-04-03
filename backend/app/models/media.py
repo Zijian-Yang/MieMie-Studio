@@ -66,6 +66,7 @@ class VideoStudioTask(BaseModel):
     4. 首尾帧生视频（keyframe_to_video）：使用 first_frame_url 和 last_frame_url
     5. 视频重绘（video_repainting）：使用 source_video_url，可选 reference_image_url
     6. 局部编辑（video_edit）：使用 source_video_url + mask_image_url，可选 reference_image_url
+    7. 视频续写（video_extension）：使用 first_clip_url，可选 last_frame_url
     
     图生视频参数说明（根据官方文档）：
     - resolution: 分辨率档位，wan2.5/2.6 支持 480P/720P/1080P（默认1080P）
@@ -118,6 +119,7 @@ class VideoStudioTask(BaseModel):
     # 输入参数 - 图生视频
     first_frame_url: Optional[str] = None  # 首帧图URL（从图库选择）
     last_frame_url: Optional[str] = None  # 尾帧图URL（首尾帧模式）
+    first_clip_url: Optional[str] = None  # 首段视频URL（视频续写）
     
     # 输入参数 - 参考生视频
     reference_video_urls: List[str] = []  # 参考素材URL列表（视频+图片，总数≤5）
@@ -148,6 +150,8 @@ class VideoStudioTask(BaseModel):
     
     # 生成参数 - 参考生视频专用
     size: str = "1920*1080"  # 分辨率（宽*高格式）
+    ratio: Optional[str] = None  # 画面比例
+    audio_setting: Optional[str] = None  # 视频声音设置
 
     # 生成参数 - 文生视频专用
     t2v_prompt_extend: bool = True  # 文生视频的智能改写，默认开启

@@ -44,6 +44,12 @@ TASK_KIND_DEFS: List[Dict[str, Any]] = [
         "legacy_task_types": ["keyframe_to_video"],
     },
     {
+        "id": "video_extension",
+        "label": "视频续写",
+        "description": "基于首段视频续写生成后续内容",
+        "legacy_task_types": ["video_extension"],
+    },
+    {
         "id": "reference_to_video",
         "label": "参考生视频",
         "description": "基于参考图片或参考视频生成新视频",
@@ -75,6 +81,7 @@ LEGACY_TASK_KIND_MAP = {
     "reference_to_video": "reference_to_video",
     "text_to_video": "text_to_video",
     "keyframe_to_video": "keyframe_to_video",
+    "video_extension": "video_extension",
     "video_repainting": "video_repainting",
     "video_edit": "video_edit_local",
     "video_edit_global": "video_edit_global",
@@ -742,6 +749,300 @@ def _wan_keyframe_models() -> Dict[str, Dict[str, Any]]:
             },
         )
     return models
+
+
+def _wan27_video_models() -> Dict[str, Dict[str, Any]]:
+    resolution_options = [
+        _select_option("720P", "720P", "更适合预览与快速试验"),
+        _select_option("1080P", "1080P", "画面更清晰，耗时通常更高"),
+    ]
+    ratio_options = [
+        _select_option("16:9", "16:9 横屏", "适合桌面播放与横屏内容"),
+        _select_option("9:16", "9:16 竖屏", "适合短视频与手机观看"),
+        _select_option("1:1", "1:1 方形", "适合封面与社媒方形内容"),
+        _select_option("4:3", "4:3 横版", "适合较传统的画面构图"),
+        _select_option("3:4", "3:4 竖版", "适合人像与竖版展示"),
+    ]
+    audio_setting_options = [
+        _select_option("auto", "auto（自动生成/判断）", "让模型自动决定声音生成方式"),
+        _select_option("origin", "origin（保留原声）", "尽量保留输入视频原有声音"),
+    ]
+
+    i2v_common_params = [
+        _param(
+            "resolution",
+            "分辨率档位",
+            "select",
+            default="1080P",
+            description="wan2.7 图生视频仅支持 720P / 1080P。",
+            help=_help(
+                summary="控制 wan2.7 输出视频清晰度。",
+                limits=["仅支持 720P 和 1080P"],
+                how_to_choose=["快速试验时先用 720P", "准备交付或看细节时用 1080P"],
+            ),
+            group="generation",
+            order=1,
+            options=resolution_options,
+        ),
+        _param(
+            "duration",
+            "时长",
+            "integer",
+            default=5,
+            min_value=2,
+            max_value=15,
+            description="输出时长，支持 2 到 15 秒。",
+            help=_duration_help(
+                "控制 wan2.7 输出视频时长。",
+                limits=["支持 2 到 15 秒整数时长"],
+            ),
+            group="generation",
+            order=2,
+        ),
+        _bool_param(
+            "prompt_extend",
+            "智能改写",
+            True,
+            "开启后由模型先扩写提示词再生成。",
+            3,
+            help=_prompt_extend_help(),
+        ),
+        _bool_param("watermark", "添加水印", False, "是否保留 AI 生成水印。", 4, help=_watermark_help("开启后保留万相侧 AI 生成水印。")),
+        _param(
+            "seed",
+            "随机种子",
+            "integer",
+            description="0 到 2147483647，留空为随机",
+            help=_seed_help(),
+            group="advanced",
+            advanced=True,
+            order=5,
+            min_value=0,
+            max_value=2147483647,
+        ),
+    ]
+
+    image_prompt_help = _help(
+        summary="Prompt 用于描述视频主体、动作、镜头变化和氛围。",
+        limits=["最大长度约 5000 字符", "负面提示词最大长度约 500 字符"],
+        how_to_choose=["首帧已确定静态构图时，重点写主体如何运动、镜头如何变化", "需要抑制的内容写在负面提示词里"],
+        notes=["不传驱动音频时，wan2.7-i2v 会自动补充匹配音频。"],
+    )
+
+    return {
+        "wan2.7-i2v": _build_model(
+            model_id="wan2.7-i2v",
+            name="万相 2.7 图生视频",
+            provider="wan",
+            description="支持首帧图、首尾帧、驱动音频和视频续写的万相 2.7 图生视频模型",
+            recommended=False,
+            doc_url="https://help.aliyun.com/zh/model-studio/wanx-image-to-video-2-7-api-reference",
+            supported_task_kinds=["image_to_video", "keyframe_to_video", "video_extension"],
+            task_profiles={
+                "image_to_video": {
+                    "label": "图生视频",
+                    "description": "使用首帧图生成视频，可选驱动音频。",
+                    "input_roles": ["first_frame", "audio"],
+                    "parameters": deepcopy(i2v_common_params),
+                    "ui_hints": {
+                        "prompt_max_length": 5000,
+                        "negative_prompt_max_length": 500,
+                        "asset_help": {
+                            "first_frame": _asset_help(
+                                "首帧图决定视频初始构图、主体位置和基础风格。",
+                                limits=["支持 JPEG/JPG/PNG/BMP/WEBP", "宽高需在 240 到 8000 像素之间", "宽高比需在 1:8 到 8:1 之间", "不支持透明 PNG", "文件大小不超过 20MB"],
+                                how_to_choose=["主体尽量完整清晰", "避免裁切到关键肢体或主体边缘"],
+                            ),
+                            "audio": _asset_help(
+                                "驱动音频可为视频动作和节奏提供声音参考。",
+                                limits=["仅支持 WAV/MP3", "时长需在 2 到 30 秒之间", "文件大小不超过 15MB"],
+                                how_to_choose=["需要严格跟随声音节奏时再传入", "不传时模型会自动生成匹配音频"],
+                            ),
+                        },
+                        "prompt_help": image_prompt_help,
+                    },
+                },
+                "keyframe_to_video": {
+                    "label": "首尾帧生视频",
+                    "description": "使用首帧和尾帧生成平滑过渡视频，可选驱动音频。",
+                    "input_roles": ["first_frame", "last_frame", "audio"],
+                    "parameters": deepcopy(i2v_common_params),
+                    "ui_hints": {
+                        "prompt_max_length": 5000,
+                        "negative_prompt_max_length": 500,
+                        "asset_help": {
+                            "first_frame": _asset_help(
+                                "首帧图定义视频起始状态。",
+                                limits=["支持 JPEG/JPG/PNG/BMP/WEBP", "宽高需在 240 到 8000 像素之间", "宽高比需在 1:8 到 8:1 之间", "不支持透明 PNG", "文件大小不超过 20MB"],
+                            ),
+                            "last_frame": _asset_help(
+                                "尾帧图定义视频结束状态。",
+                                limits=["支持 JPEG/JPG/PNG/BMP/WEBP", "宽高需在 240 到 8000 像素之间", "宽高比需在 1:8 到 8:1 之间", "不支持透明 PNG", "文件大小不超过 20MB"],
+                                how_to_choose=["首尾帧主体应保持同一对象或明确可过渡", "适合开合、转身、位移等过渡镜头"],
+                            ),
+                            "audio": _asset_help(
+                                "驱动音频可为视频动作和节奏提供声音参考。",
+                                limits=["仅支持 WAV/MP3", "时长需在 2 到 30 秒之间", "文件大小不超过 15MB"],
+                                how_to_choose=["需要严格跟随声音节奏时再传入", "不传时模型会自动生成匹配音频"],
+                            ),
+                        },
+                        "prompt_help": image_prompt_help,
+                    },
+                },
+                "video_extension": {
+                    "label": "视频续写",
+                    "description": "使用首段视频续写后续内容，可选尾帧图辅助收束终点。",
+                    "input_roles": ["first_clip", "last_frame"],
+                    "parameters": deepcopy(i2v_common_params),
+                    "ui_hints": {
+                        "prompt_max_length": 5000,
+                        "negative_prompt_max_length": 500,
+                        "asset_help": {
+                            "first_clip": _asset_help(
+                                "首段视频用于提供续写前的动作、镜头和节奏起点。",
+                                limits=["支持 MP4/MOV", "时长需在 2 到 10 秒之间", "宽高需在 240 到 4096 像素之间", "宽高比需在 1:8 到 8:1 之间", "文件大小不超过 100MB"],
+                                how_to_choose=["优先选择单镜头、主体清晰的视频片段", "动作和镜头越明确，续写越稳定"],
+                            ),
+                            "last_frame": _asset_help(
+                                "尾帧图可用于约束续写终点构图；不传时由模型自由结束。",
+                                limits=["支持 JPEG/JPG/PNG/BMP/WEBP", "宽高需在 240 到 8000 像素之间", "宽高比需在 1:8 到 8:1 之间", "不支持透明 PNG", "文件大小不超过 20MB"],
+                                how_to_choose=["希望续写在某个明确画面结束时再提供尾帧图"],
+                            ),
+                        },
+                        "prompt_help": _help(
+                            summary="Prompt 描述首段视频之后要继续发生什么，以及镜头或氛围如何延续。",
+                            limits=["最大长度约 5000 字符", "负面提示词最大长度约 500 字符"],
+                            how_to_choose=["先写续写后的新动作或镜头变化", "如果提供尾帧图，可在提示词里强调如何自然过渡到终点"],
+                            notes=["输出比例跟随首段视频，宽高会被模型微调为 16 的倍数。", "视频续写不支持驱动音频。"],
+                        ),
+                    },
+                },
+            },
+        ),
+        "wan2.7-videoedit": _build_model(
+            model_id="wan2.7-videoedit",
+            name="万相 2.7 视频编辑",
+            provider="wan",
+            description="支持整段视频编辑和多张参考图引导的万相 2.7 视频编辑模型",
+            recommended=False,
+            doc_url="https://help.aliyun.com/zh/model-studio/wanx-videoedit-2-7-api-reference",
+            supported_task_kinds=["video_edit_global"],
+            task_profiles={
+                "video_edit_global": {
+                    "label": "视频编辑",
+                    "description": "对整段视频做风格修改或参考编辑。",
+                    "input_roles": ["base_video", "reference_image"],
+                    "parameters": [
+                        _param(
+                            "resolution",
+                            "分辨率档位",
+                            "select",
+                            default="1080P",
+                            description="wan2.7 视频编辑仅支持 720P / 1080P。",
+                            help=_help(
+                                summary="控制视频编辑输出清晰度。",
+                                limits=["仅支持 720P 和 1080P"],
+                                how_to_choose=["快速试验时先用 720P", "准备交付或看细节时用 1080P"],
+                            ),
+                            group="generation",
+                            order=1,
+                            options=resolution_options,
+                        ),
+                        _param(
+                            "ratio",
+                            "画面比例",
+                            "select",
+                            description="可选；不填时沿用输入视频的近似比例。",
+                            help=_help(
+                                summary="控制输出画面比例。",
+                                limits=["仅支持 16:9 / 9:16 / 1:1 / 4:3 / 3:4"],
+                                how_to_choose=["想保持原视频比例时可留空", "需要明确改成横屏、竖屏或方屏时再手动指定"],
+                            ),
+                            group="generation",
+                            order=2,
+                            options=ratio_options,
+                        ),
+                        _param(
+                            "duration",
+                            "时长",
+                            "integer",
+                            default=0,
+                            min_value=0,
+                            max_value=10,
+                            description="支持 0 或 2 到 10 秒；0 表示保持输入视频完整时长。",
+                            help=_help(
+                                summary="控制视频编辑输出时长。",
+                                limits=["仅支持 0 或 2 到 10 秒整数", "0 表示保持输入视频完整时长"],
+                                how_to_choose=["想完整保留原视频长度时填 0", "想缩短或明确时长时再填 2 到 10 秒"],
+                            ),
+                            group="generation",
+                            order=3,
+                        ),
+                        _param(
+                            "audio_setting",
+                            "声音设置",
+                            "select",
+                            default="auto",
+                            description="控制视频声音的保留方式。",
+                            help=_help(
+                                summary="控制输出视频声音策略。",
+                                limits=["仅支持 auto / origin"],
+                                how_to_choose=["不确定时先用 auto", "希望尽量保留输入视频原声时用 origin"],
+                            ),
+                            group="generation",
+                            order=4,
+                            options=audio_setting_options,
+                        ),
+                        _bool_param(
+                            "prompt_extend",
+                            "智能改写",
+                            True,
+                            "开启后由模型先扩写提示词再生成。",
+                            5,
+                            help=_prompt_extend_help(),
+                        ),
+                        _bool_param("watermark", "添加水印", False, "是否保留 AI 生成水印。", 6, help=_watermark_help("开启后保留万相侧 AI 生成水印。")),
+                        _param(
+                            "seed",
+                            "随机种子",
+                            "integer",
+                            description="0 到 2147483647，留空为随机",
+                            help=_seed_help(),
+                            group="advanced",
+                            advanced=True,
+                            order=7,
+                            min_value=0,
+                            max_value=2147483647,
+                        ),
+                    ],
+                    "ui_hints": {
+                        "prompt_max_length": 5000,
+                        "negative_prompt_max_length": 500,
+                        "max_reference_images": 3,
+                        "max_reference_videos": 0,
+                        "asset_help": {
+                            "base_video": _asset_help(
+                                "待编辑视频是被修改的原始视频。",
+                                limits=["支持 MP4/MOV", "时长需在 2 到 10 秒之间", "宽高需在 240 到 4096 像素之间", "宽高比需在 1:8 到 8:1 之间", "文件大小不超过 100MB"],
+                                how_to_choose=["优先使用单镜头、主体清晰的视频", "复杂剪辑视频会降低编辑稳定性"],
+                            ),
+                            "reference_image": _asset_help(
+                                "参考图用于引导编辑后的视频主体外观、风格或局部视觉特征。",
+                                limits=["最多 3 张参考图", "支持 JPEG/JPG/PNG/BMP/WEBP", "宽高需在 240 到 8000 像素之间", "宽高比需在 1:8 到 8:1 之间", "不支持透明 PNG", "文件大小不超过 20MB"],
+                                how_to_choose=["不传参考图时更适合做风格修改或普通视频编辑", "传参考图时更适合做参考主体或风格编辑"],
+                            ),
+                        },
+                        "prompt_help": _help(
+                            summary="Prompt 用于描述整段视频要被改造成什么效果。",
+                            limits=["最大长度约 5000 字符", "负面提示词最大长度约 500 字符"],
+                            how_to_choose=["只做风格修改时，重点写风格、材质和镜头氛围", "做参考编辑时，写清参考图中的主体或外观特征要如何作用到视频中"],
+                            notes=["不传参考图 = 风格修改/视频编辑；传参考图 = 参考编辑。", "duration=0 表示保持输入视频完整时长。", "ratio 留空时通常沿用输入视频近似比例。"],
+                        ),
+                    },
+                },
+            },
+        ),
+    }
 
 
 def _wan_vace_models() -> Dict[str, Dict[str, Any]]:
@@ -1776,6 +2077,7 @@ def get_video_capabilities() -> Dict[str, Any]:
     models.update(_wan_image_to_video_models())
     models.update(_wan_reference_to_video_models())
     models.update(_wan_keyframe_models())
+    models.update(_wan27_video_models())
     models.update(_wan_vace_models())
     models.update(_kling_models())
     models.update(_vidu_models())

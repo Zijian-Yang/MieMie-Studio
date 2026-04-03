@@ -1516,6 +1516,7 @@ export type VideoTaskKind =
   | 'reference_to_video'
   | 'text_to_video'
   | 'keyframe_to_video'
+  | 'video_extension'
   | 'video_edit_global'
   | 'video_edit_local'
   | 'video_repainting'
@@ -1525,6 +1526,7 @@ export type VideoStudioTaskType =
   | 'reference_to_video'
   | 'text_to_video'
   | 'keyframe_to_video'
+  | 'video_extension'
   | 'video_repainting'
   | 'video_edit'
   | 'video_edit_global'
@@ -1532,6 +1534,7 @@ export type VideoStudioTaskType =
 export type VideoInputRole =
   | 'first_frame'
   | 'last_frame'
+  | 'first_clip'
   | 'reference_image'
   | 'reference_video'
   | 'base_video'
@@ -1592,7 +1595,7 @@ export interface VideoStudioTask {
   project_id: string
   name: string
   
-  // 任务类型: image_to_video / reference_to_video / text_to_video / keyframe_to_video / video_repainting / video_edit
+  // 任务类型: image_to_video / reference_to_video / text_to_video / keyframe_to_video / video_extension / video_repainting / video_edit
   task_type: VideoStudioTaskType
   task_kind: VideoTaskKind
   provider: string
@@ -1608,6 +1611,7 @@ export interface VideoStudioTask {
   mode: 'first_frame' | 'first_last_frame'
   first_frame_url?: string
   last_frame_url?: string
+  first_clip_url?: string
   audio_url?: string
   
   // 参考生视频参数（支持视频和图片，总数≤5）
@@ -1633,6 +1637,8 @@ export interface VideoStudioTask {
   // 图生视频专用
   resolution: string
   prompt_extend: boolean  // 智能改写
+  ratio?: string
+  audio_setting?: string
   
   // 参考生视频专用
   size?: string  // 分辨率（宽*高格式）
@@ -1692,6 +1698,7 @@ export const videoStudioApi = {
     seed?: number
     first_frame_url?: string
     last_frame_url?: string
+    first_clip_url?: string
     audio_url?: string
     reference_video_urls?: string[]
     source_video_url?: string
@@ -1703,6 +1710,8 @@ export const videoStudioApi = {
     mask_type?: string
     expand_ratio?: number
     expand_mode?: string
+    ratio?: string
+    audio_setting?: string
   }) => api.post<any, {
     canonical_request: Record<string, any>
     provider_payload: Record<string, any> | null
@@ -1743,6 +1752,7 @@ export const videoStudioApi = {
     mode?: string
     first_frame_url?: string  // 图生视频需要
     last_frame_url?: string
+    first_clip_url?: string
     audio_url?: string  // 自定义音频URL（图生视频/文生视频支持）
     // 参考生视频参数
     reference_video_urls?: string[]  // 参考生视频的参考素材（视频+图片）
@@ -1764,6 +1774,8 @@ export const videoStudioApi = {
     // 图生视频专用
     resolution?: string
     prompt_extend?: boolean  // 智能改写
+    ratio?: string
+    audio_setting?: string
     // 参考生视频专用
     size?: string  // 分辨率（宽*高格式）
     r2v_prompt_extend?: boolean  // 参考生视频提示词改写（已废弃）
@@ -1798,9 +1810,13 @@ export const videoStudioApi = {
     auto_audio?: boolean
     shot_type?: string  // 镜头类型
     first_frame_url?: string
+    last_frame_url?: string
+    first_clip_url?: string
     audio_url?: string
     reference_video_urls?: string[]  // 参考素材URL列表（视频+图片）
     size?: string  // 分辨率（宽*高格式）
+    ratio?: string
+    audio_setting?: string
     r2v_prompt_extend?: boolean  // 参考生视频提示词改写（已废弃）
     t2v_prompt_extend?: boolean  // 文生视频智能改写
     group_count?: number

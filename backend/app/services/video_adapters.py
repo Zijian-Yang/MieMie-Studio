@@ -17,7 +17,11 @@ from typing import Any, Dict, List, Optional
 import httpx
 
 from app.config import get_config, get_provider_api_key, get_provider_key_profile
-from app.services.remote_media_validation import inspect_remote_image, inspect_remote_video
+from app.services.remote_media_validation import (
+    inspect_remote_audio,
+    inspect_remote_image,
+    inspect_remote_video,
+)
 from app.services.dashscope.digital_human import DigitalHumanService
 from app.services.dashscope.image_to_video import ImageToVideoService
 from app.services.dashscope.keyframe_to_video import KeyframeToVideoService
@@ -39,6 +43,13 @@ VACE_EDIT_CONTROL_CONDITIONS = {"posebodyface", "depth"}
 VACE_EDIT_MASK_TYPES = {"tracking", "fixed"}
 VACE_EDIT_EXPAND_MODES = {"hull", "bbox", "original"}
 VACE_EDIT_SIZES = {"1280*720", "720*1280", "960*960", "832*1088", "1088*832"}
+WAN27_I2V_RESOLUTIONS = {"720P", "1080P"}
+WAN27_VIDEOEDIT_RESOLUTIONS = {"720P", "1080P"}
+WAN27_VIDEOEDIT_RATIOS = {"16:9", "9:16", "1:1", "4:3", "3:4"}
+WAN27_VIDEOEDIT_AUDIO_SETTINGS = {"auto", "origin"}
+WAN27_IMAGE_FORMATS = {"JPEG", "JPG", "PNG", "BMP", "WEBP"}
+WAN27_VIDEO_FORMATS = {"mp4", "mov"}
+WAN27_AUDIO_FORMATS = {"wav", "mp3"}
 
 VIDU_COMMON_SIZE_OPTIONS = {
     "540P": {"960*528", "528*960", "720*720", "816*608", "608*816"},
@@ -136,6 +147,47 @@ async def _validate_vidu_video(url: str, label: str) -> Dict[str, Any]:
         raise ValueError(f"{label}分辨率总像素不能小于128×128")
     if not (0.25 <= metadata["aspect_ratio"] <= 4.0):
         raise ValueError(f"{label}宽高比需在1:4到4:1之间")
+    return metadata
+
+
+async def _validate_wan27_image(url: str, label: str) -> Dict[str, Any]:
+    metadata = await inspect_remote_image(url)
+    if metadata["format"] not in WAN27_IMAGE_FORMATS:
+        raise ValueError(f"{label}格式仅支持 JPEG/JPG/PNG/BMP/WEBP")
+    if metadata["has_alpha"]:
+        raise ValueError(f"{label}不支持透明通道 PNG")
+    if metadata["file_size"] > 20 * 1024 * 1024:
+        raise ValueError(f"{label}大小不能超过20MB")
+    if not (240 <= metadata["width"] <= 8000 and 240 <= metadata["height"] <= 8000):
+        raise ValueError(f"{label}宽高需在240到8000像素之间")
+    if not (0.125 <= metadata["aspect_ratio"] <= 8.0):
+        raise ValueError(f"{label}宽高比需在1:8到8:1之间")
+    return metadata
+
+
+async def _validate_wan27_video(url: str, label: str) -> Dict[str, Any]:
+    metadata = await inspect_remote_video(url)
+    if metadata["format"] not in WAN27_VIDEO_FORMATS:
+        raise ValueError(f"{label}格式仅支持 MP4/MOV")
+    if metadata["file_size"] > 100 * 1024 * 1024:
+        raise ValueError(f"{label}大小不能超过100MB")
+    if not (2.0 <= metadata["duration"] <= 10.0):
+        raise ValueError(f"{label}时长需在2到10秒之间")
+    if not (240 <= metadata["width"] <= 4096 and 240 <= metadata["height"] <= 4096):
+        raise ValueError(f"{label}宽高需在240到4096像素之间")
+    if not (0.125 <= metadata["aspect_ratio"] <= 8.0):
+        raise ValueError(f"{label}宽高比需在1:8到8:1之间")
+    return metadata
+
+
+async def _validate_wan27_audio(url: str, label: str) -> Dict[str, Any]:
+    metadata = await inspect_remote_audio(url)
+    if metadata["format"] not in WAN27_AUDIO_FORMATS:
+        raise ValueError(f"{label}格式仅支持 WAV/MP3")
+    if metadata["file_size"] > 15 * 1024 * 1024:
+        raise ValueError(f"{label}大小不能超过15MB")
+    if not (2.0 <= metadata["duration"] <= 30.0):
+        raise ValueError(f"{label}时长需在2到30秒之间")
     return metadata
 
 
@@ -276,6 +328,18 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
         service.api_key = get_provider_api_key("wan", override_profile=key_profile)
         return key_profile
 
+    @staticmethod
+    def _is_wan27_i2v(request: NormalizedVideoTaskRequest) -> bool:
+        return request.model_id == "wan2.7-i2v"
+
+    @staticmethod
+    def _is_wan27_videoedit(request: NormalizedVideoTaskRequest) -> bool:
+        return request.model_id == "wan2.7-videoedit"
+
+    @classmethod
+    def _wan27_service(cls, request: NormalizedVideoTaskRequest) -> DashScopeGenericVideoService:
+        return DashScopeGenericVideoService("wan", key_profile=cls._resolve_key_profile(request))
+
     async def validate(self, request: NormalizedVideoTaskRequest) -> None:
         params = request.normalized_params
         assets = request.input_assets
@@ -287,6 +351,20 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
         if request.task_kind == "image_to_video":
             if not assets.get("first_frame"):
                 raise ValueError("首帧生视频需要选择首帧图")
+            if self._is_wan27_i2v(request):
+                if params.get("resolution") not in WAN27_I2V_RESOLUTIONS:
+                    raise ValueError("wan2.7 图生视频分辨率仅支持 720P / 1080P")
+                if not (2 <= duration <= 15):
+                    raise ValueError("wan2.7 图生视频时长需在2到15秒之间")
+                await _validate_wan27_image((assets.get("first_frame") or [None])[0], "首帧图")
+                audio_asset = (assets.get("audio") or [None])[0]
+                if audio_asset:
+                    await _validate_wan27_audio(audio_asset, "驱动音频")
+                if request.prompt and len(request.prompt) > 5000:
+                    raise ValueError("wan2.7 图生视频提示词长度不能超过5000字符")
+                if request.negative_prompt and len(request.negative_prompt) > 500:
+                    raise ValueError("wan2.7 图生视频负面提示词长度不能超过500字符")
+                return
             if request.model_id == "wan2.2-s2v" and not assets.get("audio"):
                 raise ValueError("数字人模型需要驱动音频")
         elif request.task_kind == "text_to_video":
@@ -298,10 +376,73 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
         elif request.task_kind == "keyframe_to_video":
             if not assets.get("first_frame") or not assets.get("last_frame"):
                 raise ValueError("首尾帧生视频需要同时提供首帧和尾帧图片")
+            if self._is_wan27_i2v(request):
+                if params.get("resolution") not in WAN27_I2V_RESOLUTIONS:
+                    raise ValueError("wan2.7 首尾帧生视频分辨率仅支持 720P / 1080P")
+                if not (2 <= duration <= 15):
+                    raise ValueError("wan2.7 首尾帧生视频时长需在2到15秒之间")
+                await _validate_wan27_image((assets.get("first_frame") or [None])[0], "首帧图")
+                await _validate_wan27_image((assets.get("last_frame") or [None])[0], "尾帧图")
+                audio_asset = (assets.get("audio") or [None])[0]
+                if audio_asset:
+                    await _validate_wan27_audio(audio_asset, "驱动音频")
+                if request.prompt and len(request.prompt) > 5000:
+                    raise ValueError("wan2.7 首尾帧生视频提示词长度不能超过5000字符")
+                if request.negative_prompt and len(request.negative_prompt) > 500:
+                    raise ValueError("wan2.7 首尾帧生视频负面提示词长度不能超过500字符")
+                return
+        elif request.task_kind == "video_extension":
+            if not self._is_wan27_i2v(request):
+                raise ValueError("当前仅 wan2.7-i2v 支持视频续写")
+            if not assets.get("first_clip"):
+                raise ValueError("视频续写需要选择首段视频")
+            if params.get("resolution") not in WAN27_I2V_RESOLUTIONS:
+                raise ValueError("wan2.7 视频续写分辨率仅支持 720P / 1080P")
+            if not (2 <= duration <= 15):
+                raise ValueError("wan2.7 视频续写时长需在2到15秒之间")
+            await _validate_wan27_video((assets.get("first_clip") or [None])[0], "首段视频")
+            last_frame = (assets.get("last_frame") or [None])[0]
+            if last_frame:
+                await _validate_wan27_image(last_frame, "尾帧图")
+            if assets.get("audio"):
+                raise ValueError("视频续写不支持驱动音频")
+            if request.prompt and len(request.prompt) > 5000:
+                raise ValueError("wan2.7 视频续写提示词长度不能超过5000字符")
+            if request.negative_prompt and len(request.negative_prompt) > 500:
+                raise ValueError("wan2.7 视频续写负面提示词长度不能超过500字符")
+            return
+        elif request.task_kind == "video_edit_global":
+            if not self._is_wan27_videoedit(request):
+                raise ValueError(f"万相暂不支持任务类型: {request.task_kind}")
+            base_video = assets.get("base_video") or assets.get("source_video") or []
+            if len(base_video) != 1:
+                raise ValueError("wan2.7 视频编辑必须且仅能提供1个待编辑视频")
+            await _validate_wan27_video(base_video[0], "待编辑视频")
+            reference_images = list(assets.get("reference_images") or [])
+            if len(reference_images) > 3:
+                raise ValueError("wan2.7 视频编辑最多支持3张参考图")
+            for index, image_url in enumerate(reference_images, start=1):
+                await _validate_wan27_image(image_url, f"参考图{index}")
+            if params.get("resolution") not in WAN27_VIDEOEDIT_RESOLUTIONS:
+                raise ValueError("wan2.7 视频编辑分辨率仅支持 720P / 1080P")
+            if params.get("ratio") is not None and params.get("ratio") not in WAN27_VIDEOEDIT_RATIOS:
+                raise ValueError("wan2.7 视频编辑画面比例仅支持 16:9 / 9:16 / 1:1 / 4:3 / 3:4")
+            if params.get("audio_setting") is not None and params.get("audio_setting") not in WAN27_VIDEOEDIT_AUDIO_SETTINGS:
+                raise ValueError("wan2.7 视频编辑声音设置仅支持 auto / origin")
+            if duration not in {0, *range(2, 11)}:
+                raise ValueError("wan2.7 视频编辑时长仅支持 0 或 2 到 10 秒")
+            if request.prompt and len(request.prompt) > 5000:
+                raise ValueError("wan2.7 视频编辑提示词长度不能超过5000字符")
+            if request.negative_prompt and len(request.negative_prompt) > 500:
+                raise ValueError("wan2.7 视频编辑负面提示词长度不能超过500字符")
+            return
         elif request.task_kind == "video_repainting":
             await self._validate_vace_request(request, require_mask=False)
+            return
         elif request.task_kind == "video_edit_local":
             await self._validate_vace_request(request, require_mask=True)
+            return
+
         else:
             raise ValueError(f"万相暂不支持任务类型: {request.task_kind}")
 
@@ -371,6 +512,10 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
         seed = params.get("seed")
         if seed is not None:
             params["seed"] = int(seed) + seed_offset
+
+        if self._is_wan27_i2v(request) or self._is_wan27_videoedit(request):
+            service = self._wan27_service(request)
+            return await service.create_task(provider_payload)
 
         if request.task_kind == "image_to_video":
             first_frame = assets.get("first_frame")
@@ -542,6 +687,9 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
 
     async def fetch(self, request: NormalizedVideoTaskRequest, task_id: str) -> VideoStatusResult:
         try:
+            if self._is_wan27_i2v(request) or self._is_wan27_videoedit(request):
+                service = self._wan27_service(request)
+                return await service.get_task_status(task_id, request.project_id)
             if request.task_kind == "reference_to_video":
                 svc = ReferenceToVideoService()
                 key_profile = self._apply_service_key(svc, request)
@@ -644,6 +792,43 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
             base_payload["input"]["prompt"] = request.prompt
         if request.negative_prompt:
             base_payload["input"]["negative_prompt"] = request.negative_prompt
+
+        if self._is_wan27_i2v(request):
+            media: List[Dict[str, Any]] = []
+            first_frame = (assets.get("first_frame") or [None])[0]
+            last_frame = (assets.get("last_frame") or [None])[0]
+            audio_url = (assets.get("audio") or [None])[0]
+            first_clip = (assets.get("first_clip") or [None])[0]
+            if request.task_kind == "video_extension":
+                if first_clip:
+                    media.append({"type": "first_clip", "url": first_clip})
+                if last_frame:
+                    media.append({"type": "last_frame", "url": last_frame})
+            else:
+                if first_frame:
+                    media.append({"type": "first_frame", "url": first_frame})
+                if request.task_kind == "keyframe_to_video" and last_frame:
+                    media.append({"type": "last_frame", "url": last_frame})
+                if audio_url:
+                    media.append({"type": "driving_audio", "url": audio_url})
+            base_payload["input"]["media"] = media
+            for key in ("resolution", "duration", "prompt_extend", "watermark", "seed"):
+                if params.get(key) is not None:
+                    base_payload["parameters"][key] = params.get(key)
+            return base_payload
+
+        if self._is_wan27_videoedit(request):
+            media = []
+            base_video = (assets.get("base_video") or assets.get("source_video") or [None])[0]
+            if base_video:
+                media.append({"type": "video", "url": base_video})
+            for image_url in assets.get("reference_images") or []:
+                media.append({"type": "reference_image", "url": image_url})
+            base_payload["input"]["media"] = media
+            for key in ("resolution", "ratio", "duration", "audio_setting", "prompt_extend", "watermark", "seed"):
+                if params.get(key) is not None:
+                    base_payload["parameters"][key] = params.get(key)
+            return base_payload
 
         if request.task_kind == "image_to_video":
             base_payload["input"]["img_url"] = (assets.get("first_frame") or [None])[0]

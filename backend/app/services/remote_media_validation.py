@@ -7,7 +7,9 @@
 
 from __future__ import annotations
 
+import json
 import os
+import subprocess
 import tempfile
 from io import BytesIO
 from pathlib import Path
@@ -85,3 +87,44 @@ async def inspect_remote_video(url: str) -> Dict[str, Any]:
     finally:
         capture.release()
         os.unlink(tmp_file.name)
+
+
+async def inspect_remote_audio(url: str) -> Dict[str, Any]:
+    content, content_type = await download_remote_bytes(url, timeout=httpx.Timeout(20.0, read=300.0))
+    parsed = urlparse(url)
+    suffix = Path(parsed.path).suffix or ".mp3"
+
+    tmp_file = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+    tmp_file.write(content)
+    tmp_file.close()
+
+    try:
+        probe = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "json",
+                tmp_file.name,
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        probe_data = json.loads(probe.stdout or "{}")
+        duration = float((probe_data.get("format") or {}).get("duration") or 0.0)
+    except (subprocess.CalledProcessError, ValueError, TypeError, json.JSONDecodeError) as exc:
+        raise ValueError("无法识别音频元数据") from exc
+    finally:
+        os.unlink(tmp_file.name)
+
+    return {
+        "url": url,
+        "content_type": content_type,
+        "format": suffix.lstrip(".").lower(),
+        "duration": duration,
+        "file_size": len(content),
+    }
