@@ -246,6 +246,28 @@ const buildImageQualityTemplateGroups = (
   })
 }
 
+const normalizeBBoxList = (value: unknown): number[][][] => {
+  if (!Array.isArray(value)) return []
+  return value.map((imageBoxes) => {
+    if (!Array.isArray(imageBoxes)) return []
+    return imageBoxes
+      .filter((box): box is number[] => Array.isArray(box) && box.length === 4)
+      .map((box) => box.map((point) => Number(point)))
+      .filter((box) => box.every((point) => Number.isFinite(point)))
+  })
+}
+
+const bboxListHasBoxes = (value: unknown) => normalizeBBoxList(value).some((imageBoxes) => imageBoxes.length > 0)
+
+const resolvePreferredBBoxList = (formValue: unknown, stateValue: unknown): number[][][] => {
+  const normalizedForm = normalizeBBoxList(formValue)
+  const normalizedState = normalizeBBoxList(stateValue)
+  if (bboxListHasBoxes(normalizedForm)) return normalizedForm
+  if (bboxListHasBoxes(normalizedState)) return normalizedState
+  if (normalizedForm.length) return normalizedForm
+  return normalizedState
+}
+
 const getTaskKindLabel = (taskKind?: string) => (
   TASK_KIND_OPTIONS.find(item => item.value === taskKind)?.label || '图像编辑'
 )
@@ -457,7 +479,9 @@ const StudioPage = () => {
       return { type, id }
     })
     const effectiveSize = computeEffectiveSize(values)
-    const effectiveBBoxList = WAN27_MODELS.has(values.model) ? (values.bbox_list || wan27BBoxList || []) : (values.bbox_list || [])
+    const effectiveBBoxList = WAN27_MODELS.has(values.model)
+      ? resolvePreferredBBoxList(values.bbox_list, wan27BBoxList)
+      : normalizeBBoxList(values.bbox_list)
     return {
       name: values.name || '未命名任务',
       description: values.description,
@@ -494,7 +518,9 @@ const StudioPage = () => {
     })
     let finalPrompt = values.prompt || ''
     let finalNegativePrompt = values.negative_prompt || ''
-    const effectiveBBoxList = WAN27_MODELS.has(values.model) ? (values.bbox_list || wan27BBoxList || []) : values.bbox_list
+    const effectiveBBoxList = WAN27_MODELS.has(values.model)
+      ? resolvePreferredBBoxList(values.bbox_list, wan27BBoxList)
+      : normalizeBBoxList(values.bbox_list)
     const styleId = values.style_id || selectedStyleId
     if (styleId) {
       const style = styles.find(s => s.id === styleId)
@@ -915,7 +941,9 @@ const StudioPage = () => {
       const isQwenImage2 = values.model === 'qwen-image-2.0-pro' || values.model === 'qwen-image-2.0'
       const isWan27 = WAN27_MODELS.has(values.model)
       const refCount = references.length
-      const effectiveBBoxList = isWan27 ? (values.bbox_list || wan27BBoxList || []) : (values.bbox_list || [])
+      const effectiveBBoxList = isWan27
+        ? resolvePreferredBBoxList(values.bbox_list, wan27BBoxList)
+        : normalizeBBoxList(values.bbox_list)
       
       if (isQwenEditModel && refCount === 0) {
         message.warning('qwen-image-edit 系列模型需要 1-3 张参考图作为输入')
@@ -1021,7 +1049,8 @@ const StudioPage = () => {
     setSelectedImages(new Set())
     setSelectedStyleId(null)
     setPreviewPayload(null)
-    setWan27BBoxList(task.bbox_list || [])
+    const restoredBBoxList = resolvePreferredBBoxList(task.bbox_list, task.provider_payload_snapshot?.parameters?.bbox_list)
+    setWan27BBoxList(restoredBBoxList)
     form.setFieldsValue({
       name: task.name,
       description: task.description,
@@ -1041,7 +1070,7 @@ const StudioPage = () => {
       max_images: task.max_images || 5,
       enable_sequential: task.enable_sequential || false,
       thinking_mode: task.thinking_mode ?? null,
-      bbox_list: task.bbox_list || [],
+      bbox_list: restoredBBoxList,
       color_palette: task.color_palette || [],
       size_mode: task.size_mode || ((task.custom_width && task.custom_height) ? 'custom' : (task.size_preset || (task.size && !task.size.includes('*')) ? 'preset' : null)),
       size_preset: task.size_preset || (task.size && !task.size.includes('*') ? task.size : undefined),
@@ -1285,7 +1314,9 @@ const StudioPage = () => {
     const isQwenEditModel = values.model?.startsWith('qwen-image-edit')
     const isQwenImage2 = values.model === 'qwen-image-2.0-pro' || values.model === 'qwen-image-2.0'
     const isWan27 = WAN27_MODELS.has(values.model)
-    const effectiveBBoxList = isWan27 ? (values.bbox_list || wan27BBoxList || []) : (values.bbox_list || [])
+    const effectiveBBoxList = isWan27
+      ? resolvePreferredBBoxList(values.bbox_list, wan27BBoxList)
+      : normalizeBBoxList(values.bbox_list)
     
     // 从表单中解析参考图
     const formReferences = (values.references || []).map((ref: string) => {
