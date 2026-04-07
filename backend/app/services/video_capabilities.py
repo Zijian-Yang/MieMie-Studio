@@ -75,6 +75,11 @@ TASK_KIND_DEFS: List[Dict[str, Any]] = [
     },
 ]
 
+VIDEO_STUDIO_DEFAULT_MODELS = {
+    "text_to_video": "wan2.7-t2v",
+    "reference_to_video": "wan2.7-r2v",
+}
+
 
 LEGACY_TASK_KIND_MAP = {
     "image_to_video": "image_to_video",
@@ -829,7 +834,236 @@ def _wan27_video_models() -> Dict[str, Dict[str, Any]]:
         notes=["不传驱动音频时，wan2.7-i2v 会自动补充匹配音频。"],
     )
 
+    t2v_params = [
+        _param(
+            "resolution",
+            "分辨率档位",
+            "select",
+            default="1080P",
+            description="wan2.7 文生视频仅支持 720P / 1080P。",
+            help=_help(
+                summary="控制文生视频输出清晰度。",
+                limits=["仅支持 720P 和 1080P"],
+                how_to_choose=["快速试验时先用 720P", "准备交付或看细节时用 1080P"],
+            ),
+            group="generation",
+            order=1,
+            options=resolution_options,
+        ),
+        _param(
+            "ratio",
+            "画面比例",
+            "select",
+            default="16:9",
+            description="控制输出画面的宽高比。",
+            help=_help(
+                summary="控制输出画面比例。",
+                limits=["仅支持 16:9 / 9:16 / 1:1 / 4:3 / 3:4"],
+                how_to_choose=["横屏内容优先 16:9", "短视频或手机观看优先 9:16", "封面和社媒方形内容可用 1:1"],
+                notes=["wan2.7 文生视频的多镜头叙事通过 prompt 自然语言控制，不再提供 shot_type 参数。"],
+            ),
+            group="generation",
+            order=2,
+            options=ratio_options,
+        ),
+        _param(
+            "duration",
+            "时长",
+            "integer",
+            default=5,
+            min_value=2,
+            max_value=15,
+            description="输出时长，支持 2 到 15 秒。",
+            help=_duration_help(
+                "控制 wan2.7 文生视频输出时长。",
+                limits=["支持 2 到 15 秒整数时长"],
+            ),
+            group="generation",
+            order=3,
+        ),
+        _bool_param(
+            "prompt_extend",
+            "智能改写",
+            True,
+            "开启后由模型先扩写提示词再生成。",
+            4,
+            help=_prompt_extend_help(),
+        ),
+        _bool_param("watermark", "添加水印", False, "是否保留 AI 生成水印。", 5, help=_watermark_help("开启后保留万相侧 AI 生成水印。")),
+        _param(
+            "seed",
+            "随机种子",
+            "integer",
+            description="0 到 2147483647，留空为随机",
+            help=_seed_help(),
+            group="advanced",
+            advanced=True,
+            order=6,
+            min_value=0,
+            max_value=2147483647,
+        ),
+    ]
+
+    r2v_params = [
+        _param(
+            "resolution",
+            "分辨率档位",
+            "select",
+            default="1080P",
+            description="wan2.7 参考生视频仅支持 720P / 1080P。",
+            help=_help(
+                summary="控制参考生视频输出清晰度。",
+                limits=["仅支持 720P 和 1080P"],
+                how_to_choose=["快速试验时先用 720P", "准备交付或看细节时用 1080P"],
+            ),
+            group="generation",
+            order=1,
+            options=resolution_options,
+        ),
+        _param(
+            "ratio",
+            "画面比例",
+            "select",
+            default="16:9",
+            description="控制输出画面比例；提供首帧图时会自动跟随首帧比例。",
+            help=_help(
+                summary="控制输出画面比例。",
+                limits=["仅支持 16:9 / 9:16 / 1:1 / 4:3 / 3:4"],
+                how_to_choose=["未提供首帧图时可直接指定横屏、竖屏或方屏", "提供首帧图时可忽略该参数，让模型跟随首帧图比例"],
+                notes=["传入首帧图后，provider payload 会自动忽略 ratio 参数。"],
+            ),
+            group="generation",
+            order=2,
+            options=ratio_options,
+        ),
+        _param(
+            "duration",
+            "时长",
+            "integer",
+            default=5,
+            min_value=2,
+            max_value=10,
+            description="输出时长，支持 2 到 10 秒。",
+            help=_duration_help(
+                "控制 wan2.7 参考生视频输出时长。",
+                limits=["支持 2 到 10 秒整数时长"],
+            ),
+            group="generation",
+            order=3,
+        ),
+        _bool_param(
+            "prompt_extend",
+            "智能改写",
+            True,
+            "开启后由模型先扩写提示词再生成。",
+            4,
+            help=_prompt_extend_help(),
+        ),
+        _bool_param("watermark", "添加水印", False, "是否保留 AI 生成水印。", 5, help=_watermark_help("开启后保留万相侧 AI 生成水印。")),
+        _param(
+            "seed",
+            "随机种子",
+            "integer",
+            description="0 到 2147483647，留空为随机",
+            help=_seed_help(),
+            group="advanced",
+            advanced=True,
+            order=6,
+            min_value=0,
+            max_value=2147483647,
+        ),
+    ]
+
     return {
+        "wan2.7-t2v": _build_model(
+            model_id="wan2.7-t2v",
+            name="万相 2.7 文生视频",
+            provider="wan",
+            description="支持分辨率档位、画面比例、自定义音频和自然语言多镜头叙事的万相 2.7 文生视频模型",
+            recommended=True,
+            doc_url="https://help.aliyun.com/zh/model-studio/text-to-video-guide",
+            supported_task_kinds=["text_to_video"],
+            task_profiles={
+                "text_to_video": {
+                    "label": "文生视频",
+                    "description": "仅用文本提示词生成视频，可选自定义音频。",
+                    "input_roles": ["audio"],
+                    "parameters": t2v_params,
+                    "supported_narrative_modes": ["single", "multi_shot_intelligence"],
+                    "ui_hints": {
+                        "prompt_max_length": 5000,
+                        "negative_prompt_max_length": 500,
+                        "asset_help": {
+                            "audio": _asset_help(
+                                "自定义音频会直接作为文生视频的音轨输入。",
+                                limits=["仅支持 WAV/MP3", "时长需在 2 到 30 秒之间", "文件大小不超过 15MB"],
+                                how_to_choose=["需要明确旁白、对白或现成声音时使用", "只想让模型自动生成背景音或音效时可留空"],
+                            ),
+                        },
+                        "prompt_help": _help(
+                            summary="Prompt 用于描述主体、动作、场景、镜头和风格。",
+                            limits=["最大长度约 5000 字符", "负面提示词最大长度约 500 字符"],
+                            how_to_choose=["先写主体和动作，再补镜头、氛围和风格", "想做多镜头时可直接在 prompt 里写“生成多镜头视频”或按时间段描述分镜"],
+                            notes=["wan2.7 文生视频不再提供 shot_type，镜头结构完全由 prompt 控制。", "不传自定义音频时，模型会自动补充匹配的背景音乐或音效。"],
+                        ),
+                    },
+                }
+            },
+        ),
+        "wan2.7-r2v": _build_model(
+            model_id="wan2.7-r2v",
+            name="万相 2.7 参考生视频",
+            provider="wan",
+            description="支持首帧图、多张参考图/参考视频和逐素材参考音色绑定的万相 2.7 参考生视频模型",
+            recommended=True,
+            doc_url="https://help.aliyun.com/zh/model-studio/video-to-video-guide",
+            supported_task_kinds=["reference_to_video"],
+            task_profiles={
+                "reference_to_video": {
+                    "label": "参考生视频",
+                    "description": "基于参考图像、参考视频和可选首帧图生成新视频。",
+                    "input_roles": ["first_frame", "reference_image", "reference_video"],
+                    "parameters": r2v_params,
+                    "supported_narrative_modes": ["single", "multi_shot_intelligence"],
+                    "ui_hints": {
+                        "prompt_max_length": 5000,
+                        "negative_prompt_max_length": 500,
+                        "max_reference_images": 5,
+                        "max_reference_videos": 5,
+                        "max_reference_total": 5,
+                        "supports_reference_voice": True,
+                        "asset_help": {
+                            "first_frame": _asset_help(
+                                "首帧图可选，用于约束生成视频的初始构图和输出比例。",
+                                limits=["最多 1 张首帧图", "支持 JPEG/JPG/PNG/BMP/WEBP", "宽高需在 240 到 8000 像素之间", "宽高比需在 1:8 到 8:1 之间", "不支持透明 PNG", "文件大小不超过 20MB"],
+                                how_to_choose=["需要明确视频起始画面时再提供", "不提供时由 ratio 控制输出比例"],
+                            ),
+                            "reference_image": _asset_help(
+                                "参考图用于提供人物、动物、物体或场景线索。",
+                                limits=["图片和视频总数最多 5 个", "支持 JPEG/JPG/PNG/BMP/WEBP", "宽高需在 240 到 8000 像素之间", "宽高比需在 1:8 到 8:1 之间", "不支持透明 PNG", "文件大小不超过 20MB"],
+                                how_to_choose=["尽量单主体、主体清晰", "需要给纯图片角色绑定音色时，可为该素材额外选择参考音频"],
+                            ),
+                            "reference_video": _asset_help(
+                                "参考视频用于提供主体形象、动作氛围和可选音色参考。",
+                                limits=["图片和视频总数最多 5 个", "支持 MP4/MOV", "时长需在 1 到 30 秒之间", "宽高需在 240 到 4096 像素之间", "宽高比需在 1:8 到 8:1 之间", "文件大小不超过 100MB"],
+                                how_to_choose=["优先选择单镜头、主体明确的视频", "未显式绑定 reference_voice 时，模型会默认使用参考视频原声做音色参考"],
+                            ),
+                            "audio": _asset_help(
+                                "可从音频库为单个参考素材单独绑定 reference_voice。",
+                                limits=["仅支持 WAV/MP3", "时长需在 1 到 10 秒之间", "文件大小不超过 15MB"],
+                                how_to_choose=["纯图片角色需要声音时可单独绑定", "想覆盖参考视频原声时也可显式绑定参考音频"],
+                            ),
+                        },
+                        "prompt_help": _help(
+                            summary="Prompt 用于描述参考素材之间的关系、动作和镜头安排。",
+                            limits=["最大长度约 5000 字符", "负面提示词最大长度约 500 字符"],
+                            how_to_choose=["先写清主体关系和动作，再补镜头、场景和氛围", "引用角色时，按当前列表中同类型素材的顺序使用“图片1 / 图片2 / 视频1 / 视频2”"],
+                            notes=["参考素材卡片顺序会直接反映到开发者模式里的 media 顺序。", "首帧图只控制构图与比例，不参与“图片1 / 视频1”的编号。", "未显式绑定 reference_voice 的参考视频会沿用文档默认行为，优先使用视频原声做音色参考。"],
+                        ),
+                    },
+                }
+            },
+        ),
         "wan2.7-i2v": _build_model(
             model_id="wan2.7-i2v",
             name="万相 2.7 图生视频",
@@ -2089,11 +2323,14 @@ def get_video_capabilities() -> Dict[str, Any]:
             for model_id, model in models.items()
             if task_def["id"] in model.get("supported_task_kinds", [])
         ]
+        default_model_id = VIDEO_STUDIO_DEFAULT_MODELS.get(task_def["id"])
+        if default_model_id not in supported_models:
+            default_model_id = supported_models[0] if supported_models else None
         task_kinds.append(
             {
                 **task_def,
                 "model_ids": supported_models,
-                "default_model_id": supported_models[0] if supported_models else None,
+                "default_model_id": default_model_id,
             }
         )
 

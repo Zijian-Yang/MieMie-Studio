@@ -129,7 +129,7 @@ class VideoStudioTaskCreateRequest(BaseModel):
     # 通用参数
     prompt: str = ""
     negative_prompt: str = ""
-    model: str = "wan2.5-i2v-preview"
+    model: Optional[str] = None
     duration: int = 5
     watermark: bool = False  # 水印
     seed: Optional[int] = None  # 随机种子
@@ -240,8 +240,8 @@ def _resolve_task_kind(task_type: Optional[str], task_kind: Optional[str]) -> st
 def _default_model_for_task_kind(task_kind: str) -> str:
     defaults = {
         "image_to_video": "wan2.6-i2v-flash",
-        "reference_to_video": "wan2.6-r2v-flash",
-        "text_to_video": "wan2.6-t2v",
+        "reference_to_video": "wan2.7-r2v",
+        "text_to_video": "wan2.7-t2v",
         "keyframe_to_video": "wan2.2-kf2v-flash",
         "video_extension": "wan2.7-i2v",
         "video_repainting": VACE_MODEL_NAME,
@@ -261,6 +261,64 @@ def _split_reference_assets(urls: List[str]) -> tuple[List[str], List[str]]:
         else:
             image_urls.append(url)
     return image_urls, video_urls
+
+
+def _reference_media_type_from_url(url: str) -> str:
+    lowered = url.lower()
+    if any(ext in lowered for ext in [".mp4", ".mov", ".avi", ".m4v", ".webm"]):
+        return "reference_video"
+    return "reference_image"
+
+
+def _build_reference_media_from_urls(urls: List[str]) -> List[Dict[str, Any]]:
+    return [
+        {
+            "type": _reference_media_type_from_url(url),
+            "url": url,
+        }
+        for url in urls
+        if url
+    ]
+
+
+def _ordered_reference_urls_from_assets(input_assets: Dict[str, Any]) -> List[str]:
+    reference_media = list(input_assets.get("reference_media") or [])
+    if reference_media:
+        return [item["url"] for item in reference_media if item.get("type") in {"reference_image", "reference_video"} and item.get("url")]
+    return list(input_assets.get("reference_videos") or []) + list(input_assets.get("reference_images") or [])
+
+
+def _synchronize_reference_assets(
+    input_assets: Dict[str, Any],
+    task_kind: str,
+    ordered_urls: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    if task_kind != "reference_to_video":
+        return input_assets
+
+    reference_media = []
+    for item in input_assets.get("reference_media") or []:
+        if not isinstance(item, dict):
+            continue
+        item_url = item.get("url")
+        if not item_url:
+            continue
+        normalized_item = {
+            "type": item.get("type") if item.get("type") in {"reference_image", "reference_video"} else _reference_media_type_from_url(item_url),
+            "url": item_url,
+        }
+        if item.get("reference_voice"):
+            normalized_item["reference_voice"] = item["reference_voice"]
+        reference_media.append(normalized_item)
+
+    if not reference_media:
+        next_urls = ordered_urls if ordered_urls is not None else _ordered_reference_urls_from_assets(input_assets)
+        reference_media = _build_reference_media_from_urls(next_urls)
+
+    input_assets["reference_media"] = reference_media
+    input_assets["reference_images"] = [item["url"] for item in reference_media if item["type"] == "reference_image"]
+    input_assets["reference_videos"] = [item["url"] for item in reference_media if item["type"] == "reference_video"]
+    return input_assets
 
 
 def _hydrate_task_developer_metadata(task: VideoStudioTask) -> bool:
@@ -346,7 +404,6 @@ async def _refresh_task_provider_metadata(task: VideoStudioTask) -> bool:
 
 def _normalize_request(request: VideoStudioTaskCreateRequest) -> NormalizedVideoTaskRequest:
     task_kind = _resolve_task_kind(request.task_type, request.task_kind)
-    legacy_task_type = TASK_KIND_TO_LEGACY_TASK_TYPE.get(task_kind, task_kind)
     model_id = request.model_id or request.model or _default_model_for_task_kind(task_kind)
     provider = request.provider or infer_provider(model_id, task_kind)
     key_profile = get_provider_key_profile(provider)
@@ -354,6 +411,9 @@ def _normalize_request(request: VideoStudioTaskCreateRequest) -> NormalizedVideo
     if request.input_assets is not None:
         input_assets = deepcopy(request.input_assets)
     else:
+        ordered_reference_urls = list(request.reference_video_urls or [])
+        if request.reference_image_url and request.reference_image_url not in ordered_reference_urls:
+            ordered_reference_urls.append(request.reference_image_url)
         reference_images, reference_videos = _split_reference_assets(request.reference_video_urls or [])
         input_assets: Dict[str, Any] = {
             "first_frame": [request.first_frame_url] if request.first_frame_url else [],
@@ -362,10 +422,13 @@ def _normalize_request(request: VideoStudioTaskCreateRequest) -> NormalizedVideo
             "audio": [request.audio_url] if request.audio_url else [],
             "reference_images": reference_images + ([request.reference_image_url] if request.reference_image_url else []),
             "reference_videos": reference_videos,
+            "reference_media": _build_reference_media_from_urls(ordered_reference_urls),
             "source_video": [request.source_video_url] if request.source_video_url else [],
             "base_video": [request.source_video_url] if request.source_video_url and task_kind == "video_edit_global" else [],
             "mask_image": [request.mask_image_url] if request.mask_image_url else [],
         }
+
+    input_assets = _synchronize_reference_assets(input_assets, task_kind)
 
     normalized_params = deepcopy(request.normalized_params or {})
     normalized_params.setdefault("resolution", request.resolution)
@@ -408,7 +471,7 @@ def _normalize_request(request: VideoStudioTaskCreateRequest) -> NormalizedVideo
 
 def _apply_normalized_fields_to_task(task: VideoStudioTask, normalized: NormalizedVideoTaskRequest) -> None:
     params = normalized.normalized_params
-    assets = normalized.input_assets
+    assets = _synchronize_reference_assets(deepcopy(normalized.input_assets), normalized.task_kind)
     task.task_kind = normalized.task_kind
     task.task_type = TASK_KIND_TO_LEGACY_TASK_TYPE.get(normalized.task_kind, normalized.task_kind)
     task.provider = normalized.provider
@@ -423,7 +486,7 @@ def _apply_normalized_fields_to_task(task: VideoStudioTask, normalized: Normaliz
     task.last_frame_url = (assets.get("last_frame") or [None])[0]
     task.first_clip_url = (assets.get("first_clip") or [None])[0]
     task.audio_url = (assets.get("audio") or [None])[0]
-    task.reference_video_urls = list(assets.get("reference_videos") or []) + list(assets.get("reference_images") or [])
+    task.reference_video_urls = _ordered_reference_urls_from_assets(assets)
     source_video = assets.get("source_video") or assets.get("base_video") or []
     task.source_video_url = source_video[0] if source_video else None
     task.reference_image_url = (assets.get("reference_images") or [None])[0]
@@ -461,6 +524,9 @@ def _normalized_request_from_task(task: VideoStudioTask) -> NormalizedVideoTaskR
     resolved_key_profile = getattr(task, "key_profile", None) or get_provider_key_profile(resolved_provider)
     input_assets = deepcopy(getattr(task, "input_assets", {}) or {})
     if not input_assets:
+        ordered_reference_urls = list(getattr(task, "reference_video_urls", []) or [])
+        if task.reference_image_url and task.reference_image_url not in ordered_reference_urls:
+            ordered_reference_urls.append(task.reference_image_url)
         reference_images, reference_videos = _split_reference_assets(getattr(task, "reference_video_urls", []) or [])
         input_assets = {
             "first_frame": [task.first_frame_url] if task.first_frame_url else [],
@@ -469,10 +535,12 @@ def _normalized_request_from_task(task: VideoStudioTask) -> NormalizedVideoTaskR
             "audio": [task.audio_url] if task.audio_url else [],
             "reference_images": reference_images + ([task.reference_image_url] if task.reference_image_url else []),
             "reference_videos": reference_videos,
+            "reference_media": _build_reference_media_from_urls(ordered_reference_urls),
             "source_video": [task.source_video_url] if task.source_video_url else [],
             "base_video": [task.source_video_url] if resolved_task_kind == "video_edit_global" and task.source_video_url else [],
             "mask_image": [task.mask_image_url] if task.mask_image_url else [],
         }
+    input_assets = _synchronize_reference_assets(input_assets, resolved_task_kind, list(getattr(task, "reference_video_urls", []) or []))
     normalized_params = deepcopy(getattr(task, "normalized_params", {}) or {})
     if not normalized_params:
         normalized_size = task.size
@@ -548,9 +616,10 @@ def _merge_update_request_into_normalized_request(
         normalized.negative_prompt = request.negative_prompt
 
     if "input_assets" in provided_fields and request.input_assets is not None:
-        normalized.input_assets = deepcopy(request.input_assets)
+        normalized.input_assets = _synchronize_reference_assets(deepcopy(request.input_assets), normalized.task_kind)
     else:
         assets = deepcopy(normalized.input_assets)
+        ordered_reference_urls: Optional[List[str]] = None
         if "first_frame_url" in provided_fields:
             assets["first_frame"] = [request.first_frame_url] if request.first_frame_url else []
         if "last_frame_url" in provided_fields:
@@ -560,18 +629,25 @@ def _merge_update_request_into_normalized_request(
         if "audio_url" in provided_fields:
             assets["audio"] = [request.audio_url] if request.audio_url else []
         if "reference_video_urls" in provided_fields:
+            ordered_reference_urls = list(request.reference_video_urls or [])
             reference_images, reference_videos = _split_reference_assets(request.reference_video_urls or [])
             assets["reference_images"] = reference_images
             assets["reference_videos"] = reference_videos
+            assets["reference_media"] = _build_reference_media_from_urls(ordered_reference_urls)
         if "source_video_url" in provided_fields:
             assets["source_video"] = [request.source_video_url] if request.source_video_url else []
             if normalized.task_kind == "video_edit_global":
                 assets["base_video"] = [request.source_video_url] if request.source_video_url else []
         if "reference_image_url" in provided_fields:
             assets["reference_images"] = [request.reference_image_url] if request.reference_image_url else []
+            if normalized.task_kind == "reference_to_video":
+                next_urls = ordered_reference_urls if ordered_reference_urls is not None else _ordered_reference_urls_from_assets(assets)
+                if request.reference_image_url and request.reference_image_url not in next_urls:
+                    next_urls.append(request.reference_image_url)
+                ordered_reference_urls = next_urls
         if "mask_image_url" in provided_fields:
             assets["mask_image"] = [request.mask_image_url] if request.mask_image_url else []
-        normalized.input_assets = assets
+        normalized.input_assets = _synchronize_reference_assets(assets, normalized.task_kind, ordered_reference_urls)
 
     if "normalized_params" in provided_fields and request.normalized_params is not None:
         normalized.normalized_params = deepcopy(request.normalized_params)
@@ -649,7 +725,7 @@ async def _validate_vace_task_request(request: VideoStudioTaskCreateRequest) -> 
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     requested_model = request.model
-    if requested_model in {"", "wan2.5-i2v-preview"}:
+    if requested_model in {None, "", "wan2.5-i2v-preview"}:
         requested_model = VACE_MODEL_NAME
 
     if request.task_type == "video_repainting":

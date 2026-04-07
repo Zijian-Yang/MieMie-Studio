@@ -213,7 +213,13 @@ const VideoStudioPage = () => {
 
   const getTaskInputAssets = (task: VideoStudioTask) => {
     if (task.input_assets && Object.keys(task.input_assets).length > 0) {
-      return task.input_assets
+      const inputAssets = { ...task.input_assets }
+      const referenceMedia = Array.isArray(inputAssets.reference_media) ? inputAssets.reference_media : []
+      if (referenceMedia.length > 0) {
+        inputAssets.reference_images = referenceMedia.filter((item: any) => item?.type === 'reference_image').map((item: any) => item.url)
+        inputAssets.reference_videos = referenceMedia.filter((item: any) => item?.type === 'reference_video').map((item: any) => item.url)
+      }
+      return inputAssets
     }
     const taskKind = getResolvedTaskKind(task)
     return {
@@ -2786,6 +2792,7 @@ const VideoStudioPage = () => {
               const firstFrames = [...(inputAssets.first_frame || [])]
               const lastFrames = [...(inputAssets.last_frame || [])]
               const audioAssets = [...(inputAssets.audio || [])]
+              const referenceMedia = [...(inputAssets.reference_media || [])]
               const referenceImages = [...(inputAssets.reference_images || [])]
               const referenceVideos = [...(inputAssets.reference_videos || [])]
               const maskImages = [...(inputAssets.mask_image || [])]
@@ -2850,24 +2857,51 @@ const VideoStudioPage = () => {
                       </Card>
                     </Col>
                   ))}
-                  {referenceImages.map((url, index) => (
-                    <Col key={`ref-image-${index}`} span={12}>
-                      <Card size="small" title="参考图">
-                        <img
-                          src={url}
-                          alt="参考图"
-                          style={{ width: '100%', borderRadius: 8, objectFit: 'cover' }}
-                        />
+                  {referenceMedia.length > 0 ? referenceMedia.map((item: any, index) => (
+                    <Col key={`ref-media-${index}`} span={12}>
+                      <Card
+                        size="small"
+                        title={item.type === 'reference_image' ? `参考图 ${index + 1}` : `参考视频 ${index + 1}`}
+                        extra={item.reference_voice ? <Tag color="gold">已绑定参考音色</Tag> : undefined}
+                      >
+                        {item.type === 'reference_image' ? (
+                          <img
+                            src={item.url}
+                            alt="参考图"
+                            style={{ width: '100%', borderRadius: 8, objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <video controls style={{ width: '100%' }} src={item.url} />
+                        )}
+                        {item.reference_voice && (
+                          <div style={{ marginTop: 8, fontSize: 12, color: token.colorTextSecondary }}>
+                            参考音频: {audioItems.find((audio) => audio.url === item.reference_voice)?.name || item.reference_voice}
+                          </div>
+                        )}
                       </Card>
                     </Col>
-                  ))}
-                  {referenceVideos.map((url, index) => (
-                    <Col key={`ref-video-${index}`} span={12}>
-                      <Card size="small" title="参考视频">
-                        <video controls style={{ width: '100%' }} src={url} />
-                      </Card>
-                    </Col>
-                  ))}
+                  )) : (
+                    <>
+                      {referenceImages.map((url, index) => (
+                        <Col key={`ref-image-${index}`} span={12}>
+                          <Card size="small" title="参考图">
+                            <img
+                              src={url}
+                              alt="参考图"
+                              style={{ width: '100%', borderRadius: 8, objectFit: 'cover' }}
+                            />
+                          </Card>
+                        </Col>
+                      ))}
+                      {referenceVideos.map((url, index) => (
+                        <Col key={`ref-video-${index}`} span={12}>
+                          <Card size="small" title="参考视频">
+                            <video controls style={{ width: '100%' }} src={url} />
+                          </Card>
+                        </Col>
+                      ))}
+                    </>
+                  )}
                   {maskImages.map((url, index) => (
                     <Col key={`mask-${index}`} span={12}>
                       <Card size="small" title="Mask">

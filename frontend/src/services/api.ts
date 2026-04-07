@@ -1548,6 +1548,26 @@ export type VideoNarrativeMode =
   | 'multi_shot_intelligence'
   | 'multi_shot_customize'
 
+export interface VideoReferenceMediaItem {
+  type: 'reference_image' | 'reference_video'
+  url: string
+  reference_voice?: string
+}
+
+export interface VideoStudioInputAssets {
+  first_frame?: string[]
+  last_frame?: string[]
+  first_clip?: string[]
+  audio?: string[]
+  reference_images?: string[]
+  reference_videos?: string[]
+  reference_media?: VideoReferenceMediaItem[]
+  source_video?: string[]
+  base_video?: string[]
+  mask_image?: string[]
+  [key: string]: any
+}
+
 export interface VideoTaskProfile {
   task_kind: VideoTaskKind
   label: string
@@ -1602,7 +1622,7 @@ export interface VideoStudioTask {
   key_profile?: 'test' | 'production' | null
   model_id?: string
   narrative_mode?: VideoNarrativeMode
-  input_assets?: Record<string, any>
+  input_assets?: VideoStudioInputAssets
   normalized_params?: Record<string, any>
   provider_payload_snapshot?: Record<string, any> | null
   provider_result_meta?: Record<string, any>
@@ -1680,7 +1700,7 @@ export const videoStudioApi = {
     provider?: string
     model_id?: string
     narrative_mode?: VideoNarrativeMode
-    input_assets?: Record<string, any>
+    input_assets?: VideoStudioInputAssets
     normalized_params?: Record<string, any>
     prompt?: string
     negative_prompt?: string
@@ -1747,7 +1767,7 @@ export const videoStudioApi = {
     provider?: string
     model_id?: string
     narrative_mode?: VideoNarrativeMode
-    input_assets?: Record<string, any>
+    input_assets?: VideoStudioInputAssets
     normalized_params?: Record<string, any>
     mode?: string
     first_frame_url?: string  // 图生视频需要
@@ -1797,7 +1817,7 @@ export const videoStudioApi = {
     provider?: string
     model_id?: string
     narrative_mode?: VideoNarrativeMode
-    input_assets?: Record<string, any>
+    input_assets?: VideoStudioInputAssets
     normalized_params?: Record<string, any>
     prompt?: string
     negative_prompt?: string

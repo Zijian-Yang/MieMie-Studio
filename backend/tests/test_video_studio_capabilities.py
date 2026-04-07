@@ -40,14 +40,28 @@ def test_get_capabilities_endpoint_returns_multi_provider_schema(client, auth_he
     assert "kling/kling-v3-omni-video-generation" in models
     assert "vidu/viduq3-turbo_text2video" in models
     assert "wanx2.1-vace-plus" in models
+    assert "wan2.7-t2v" in models
+    assert "wan2.7-r2v" in models
     assert "wan2.7-i2v" in models
     assert "wan2.7-videoedit" in models
     assert data["legacy_task_kind_map"]["video_edit"] == "video_edit_local"
+    task_kind_defaults = {item["id"]: item["default_model_id"] for item in data["task_kinds"]}
+    assert task_kind_defaults["text_to_video"] == "wan2.7-t2v"
+    assert task_kind_defaults["reference_to_video"] == "wan2.7-r2v"
     kling_edit_params = {
         item["name"]
         for item in models["kling/kling-v3-omni-video-generation"]["task_profiles"]["video_edit_global"]["parameters"]
     }
     assert {"audio", "keep_original_sound", "element_ids"} <= kling_edit_params
+    wan27_text_params = {
+        item["name"]
+        for item in models["wan2.7-t2v"]["task_profiles"]["text_to_video"]["parameters"]
+    }
+    assert {"resolution", "ratio", "duration"} <= wan27_text_params
+    assert "shot_type" not in wan27_text_params
+    wan27_reference_profile = models["wan2.7-r2v"]["task_profiles"]["reference_to_video"]
+    assert "first_frame" in wan27_reference_profile["input_roles"]
+    assert wan27_reference_profile["ui_hints"]["supports_reference_voice"] is True
     wan27_extension_profile = models["wan2.7-i2v"]["task_profiles"]["video_extension"]
     assert "first_clip" in wan27_extension_profile["input_roles"]
     wan27_videoedit_params = {
@@ -80,6 +94,15 @@ def test_video_capability_schema_exposes_structured_help_content():
     wan27_extension_profile = models["wan2.7-i2v"]["task_profiles"]["video_extension"]
     assert wan27_extension_profile["ui_hints"]["asset_help"]["first_clip"]["limits"]
     assert wan27_extension_profile["ui_hints"]["prompt_help"]["notes"]
+
+    wan27_text_profile = models["wan2.7-t2v"]["task_profiles"]["text_to_video"]
+    ratio_param = next(param for param in wan27_text_profile["parameters"] if param["name"] == "ratio")
+    assert ratio_param["help"]["summary"]
+    assert ratio_param["constraint"]["options"]
+
+    wan27_reference_profile = models["wan2.7-r2v"]["task_profiles"]["reference_to_video"]
+    assert wan27_reference_profile["ui_hints"]["prompt_help"]["notes"]
+    assert wan27_reference_profile["ui_hints"]["asset_help"]["audio"]["limits"]
 
     wan27_videoedit_profile = models["wan2.7-videoedit"]["task_profiles"]["video_edit_global"]
     ratio_param = next(param for param in wan27_videoedit_profile["parameters"] if param["name"] == "ratio")
@@ -193,6 +216,35 @@ async def test_wan_submit_result_keeps_request_id_and_provider_payload(monkeypat
     assert result.request_id == "req-wan-submit-1"
     assert result.provider_payload is not None
     assert result.provider_payload["model"] == "wan2.6-t2v"
+
+
+def test_wan27_t2v_builds_new_protocol_payload():
+    adapter = WanVideoAdapter()
+    payload = adapter.build_provider_payload(
+        NormalizedVideoTaskRequest(
+            project_id="p1",
+            task_kind="text_to_video",
+            provider="wan",
+            model_id="wan2.7-t2v",
+            prompt="机械臂在仓库中打开柜门并缓慢推进",
+            input_assets={"audio": ["https://oss.example.com/voice.mp3"]},
+            normalized_params={
+                "resolution": "1080P",
+                "ratio": "9:16",
+                "duration": 8,
+                "prompt_extend": True,
+                "watermark": False,
+                "seed": 123,
+            },
+        )
+    )
+
+    assert payload["model"] == "wan2.7-t2v"
+    assert payload["input"]["audio_url"] == "https://oss.example.com/voice.mp3"
+    assert payload["parameters"]["resolution"] == "1080P"
+    assert payload["parameters"]["ratio"] == "9:16"
+    assert "size" not in payload["parameters"]
+    assert "shot_type" not in payload["parameters"]
 
 
 @pytest.mark.asyncio
@@ -373,6 +425,275 @@ def test_preview_payload_returns_wan27_provider_payload(client, auth_header, mon
     media = data["provider_payload"]["input"]["media"]
     assert media[0]["type"] == "first_clip"
     assert media[1]["type"] == "last_frame"
+
+
+@pytest.mark.asyncio
+async def test_wan27_r2v_builds_ordered_media_payload_and_ignores_ratio_with_first_frame(monkeypatch):
+    adapter = WanVideoAdapter()
+
+    async def fake_validate_image(url: str, label: str):
+        return {"width": 1280, "height": 720, "aspect_ratio": 16 / 9, "format": "PNG", "file_size": 1024, "has_alpha": False}
+
+    async def fake_validate_reference_video(url: str, label: str):
+        return {"duration": 5.0, "width": 1280, "height": 720, "aspect_ratio": 16 / 9, "format": "mp4", "file_size": 1024}
+
+    async def fake_validate_reference_voice(url: str, label: str):
+        return {"duration": 3.0, "format": "mp3", "file_size": 1024}
+
+    monkeypatch.setattr("app.services.video_adapters._validate_wan27_image", fake_validate_image)
+    monkeypatch.setattr("app.services.video_adapters._validate_wan27_reference_video", fake_validate_reference_video)
+    monkeypatch.setattr("app.services.video_adapters._validate_wan27_reference_voice", fake_validate_reference_voice)
+
+    request = NormalizedVideoTaskRequest(
+        project_id="p1",
+        task_kind="reference_to_video",
+        provider="wan",
+        model_id="wan2.7-r2v",
+        prompt="视频1和图片1在咖啡馆里交流，图片2放在桌上",
+        input_assets={
+            "first_frame": ["https://oss.example.com/first.png"],
+            "reference_media": [
+                {"type": "reference_video", "url": "https://oss.example.com/actor.mp4", "reference_voice": "https://oss.example.com/actor.mp3"},
+                {"type": "reference_image", "url": "https://oss.example.com/cat.png"},
+                {"type": "reference_image", "url": "https://oss.example.com/cup.png", "reference_voice": "https://oss.example.com/cup.mp3"},
+            ],
+        },
+        normalized_params={
+            "resolution": "1080P",
+            "ratio": "3:4",
+            "duration": 8,
+            "prompt_extend": True,
+            "watermark": False,
+        },
+    )
+
+    await adapter.validate(request)
+    payload = adapter.build_provider_payload(request)
+
+    assert payload["model"] == "wan2.7-r2v"
+    assert "ratio" not in payload["parameters"]
+    assert [item["type"] for item in payload["input"]["media"]] == [
+        "first_frame",
+        "reference_video",
+        "reference_image",
+        "reference_image",
+    ]
+    assert payload["input"]["media"][1]["reference_voice"] == "https://oss.example.com/actor.mp3"
+    assert payload["input"]["media"][3]["reference_voice"] == "https://oss.example.com/cup.mp3"
+
+
+@pytest.mark.asyncio
+async def test_wan27_r2v_rejects_invalid_reference_voice(monkeypatch):
+    adapter = WanVideoAdapter()
+
+    async def fake_validate_image(url: str, label: str):
+        return {"width": 1280, "height": 720, "aspect_ratio": 16 / 9, "format": "PNG", "file_size": 1024, "has_alpha": False}
+
+    async def fake_validate_reference_voice(url: str, label: str):
+        raise ValueError("参考音频时长需在1到10秒之间")
+
+    monkeypatch.setattr("app.services.video_adapters._validate_wan27_image", fake_validate_image)
+    monkeypatch.setattr("app.services.video_adapters._validate_wan27_reference_voice", fake_validate_reference_voice)
+
+    with pytest.raises(ValueError, match="参考音频时长需在1到10秒之间"):
+        await adapter.validate(
+            NormalizedVideoTaskRequest(
+                project_id="p1",
+                task_kind="reference_to_video",
+                provider="wan",
+                model_id="wan2.7-r2v",
+                prompt="图片1在窗边看书",
+                input_assets={
+                    "reference_media": [
+                        {"type": "reference_image", "url": "https://oss.example.com/ref.png", "reference_voice": "https://oss.example.com/ref.mp3"},
+                    ],
+                },
+                normalized_params={
+                    "resolution": "1080P",
+                    "ratio": "16:9",
+                    "duration": 5,
+                    "prompt_extend": True,
+                    "watermark": False,
+                },
+            )
+        )
+
+
+def test_create_task_defaults_to_wan27_models(client, auth_header, monkeypatch):
+    project_id = _create_project(client, auth_header)
+    _patch_async_create_task(monkeypatch)
+
+    async def fake_validate_image(url: str, label: str):
+        return {"width": 1280, "height": 720, "aspect_ratio": 16 / 9, "format": "PNG", "file_size": 1024, "has_alpha": False}
+
+    monkeypatch.setattr("app.services.video_adapters._validate_wan27_image", fake_validate_image)
+
+    text_resp = client.post(
+        "/api/video-studio",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "task_kind": "text_to_video",
+            "prompt": "机械臂在仓库中开门",
+            "input_assets": {},
+            "normalized_params": {
+                "resolution": "1080P",
+                "ratio": "16:9",
+                "duration": 5,
+                "prompt_extend": True,
+                "watermark": False,
+            },
+        },
+    )
+    assert text_resp.status_code == 200
+    assert text_resp.json()["task"]["model_id"] == "wan2.7-t2v"
+
+    ref_resp = client.post(
+        "/api/video-studio",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "task_kind": "reference_to_video",
+            "prompt": "图片1在咖啡馆里喝咖啡",
+            "input_assets": {
+                "reference_media": [
+                    {"type": "reference_image", "url": "https://oss.example.com/ref.png"},
+                ],
+            },
+            "normalized_params": {
+                "resolution": "1080P",
+                "ratio": "16:9",
+                "duration": 5,
+                "prompt_extend": True,
+                "watermark": False,
+            },
+        },
+    )
+    assert ref_resp.status_code == 200
+    assert ref_resp.json()["task"]["model_id"] == "wan2.7-r2v"
+
+
+def test_preview_payload_returns_wan27_r2v_provider_payload_with_reference_voice(client, auth_header, monkeypatch):
+    project_id = _create_project(client, auth_header)
+
+    async def fake_validate_image(url: str, label: str):
+        return {"width": 1280, "height": 720, "aspect_ratio": 16 / 9, "format": "PNG", "file_size": 1024, "has_alpha": False}
+
+    async def fake_validate_reference_video(url: str, label: str):
+        return {"duration": 5.0, "width": 1280, "height": 720, "aspect_ratio": 16 / 9, "format": "mp4", "file_size": 1024}
+
+    async def fake_validate_reference_voice(url: str, label: str):
+        return {"duration": 3.0, "format": "mp3", "file_size": 1024}
+
+    monkeypatch.setattr("app.services.video_adapters._validate_wan27_image", fake_validate_image)
+    monkeypatch.setattr("app.services.video_adapters._validate_wan27_reference_video", fake_validate_reference_video)
+    monkeypatch.setattr("app.services.video_adapters._validate_wan27_reference_voice", fake_validate_reference_voice)
+
+    resp = client.post(
+        "/api/video-studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "task_kind": "reference_to_video",
+            "provider": "wan",
+            "model_id": "wan2.7-r2v",
+            "model": "wan2.7-r2v",
+            "prompt": "视频1看向图片1",
+            "input_assets": {
+                "reference_media": [
+                    {"type": "reference_video", "url": "https://oss.example.com/ref.mp4", "reference_voice": "https://oss.example.com/ref.mp3"},
+                    {"type": "reference_image", "url": "https://oss.example.com/ref.png"},
+                ],
+            },
+            "normalized_params": {
+                "resolution": "1080P",
+                "ratio": "9:16",
+                "duration": 5,
+                "prompt_extend": True,
+                "watermark": False,
+            },
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["canonical_request"]["input_assets"]["reference_media"][0]["reference_voice"] == "https://oss.example.com/ref.mp3"
+    assert data["provider_payload"]["model"] == "wan2.7-r2v"
+    assert data["provider_payload"]["input"]["media"][0]["type"] == "reference_video"
+    assert data["provider_payload"]["input"]["media"][0]["reference_voice"] == "https://oss.example.com/ref.mp3"
+
+
+def test_update_task_round_trips_reference_media(client, auth_header, registered_user, monkeypatch):
+    project_id = _create_project(client, auth_header)
+    _, user = registered_user
+    set_current_user(user["id"])
+
+    async def fake_validate_image(url: str, label: str):
+        return {"width": 1280, "height": 720, "aspect_ratio": 16 / 9, "format": "PNG", "file_size": 1024, "has_alpha": False}
+
+    async def fake_validate_reference_video(url: str, label: str):
+        return {"duration": 5.0, "width": 1280, "height": 720, "aspect_ratio": 16 / 9, "format": "mp4", "file_size": 1024}
+
+    async def fake_validate_reference_voice(url: str, label: str):
+        return {"duration": 3.0, "format": "mp3", "file_size": 1024}
+
+    monkeypatch.setattr("app.services.video_adapters._validate_wan27_image", fake_validate_image)
+    monkeypatch.setattr("app.services.video_adapters._validate_wan27_reference_video", fake_validate_reference_video)
+    monkeypatch.setattr("app.services.video_adapters._validate_wan27_reference_voice", fake_validate_reference_voice)
+
+    task = VideoStudioTask(
+        project_id=project_id,
+        name="参考生视频任务",
+        task_type="reference_to_video",
+        task_kind="reference_to_video",
+        provider="wan",
+        model_id="wan2.7-r2v",
+        model="wan2.7-r2v",
+        prompt="图片1在窗边看书",
+        input_assets={
+            "reference_media": [
+                {"type": "reference_image", "url": "https://oss.example.com/reader.png", "reference_voice": "https://oss.example.com/reader.mp3"},
+            ],
+        },
+        normalized_params={
+            "resolution": "1080P",
+            "ratio": "16:9",
+            "duration": 5,
+            "prompt_extend": True,
+            "watermark": False,
+        },
+        status="pending",
+    )
+    storage_service.save_video_studio_task(task)
+
+    resp = client.put(
+        f"/api/video-studio/{task.id}",
+        headers=auth_header,
+        json={
+            "prompt": "图片1在窗边看书，视频1走近她",
+            "input_assets": {
+                "reference_media": [
+                    {"type": "reference_image", "url": "https://oss.example.com/reader.png", "reference_voice": "https://oss.example.com/reader.mp3"},
+                    {"type": "reference_video", "url": "https://oss.example.com/walker.mp4"},
+                ],
+                "first_frame": ["https://oss.example.com/first.png"],
+            },
+            "normalized_params": {
+                "resolution": "1080P",
+                "ratio": "3:4",
+                "duration": 8,
+                "prompt_extend": True,
+                "watermark": False,
+            },
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["input_assets"]["reference_media"][0]["reference_voice"] == "https://oss.example.com/reader.mp3"
+    assert data["input_assets"]["reference_media"][1]["type"] == "reference_video"
+    assert data["reference_video_urls"] == [
+        "https://oss.example.com/reader.png",
+        "https://oss.example.com/walker.mp4",
+    ]
 
 
 def test_get_task_backfills_provider_payload_snapshot(client, auth_header, registered_user):

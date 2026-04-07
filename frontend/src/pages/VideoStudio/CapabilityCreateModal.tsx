@@ -27,8 +27,10 @@ import {
   VideoCapabilityModel,
   VideoInputRole,
   VideoNarrativeMode,
+  VideoReferenceMediaItem,
   VideoStudioTask,
   VideoStudioCapabilitiesResponse,
+  VideoStudioInputAssets,
   VideoTaskKind,
   VideoTaskProfile,
   VideoLibraryItem,
@@ -67,6 +69,10 @@ interface MultiShotSegment {
   id: string
   prompt: string
   duration: number
+}
+
+interface StructuredReferenceMediaItem extends VideoReferenceMediaItem {
+  id: string
 }
 
 interface CapabilityCreateModalProps {
@@ -136,7 +142,7 @@ function resolveTaskKind(task: VideoStudioTask): VideoTaskKind {
   return LEGACY_TASK_KIND_MAP[rawTaskType] || 'image_to_video'
 }
 
-function buildFallbackInputAssets(task: VideoStudioTask, taskKind: VideoTaskKind) {
+function buildFallbackInputAssets(task: VideoStudioTask, taskKind: VideoTaskKind): VideoStudioInputAssets {
   const referenceImages = task.reference_image_url ? [task.reference_image_url] : []
   return {
     first_frame: task.first_frame_url ? [task.first_frame_url] : [],
@@ -176,6 +182,19 @@ function buildFallbackNormalizedParams(task: VideoStudioTask) {
   }
 }
 
+function buildStructuredReferenceMedia(
+  items: Array<VideoReferenceMediaItem | StructuredReferenceMediaItem>
+): StructuredReferenceMediaItem[] {
+  return items
+    .filter((item) => item?.url)
+    .map((item, index) => ({
+      id: `reference-media-${index}-${item.type}-${item.url}`,
+      type: item.type,
+      url: item.url,
+      reference_voice: item.reference_voice,
+    }))
+}
+
 const CapabilityCreateModal = ({
   open,
   projectId,
@@ -208,6 +227,7 @@ const CapabilityCreateModal = ({
   const [sourceVideoUrl, setSourceVideoUrl] = useState('')
   const [referenceImageUrls, setReferenceImageUrls] = useState<string[]>([])
   const [referenceVideoUrls, setReferenceVideoUrls] = useState<string[]>([])
+  const [referenceMediaItems, setReferenceMediaItems] = useState<StructuredReferenceMediaItem[]>([])
   const [sourceVideoPreviewDataUrl, setSourceVideoPreviewDataUrl] = useState('')
   const [sourceVideoPreviewUrl, setSourceVideoPreviewUrl] = useState('')
   const [sourceVideoMetadata, setSourceVideoMetadata] = useState<SourceVideoMetadata | null>(null)
@@ -243,6 +263,7 @@ const CapabilityCreateModal = ({
     setSourceVideoUrl('')
     setReferenceImageUrls([])
     setReferenceVideoUrls([])
+    setReferenceMediaItems([])
     setSourceVideoPreviewDataUrl('')
     setSourceVideoPreviewUrl('')
     setSourceVideoMetadata(null)
@@ -295,6 +316,14 @@ const CapabilityCreateModal = ({
     setSourceVideoUrl((assets.source_video || [])[0] || '')
     setReferenceImageUrls([...(assets.reference_images || [])])
     setReferenceVideoUrls([...(assets.reference_videos || [])])
+    setReferenceMediaItems(
+      Array.isArray(assets.reference_media) && assets.reference_media.length > 0
+        ? buildStructuredReferenceMedia(assets.reference_media)
+        : buildStructuredReferenceMedia([
+            ...(assets.reference_images || []).map((url: string) => ({ type: 'reference_image' as const, url })),
+            ...(assets.reference_videos || []).map((url: string) => ({ type: 'reference_video' as const, url })),
+          ])
+    )
     setSourceVideoPreviewDataUrl('')
     setSourceVideoPreviewUrl(currentTask.source_video_preview_url || '')
     setSourceVideoMetadata(null)
@@ -350,6 +379,22 @@ const CapabilityCreateModal = ({
     () => (currentModel?.task_profiles?.[taskKind] as VideoTaskProfile | undefined),
     [currentModel, taskKind]
   )
+
+  useEffect(() => {
+    if (taskKind !== 'reference_to_video' || modelId !== 'wan2.7-r2v') return
+    if (referenceMediaItems.length > 0) return
+    if (referenceImageUrls.length === 0 && referenceVideoUrls.length === 0) return
+    setReferenceMediaItems(buildStructuredReferenceMedia([
+      ...referenceImageUrls.map((url) => ({ type: 'reference_image' as const, url })),
+      ...referenceVideoUrls.map((url) => ({ type: 'reference_video' as const, url })),
+    ]))
+  }, [taskKind, modelId, referenceMediaItems, referenceImageUrls, referenceVideoUrls])
+
+  useEffect(() => {
+    if (taskKind !== 'reference_to_video' || modelId !== 'wan2.7-r2v') return
+    setReferenceImageUrls(referenceMediaItems.filter((item) => item.type === 'reference_image').map((item) => item.url))
+    setReferenceVideoUrls(referenceMediaItems.filter((item) => item.type === 'reference_video').map((item) => item.url))
+  }, [taskKind, modelId, referenceMediaItems])
 
   const renderFieldLabel = (label: string, help?: HelpContent | string, required?: boolean) => (
     <Space size={4}>
@@ -549,12 +594,44 @@ const CapabilityCreateModal = ({
 
   const addUnique = (items: string[], value: string) => items.includes(value) ? items : [...items, value]
   const currentProvider = currentModel?.provider || 'wan'
+  const isWan27ReferenceModel = taskKind === 'reference_to_video' && modelId === 'wan2.7-r2v'
   const promptRequired = isPromptRequired(taskKind, currentProvider)
   const narrativeMode = ((dynamicValues.narrative_mode as VideoNarrativeMode | undefined) || dynamicValues.shot_type || task?.narrative_mode || 'single') as VideoNarrativeMode
   const supportsMultiShot = currentProfile?.supported_narrative_modes?.some((mode) => mode !== 'single') || false
 
   const removeReferenceImage = (url: string) => setReferenceImageUrls((prev) => prev.filter((item) => item !== url))
   const removeReferenceVideo = (url: string) => setReferenceVideoUrls((prev) => prev.filter((item) => item !== url))
+  const addReferenceMediaItem = (type: 'reference_image' | 'reference_video', url: string) => {
+    if (!url) return
+    setReferenceMediaItems((prev) => {
+      if (prev.some((item) => item.type === type && item.url === url)) return prev
+      return [
+        ...prev,
+        {
+          id: `reference-media-${Date.now()}-${Math.random()}`,
+          type,
+          url,
+        },
+      ]
+    })
+  }
+  const removeReferenceMediaItem = (id: string) => {
+    setReferenceMediaItems((prev) => prev.filter((item) => item.id !== id))
+  }
+  const moveReferenceMediaItem = (id: string, direction: -1 | 1) => {
+    setReferenceMediaItems((prev) => {
+      const index = prev.findIndex((item) => item.id === id)
+      const targetIndex = index + direction
+      if (index < 0 || targetIndex < 0 || targetIndex >= prev.length) return prev
+      const next = [...prev]
+      const [moved] = next.splice(index, 1)
+      next.splice(targetIndex, 0, moved)
+      return next
+    })
+  }
+  const updateReferenceMediaVoice = (id: string, referenceVoice?: string) => {
+    setReferenceMediaItems((prev) => prev.map((item) => item.id === id ? { ...item, reference_voice: referenceVoice || undefined } : item))
+  }
   const existingMaskImageUrl = (task?.input_assets?.mask_image || [])[0] || task?.mask_image_url || ''
 
   const buildInputAssets = async () => {
@@ -563,8 +640,18 @@ const CapabilityCreateModal = ({
     if (lastFrameUrl) inputAssets.last_frame = [lastFrameUrl]
     if (firstClipUrl) inputAssets.first_clip = [firstClipUrl]
     if (audioUrl) inputAssets.audio = [audioUrl]
-    if (referenceImageUrls.length > 0) inputAssets.reference_images = referenceImageUrls
-    if (referenceVideoUrls.length > 0) inputAssets.reference_videos = referenceVideoUrls
+    if (isWan27ReferenceModel) {
+      if (referenceMediaItems.length > 0) {
+        inputAssets.reference_media = referenceMediaItems.map((item) => ({
+          type: item.type,
+          url: item.url,
+          reference_voice: item.reference_voice,
+        }))
+      }
+    } else {
+      if (referenceImageUrls.length > 0) inputAssets.reference_images = referenceImageUrls
+      if (referenceVideoUrls.length > 0) inputAssets.reference_videos = referenceVideoUrls
+    }
     if (referenceFirstFrameUrl) inputAssets.first_frame = [referenceFirstFrameUrl]
     if (baseVideoUrl) inputAssets.base_video = [baseVideoUrl]
     if (sourceVideoUrl) inputAssets.source_video = [sourceVideoUrl]
@@ -615,8 +702,18 @@ const CapabilityCreateModal = ({
       if (lastFrameUrl) assets.last_frame = [lastFrameUrl]
       if (firstClipUrl) assets.first_clip = [firstClipUrl]
       if (audioUrl) assets.audio = [audioUrl]
-      if (referenceImageUrls.length > 0) assets.reference_images = referenceImageUrls
-      if (referenceVideoUrls.length > 0) assets.reference_videos = referenceVideoUrls
+      if (isWan27ReferenceModel) {
+        if (referenceMediaItems.length > 0) {
+          assets.reference_media = referenceMediaItems.map((item) => ({
+            type: item.type,
+            url: item.url,
+            reference_voice: item.reference_voice,
+          }))
+        }
+      } else {
+        if (referenceImageUrls.length > 0) assets.reference_images = referenceImageUrls
+        if (referenceVideoUrls.length > 0) assets.reference_videos = referenceVideoUrls
+      }
       if (referenceFirstFrameUrl) assets.first_frame = [referenceFirstFrameUrl]
       if (baseVideoUrl) assets.base_video = [baseVideoUrl]
       if (sourceVideoUrl) assets.source_video = [sourceVideoUrl]
@@ -694,6 +791,7 @@ const CapabilityCreateModal = ({
     existingMaskImageUrl,
     referenceImageUrls.join('|'),
     referenceVideoUrls.join('|'),
+    referenceMediaItems.map((item) => `${item.type}:${item.url}:${item.reference_voice || ''}`).join('|'),
     narrativeMode,
     multiShotSegments.map((s) => `${s.prompt}-${s.duration}`).join('|'),
   ])
@@ -711,7 +809,10 @@ const CapabilityCreateModal = ({
     if (taskKind === 'video_extension' && !firstClipUrl) {
       throw new Error('请选择首段视频')
     }
-    if (taskKind === 'reference_to_video' && referenceImageUrls.length === 0 && referenceVideoUrls.length === 0) {
+    if (taskKind === 'reference_to_video' && isWan27ReferenceModel && referenceMediaItems.length === 0) {
+      throw new Error('请至少添加一项参考素材')
+    }
+    if (taskKind === 'reference_to_video' && !isWan27ReferenceModel && referenceImageUrls.length === 0 && referenceVideoUrls.length === 0) {
       throw new Error('请至少添加一项参考素材')
     }
     if (taskKind === 'video_edit_global' && !baseVideoUrl) {
@@ -785,7 +886,7 @@ const CapabilityCreateModal = ({
 
   const renderAssetSelector = (role: VideoInputRole) => {
     if (role === 'first_frame') {
-      const required = !(taskKind === 'reference_to_video' && currentProvider === 'kling')
+      const required = taskKind !== 'reference_to_video'
       return (
         <div style={{ marginBottom: 16 }}>
           <div style={{ marginBottom: 8 }}>
@@ -845,9 +946,10 @@ const CapabilityCreateModal = ({
     }
 
     if (role === 'audio') {
+      const audioLabel = taskKind === 'text_to_video' ? '自定义音频' : '驱动音频'
       return (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ marginBottom: 8 }}>{renderFieldLabel('驱动音频', getAssetHelp('audio'))}</div>
+          <div style={{ marginBottom: 8 }}>{renderFieldLabel(audioLabel, getAssetHelp('audio'))}</div>
           <Select
             style={{ width: '100%' }}
             value={audioUrl || undefined}
@@ -949,6 +1051,109 @@ const CapabilityCreateModal = ({
 
     const maxReferenceImages = currentProfile?.ui_hints?.max_reference_images || (taskKind === 'video_edit_global' ? 4 : 1)
     const maxReferenceVideos = currentProfile?.ui_hints?.max_reference_videos || (taskKind === 'reference_to_video' ? 5 : 0)
+
+    if (isWan27ReferenceModel) {
+      const selectedReferenceUrls = new Set(referenceMediaItems.map((item) => item.url))
+      return (
+        <>
+          {maxReferenceImages > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 8 }}>
+                {renderFieldLabel('参考图片', currentProfile?.ui_hints?.asset_help?.reference_image || getAssetHelp('reference_image'))}
+              </div>
+              <Select
+                style={{ width: '100%' }}
+                value={undefined}
+                onChange={(value) => {
+                  const currentImageCount = referenceMediaItems.filter((item) => item.type === 'reference_image').length
+                  if (!value || currentImageCount >= maxReferenceImages || referenceMediaItems.length >= (currentProfile?.ui_hints?.max_reference_total || 5)) return
+                  addReferenceMediaItem('reference_image', value)
+                }}
+                placeholder="从图库添加参考图"
+                disabled={referenceMediaItems.filter((item) => item.type === 'reference_image').length >= maxReferenceImages || referenceMediaItems.length >= (currentProfile?.ui_hints?.max_reference_total || 5)}
+                optionLabelProp="label"
+              >
+                {galleryImages.filter((item) => !selectedReferenceUrls.has(item.url)).map((image) => (
+                  <Select.Option key={image.id} value={image.url} label={image.name}>
+                    <Space>
+                      <img src={image.url} alt="" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4 }} />
+                      {image.name}
+                    </Space>
+                  </Select.Option>
+                ))}
+              </Select>
+            </div>
+          )}
+          {maxReferenceVideos > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 8 }}>
+                {renderFieldLabel('参考视频', currentProfile?.ui_hints?.asset_help?.reference_video || getAssetHelp('reference_video'))}
+              </div>
+              <Select
+                style={{ width: '100%' }}
+                value={undefined}
+                onChange={(value) => {
+                  const currentVideoCount = referenceMediaItems.filter((item) => item.type === 'reference_video').length
+                  if (!value || currentVideoCount >= maxReferenceVideos || referenceMediaItems.length >= (currentProfile?.ui_hints?.max_reference_total || 5)) return
+                  addReferenceMediaItem('reference_video', value)
+                }}
+                placeholder="从视频库添加参考视频"
+                disabled={referenceMediaItems.filter((item) => item.type === 'reference_video').length >= maxReferenceVideos || referenceMediaItems.length >= (currentProfile?.ui_hints?.max_reference_total || 5)}
+              >
+                {videoLibraryItems.filter((item) => !selectedReferenceUrls.has(item.url)).map((video) => (
+                  <Select.Option key={video.id} value={video.url}>
+                    {video.name}
+                  </Select.Option>
+                ))}
+              </Select>
+            </div>
+          )}
+          {referenceMediaItems.length > 0 && (
+            <div style={{ marginBottom: 16, padding: 12, borderRadius: 8, background: token.colorBgLayout }}>
+              <div style={{ marginBottom: 8, fontWeight: 500 }}>已选参考素材</div>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                {referenceMediaItems.map((item, index) => {
+                  const image = galleryImages.find((entry) => entry.url === item.url)
+                  const video = videoLibraryItems.find((entry) => entry.url === item.url)
+                  const audio = audioItems.find((entry) => entry.url === item.reference_voice)
+                  return (
+                    <div key={item.id} style={{ padding: 12, borderRadius: 8, background: token.colorBgContainer }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <Space size={8} wrap>
+                          <Tag color={item.type === 'reference_image' ? 'green' : 'blue'}>
+                            {item.type === 'reference_image' ? '图片' : '视频'}
+                          </Tag>
+                          <span>{image?.name || video?.name || item.url}</span>
+                          {audio && <Tag color="gold">音色: {audio.name}</Tag>}
+                        </Space>
+                        <Space size={4}>
+                          <Button type="text" disabled={index === 0} onClick={() => moveReferenceMediaItem(item.id, -1)}>上移</Button>
+                          <Button type="text" disabled={index === referenceMediaItems.length - 1} onClick={() => moveReferenceMediaItem(item.id, 1)}>下移</Button>
+                          <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeReferenceMediaItem(item.id)} />
+                        </Space>
+                      </div>
+                      <Select
+                        style={{ width: '100%' }}
+                        value={item.reference_voice}
+                        allowClear
+                        placeholder="从音频库选择该素材的参考音色（可选）"
+                        onChange={(value) => updateReferenceMediaVoice(item.id, value)}
+                      >
+                        {audioItems.map((audioItem) => (
+                          <Select.Option key={audioItem.id} value={audioItem.url}>
+                            {audioItem.name}
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    </div>
+                  )
+                })}
+              </Space>
+            </div>
+          )}
+        </>
+      )
+    }
 
     return (
       <>

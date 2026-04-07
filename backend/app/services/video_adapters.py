@@ -44,8 +44,11 @@ VACE_EDIT_MASK_TYPES = {"tracking", "fixed"}
 VACE_EDIT_EXPAND_MODES = {"hull", "bbox", "original"}
 VACE_EDIT_SIZES = {"1280*720", "720*1280", "960*960", "832*1088", "1088*832"}
 WAN27_I2V_RESOLUTIONS = {"720P", "1080P"}
+WAN27_T2V_RESOLUTIONS = {"720P", "1080P"}
+WAN27_R2V_RESOLUTIONS = {"720P", "1080P"}
 WAN27_VIDEOEDIT_RESOLUTIONS = {"720P", "1080P"}
-WAN27_VIDEOEDIT_RATIOS = {"16:9", "9:16", "1:1", "4:3", "3:4"}
+WAN27_COMMON_RATIOS = {"16:9", "9:16", "1:1", "4:3", "3:4"}
+WAN27_VIDEOEDIT_RATIOS = WAN27_COMMON_RATIOS
 WAN27_VIDEOEDIT_AUDIO_SETTINGS = {"auto", "origin"}
 WAN27_IMAGE_FORMATS = {"JPEG", "JPG", "PNG", "BMP", "WEBP"}
 WAN27_VIDEO_FORMATS = {"mp4", "mov"}
@@ -180,6 +183,21 @@ async def _validate_wan27_video(url: str, label: str) -> Dict[str, Any]:
     return metadata
 
 
+async def _validate_wan27_reference_video(url: str, label: str) -> Dict[str, Any]:
+    metadata = await inspect_remote_video(url)
+    if metadata["format"] not in WAN27_VIDEO_FORMATS:
+        raise ValueError(f"{label}格式仅支持 MP4/MOV")
+    if metadata["file_size"] > 100 * 1024 * 1024:
+        raise ValueError(f"{label}大小不能超过100MB")
+    if not (1.0 <= metadata["duration"] <= 30.0):
+        raise ValueError(f"{label}时长需在1到30秒之间")
+    if not (240 <= metadata["width"] <= 4096 and 240 <= metadata["height"] <= 4096):
+        raise ValueError(f"{label}宽高需在240到4096像素之间")
+    if not (0.125 <= metadata["aspect_ratio"] <= 8.0):
+        raise ValueError(f"{label}宽高比需在1:8到8:1之间")
+    return metadata
+
+
 async def _validate_wan27_audio(url: str, label: str) -> Dict[str, Any]:
     metadata = await inspect_remote_audio(url)
     if metadata["format"] not in WAN27_AUDIO_FORMATS:
@@ -188,6 +206,17 @@ async def _validate_wan27_audio(url: str, label: str) -> Dict[str, Any]:
         raise ValueError(f"{label}大小不能超过15MB")
     if not (2.0 <= metadata["duration"] <= 30.0):
         raise ValueError(f"{label}时长需在2到30秒之间")
+    return metadata
+
+
+async def _validate_wan27_reference_voice(url: str, label: str) -> Dict[str, Any]:
+    metadata = await inspect_remote_audio(url)
+    if metadata["format"] not in WAN27_AUDIO_FORMATS:
+        raise ValueError(f"{label}格式仅支持 WAV/MP3")
+    if metadata["file_size"] > 15 * 1024 * 1024:
+        raise ValueError(f"{label}大小不能超过15MB")
+    if not (1.0 <= metadata["duration"] <= 10.0):
+        raise ValueError(f"{label}时长需在1到10秒之间")
     return metadata
 
 
@@ -333,6 +362,14 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
         return request.model_id == "wan2.7-i2v"
 
     @staticmethod
+    def _is_wan27_t2v(request: NormalizedVideoTaskRequest) -> bool:
+        return request.model_id == "wan2.7-t2v"
+
+    @staticmethod
+    def _is_wan27_r2v(request: NormalizedVideoTaskRequest) -> bool:
+        return request.model_id == "wan2.7-r2v"
+
+    @staticmethod
     def _is_wan27_videoedit(request: NormalizedVideoTaskRequest) -> bool:
         return request.model_id == "wan2.7-videoedit"
 
@@ -370,7 +407,59 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
         elif request.task_kind == "text_to_video":
             if not request.prompt:
                 raise ValueError("文生视频需要输入提示词")
+            if self._is_wan27_t2v(request):
+                if params.get("resolution") not in WAN27_T2V_RESOLUTIONS:
+                    raise ValueError("wan2.7 文生视频分辨率仅支持 720P / 1080P")
+                if params.get("ratio") is not None and params.get("ratio") not in WAN27_COMMON_RATIOS:
+                    raise ValueError("wan2.7 文生视频画面比例仅支持 16:9 / 9:16 / 1:1 / 4:3 / 3:4")
+                if not (2 <= duration <= 15):
+                    raise ValueError("wan2.7 文生视频时长需在2到15秒之间")
+                audio_asset = (assets.get("audio") or [None])[0]
+                if audio_asset:
+                    await _validate_wan27_audio(audio_asset, "自定义音频")
+                if len(request.prompt) > 5000:
+                    raise ValueError("wan2.7 文生视频提示词长度不能超过5000字符")
+                if request.negative_prompt and len(request.negative_prompt) > 500:
+                    raise ValueError("wan2.7 文生视频负面提示词长度不能超过500字符")
+                return
         elif request.task_kind == "reference_to_video":
+            reference_media = list(assets.get("reference_media") or [])
+            if self._is_wan27_r2v(request):
+                first_frames = list(assets.get("first_frame") or [])
+                if len(first_frames) > 1:
+                    raise ValueError("wan2.7 参考生视频最多支持1张首帧图")
+                if first_frames:
+                    await _validate_wan27_image(first_frames[0], "首帧图")
+                if not reference_media:
+                    raise ValueError("wan2.7 参考生视频需要至少一项参考素材")
+                reference_images = [item for item in reference_media if item.get("type") == "reference_image"]
+                reference_videos = [item for item in reference_media if item.get("type") == "reference_video"]
+                if len(reference_images) + len(reference_videos) > 5:
+                    raise ValueError("wan2.7 参考生视频参考图和参考视频总数不能超过5个")
+                for index, item in enumerate(reference_media, start=1):
+                    item_type = item.get("type")
+                    item_url = item.get("url")
+                    if item_type not in {"reference_image", "reference_video"}:
+                        raise ValueError("wan2.7 参考生视频素材类型仅支持 reference_image / reference_video")
+                    if not item_url:
+                        raise ValueError("wan2.7 参考生视频素材缺少 url")
+                    if item_type == "reference_image":
+                        await _validate_wan27_image(item_url, f"参考图{index}")
+                    else:
+                        await _validate_wan27_reference_video(item_url, f"参考视频{index}")
+                    if item.get("reference_voice"):
+                        await _validate_wan27_reference_voice(item["reference_voice"], f"参考音频{index}")
+                if params.get("resolution") not in WAN27_R2V_RESOLUTIONS:
+                    raise ValueError("wan2.7 参考生视频分辨率仅支持 720P / 1080P")
+                if not first_frames and params.get("ratio") is not None and params.get("ratio") not in WAN27_COMMON_RATIOS:
+                    raise ValueError("wan2.7 参考生视频画面比例仅支持 16:9 / 9:16 / 1:1 / 4:3 / 3:4")
+                if not (2 <= duration <= 10):
+                    raise ValueError("wan2.7 参考生视频时长需在2到10秒之间")
+                if request.prompt and len(request.prompt) > 5000:
+                    raise ValueError("wan2.7 参考生视频提示词长度不能超过5000字符")
+                if request.negative_prompt and len(request.negative_prompt) > 500:
+                    raise ValueError("wan2.7 参考生视频负面提示词长度不能超过500字符")
+                return
             if not assets.get("reference_images") and not assets.get("reference_videos"):
                 raise ValueError("参考生视频需要至少一项参考素材")
         elif request.task_kind == "keyframe_to_video":
@@ -513,7 +602,12 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
         if seed is not None:
             params["seed"] = int(seed) + seed_offset
 
-        if self._is_wan27_i2v(request) or self._is_wan27_videoedit(request):
+        if (
+            self._is_wan27_i2v(request)
+            or self._is_wan27_t2v(request)
+            or self._is_wan27_r2v(request)
+            or self._is_wan27_videoedit(request)
+        ):
             service = self._wan27_service(request)
             return await service.create_task(provider_payload)
 
@@ -687,7 +781,12 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
 
     async def fetch(self, request: NormalizedVideoTaskRequest, task_id: str) -> VideoStatusResult:
         try:
-            if self._is_wan27_i2v(request) or self._is_wan27_videoedit(request):
+            if (
+                self._is_wan27_i2v(request)
+                or self._is_wan27_t2v(request)
+                or self._is_wan27_r2v(request)
+                or self._is_wan27_videoedit(request)
+            ):
                 service = self._wan27_service(request)
                 return await service.get_task_status(task_id, request.project_id)
             if request.task_kind == "reference_to_video":
@@ -828,6 +927,36 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
             for key in ("resolution", "ratio", "duration", "audio_setting", "prompt_extend", "watermark", "seed"):
                 if params.get(key) is not None:
                     base_payload["parameters"][key] = params.get(key)
+            return base_payload
+
+        if self._is_wan27_t2v(request):
+            audio_url = (assets.get("audio") or [None])[0]
+            if audio_url:
+                base_payload["input"]["audio_url"] = audio_url
+            for key in ("resolution", "ratio", "duration", "prompt_extend", "watermark", "seed"):
+                if params.get(key) is not None:
+                    base_payload["parameters"][key] = params.get(key)
+            return base_payload
+
+        if self._is_wan27_r2v(request):
+            media: List[Dict[str, Any]] = []
+            first_frame = (assets.get("first_frame") or [None])[0]
+            if first_frame:
+                media.append({"type": "first_frame", "url": first_frame})
+            for item in assets.get("reference_media") or []:
+                media_item = {
+                    "type": item["type"],
+                    "url": item["url"],
+                }
+                if item.get("reference_voice"):
+                    media_item["reference_voice"] = item["reference_voice"]
+                media.append(media_item)
+            base_payload["input"]["media"] = media
+            for key in ("resolution", "duration", "prompt_extend", "watermark", "seed"):
+                if params.get(key) is not None:
+                    base_payload["parameters"][key] = params.get(key)
+            if not first_frame and params.get("ratio") is not None:
+                base_payload["parameters"]["ratio"] = params.get("ratio")
             return base_payload
 
         if request.task_kind == "image_to_video":
