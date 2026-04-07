@@ -69,16 +69,7 @@ const MainLayout = () => {
 
   const sectionTitleStyle = { color: token.colorTextTertiary, fontSize: 12 }
 
-  const workflowItems: MenuProps['items'] = projectId ? [
-    { key: 'divider-workflow', type: 'divider' },
-    { key: 'workflow-title', label: <span style={sectionTitleStyle}>工作流程</span>, disabled: true },
-    { key: `/project/${projectId}/script`, icon: <FileTextOutlined />, label: '分镜脚本' },
-    { key: `/project/${projectId}/styles`, icon: <FormatPainterOutlined />, label: '风格' },
-    { key: `/project/${projectId}/characters`, icon: <UserOutlined />, label: '角色' },
-    { key: `/project/${projectId}/scenes`, icon: <PictureOutlined />, label: '场景' },
-    { key: `/project/${projectId}/props`, icon: <AppstoreOutlined />, label: '道具' },
-    { key: `/project/${projectId}/frames`, icon: <PlaySquareOutlined />, label: '分镜首帧' },
-    { key: `/project/${projectId}/videos`, icon: <VideoCameraOutlined />, label: '视频生成' },
+  const projectSectionItems: MenuProps['items'] = projectId ? [
     { key: 'divider-tools', type: 'divider' },
     { key: 'tools-title', label: <span style={sectionTitleStyle}>素材工具</span>, disabled: true },
     { key: `/project/${projectId}/gallery`, icon: <DatabaseOutlined />, label: '图库' },
@@ -88,11 +79,20 @@ const MainLayout = () => {
     { key: `/project/${projectId}/video-library`, icon: <PlayCircleOutlined />, label: '视频库' },
     { key: `/project/${projectId}/video-studio`, icon: <VideoCameraOutlined />, label: '视频工作室' },
     { key: `/project/${projectId}/text-library`, icon: <FileTextOutlined />, label: '文本库' },
+    { key: 'divider-workflow', type: 'divider' },
+    { key: 'workflow-title', label: <span style={sectionTitleStyle}>工作流程</span>, disabled: true },
+    { key: `/project/${projectId}/script`, icon: <FileTextOutlined />, label: '分镜脚本' },
+    { key: `/project/${projectId}/styles`, icon: <FormatPainterOutlined />, label: '风格' },
+    { key: `/project/${projectId}/characters`, icon: <UserOutlined />, label: '角色' },
+    { key: `/project/${projectId}/scenes`, icon: <PictureOutlined />, label: '场景' },
+    { key: `/project/${projectId}/props`, icon: <AppstoreOutlined />, label: '道具' },
+    { key: `/project/${projectId}/frames`, icon: <PlaySquareOutlined />, label: '分镜首帧' },
+    { key: `/project/${projectId}/videos`, icon: <VideoCameraOutlined />, label: '视频生成' },
   ] : []
 
   const menuItems: MenuProps['items'] = [
     { key: '/projects', icon: <FolderOutlined />, label: '项目' },
-    ...workflowItems,
+    ...projectSectionItems,
     { key: 'divider-settings', type: 'divider' },
     { key: '/settings', icon: <SettingOutlined />, label: '设置' },
   ]
