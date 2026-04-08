@@ -17,6 +17,8 @@ import VideoLibraryPage from './pages/VideoLibrary/VideoLibraryPage'
 import TextLibraryPage from './pages/TextLibrary/TextLibraryPage'
 import VideoStudioPage from './pages/VideoStudio/VideoStudioPage'
 import AudioStudioPage from './pages/AudioStudio/AudioStudioPage'
+import ImageBenchmarkPage from './pages/ImageBenchmark/ImageBenchmarkPage'
+import ImageBenchmarkDatasetsPage from './pages/ImageBenchmarkDatasets/ImageBenchmarkDatasetsPage'
 // 登录页
 import LoginPage from './pages/Login/LoginPage'
 import { useAuthStore } from './stores/authStore'
@@ -66,6 +68,8 @@ function App() {
             <Route path="text-library" element={<TextLibraryPage />} />
             <Route path="video-studio" element={<VideoStudioPage />} />
             <Route path="audio-studio" element={<AudioStudioPage />} />
+            <Route path="image-benchmark-datasets" element={<ImageBenchmarkDatasetsPage />} />
+            <Route path="image-benchmark" element={<ImageBenchmarkPage />} />
           </Route>
         </Route>
       </Routes>

@@ -1,5 +1,10 @@
 import axios from 'axios'
 
+export interface ApiError extends Error {
+  data?: any
+  status?: number
+}
+
 // 创建 axios 实例
 const api = axios.create({
   baseURL: '/api',
@@ -46,7 +51,12 @@ api.interceptors.response.use(
       }
     }
     const message = error.response?.data?.detail || error.message || '请求失败'
-    return Promise.reject(new Error(message))
+    const enhancedError = new Error(
+      typeof message === 'string' ? message : '请求失败'
+    ) as ApiError
+    enhancedError.data = error.response?.data
+    enhancedError.status = error.response?.status
+    return Promise.reject(enhancedError)
   }
 )
 
@@ -1390,6 +1400,216 @@ export const studioApi = {
       }>
     }> 
   }>('/studio/models/available'),
+}
+
+// ============ 图片测评 API ============
+
+export type ImageBenchmarkTaskKind = 'text_to_image' | 'image_edit'
+export type ImageBenchmarkSuiteStatus = 'draft' | 'running' | 'completed' | 'failed'
+export type ImageBenchmarkRunStatus = 'pending' | 'running' | 'completed' | 'failed'
+export type ImageBenchmarkCellStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'unsupported'
+
+export interface ImageBenchmarkDatasetImage {
+  url: string
+  name: string
+  mime_type?: string | null
+  width?: number | null
+  height?: number | null
+  source_label?: string | null
+}
+
+export interface ImageBenchmarkImageSlot {
+  position: number
+  image: ImageBenchmarkDatasetImage
+}
+
+export interface ImageBenchmarkDatasetItem {
+  id: string
+  name: string
+  prompt: string
+  negative_prompt: string
+  sort_order: number
+  tags: string[]
+  image_slots: ImageBenchmarkImageSlot[]
+}
+
+export interface ImageBenchmarkDataset {
+  id: string
+  project_id: string
+  name: string
+  description: string
+  task_kind: ImageBenchmarkTaskKind
+  schema_version: string
+  max_image_slot_index: number
+  items: ImageBenchmarkDatasetItem[]
+  created_at: string
+  updated_at: string
+}
+
+export interface ImageBenchmarkDatasetIssue {
+  item_id: string
+  item_name: string
+  missing_positions: number[]
+  message?: string
+}
+
+export interface ImageBenchmarkOutputImage {
+  url?: string | null
+  prompt_used?: string | null
+}
+
+export interface ImageBenchmarkCellResult {
+  id: string
+  case_id: string
+  case_name: string
+  model_id: string
+  model_name: string
+  status: ImageBenchmarkCellStatus
+  output_images: ImageBenchmarkOutputImage[]
+  error_message?: string | null
+  request_ids: string[]
+  task_ids: string[]
+  validation_warnings: string[]
+  effective_params: Record<string, any>
+  canonical_request?: Record<string, any> | null
+  provider_payload?: Record<string, any> | null
+  provider_result_meta?: Record<string, any>
+  created_at: string
+  updated_at: string
+}
+
+export interface ImageBenchmarkSuite {
+  id: string
+  project_id: string
+  name: string
+  description: string
+  dataset_id: string
+  task_kind: ImageBenchmarkTaskKind
+  selected_models: string[]
+  baseline_params: Record<string, any>
+  model_overrides: Record<string, Record<string, any>>
+  status: ImageBenchmarkSuiteStatus
+  latest_run_id?: string | null
+  latest_run_snapshot?: Record<string, any> | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ImageBenchmarkRun {
+  id: string
+  suite_id: string
+  project_id: string
+  dataset_id: string
+  task_kind: ImageBenchmarkTaskKind
+  status: ImageBenchmarkRunStatus
+  dataset_snapshot: Record<string, any>
+  model_snapshots: Array<Record<string, any>>
+  baseline_params: Record<string, any>
+  model_overrides: Record<string, Record<string, any>>
+  cell_results: ImageBenchmarkCellResult[]
+  stats: Record<string, any>
+  created_at: string
+  updated_at: string
+  started_at?: string | null
+  finished_at?: string | null
+}
+
+export interface ImageBenchmarkCapabilitiesResponse {
+  task_kinds: Array<{ id: ImageBenchmarkTaskKind; label: string }>
+  models: Record<string, {
+    id: string
+    name: string
+    description?: string
+    model_type?: string
+    capabilities?: ModelCapabilities
+    parameters?: ModelParameterDef[]
+    configurable_parameters?: ModelParameterDef[]
+    common_sizes?: SizeOption[]
+    supported_task_kinds?: ImageBenchmarkTaskKind[]
+    size_ui_mode?: string
+  }>
+}
+
+export const imageBenchmarkApi = {
+  getCapabilities: () => api.get<any, ImageBenchmarkCapabilitiesResponse>('/image-benchmark/capabilities'),
+  listDatasets: (projectId: string) => api.get<any, { datasets: ImageBenchmarkDataset[] }>('/image-benchmark/datasets', { params: { project_id: projectId } }),
+  getDataset: (id: string) => api.get<any, { dataset: ImageBenchmarkDataset; warnings: ImageBenchmarkDatasetIssue[]; blocking_issues: ImageBenchmarkDatasetIssue[] }>(`/image-benchmark/datasets/${id}`),
+  createDataset: (data: {
+    project_id: string
+    name: string
+    description?: string
+    task_kind: ImageBenchmarkTaskKind
+    max_image_slot_index?: number
+    items?: Array<{
+      id?: string
+      name: string
+      prompt: string
+      negative_prompt: string
+      tags: string[]
+      image_slots: ImageBenchmarkImageSlot[]
+    }>
+  }) => api.post<any, { dataset: ImageBenchmarkDataset; warnings: ImageBenchmarkDatasetIssue[]; blocking_issues: ImageBenchmarkDatasetIssue[] }>('/image-benchmark/datasets', data),
+  updateDataset: (id: string, data: {
+    name?: string
+    description?: string
+    max_image_slot_index?: number
+    items?: Array<{
+      id?: string
+      name: string
+      prompt: string
+      negative_prompt: string
+      tags: string[]
+      image_slots: ImageBenchmarkImageSlot[]
+    }>
+  }) => api.put<any, { dataset: ImageBenchmarkDataset; warnings: ImageBenchmarkDatasetIssue[]; blocking_issues: ImageBenchmarkDatasetIssue[] }>(`/image-benchmark/datasets/${id}`, data),
+  validateDataset: (id: string) => api.post<any, { warnings: ImageBenchmarkDatasetIssue[]; blocking_issues: ImageBenchmarkDatasetIssue[] }>(`/image-benchmark/datasets/${id}/validate`),
+  deleteDataset: (id: string) => api.delete(`/image-benchmark/datasets/${id}`),
+  importDataset: (data: { project_id: string; data: Record<string, any>; name?: string; description?: string }) =>
+    api.post<any, { dataset: ImageBenchmarkDataset; warnings: ImageBenchmarkDatasetIssue[]; blocking_issues: ImageBenchmarkDatasetIssue[] }>('/image-benchmark/datasets/import', data),
+  exportDataset: (id: string) => api.get<any, Record<string, any>>(`/image-benchmark/datasets/${id}/export`),
+  listSuites: (projectId: string) => api.get<any, { suites: ImageBenchmarkSuite[] }>('/image-benchmark/suites', { params: { project_id: projectId } }),
+  getSuite: (id: string) => api.get<any, { suite: ImageBenchmarkSuite }>(`/image-benchmark/suites/${id}`),
+  createSuite: (data: {
+    project_id: string
+    name: string
+    description?: string
+    dataset_id: string
+    selected_models?: string[]
+    baseline_params?: Record<string, any>
+    model_overrides?: Record<string, Record<string, any>>
+  }) => api.post<any, { suite: ImageBenchmarkSuite }>('/image-benchmark/suites', data),
+  updateSuite: (id: string, data: {
+    name?: string
+    description?: string
+    dataset_id?: string
+    selected_models?: string[]
+    baseline_params?: Record<string, any>
+    model_overrides?: Record<string, Record<string, any>>
+  }) => api.put<any, { suite: ImageBenchmarkSuite }>(`/image-benchmark/suites/${id}`, data),
+  deleteSuite: (id: string) => api.delete(`/image-benchmark/suites/${id}`),
+  runSuite: (id: string) => api.post<any, { run: ImageBenchmarkRun; suite: ImageBenchmarkSuite }>(`/image-benchmark/suites/${id}/run`),
+  getRun: (id: string) => api.get<any, { run: ImageBenchmarkRun }>(`/image-benchmark/runs/${id}`),
+  exportRunMarkdown: (id: string) => api.post<any, { filename: string; content: string }>(`/image-benchmark/runs/${id}/export-md`),
+  previewCell: (data: {
+    project_id: string
+    task_kind: ImageBenchmarkTaskKind
+    model_id: string
+    case_data: {
+      id?: string
+      name: string
+      prompt: string
+      negative_prompt: string
+      tags?: string[]
+      image_slots: ImageBenchmarkImageSlot[]
+    }
+    baseline_params?: Record<string, any>
+    override_params?: Record<string, any>
+  }) => api.post<any, {
+    effective_params: Record<string, any>
+    canonical_request: Record<string, any>
+    provider_payload: Record<string, any>
+    validation_warnings: string[]
+  }>('/image-benchmark/preview-cell', data),
 }
 
 // ============ 音频库 API ============

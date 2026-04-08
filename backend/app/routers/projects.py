@@ -132,6 +132,18 @@ async def delete_project(project_id: str):
     for profile in storage_service.get_voice_profiles(project_id):
         storage_service.delete_voice_profile(profile.id)
 
+    # 删除图片测评运行记录
+    for run in storage_service.get_image_benchmark_runs_by_project(project_id):
+        storage_service.delete_image_benchmark_run(run.id)
+
+    # 删除图片测评配置
+    for suite in storage_service.get_image_benchmark_suites(project_id):
+        storage_service.delete_image_benchmark_suite(suite.id)
+
+    # 删除图片测评数据集
+    for dataset in storage_service.get_image_benchmark_datasets(project_id):
+        storage_service.delete_image_benchmark_dataset(dataset.id)
+
     # 最后删除项目
     storage_service.delete_project(project_id)
 
