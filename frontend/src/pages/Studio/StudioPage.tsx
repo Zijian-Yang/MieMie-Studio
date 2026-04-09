@@ -1246,9 +1246,11 @@ const StudioPage = () => {
           watermark: false,
         })
       } else if (model === 'qwen-image-2.0-pro' || model === 'qwen-image-2.0') {
+        const currentTaskKind = form.getFieldValue('task_kind')
+        const hasReferences = (form.getFieldValue('references') || []).length > 0
         form.setFieldsValue({
           n: 1,
-          size: '1024*1024',
+          size: currentTaskKind === 'image_edit' || hasReferences ? '' : '1024*1024',
           size_mode: undefined,
           size_preset: undefined,
           custom_width: undefined,
@@ -2943,6 +2945,23 @@ const StudioPage = () => {
                   const m = watchedModel || selectedTask?.model
                   if (m !== 'qwen-image-2.0-pro' && m !== 'qwen-image-2.0') return null
                   const modelInfo = availableModels[m]
+                  const qwen2HasInputImages = ((form.getFieldValue('references') || []).length > 0)
+                  const qwen2SizeOptions = [
+                    {
+                      value: '',
+                      label: qwen2HasInputImages
+                        ? '不设置尺寸（跟随最后一张输入图分辨率）'
+                        : '不设置尺寸（使用模型默认）',
+                    },
+                    ...(
+                      modelInfo?.common_sizes?.map((size: any) => ({
+                        value: size.value || (typeof size === 'string' ? size : `${size.width}*${size.height}`),
+                        label: size.label || `${size.width}×${size.height}`,
+                      })) || [
+                        { value: '1024*1024', label: '1024×1024 正方形 1:1' },
+                      ]
+                    ),
+                  ]
                   return (
                     <div style={{ marginBottom: 16 }}>
                       <div style={{ marginBottom: 8, color: token.colorTextSecondary, fontSize: 12 }}>
@@ -2955,16 +2974,9 @@ const StudioPage = () => {
                           style={{ marginBottom: 0 }}
                         >
                           <Select
-                            placeholder="1024×1024（默认）"
+                            placeholder={qwen2HasInputImages ? '不设置尺寸（跟随最后一张输入图分辨率）' : '1024×1024（默认）'}
                             allowClear
-                            options={
-                              modelInfo?.common_sizes?.map((size: any) => ({
-                                value: size.value || (typeof size === 'string' ? size : `${size.width}*${size.height}`),
-                                label: size.label || `${size.width}×${size.height}`
-                              })) || [
-                                { value: '1024*1024', label: '1024×1024 正方形 1:1' },
-                              ]
-                            }
+                            options={qwen2SizeOptions}
                           />
                         </Form.Item>
                         <Form.Item 

@@ -2,6 +2,7 @@ import pytest
 
 from app.models.image_benchmark import ImageBenchmarkCellResult
 from app.routers import image_benchmark as image_benchmark_router
+from app.services.storage import set_current_user, storage_service
 
 
 def _create_project(client, auth_header):
@@ -210,6 +211,51 @@ def test_preview_cell_merges_baseline_and_override(client, auth_header):
 
 
 @pytest.mark.asyncio
+async def test_execute_benchmark_cell_retries_on_rate_limit(monkeypatch):
+    attempts = {"count": 0}
+    sleep_calls = []
+
+    async def fake_generate_with_qwen_image_2(*args, **kwargs):
+        attempts["count"] += 1
+        if attempts["count"] <= 3:
+            raise Exception("API 调用失败 (Throttling.RateQuota): Requests rate limit exceeded")
+        from app.models.studio import StudioTaskImage
+        return [StudioTaskImage(group_index=0, url="https://oss.example.com/output.png", prompt_used="prompt")], ["req-2"]
+
+    async def fake_sleep(seconds: float):
+        sleep_calls.append(seconds)
+        return None
+
+    monkeypatch.setattr("app.services.image_benchmark_runtime.asyncio.sleep", fake_sleep)
+    monkeypatch.setattr("app.routers.studio.generate_with_qwen_image_2", fake_generate_with_qwen_image_2)
+
+    from app.services.image_benchmark_runtime import execute_benchmark_cell
+
+    result = await execute_benchmark_cell(
+        project_id="p1",
+        task_kind="image_edit",
+        model_meta={"id": "qwen-image-2.0-pro", "name": "千问图像 2.0 Pro"},
+        case_data={
+            "id": "case-1",
+            "name": "样例1",
+            "prompt": "把图1做成海报",
+            "negative_prompt": "",
+            "image_slots": [
+                {"position": 1, "image": {"url": "https://oss.example.com/ref.png", "name": "图1"}},
+            ],
+        },
+        effective_params={"n": 1, "size": "", "prompt_extend": True, "watermark": False},
+    )
+
+    assert attempts["count"] == 4
+    assert result.status == "completed"
+    assert result.auto_retry_count == 3
+    assert result.attempt_count == 4
+    assert sleep_calls == [2, 4, 8]
+    assert result.output_images[0].url == "https://oss.example.com/output.png"
+
+
+@pytest.mark.asyncio
 async def test_run_snapshot_is_frozen_and_markdown_export(client, auth_header, registered_user, monkeypatch):
     project_id = _create_project(client, auth_header)
     _, user = registered_user
@@ -297,3 +343,104 @@ async def test_run_snapshot_is_frozen_and_markdown_export(client, auth_header, r
     markdown = export_resp.json()["content"]
     assert "# 图片测评报告" in markdown
     assert "https://oss.example.com/output.png" in markdown
+
+
+@pytest.mark.asyncio
+async def test_retry_failed_cells_creates_new_run_and_only_retries_failed(client, auth_header, registered_user, monkeypatch):
+    project_id = _create_project(client, auth_header)
+    _, user = registered_user
+
+    dataset_resp = client.post(
+        "/api/image-benchmark/datasets",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "重试数据集",
+            "task_kind": "image_edit",
+            "items": [
+                {
+                    "name": "样例1",
+                    "prompt": "prompt-1",
+                    "image_slots": [{"position": 1, "image": {"url": "https://oss.example.com/a.png", "name": "图1"}}],
+                },
+                {
+                    "name": "样例2",
+                    "prompt": "prompt-2",
+                    "image_slots": [{"position": 1, "image": {"url": "https://oss.example.com/b.png", "name": "图1"}}],
+                },
+            ],
+        },
+    )
+    dataset = dataset_resp.json()["dataset"]
+
+    suite_resp = client.post(
+        "/api/image-benchmark/suites",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "重试测评",
+            "dataset_id": dataset["id"],
+            "selected_models": ["qwen-image-2.0-pro"],
+            "baseline_params": {"n": 1},
+        },
+    )
+    suite = suite_resp.json()["suite"]
+
+    set_current_user(user["id"])
+    source_run = image_benchmark_router.ImageBenchmarkRun(
+        suite_id=suite["id"],
+        project_id=project_id,
+        dataset_id=dataset["id"],
+        task_kind="image_edit",
+        status="completed",
+        dataset_snapshot=dataset,
+        model_snapshots=[{"id": "qwen-image-2.0-pro", "name": "千问图像 2.0 Pro"}],
+        baseline_params={"n": 1},
+        model_overrides={},
+        cell_results=[
+            ImageBenchmarkCellResult(
+                case_id=dataset["items"][0]["id"],
+                case_name="样例1",
+                model_id="qwen-image-2.0-pro",
+                model_name="千问图像 2.0 Pro",
+                status="completed",
+                output_images=[{"url": "https://oss.example.com/success.png"}],
+            ),
+            ImageBenchmarkCellResult(
+                case_id=dataset["items"][1]["id"],
+                case_name="样例2",
+                model_id="qwen-image-2.0-pro",
+                model_name="千问图像 2.0 Pro",
+                status="failed",
+                error_message="API 调用失败 (Throttling.RateQuota): Requests rate limit exceeded",
+            ),
+        ],
+    )
+    storage_service.save_image_benchmark_run(source_run)
+
+    _patch_async_create_task(monkeypatch)
+    retry_resp = client.post(f"/api/image-benchmark/runs/{source_run.id}/retry-failures", headers=auth_header)
+    assert retry_resp.status_code == 200
+    retry_run = retry_resp.json()["run"]
+    assert retry_run["retry_source_run_id"] == source_run.id
+    assert len(retry_run["retry_targets"]) == 1
+    assert retry_run["retry_targets"][0]["case_id"] == dataset["items"][1]["id"]
+
+    async def fake_execute_benchmark_cell(**kwargs):
+        return ImageBenchmarkCellResult(
+            case_id=kwargs["case_data"]["id"],
+            case_name=kwargs["case_data"]["name"],
+            model_id=kwargs["model_meta"]["id"],
+            model_name=kwargs["model_meta"]["name"],
+            status="completed",
+            output_images=[{"url": f"https://oss.example.com/{kwargs['case_data']['id']}.png"}],
+        )
+
+    monkeypatch.setattr(image_benchmark_router, "execute_benchmark_cell", fake_execute_benchmark_cell)
+    await image_benchmark_router._background_run_suite(retry_run["id"], suite["id"], user["id"], None)
+
+    saved_run = client.get(f"/api/image-benchmark/runs/{retry_run['id']}", headers=auth_header).json()["run"]
+    assert len(saved_run["cell_results"]) == 2
+    retried_cell = next(cell for cell in saved_run["cell_results"] if cell["case_id"] == dataset["items"][1]["id"])
+    assert retried_cell["status"] == "completed"
+    assert saved_run["stats"]["retried_failure_count"] == 1

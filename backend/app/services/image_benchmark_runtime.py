@@ -11,6 +11,7 @@ import json
 from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import HTTPException
+import asyncio
 
 from app.config import get_config, get_provider_api_key
 from app.models.image_benchmark import (
@@ -24,6 +25,23 @@ from app.routers import studio as studio_router
 
 BENCHMARK_TASK_KINDS = {"text_to_image", "image_edit"}
 CONFIGURABLE_PARAM_EXCLUDES = {"prompt", "images"}
+AUTO_RETRY_INITIAL_DELAY_SECONDS = 2
+AUTO_RETRY_MAX_RETRIES = 6
+AUTO_RETRY_MAX_DELAY_SECONDS = 64
+RETRYABLE_RATE_LIMIT_PATTERNS = [
+    "throttling.ratequota",
+    "requests rate limit exceeded",
+    "rate quota",
+    "too many requests",
+    "429",
+]
+
+
+def _build_auto_retry_delays() -> List[int]:
+    return [
+        min(AUTO_RETRY_INITIAL_DELAY_SECONDS * (2 ** retry_index), AUTO_RETRY_MAX_DELAY_SECONDS)
+        for retry_index in range(AUTO_RETRY_MAX_RETRIES)
+    ]
 
 
 async def get_image_benchmark_capabilities() -> Dict[str, Any]:
@@ -287,7 +305,14 @@ async def preview_benchmark_cell(
     return asdict(canonical), provider_payload, warnings
 
 
-async def execute_benchmark_cell(
+def _is_retryable_rate_limit_error(error_message: Optional[str]) -> bool:
+    if not error_message:
+        return False
+    lowered = error_message.lower()
+    return any(pattern in lowered for pattern in RETRYABLE_RATE_LIMIT_PATTERNS)
+
+
+async def _execute_benchmark_cell_once(
     *,
     project_id: str,
     task_kind: str,
@@ -295,7 +320,7 @@ async def execute_benchmark_cell(
     case_data: Dict[str, Any],
     effective_params: Dict[str, Any],
 ) -> ImageBenchmarkCellResult:
-    """执行单个测评单元"""
+    """执行单个测评单元（单次尝试）"""
 
     model_id = model_meta["id"]
     model_name = model_meta.get("name") or model_id
@@ -487,4 +512,56 @@ async def execute_benchmark_cell(
         canonical_request=canonical_request,
         provider_payload=provider_payload,
         provider_result_meta=provider_result_meta,
+    )
+
+
+async def execute_benchmark_cell(
+    *,
+    project_id: str,
+    task_kind: str,
+    model_meta: Dict[str, Any],
+    case_data: Dict[str, Any],
+    effective_params: Dict[str, Any],
+) -> ImageBenchmarkCellResult:
+    """执行单个测评单元，遇到限流错误时自动重试"""
+
+    last_result: Optional[ImageBenchmarkCellResult] = None
+    retry_delays = _build_auto_retry_delays()
+    total_attempts = len(retry_delays) + 1
+    for attempt_index in range(total_attempts):
+        result = await _execute_benchmark_cell_once(
+            project_id=project_id,
+            task_kind=task_kind,
+            model_meta=model_meta,
+            case_data=case_data,
+            effective_params=effective_params,
+        )
+        result.attempt_count = attempt_index + 1
+        result.auto_retry_count = attempt_index
+        result.provider_result_meta = {
+            **(result.provider_result_meta or {}),
+            "auto_retry": {
+                "attempt_count": attempt_index + 1,
+                "retry_count": attempt_index,
+                "rate_limit_retried": attempt_index > 0,
+                "retry_delays_seconds": retry_delays,
+            },
+        }
+
+        if result.status != "failed" or not _is_retryable_rate_limit_error(result.error_message):
+            return result
+
+        last_result = result
+        if attempt_index >= len(retry_delays):
+            break
+        await asyncio.sleep(retry_delays[attempt_index])
+
+    return last_result or ImageBenchmarkCellResult(
+        case_id=case_data.get("id") or "",
+        case_name=case_data.get("name") or "",
+        model_id=model_meta["id"],
+        model_name=model_meta.get("name") or model_meta["id"],
+        status="failed",
+        error_message="未知错误",
+        effective_params=effective_params,
     )

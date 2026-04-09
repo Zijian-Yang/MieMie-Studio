@@ -2027,7 +2027,7 @@ async def generate_with_qwen_image_2(
                 images=images_input,
                 negative_prompt=task.negative_prompt or "",
                 n=n,
-                size=size or "1024*1024",
+                size=size or None,
                 prompt_extend=prompt_extend,
                 watermark=watermark,
                 seed=seed,

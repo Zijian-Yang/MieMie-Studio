@@ -117,6 +117,8 @@ class ImageBenchmarkCellResult(BaseModel):
     canonical_request: Optional[Dict[str, Any]] = None
     provider_payload: Optional[Dict[str, Any]] = None
     provider_result_meta: Dict[str, Any] = {}
+    attempt_count: int = 1
+    auto_retry_count: int = 0
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
@@ -154,6 +156,8 @@ class ImageBenchmarkRun(BaseModel):
     baseline_params: Dict[str, Any] = {}
     model_overrides: Dict[str, Dict[str, Any]] = {}
     cell_results: List[ImageBenchmarkCellResult] = []
+    retry_source_run_id: Optional[str] = None
+    retry_targets: List[Dict[str, str]] = []
     stats: Dict[str, Any] = {}
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)

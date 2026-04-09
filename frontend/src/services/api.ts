@@ -1474,6 +1474,8 @@ export interface ImageBenchmarkCellResult {
   canonical_request?: Record<string, any> | null
   provider_payload?: Record<string, any> | null
   provider_result_meta?: Record<string, any>
+  attempt_count: number
+  auto_retry_count: number
   created_at: string
   updated_at: string
 }
@@ -1507,6 +1509,8 @@ export interface ImageBenchmarkRun {
   baseline_params: Record<string, any>
   model_overrides: Record<string, Record<string, any>>
   cell_results: ImageBenchmarkCellResult[]
+  retry_source_run_id?: string | null
+  retry_targets?: Array<{ case_id: string; model_id: string }>
   stats: Record<string, any>
   created_at: string
   updated_at: string
@@ -1589,6 +1593,7 @@ export const imageBenchmarkApi = {
   deleteSuite: (id: string) => api.delete(`/image-benchmark/suites/${id}`),
   runSuite: (id: string) => api.post<any, { run: ImageBenchmarkRun; suite: ImageBenchmarkSuite }>(`/image-benchmark/suites/${id}/run`),
   getRun: (id: string) => api.get<any, { run: ImageBenchmarkRun }>(`/image-benchmark/runs/${id}`),
+  retryFailedRun: (id: string) => api.post<any, { run: ImageBenchmarkRun; suite: ImageBenchmarkSuite }>(`/image-benchmark/runs/${id}/retry-failures`),
   exportRunMarkdown: (id: string) => api.post<any, { filename: string; content: string }>(`/image-benchmark/runs/${id}/export-md`),
   previewCell: (data: {
     project_id: string

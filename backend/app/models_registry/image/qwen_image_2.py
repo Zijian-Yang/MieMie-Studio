@@ -247,7 +247,7 @@ class QwenImage2Service(BaseModelService[List[str]]):
         images: Optional[List[str]] = None,
         negative_prompt: str = "",
         n: int = 1,
-        size: str = "1024*1024",
+        size: Optional[str] = None,
         prompt_extend: bool = True,
         watermark: bool = False,
         seed: Optional[int] = None,
@@ -261,7 +261,7 @@ class QwenImage2Service(BaseModelService[List[str]]):
             images: 参考图 URL 列表（空或 None 为文生图模式）
             negative_prompt: 负面提示词
             n: 输出图片数量 1-6
-            size: 输出尺寸 "宽*高"
+            size: 输出尺寸 "宽*高"，不传则交由模型按默认行为处理
             prompt_extend: 智能改写
             watermark: 水印
             seed: 随机种子

@@ -24,6 +24,7 @@ import {
   DownloadOutlined,
   PlayCircleOutlined,
   PlusOutlined,
+  ReloadOutlined,
   SaveOutlined,
 } from '@ant-design/icons'
 import DynamicModelForm from '../../components/ModelConfig/DynamicModelForm'
@@ -79,6 +80,53 @@ const getConfigurableParameters = (model: any): ModelParameterDef[] => (
   (model?.configurable_parameters || model?.parameters || []).filter((param: ModelParameterDef) => !['prompt', 'images'].includes(param.name))
 )
 
+const buildWan27SizeParam = (taskKind: string, modelId: string, originalParam?: ModelParameterDef): ModelParameterDef => ({
+  ...(originalParam || {
+    name: 'size',
+    label: '尺寸',
+    description: '输出尺寸',
+  }),
+  type: 'select',
+  default: '2K',
+  constraint: {
+    ...(originalParam?.constraint || {}),
+    options: (
+      taskKind === 'text_to_image' && modelId === 'wan2.7-image-pro'
+        ? [
+            { value: '1K', label: '1K' },
+            { value: '2K', label: '2K（默认）' },
+            { value: '4K', label: '4K' },
+          ]
+        : [
+            { value: '1K', label: '1K' },
+            { value: '2K', label: '2K（默认）' },
+          ]
+    ),
+  },
+})
+
+const buildQwenImage2SizeParam = (taskKind: string, originalParam?: ModelParameterDef): ModelParameterDef => ({
+  ...(originalParam || {
+    name: 'size',
+    label: '输出尺寸',
+    description: '输出分辨率',
+  }),
+  type: 'select',
+  default: taskKind === 'image_edit' ? '' : (originalParam?.default ?? '1024*1024'),
+  constraint: {
+    ...(originalParam?.constraint || {}),
+    options: [
+      {
+        value: '',
+        label: taskKind === 'image_edit'
+          ? '不设置尺寸（跟随最后一张输入图分辨率）'
+          : '不设置尺寸（使用模型默认）',
+      },
+      ...((originalParam?.constraint?.options || []) as any[]),
+    ],
+  },
+})
+
 const buildDefaultValues = (parameters: ModelParameterDef[]) => {
   const defaults: Record<string, any> = {}
   parameters.forEach((param) => {
@@ -92,34 +140,22 @@ const buildDefaultValues = (parameters: ModelParameterDef[]) => {
   return defaults
 }
 
-const buildSharedParameterInfo = (models: any[]) => {
-  if (!models.length) return null
-  const parameterLists = models.map((model) => getConfigurableParameters(model))
-  const sharedNames = parameterLists.reduce<Set<string>>((acc, current, index) => {
-    const currentNames = new Set(current.map((param) => param.name))
-    if (index === 0) return currentNames
-    return new Set(Array.from(acc).filter((name) => currentNames.has(name)))
-  }, new Set<string>())
-  const sharedParameters = parameterLists[0]
-    .filter((param) => sharedNames.has(param.name))
-    .sort((a, b) => (a.order || 0) - (b.order || 0))
-  return {
-    id: 'shared-benchmark-params',
-    name: '共享参数',
-    type: 'benchmark',
-    parameters: sharedParameters,
-    default_values: buildDefaultValues(sharedParameters),
-  }
-}
-
-const buildModelFormInfo = (model: any) => {
-  const parameters = getConfigurableParameters(model)
+const buildModelFormInfo = (model: any, taskKind?: string) => {
+  const parameters = getConfigurableParameters(model).map((param) => {
+    if (param.name === 'size' && model.id?.startsWith('wan2.7-image')) {
+      return buildWan27SizeParam(taskKind || '', model.id, param)
+    }
+    if (param.name === 'size' && (model.id === 'qwen-image-2.0-pro' || model.id === 'qwen-image-2.0')) {
+      return buildQwenImage2SizeParam(taskKind || '', param)
+    }
+    return param
+  })
   return {
     id: model.id,
     name: model.name,
     type: model.model_type || 'benchmark',
     parameters,
-    default_values: {},
+    default_values: buildDefaultValues(parameters),
   }
 }
 
@@ -155,16 +191,6 @@ const ImageBenchmarkPage = () => {
     if (!capabilities || !selectedDataset) return []
     return Object.values(capabilities.models).filter((model) => (model.supported_task_kinds || []).includes(selectedDataset.task_kind))
   }, [capabilities, selectedDataset])
-
-  const selectedModelMetas = useMemo(
-    () => (draftSuite?.selected_models || []).map((modelId) => capabilities?.models[modelId]).filter(Boolean),
-    [capabilities, draftSuite?.selected_models]
-  )
-
-  const sharedModelInfo = useMemo(
-    () => buildSharedParameterInfo(selectedModelMetas),
-    [selectedModelMetas]
-  )
 
   useEffect(() => {
     if (!projectId) return
@@ -267,7 +293,7 @@ const ImageBenchmarkPage = () => {
         name: suiteFormValues.name,
         description: suiteFormValues.description,
         dataset_id: suiteFormValues.dataset_id,
-        baseline_params: { n: 1 },
+        baseline_params: {},
       })
       setSuiteModalOpen(false)
       await refreshSuites(result.suite.id)
@@ -287,7 +313,7 @@ const ImageBenchmarkPage = () => {
         description: draftSuite.description,
         dataset_id: draftSuite.dataset_id,
         selected_models: draftSuite.selected_models,
-        baseline_params: draftSuite.baseline_params,
+        baseline_params: {},
         model_overrides: draftSuite.model_overrides,
       })
       await refreshSuites(result.suite.id)
@@ -315,9 +341,20 @@ const ImageBenchmarkPage = () => {
     if (!draftSuite) return
     try {
       setBlockingIssues([])
+      const savedSuite = await imageBenchmarkApi.updateSuite(draftSuite.id, {
+        name: draftSuite.name,
+        description: draftSuite.description,
+        dataset_id: draftSuite.dataset_id,
+        selected_models: draftSuite.selected_models,
+        baseline_params: {},
+        model_overrides: draftSuite.model_overrides,
+      })
       const result = await imageBenchmarkApi.runSuite(draftSuite.id)
       setCurrentRun(result.run)
-      setSuites((prev) => prev.map((item) => item.id === result.suite.id ? result.suite : item))
+      setSuites((prev) => prev.map((item) => {
+        if (item.id === savedSuite.suite.id) return result.suite
+        return item
+      }))
       setSelectedSuiteId(result.suite.id)
       message.success('测评已开始运行')
     } catch (error) {
@@ -337,6 +374,21 @@ const ImageBenchmarkPage = () => {
       const result = await imageBenchmarkApi.exportRunMarkdown(currentRun.id)
       downloadTextFile(result.filename, result.content, 'text/markdown;charset=utf-8')
       message.success('Markdown 报告已导出')
+    } catch (error) {
+      if (error instanceof Error) {
+        message.error(error.message)
+      }
+    }
+  }
+
+  const handleRetryFailedRun = async () => {
+    if (!currentRun) return
+    try {
+      const result = await imageBenchmarkApi.retryFailedRun(currentRun.id)
+      setCurrentRun(result.run)
+      setSuites((prev) => prev.map((item) => item.id === result.suite.id ? result.suite : item))
+      setSelectedSuiteId(result.suite.id)
+      message.success('已开始重试所有失败任务')
     } catch (error) {
       if (error instanceof Error) {
         message.error(error.message)
@@ -562,17 +614,6 @@ const ImageBenchmarkPage = () => {
                   />
                 </Card>
 
-                {sharedModelInfo && draftSuite.selected_models.length > 0 && (
-                  <Card size="small" title="共享参数">
-                    <DynamicModelForm
-                      modelInfo={sharedModelInfo as any}
-                      value={draftSuite.baseline_params}
-                      onChange={(values) => setDraftSuite({ ...draftSuite, baseline_params: values })}
-                      columns={2}
-                    />
-                  </Card>
-                )}
-
                 {draftSuite.selected_models.length > 0 && (
                   <Space direction="vertical" style={{ width: '100%' }}>
                     {draftSuite.selected_models.map((modelId) => {
@@ -581,7 +622,7 @@ const ImageBenchmarkPage = () => {
                       return (
                         <Card key={modelId} size="small" title={`模型覆盖：${modelMeta.name}`}>
                           <DynamicModelForm
-                            modelInfo={buildModelFormInfo(modelMeta) as any}
+                            modelInfo={buildModelFormInfo(modelMeta, selectedDataset?.task_kind) as any}
                             value={draftSuite.model_overrides?.[modelId] || {}}
                             onChange={(values) => setDraftSuite({
                               ...draftSuite,
@@ -606,6 +647,11 @@ const ImageBenchmarkPage = () => {
                 currentRun ? (
                   <Space>
                     <Tag color={statusColorMap[currentRun.status] || 'default'}>{currentRun.status}</Tag>
+                    {currentRun.status !== 'running' && (currentRun.stats.failure_count || 0) > 0 && (
+                      <Button icon={<ReloadOutlined />} onClick={handleRetryFailedRun}>
+                        重试所有失败任务
+                      </Button>
+                    )}
                     <Button icon={<DownloadOutlined />} onClick={handleExportMarkdown}>
                       导出 Markdown
                     </Button>
@@ -623,6 +669,15 @@ const ImageBenchmarkPage = () => {
                     <Statistic title="成功单元" value={currentRun.stats.success_count || 0} />
                     <Statistic title="失败单元" value={currentRun.stats.failure_count || 0} />
                   </div>
+
+                  {(currentRun.stats.failure_count || 0) > 0 && currentRun.status !== 'running' && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message="存在失败任务"
+                      description="限流类失败会先自动重试；仍失败的单元可以通过“重试所有失败任务”再次提交。"
+                    />
+                  )}
 
                   <Table
                     rowKey="id"
@@ -697,6 +752,10 @@ const ImageBenchmarkPage = () => {
             )}
             <Card size="small" title="Effective Params">
               <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(detailCell.effective_params || {}, null, 2)}</pre>
+            </Card>
+            <Card size="small" title="重试信息">
+              <div>总尝试次数：{detailCell.attempt_count || 1}</div>
+              <div>自动重试次数：{detailCell.auto_retry_count || 0}</div>
             </Card>
             <Card size="small" title="Canonical Request">
               <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(detailCell.canonical_request || {}, null, 2)}</pre>

@@ -243,6 +243,10 @@ def _dataset_response(dataset: ImageBenchmarkDataset) -> Dict[str, Any]:
     }
 
 
+def _cell_key(case_id: str, model_id: str) -> str:
+    return f"{case_id}__{model_id}"
+
+
 async def _validate_suite_payload(
     *,
     project_id: str,
@@ -288,6 +292,16 @@ async def _background_run_suite(run_id: str, suite_id: str, user_id: Optional[st
             for model in model_snapshots
         }
 
+        retry_target_keys = {
+            _cell_key(target.get("case_id", ""), target.get("model_id", ""))
+            for target in (run.retry_targets or [])
+            if target.get("case_id") and target.get("model_id")
+        }
+        existing_results_map = {
+            _cell_key(cell.case_id, cell.model_id): cell
+            for cell in run.cell_results
+        }
+
         async def run_cell(index: int, case_data: Dict[str, Any], model_meta: Dict[str, Any]):
             effective_params = merge_effective_params(
                 model_meta,
@@ -308,11 +322,30 @@ async def _background_run_suite(run_id: str, suite_id: str, user_id: Optional[st
         index = 0
         for case_data in dataset_items:
             for model_meta in model_snapshots:
+                key = _cell_key(case_data.get("id", ""), model_meta["id"])
+                if retry_target_keys and key not in retry_target_keys:
+                    index += 1
+                    continue
                 tasks.append(run_cell(index, case_data, model_meta))
                 index += 1
 
         results = await asyncio.gather(*tasks) if tasks else []
-        ordered_cells = [cell for _, cell in sorted(results, key=lambda item: item[0])]
+        retried_cells_map = {
+            _cell_key(cell.case_id, cell.model_id): cell
+            for _, cell in sorted(results, key=lambda item: item[0])
+        }
+        merged_cells_map = {
+            **existing_results_map,
+            **retried_cells_map,
+        }
+
+        ordered_cells = []
+        for case_data in dataset_items:
+            for model_meta in model_snapshots:
+                key = _cell_key(case_data.get("id", ""), model_meta["id"])
+                cell = merged_cells_map.get(key)
+                if cell:
+                    ordered_cells.append(cell)
 
         run.cell_results = ordered_cells
         run.finished_at = datetime.now()
@@ -328,6 +361,7 @@ async def _background_run_suite(run_id: str, suite_id: str, user_id: Optional[st
             "failure_count": failure_count,
             "unsupported_count": unsupported_count,
             "skipped_count": skipped_count,
+            "retried_failure_count": len(retry_target_keys),
         }
         run.status = "failed" if ordered_cells and success_count == 0 and failure_count > 0 else "completed"
         storage_service.save_image_benchmark_run(run)
@@ -624,6 +658,61 @@ async def export_run_markdown(run_id: str):
         "filename": f"image_benchmark_{run.id}.md",
         "content": content,
     }
+
+
+@router.post("/runs/{run_id}/retry-failures")
+async def retry_failed_cells(run_id: str):
+    source_run = storage_service.get_image_benchmark_run(run_id)
+    if not source_run:
+        raise HTTPException(status_code=404, detail="运行记录不存在")
+
+    suite = storage_service.get_image_benchmark_suite(source_run.suite_id)
+    if not suite:
+        raise HTTPException(status_code=404, detail="测评任务不存在")
+
+    failed_cells = [cell for cell in source_run.cell_results if cell.status == "failed"]
+    if not failed_cells:
+        raise HTTPException(status_code=400, detail="当前运行没有失败任务可重试")
+
+    preserved_cells = [cell for cell in source_run.cell_results if cell.status != "failed"]
+    retry_targets = [
+        {"case_id": cell.case_id, "model_id": cell.model_id}
+        for cell in failed_cells
+    ]
+
+    retry_run = ImageBenchmarkRun(
+        suite_id=source_run.suite_id,
+        project_id=source_run.project_id,
+        dataset_id=source_run.dataset_id,
+        task_kind=source_run.task_kind,
+        status="running",
+        dataset_snapshot=source_run.dataset_snapshot,
+        model_snapshots=source_run.model_snapshots,
+        baseline_params=source_run.baseline_params,
+        model_overrides=source_run.model_overrides,
+        cell_results=preserved_cells,
+        retry_source_run_id=source_run.id,
+        retry_targets=retry_targets,
+        started_at=datetime.now(),
+    )
+    storage_service.save_image_benchmark_run(retry_run)
+
+    suite.status = "running"
+    suite.latest_run_id = retry_run.id
+    suite.latest_run_snapshot = {
+        "dataset_snapshot": retry_run.dataset_snapshot,
+        "model_snapshots": retry_run.model_snapshots,
+        "baseline_params": retry_run.baseline_params,
+        "model_overrides": retry_run.model_overrides,
+        "run_id": retry_run.id,
+        "retry_source_run_id": source_run.id,
+    }
+    storage_service.save_image_benchmark_suite(suite)
+
+    user_id = get_current_user_id()
+    user_config_dir = get_user_config_dir()
+    asyncio.create_task(_background_run_suite(retry_run.id, suite.id, user_id, user_config_dir))
+    return {"run": retry_run, "suite": suite}
 
 
 @router.post("/preview-cell")

@@ -290,6 +290,68 @@ def test_preview_payload_rejects_qwen_image_edit_size_when_n_gt_one(client, auth
     assert "n=1" in resp.json()["detail"]
 
 
+def test_preview_payload_omits_qwen_image2_size_when_not_set(client, auth_header, monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.studio._resolve_reference_items",
+        lambda _refs: _mock_reference_items(["https://oss.example.com/ref.png"]),
+    )
+    resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "qwen-image-2.0-pro",
+            "task_kind": "image_edit",
+            "prompt": "把图1做成广告主视觉",
+            "n": 1,
+            "size": "",
+            "references": [{"type": "gallery", "id": "g1"}],
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "size" not in data["provider_payload"]["parameters"]
+    assert data["canonical_request"]["normalized_params"]["size"] == ""
+
+
+@pytest.mark.asyncio
+async def test_generate_with_qwen_image2_allows_missing_size(monkeypatch):
+    captured = {}
+
+    async def fake_generate(self, **kwargs):
+        captured.update(kwargs)
+        return ["https://oss.example.com/output.png"], "req-123"
+
+    monkeypatch.setattr("app.models_registry.image.qwen_image_2.QwenImage2Service.generate", fake_generate)
+
+    from app.models.studio import StudioTask
+    from app.routers.studio import generate_with_qwen_image_2
+
+    task = StudioTask(
+        project_id="p1",
+        name="qwen2 测试",
+        model="qwen-image-2.0-pro",
+        prompt="把图1做成海报",
+        n=1,
+        group_count=1,
+    )
+
+    images, request_ids = await generate_with_qwen_image_2(
+        task=task,
+        ref_urls=["https://oss.example.com/ref.png"],
+        api_key="sk-test",
+        model_name="qwen-image-2.0-pro",
+        size=None,
+        prompt_extend=True,
+        watermark=False,
+        seed=None,
+    )
+
+    assert images[0].url == "https://oss.example.com/output.png"
+    assert request_ids == ["req-123"]
+    assert captured["size"] is None
+
+
 @pytest.mark.asyncio
 async def test_wan27_async_create_uses_image_generation_endpoint(monkeypatch):
     captured = {}

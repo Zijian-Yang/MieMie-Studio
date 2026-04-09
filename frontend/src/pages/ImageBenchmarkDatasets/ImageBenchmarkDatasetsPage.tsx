@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, createContext, useContext } from 'react'
-import type { Dispatch, SetStateAction } from 'react'
+import type { Dispatch, ReactNode, SetStateAction } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   Alert,
@@ -122,6 +122,52 @@ const SortableBodyRow = (props: any) => {
   )
 }
 
+const SortableSlotCard = ({
+  slotId,
+  title,
+  children,
+}: {
+  slotId: number
+  title: string
+  children: ReactNode
+}) => {
+  const {
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: String(slotId) })
+
+  return (
+    <Card
+      ref={setNodeRef}
+      size="small"
+      title={
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span>{title}</span>
+          <Button
+            type="text"
+            size="small"
+            icon={<DragOutlined />}
+            ref={setActivatorNodeRef}
+            {...listeners}
+            style={{ cursor: 'grab' }}
+          />
+        </div>
+      }
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.7 : 1,
+      }}
+    >
+      {children}
+    </Card>
+  )
+}
+
 const cloneDataset = (dataset: ImageBenchmarkDataset | null) => (
   dataset ? JSON.parse(JSON.stringify(dataset)) as ImageBenchmarkDataset : null
 )
@@ -241,6 +287,7 @@ const ImageBenchmarkDatasetsPage = () => {
   const [itemModalOpen, setItemModalOpen] = useState(false)
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
   const [itemModalSlotCount, setItemModalSlotCount] = useState(0)
+  const [itemModalSlotOrder, setItemModalSlotOrder] = useState<number[]>([])
   const [itemForm] = Form.useForm()
 
   const [promptImportOpen, setPromptImportOpen] = useState(false)
@@ -253,6 +300,9 @@ const ImageBenchmarkDatasetsPage = () => {
   const [fillSlotOpen, setFillSlotOpen] = useState(false)
   const [fillSlotForm] = Form.useForm()
   const [fillSlotUploadFiles, setFillSlotUploadFiles] = useState<UploadFile[]>([])
+
+  const [batchReorderOpen, setBatchReorderOpen] = useState(false)
+  const [batchReorderOrder, setBatchReorderOrder] = useState<number[]>([])
 
   const [bulkEditOpen, setBulkEditOpen] = useState(false)
   const [bulkEditForm] = Form.useForm()
@@ -508,7 +558,40 @@ const ImageBenchmarkDatasetsPage = () => {
     }
     itemForm.setFieldsValue(nextValues)
     setEditingItemId(item?.id || null)
+    setItemModalSlotOrder(Array.from({ length: slotCount }, (_, index) => index + 1))
     setItemModalOpen(true)
+  }
+
+  const reorderItemModalSlots = (fromPosition: number, toPosition: number) => {
+    const slotEntries = Array.from({ length: itemModalSlotCount }, (_, index) => {
+      const position = index + 1
+      return {
+        slot_gallery: itemForm.getFieldValue(`slot_gallery_${position}`),
+        slot_url: itemForm.getFieldValue(`slot_url_${position}`),
+        slot_name: itemForm.getFieldValue(`slot_name_${position}`),
+      }
+    })
+    const fromIndex = fromPosition - 1
+    const toIndex = toPosition - 1
+    if (fromIndex < 0 || toIndex < 0 || fromIndex >= slotEntries.length || toIndex >= slotEntries.length) return
+    const reorderedEntries = arrayMove(slotEntries, fromIndex, toIndex)
+    const nextValues: Record<string, any> = {}
+    reorderedEntries.forEach((entry, index) => {
+      const position = index + 1
+      nextValues[`slot_gallery_${position}`] = entry.slot_gallery
+      nextValues[`slot_url_${position}`] = entry.slot_url
+      nextValues[`slot_name_${position}`] = entry.slot_name
+    })
+    itemForm.setFieldsValue(nextValues)
+    setItemModalSlotOrder(Array.from({ length: reorderedEntries.length }, (_, index) => index + 1))
+  }
+
+  const handleItemModalDragEnd = (event: DragEndEvent) => {
+    if (!event.over || event.active.id === event.over.id) return
+    const fromPosition = Number(event.active.id)
+    const toPosition = Number(event.over.id)
+    if (!Number.isFinite(fromPosition) || !Number.isFinite(toPosition)) return
+    reorderItemModalSlots(fromPosition, toPosition)
   }
 
   const handleSaveItem = async () => {
@@ -554,6 +637,7 @@ const ImageBenchmarkDatasetsPage = () => {
         max_image_slot_index: Math.max(draftDataset.max_image_slot_index || 0, itemModalSlotCount),
       })
       setItemModalOpen(false)
+      setItemModalSlotOrder([])
       itemForm.resetFields()
     } catch (error) {
       if (error instanceof Error) {
@@ -599,7 +683,12 @@ const ImageBenchmarkDatasetsPage = () => {
   const uploadFilesToGallery = async (files: UploadFile[]) => {
     if (!projectId) return []
     const actualFiles = files
-      .map((file) => file.originFileObj)
+      .map((file) => {
+        if (file.originFileObj instanceof File) {
+          return file.originFileObj
+        }
+        return file instanceof File ? file : null
+      })
       .filter(Boolean) as File[]
     if (!actualFiles.length) return []
     const uploadResult = await galleryApi.uploadFiles(projectId, actualFiles)
@@ -750,6 +839,47 @@ const ImageBenchmarkDatasetsPage = () => {
     }
   }
 
+  const openBatchReorderModal = () => {
+    setBatchReorderOrder(Array.from({ length: maxSlotIndex }, (_, index) => index + 1))
+    setBatchReorderOpen(true)
+  }
+
+  const handleBatchReorderDragEnd = (event: DragEndEvent) => {
+    if (!event.over || event.active.id === event.over.id) return
+    const fromPosition = Number(event.active.id)
+    const toPosition = Number(event.over.id)
+    const fromIndex = batchReorderOrder.findIndex((value) => value === fromPosition)
+    const toIndex = batchReorderOrder.findIndex((value) => value === toPosition)
+    if (fromIndex < 0 || toIndex < 0) return
+    setBatchReorderOrder((prev) => arrayMove(prev, fromIndex, toIndex))
+  }
+
+  const handleApplyBatchReorder = () => {
+    if (!draftDataset || !selectedRowsInOrder.length || !batchReorderOrder.length) return
+    const selectedSet = new Set(selectedRowKeys)
+    updateDraftItems((items) => items.map((item) => {
+      if (!selectedSet.has(item.id)) return item
+      const slotImageMap = new Map<number, ImageBenchmarkDatasetImage>()
+      item.image_slots.forEach((slot) => {
+        slotImageMap.set(slot.position, slot.image)
+      })
+      const nextSlots: ImageBenchmarkImageSlot[] = []
+      batchReorderOrder.forEach((oldPosition, index) => {
+        const image = slotImageMap.get(oldPosition)
+        if (!image) return
+        nextSlots.push({
+          position: index + 1,
+          image,
+        })
+      })
+      return {
+        ...item,
+        image_slots: sortImageSlots(nextSlots),
+      }
+    }))
+    setBatchReorderOpen(false)
+  }
+
   const handleBulkEdit = async () => {
     if (!draftDataset || !selectedRowsInOrder.length) return
     try {
@@ -820,6 +950,42 @@ const ImageBenchmarkDatasetsPage = () => {
     if (!draftDataset) return
     updateDraftItems((items) => items.filter((item) => !selectedRowKeys.includes(item.id)))
     setSelectedRowKeys([])
+  }
+
+  const handleMoveSelected = (direction: 'up' | 'down' | 'top' | 'bottom') => {
+    if (!draftDataset || !selectedRowsInOrder.length) return
+    const selectedSet = new Set(selectedRowKeys)
+    const currentItems = [...draftDataset.items]
+
+    let nextItems = currentItems
+    if (direction === 'top') {
+      const selectedItems = currentItems.filter((item) => selectedSet.has(item.id))
+      const otherItems = currentItems.filter((item) => !selectedSet.has(item.id))
+      nextItems = [...selectedItems, ...otherItems]
+    } else if (direction === 'bottom') {
+      const selectedItems = currentItems.filter((item) => selectedSet.has(item.id))
+      const otherItems = currentItems.filter((item) => !selectedSet.has(item.id))
+      nextItems = [...otherItems, ...selectedItems]
+    } else if (direction === 'up') {
+      nextItems = [...currentItems]
+      for (let index = 1; index < nextItems.length; index += 1) {
+        if (selectedSet.has(nextItems[index].id) && !selectedSet.has(nextItems[index - 1].id)) {
+          ;[nextItems[index - 1], nextItems[index]] = [nextItems[index], nextItems[index - 1]]
+        }
+      }
+    } else {
+      nextItems = [...currentItems]
+      for (let index = nextItems.length - 2; index >= 0; index -= 1) {
+        if (selectedSet.has(nextItems[index].id) && !selectedSet.has(nextItems[index + 1].id)) {
+          ;[nextItems[index], nextItems[index + 1]] = [nextItems[index + 1], nextItems[index]]
+        }
+      }
+    }
+
+    setDraftDataset({
+      ...draftDataset,
+      items: normalizeItems(nextItems),
+    })
   }
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
@@ -1128,6 +1294,23 @@ const ImageBenchmarkDatasetsPage = () => {
                   >
                     批量编辑字段
                   </Button>
+                  {draftDataset.task_kind === 'image_edit' && (
+                    <Button disabled={!selectedRowsInOrder.length || maxSlotIndex < 2} onClick={openBatchReorderModal}>
+                      批量调整输入图顺序
+                    </Button>
+                  )}
+                  <Button disabled={!selectedRowsInOrder.length} onClick={() => handleMoveSelected('up')}>
+                    选中上移
+                  </Button>
+                  <Button disabled={!selectedRowsInOrder.length} onClick={() => handleMoveSelected('down')}>
+                    选中下移
+                  </Button>
+                  <Button disabled={!selectedRowsInOrder.length} onClick={() => handleMoveSelected('top')}>
+                    选中置顶
+                  </Button>
+                  <Button disabled={!selectedRowsInOrder.length} onClick={() => handleMoveSelected('bottom')}>
+                    选中置底
+                  </Button>
                   <Button danger disabled={!selectedRowsInOrder.length} onClick={handleDeleteSelected}>
                     删除选中
                   </Button>
@@ -1224,6 +1407,7 @@ const ImageBenchmarkDatasetsPage = () => {
                   onClick={() => {
                     const nextCount = itemModalSlotCount + 1
                     setItemModalSlotCount(nextCount)
+                    setItemModalSlotOrder(Array.from({ length: nextCount }, (_, index) => index + 1))
                     if (draftDataset) {
                       setDraftDataset({
                         ...draftDataset,
@@ -1235,37 +1419,46 @@ const ImageBenchmarkDatasetsPage = () => {
                   新增一个图片槽位
                 </Button>
               </div>
-              {Array.from({ length: itemModalSlotCount }, (_, index) => {
-                const position = index + 1
-                return (
-                  <Card key={position} size="small" title={`输入图${position}`}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 120px', gap: 12 }}>
-                      <Form.Item name={`slot_gallery_${position}`} label="从图库选择" style={{ marginBottom: 0 }}>
-                        <Select
-                          allowClear
-                          optionLabelProp="label"
-                          placeholder="可选"
-                        >
-                          {galleryImages.map((image) => (
-                            <Select.Option key={image.id} value={image.url} label={image.name}>
-                              <Space>
-                                <Image src={image.url} width={36} height={36} preview={false} style={{ objectFit: 'cover', borderRadius: 6 }} />
-                                <span>{image.name}</span>
-                              </Space>
-                            </Select.Option>
-                          ))}
-                        </Select>
-                      </Form.Item>
-                      <Form.Item name={`slot_url_${position}`} label="或填写图片 URL" style={{ marginBottom: 0 }}>
-                        <Input placeholder="未选择图库时可直接输入 URL" />
-                      </Form.Item>
-                      <Form.Item name={`slot_name_${position}`} label="名称" style={{ marginBottom: 0 }}>
-                        <Input placeholder="可选" />
-                      </Form.Item>
-                    </div>
-                  </Card>
-                )
-              })}
+              <Alert
+                type="info"
+                showIcon
+                message="支持拖拽调整输入图顺序"
+                description="拖动图片槽位卡片后，会直接改动该样例最终请求体中的图片数组顺序。"
+              />
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleItemModalDragEnd}>
+                <SortableContext items={itemModalSlotOrder.map((position) => String(position))} strategy={verticalListSortingStrategy}>
+                  <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                    {itemModalSlotOrder.map((position) => (
+                      <SortableSlotCard key={position} slotId={position} title={`输入图${position}`}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 120px', gap: 12 }}>
+                          <Form.Item name={`slot_gallery_${position}`} label="从图库选择" style={{ marginBottom: 0 }}>
+                            <Select
+                              allowClear
+                              optionLabelProp="label"
+                              placeholder="可选"
+                            >
+                              {galleryImages.map((image) => (
+                                <Select.Option key={image.id} value={image.url} label={image.name}>
+                                  <Space>
+                                    <Image src={image.url} width={36} height={36} preview={false} style={{ objectFit: 'cover', borderRadius: 6 }} />
+                                    <span>{image.name}</span>
+                                  </Space>
+                                </Select.Option>
+                              ))}
+                            </Select>
+                          </Form.Item>
+                          <Form.Item name={`slot_url_${position}`} label="或填写图片 URL" style={{ marginBottom: 0 }}>
+                            <Input placeholder="未选择图库时可直接输入 URL" />
+                          </Form.Item>
+                          <Form.Item name={`slot_name_${position}`} label="名称" style={{ marginBottom: 0 }}>
+                            <Input placeholder="可选" />
+                          </Form.Item>
+                        </div>
+                      </SortableSlotCard>
+                    ))}
+                  </Space>
+                </SortableContext>
+              </DndContext>
             </Space>
           )}
         </Form>
@@ -1530,6 +1723,41 @@ const ImageBenchmarkDatasetsPage = () => {
             </>
           )}
         </Form>
+      </Modal>
+
+      <Modal
+        title={`批量调整输入图顺序${selectedRowsInOrder.length ? `（已选 ${selectedRowsInOrder.length} 条）` : ''}`}
+        open={batchReorderOpen}
+        onOk={handleApplyBatchReorder}
+        onCancel={() => setBatchReorderOpen(false)}
+        okText="应用顺序"
+        cancelText="取消"
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size={16}>
+          <Alert
+            type="info"
+            showIcon
+            message="拖拽调整统一的输入图顺序"
+            description="应用后，所有选中样例都会按这套顺序重排其输入图槽位内容，实际请求体图片数组顺序也会同步变化。"
+          />
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleBatchReorderDragEnd}>
+            <SortableContext items={batchReorderOrder.map((position) => String(position))} strategy={verticalListSortingStrategy}>
+              <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                {batchReorderOrder.map((position, index) => (
+                  <SortableSlotCard
+                    key={position}
+                    slotId={position}
+                    title={`应用后第 ${index + 1} 张图 ← 当前第 ${position} 张图`}
+                  >
+                    <Text type="secondary">
+                      所有选中样例中，原本位于“输入图{position}”的图片，将移动到新的“输入图{index + 1}”。
+                    </Text>
+                  </SortableSlotCard>
+                ))}
+              </Space>
+            </SortableContext>
+          </DndContext>
+        </Space>
       </Modal>
     </div>
   )
