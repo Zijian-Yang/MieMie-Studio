@@ -1568,8 +1568,20 @@ export const imageBenchmarkApi = {
   }) => api.put<any, { dataset: ImageBenchmarkDataset; warnings: ImageBenchmarkDatasetIssue[]; blocking_issues: ImageBenchmarkDatasetIssue[] }>(`/image-benchmark/datasets/${id}`, data),
   validateDataset: (id: string) => api.post<any, { warnings: ImageBenchmarkDatasetIssue[]; blocking_issues: ImageBenchmarkDatasetIssue[] }>(`/image-benchmark/datasets/${id}/validate`),
   deleteDataset: (id: string) => api.delete(`/image-benchmark/datasets/${id}`),
-  importDataset: (data: { project_id: string; data: Record<string, any>; name?: string; description?: string }) =>
-    api.post<any, { dataset: ImageBenchmarkDataset; warnings: ImageBenchmarkDatasetIssue[]; blocking_issues: ImageBenchmarkDatasetIssue[] }>('/image-benchmark/datasets/import', data),
+  importDataset: (data: { project_id: string; data: Record<string, any>; name?: string; description?: string; migrate_images_to_oss?: boolean }) =>
+    api.post<any, {
+      dataset: ImageBenchmarkDataset
+      warnings: ImageBenchmarkDatasetIssue[]
+      blocking_issues: ImageBenchmarkDatasetIssue[]
+      migration_report?: {
+        enabled: boolean
+        attempted: number
+        succeeded: number
+        failed: number
+        skipped: number
+        errors: Array<{ item_id?: string; item_name?: string; position?: number; url?: string; error: string }>
+      }
+    }>('/image-benchmark/datasets/import', data),
   exportDataset: (id: string) => api.get<any, Record<string, any>>(`/image-benchmark/datasets/${id}/export`),
   listSuites: (projectId: string) => api.get<any, { suites: ImageBenchmarkSuite[] }>('/image-benchmark/suites', { params: { project_id: projectId } }),
   getSuite: (id: string) => api.get<any, { suite: ImageBenchmarkSuite }>(`/image-benchmark/suites/${id}`),

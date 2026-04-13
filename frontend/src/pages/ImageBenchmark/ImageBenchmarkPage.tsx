@@ -80,6 +80,10 @@ const getConfigurableParameters = (model: any): ModelParameterDef[] => (
   (model?.configurable_parameters || model?.parameters || []).filter((param: ModelParameterDef) => !['prompt', 'images'].includes(param.name))
 )
 
+const getManualRetryCount = (run: ImageBenchmarkRun | null) => (
+  run ? (run.stats.failure_count || 0) + (run.stats.unsupported_count || 0) : 0
+)
+
 const buildWan27SizeParam = (taskKind: string, modelId: string, originalParam?: ModelParameterDef): ModelParameterDef => ({
   ...(originalParam || {
     name: 'size',
@@ -388,7 +392,7 @@ const ImageBenchmarkPage = () => {
       setCurrentRun(result.run)
       setSuites((prev) => prev.map((item) => item.id === result.suite.id ? result.suite : item))
       setSelectedSuiteId(result.suite.id)
-      message.success('已开始重试所有失败任务')
+      message.success('已开始重试失败和未支持任务')
     } catch (error) {
       if (error instanceof Error) {
         message.error(error.message)
@@ -647,9 +651,9 @@ const ImageBenchmarkPage = () => {
                 currentRun ? (
                   <Space>
                     <Tag color={statusColorMap[currentRun.status] || 'default'}>{currentRun.status}</Tag>
-                    {currentRun.status !== 'running' && (currentRun.stats.failure_count || 0) > 0 && (
+                    {currentRun.status !== 'running' && getManualRetryCount(currentRun) > 0 && (
                       <Button icon={<ReloadOutlined />} onClick={handleRetryFailedRun}>
-                        重试所有失败任务
+                        重试失败/未支持任务
                       </Button>
                     )}
                     <Button icon={<DownloadOutlined />} onClick={handleExportMarkdown}>
@@ -670,12 +674,12 @@ const ImageBenchmarkPage = () => {
                     <Statistic title="失败单元" value={currentRun.stats.failure_count || 0} />
                   </div>
 
-                  {(currentRun.stats.failure_count || 0) > 0 && currentRun.status !== 'running' && (
+                  {getManualRetryCount(currentRun) > 0 && currentRun.status !== 'running' && (
                     <Alert
                       type="warning"
                       showIcon
-                      message="存在失败任务"
-                      description="限流类失败会先自动重试；仍失败的单元可以通过“重试所有失败任务”再次提交。"
+                      message="存在失败或未支持任务"
+                      description="限流类失败会先自动重试；仍失败或因预检暂时失败而标为未支持的单元，可以再次提交。"
                     />
                   )}
 
@@ -756,6 +760,26 @@ const ImageBenchmarkPage = () => {
             <Card size="small" title="重试信息">
               <div>总尝试次数：{detailCell.attempt_count || 1}</div>
               <div>自动重试次数：{detailCell.auto_retry_count || 0}</div>
+            </Card>
+            <Card size="small" title="任务追踪 IDs">
+              <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                <div>
+                  <Text strong>Task IDs</Text>
+                  {detailCell.task_ids?.length ? (
+                    <pre style={{ margin: '8px 0 0', whiteSpace: 'pre-wrap' }}>{detailCell.task_ids.join('\n')}</pre>
+                  ) : (
+                    <div><Text type="secondary">暂无</Text></div>
+                  )}
+                </div>
+                <div>
+                  <Text strong>Request IDs</Text>
+                  {detailCell.request_ids?.length ? (
+                    <pre style={{ margin: '8px 0 0', whiteSpace: 'pre-wrap' }}>{detailCell.request_ids.join('\n')}</pre>
+                  ) : (
+                    <div><Text type="secondary">暂无</Text></div>
+                  )}
+                </div>
+              </Space>
             </Card>
             <Card size="small" title="Canonical Request">
               <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(detailCell.canonical_request || {}, null, 2)}</pre>

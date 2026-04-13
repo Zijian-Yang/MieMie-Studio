@@ -11,6 +11,8 @@ import json
 import os
 import subprocess
 import tempfile
+import base64
+import binascii
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, Tuple
@@ -18,20 +20,55 @@ from urllib.parse import urlparse
 
 import cv2
 import httpx
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
+
+
+def _decode_data_uri(value: str) -> Tuple[bytes, str]:
+    header, _, payload = value.partition(",")
+    if not payload or ";base64" not in header:
+        raise ValueError("data URI 格式无效，需使用 data:<MIME>;base64,<data>")
+    mime_type = header.replace("data:", "", 1).split(";", 1)[0] or "application/octet-stream"
+    try:
+        return base64.b64decode(payload, validate=True), mime_type
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError("data URI base64 内容无法解码") from exc
 
 
 async def download_remote_bytes(url: str, timeout: httpx.Timeout | None = None) -> Tuple[bytes, str]:
+    url = (url or "").strip()
+    if not url:
+        raise ValueError("URL 为空")
+    if url.startswith("data:"):
+        return _decode_data_uri(url)
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError(f"不支持的 URL 协议: {parsed.scheme or '空'}")
+
     effective_timeout = timeout or httpx.Timeout(30.0, read=180.0)
-    async with httpx.AsyncClient(timeout=effective_timeout, follow_redirects=True) as client:
-        response = await client.get(url)
+    try:
+        async with httpx.AsyncClient(timeout=effective_timeout, follow_redirects=True) as client:
+            response = await client.get(url)
         response.raise_for_status()
-        return response.content, response.headers.get("content-type", "")
+    except httpx.HTTPStatusError as exc:
+        content_type = exc.response.headers.get("content-type", "")
+        raise ValueError(f"HTTP {exc.response.status_code}，content-type={content_type or '-'}") from exc
+    except httpx.TimeoutException as exc:
+        raise ValueError("下载超时") from exc
+    except httpx.RequestError as exc:
+        raise ValueError(f"下载失败: {exc.__class__.__name__}: {exc}") from exc
+    return response.content, response.headers.get("content-type", "")
 
 
 async def inspect_remote_image(url: str) -> Dict[str, Any]:
     content, content_type = await download_remote_bytes(url, timeout=httpx.Timeout(20.0, read=120.0))
-    image = Image.open(BytesIO(content))
+    try:
+        image = Image.open(BytesIO(content))
+        image.load()
+    except UnidentifiedImageError as exc:
+        raise ValueError(f"不是可识别图片，content-type={content_type or '-'}，bytes={len(content)}") from exc
+    except OSError as exc:
+        raise ValueError(f"图片解码失败: {exc}，content-type={content_type or '-'}，bytes={len(content)}") from exc
+
     width, height = image.size
     image_format = (image.format or "").upper()
     has_alpha = image.mode in {"RGBA", "LA", "PA"} or ("transparency" in image.info)

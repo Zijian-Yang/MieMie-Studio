@@ -18,6 +18,7 @@ import logging
 import math
 from dataclasses import asdict, dataclass
 from typing import Optional, List, Any, Tuple, Dict
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -33,6 +34,21 @@ from app.config import get_config, get_provider_api_key, get_provider_key_profil
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+WAN27_IMAGE_INSPECT_RETRY_DELAYS = (0.5, 1.5)
+
+
+def _summarize_media_url(url: str) -> str:
+    if not url:
+        return "空 URL"
+    if url.startswith("data:"):
+        header = url.split(",", 1)[0]
+        return f"{header},..."
+    parsed = urlparse(url)
+    if not parsed.scheme or not parsed.netloc:
+        return url[:120]
+    path_parts = [part for part in parsed.path.split("/") if part]
+    short_path = "/".join(path_parts[-3:])
+    return f"{parsed.scheme}://{parsed.netloc}/{short_path}" if short_path else f"{parsed.scheme}://{parsed.netloc}"
 
 
 class ReferenceItemInput(BaseModel):
@@ -456,10 +472,18 @@ def get_image_size_templates(
 async def _inspect_and_validate_wan27_images(ref_urls: List[str]) -> List[Dict[str, Any]]:
     metadata_list: List[Dict[str, Any]] = []
     for index, url in enumerate(ref_urls, start=1):
-        try:
-            metadata = await inspect_remote_image(url)
-        except Exception as exc:
-            raise HTTPException(status_code=400, detail=f"第 {index} 张输入图片无法读取: {exc}") from exc
+        last_error: Optional[Exception] = None
+        for attempt in range(len(WAN27_IMAGE_INSPECT_RETRY_DELAYS) + 1):
+            try:
+                metadata = await inspect_remote_image(url)
+                break
+            except Exception as exc:
+                last_error = exc
+                if attempt < len(WAN27_IMAGE_INSPECT_RETRY_DELAYS):
+                    await asyncio.sleep(WAN27_IMAGE_INSPECT_RETRY_DELAYS[attempt])
+        else:
+            url_summary = _summarize_media_url(url)
+            raise HTTPException(status_code=400, detail=f"第 {index} 张输入图片无法读取（{url_summary}）: {last_error}") from last_error
 
         image_format = (metadata.get("format") or "").upper()
         width = int(metadata.get("width") or 0)

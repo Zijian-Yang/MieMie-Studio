@@ -5,6 +5,7 @@ import {
   Alert,
   Button,
   Card,
+  Checkbox,
   Empty,
   Form,
   Image,
@@ -277,6 +278,7 @@ const ImageBenchmarkDatasetsPage = () => {
   const [datasets, setDatasets] = useState<ImageBenchmarkDataset[]>([])
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([])
   const [galleryUploadEnabled, setGalleryUploadEnabled] = useState(false)
+  const [migrateImagesOnImport, setMigrateImagesOnImport] = useState(false)
   const [loading, setLoading] = useState(true)
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(null)
   const [draftDataset, setDraftDataset] = useState<ImageBenchmarkDataset | null>(null)
@@ -516,9 +518,21 @@ const ImageBenchmarkDatasetsPage = () => {
         const result = await imageBenchmarkApi.importDataset({
           project_id: projectId,
           data,
+          migrate_images_to_oss: migrateImagesOnImport,
         })
         await refreshDatasets(result.dataset.id)
-        message.success('数据集导入成功')
+        if (result.migration_report) {
+          const report = result.migration_report
+          if (!report.enabled) {
+            message.warning('数据集已导入；当前 OSS 未启用，图片 URL 保持原样')
+          } else if (report.failed > 0) {
+            message.warning(`数据集已导入；图片转存成功 ${report.succeeded} 个，失败 ${report.failed} 个`)
+          } else {
+            message.success(`数据集导入成功，已转存 ${report.succeeded} 个图片`)
+          }
+        } else {
+          message.success('数据集导入成功')
+        }
       } catch (error) {
         if (error instanceof Error) {
           message.error(error.message)
@@ -1130,6 +1144,12 @@ const ImageBenchmarkDatasetsPage = () => {
           <Text type="secondary">使用图片槽位管理可复用的测评样例，支持批量填充、批量编辑和拖拽排序。</Text>
         </div>
         <Space>
+          <Checkbox
+            checked={migrateImagesOnImport}
+            onChange={(event) => setMigrateImagesOnImport(event.target.checked)}
+          >
+            导入时转存图片到当前 OSS
+          </Checkbox>
           <Upload {...importUploadProps}>
             <Button icon={<ImportOutlined />}>导入 JSON</Button>
           </Upload>

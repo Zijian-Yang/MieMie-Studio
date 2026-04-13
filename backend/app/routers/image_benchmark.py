@@ -29,6 +29,7 @@ from app.services.image_benchmark_runtime import (
     preview_benchmark_cell,
     render_markdown_report,
 )
+from app.services.oss import oss_service
 from app.services.storage import get_current_user_id, set_current_user, storage_service
 
 router = APIRouter()
@@ -99,6 +100,7 @@ class DatasetImportRequest(BaseModel):
     data: Dict[str, Any]
     name: Optional[str] = None
     description: Optional[str] = None
+    migrate_images_to_oss: bool = False
 
 
 class SuiteCreateRequest(BaseModel):
@@ -184,6 +186,58 @@ def _normalize_dataset_items(task_kind: str, items: List[DatasetItemInput]) -> L
             )
         )
     return normalized_items
+
+
+async def _migrate_dataset_images_to_current_oss(
+    project_id: str,
+    items: List[ImageBenchmarkDatasetItem],
+) -> Dict[str, Any]:
+    report: Dict[str, Any] = {
+        "enabled": bool(oss_service.is_enabled()),
+        "attempted": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "skipped": 0,
+        "errors": [],
+    }
+    if not report["enabled"]:
+        report["skipped"] = sum(1 for item in items for slot in item.image_slots if slot.image.url)
+        return report
+
+    migrated_url_cache: Dict[str, str] = {}
+    failed_url_cache: Dict[str, str] = {}
+    for item in items:
+        for slot in item.image_slots:
+            original_url = slot.image.url
+            if not original_url:
+                continue
+            if original_url in migrated_url_cache:
+                slot.image.url = migrated_url_cache[original_url]
+                report["skipped"] += 1
+                continue
+            if original_url in failed_url_cache:
+                report["skipped"] += 1
+                continue
+
+            report["attempted"] += 1
+            success, result = await oss_service.upload_from_url_async(original_url, "image", "png", project_id)
+            if success:
+                migrated_url_cache[original_url] = result
+                slot.image.url = result
+                report["succeeded"] += 1
+            else:
+                failed_url_cache[original_url] = result
+                report["failed"] += 1
+                report["errors"].append(
+                    {
+                        "item_id": item.id,
+                        "item_name": item.name,
+                        "position": slot.position,
+                        "url": original_url,
+                        "error": result,
+                    }
+                )
+    return report
 
 
 def _resolve_dataset_max_image_slot_index(
@@ -491,6 +545,9 @@ async def import_dataset(request: DatasetImportRequest):
         items.append(DatasetItemInput.model_validate(normalized_item))
 
     normalized_items = _normalize_dataset_items(task_kind, items)
+    migration_report = None
+    if request.migrate_images_to_oss:
+        migration_report = await _migrate_dataset_images_to_current_oss(request.project_id, normalized_items)
     dataset = ImageBenchmarkDataset(
         project_id=request.project_id,
         name=request.name or data.get("name") or "导入数据集",
@@ -504,7 +561,10 @@ async def import_dataset(request: DatasetImportRequest):
         items=normalized_items,
     )
     storage_service.save_image_benchmark_dataset(dataset)
-    return _dataset_response(dataset)
+    response = _dataset_response(dataset)
+    if migration_report is not None:
+        response["migration_report"] = migration_report
+    return response
 
 
 @router.get("/datasets/{dataset_id}/export")
@@ -670,14 +730,14 @@ async def retry_failed_cells(run_id: str):
     if not suite:
         raise HTTPException(status_code=404, detail="测评任务不存在")
 
-    failed_cells = [cell for cell in source_run.cell_results if cell.status == "failed"]
-    if not failed_cells:
-        raise HTTPException(status_code=400, detail="当前运行没有失败任务可重试")
+    retryable_cells = [cell for cell in source_run.cell_results if cell.status in {"failed", "unsupported"}]
+    if not retryable_cells:
+        raise HTTPException(status_code=400, detail="当前运行没有失败或不支持任务可重试")
 
-    preserved_cells = [cell for cell in source_run.cell_results if cell.status != "failed"]
+    preserved_cells = [cell for cell in source_run.cell_results if cell.status not in {"failed", "unsupported"}]
     retry_targets = [
         {"case_id": cell.case_id, "model_id": cell.model_id}
-        for cell in failed_cells
+        for cell in retryable_cells
     ]
 
     retry_run = ImageBenchmarkRun(

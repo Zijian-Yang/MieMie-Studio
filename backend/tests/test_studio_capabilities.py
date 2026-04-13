@@ -128,6 +128,38 @@ def test_preview_payload_rejects_wan27_4k_when_input_images_present(client, auth
     assert "4K" in resp.json()["detail"]
 
 
+def test_preview_payload_reports_wan27_image_read_error_with_url(client, auth_header, monkeypatch):
+    async def mock_inspect_remote_image(_url):
+        raise ValueError("HTTP 403，content-type=text/html")
+
+    monkeypatch.setattr(
+        "app.routers.studio._resolve_reference_items",
+        lambda _refs: _mock_reference_items(["https://old.example.com/private/ref.png?token=secret"]),
+    )
+    monkeypatch.setattr("app.routers.studio.inspect_remote_image", mock_inspect_remote_image)
+
+    resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "wan2.7-image",
+            "task_kind": "image_edit",
+            "prompt": "把图1做成海报",
+            "n": 1,
+            "group_count": 1,
+            "size_mode": "preset",
+            "size_preset": "2K",
+            "references": [{"type": "gallery", "id": "ref-1"}],
+        },
+    )
+    assert resp.status_code == 400
+    detail = resp.json()["detail"]
+    assert "第 1 张输入图片无法读取" in detail
+    assert "https://old.example.com/private/ref.png" in detail
+    assert "HTTP 403" in detail
+
+
 def test_preview_payload_rejects_wan27_input_image_with_alpha(client, auth_header, monkeypatch):
     async def mock_inspect_remote_image(_url):
         return {

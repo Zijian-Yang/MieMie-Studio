@@ -312,6 +312,17 @@ def _is_retryable_rate_limit_error(error_message: Optional[str]) -> bool:
     return any(pattern in lowered for pattern in RETRYABLE_RATE_LIMIT_PATTERNS)
 
 
+def _merge_unique_ids(existing: List[str], incoming: List[str]) -> List[str]:
+    seen = set(existing)
+    merged = list(existing)
+    for item in incoming:
+        if not item or item in seen:
+            continue
+        seen.add(item)
+        merged.append(item)
+    return merged
+
+
 async def _execute_benchmark_cell_once(
     *,
     project_id: str,
@@ -526,6 +537,8 @@ async def execute_benchmark_cell(
     """执行单个测评单元，遇到限流错误时自动重试"""
 
     last_result: Optional[ImageBenchmarkCellResult] = None
+    accumulated_request_ids: List[str] = []
+    accumulated_task_ids: List[str] = []
     retry_delays = _build_auto_retry_delays()
     total_attempts = len(retry_delays) + 1
     for attempt_index in range(total_attempts):
@@ -536,6 +549,10 @@ async def execute_benchmark_cell(
             case_data=case_data,
             effective_params=effective_params,
         )
+        accumulated_request_ids = _merge_unique_ids(accumulated_request_ids, result.request_ids or [])
+        accumulated_task_ids = _merge_unique_ids(accumulated_task_ids, result.task_ids or [])
+        result.request_ids = accumulated_request_ids
+        result.task_ids = accumulated_task_ids
         result.attempt_count = attempt_index + 1
         result.auto_retry_count = attempt_index
         result.provider_result_meta = {
@@ -545,6 +562,8 @@ async def execute_benchmark_cell(
                 "retry_count": attempt_index,
                 "rate_limit_retried": attempt_index > 0,
                 "retry_delays_seconds": retry_delays,
+                "request_ids": accumulated_request_ids,
+                "task_ids": accumulated_task_ids,
             },
         }
 

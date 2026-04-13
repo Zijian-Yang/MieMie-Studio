@@ -100,6 +100,71 @@ def test_dataset_import_migrates_legacy_input_images_schema(client, auth_header)
     assert dataset["items"][0]["image_slots"][1]["position"] == 2
 
 
+def test_dataset_import_can_rehost_images_to_current_oss(client, auth_header, monkeypatch):
+    project_id = _create_project(client, auth_header)
+    upload_calls = []
+
+    async def fake_upload_from_url_async(url, file_type="image", extension="png", project_id=""):
+        upload_calls.append((url, file_type, extension, project_id))
+        return True, url.replace("https://old.example.com", "https://new-oss.example.com")
+
+    monkeypatch.setattr(image_benchmark_router.oss_service, "is_enabled", lambda: True)
+    monkeypatch.setattr(image_benchmark_router.oss_service, "upload_from_url_async", fake_upload_from_url_async)
+
+    resp = client.post(
+        "/api/image-benchmark/datasets/import",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "migrate_images_to_oss": True,
+            "data": {
+                "schema_version": "2.0",
+                "type": "image_benchmark_dataset",
+                "task_kind": "image_edit",
+                "name": "跨环境图片编辑集",
+                "items": [
+                    {
+                        "name": "样例1",
+                        "prompt": "把图2换成图1的人物",
+                        "image_slots": [
+                            {
+                                "position": 1,
+                                "image": {"url": "https://old.example.com/ref1.png", "name": "图1"},
+                            },
+                            {
+                                "position": 2,
+                                "image": {"url": "https://old.example.com/ref2.png", "name": "图2"},
+                            },
+                        ],
+                    },
+                    {
+                        "name": "样例2",
+                        "prompt": "复用第一张图",
+                        "image_slots": [
+                            {
+                                "position": 1,
+                                "image": {"url": "https://old.example.com/ref1.png", "name": "图1"},
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["migration_report"]["attempted"] == 2
+    assert data["migration_report"]["succeeded"] == 2
+    assert data["migration_report"]["failed"] == 0
+    assert len(upload_calls) == 2
+    first_item_slots = data["dataset"]["items"][0]["image_slots"]
+    second_item_slots = data["dataset"]["items"][1]["image_slots"]
+    assert first_item_slots[0]["image"]["url"] == "https://new-oss.example.com/ref1.png"
+    assert first_item_slots[1]["image"]["url"] == "https://new-oss.example.com/ref2.png"
+    assert second_item_slots[0]["image"]["url"] == "https://new-oss.example.com/ref1.png"
+
+
 def test_dataset_save_allows_sparse_slots_and_returns_warnings(client, auth_header):
     project_id = _create_project(client, auth_header)
     resp = client.post(
@@ -253,6 +318,57 @@ async def test_execute_benchmark_cell_retries_on_rate_limit(monkeypatch):
     assert result.attempt_count == 4
     assert sleep_calls == [2, 4, 8]
     assert result.output_images[0].url == "https://oss.example.com/output.png"
+
+
+@pytest.mark.asyncio
+async def test_execute_benchmark_cell_keeps_ids_across_auto_retries(monkeypatch):
+    attempts = {"count": 0}
+
+    async def fake_execute_once(**kwargs):
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            return ImageBenchmarkCellResult(
+                case_id="case-1",
+                case_name="样例1",
+                model_id="wan2.7-image",
+                model_name="万相 2.7 Image",
+                status="failed",
+                error_message="API 调用失败 (Throttling.RateQuota): Requests rate limit exceeded",
+                request_ids=["req-submit-1"],
+                task_ids=["task-1"],
+            )
+        return ImageBenchmarkCellResult(
+            case_id="case-1",
+            case_name="样例1",
+            model_id="wan2.7-image",
+            model_name="万相 2.7 Image",
+            status="completed",
+            request_ids=["req-submit-2", "req-result-2"],
+            task_ids=["task-2"],
+        )
+
+    async def fake_sleep(_seconds):
+        return None
+
+    monkeypatch.setattr("app.services.image_benchmark_runtime._execute_benchmark_cell_once", fake_execute_once)
+    monkeypatch.setattr("app.services.image_benchmark_runtime.asyncio.sleep", fake_sleep)
+
+    from app.services.image_benchmark_runtime import execute_benchmark_cell
+
+    result = await execute_benchmark_cell(
+        project_id="p1",
+        task_kind="image_edit",
+        model_meta={"id": "wan2.7-image", "name": "万相 2.7 Image"},
+        case_data={"id": "case-1", "name": "样例1", "prompt": "prompt", "image_slots": []},
+        effective_params={"n": 1},
+    )
+
+    assert attempts["count"] == 2
+    assert result.status == "completed"
+    assert result.request_ids == ["req-submit-1", "req-submit-2", "req-result-2"]
+    assert result.task_ids == ["task-1", "task-2"]
+    assert result.provider_result_meta["auto_retry"]["request_ids"] == result.request_ids
+    assert result.provider_result_meta["auto_retry"]["task_ids"] == result.task_ids
 
 
 @pytest.mark.asyncio
@@ -444,3 +560,71 @@ async def test_retry_failed_cells_creates_new_run_and_only_retries_failed(client
     retried_cell = next(cell for cell in saved_run["cell_results"] if cell["case_id"] == dataset["items"][1]["id"])
     assert retried_cell["status"] == "completed"
     assert saved_run["stats"]["retried_failure_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_retry_failed_cells_also_retries_unsupported(client, auth_header, registered_user, monkeypatch):
+    project_id = _create_project(client, auth_header)
+    _, user = registered_user
+
+    dataset_resp = client.post(
+        "/api/image-benchmark/datasets",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "未支持重试数据集",
+            "task_kind": "image_edit",
+            "items": [
+                {
+                    "name": "样例1",
+                    "prompt": "prompt-1",
+                    "image_slots": [{"position": 1, "image": {"url": "https://oss.example.com/a.png", "name": "图1"}}],
+                },
+            ],
+        },
+    )
+    dataset = dataset_resp.json()["dataset"]
+
+    suite_resp = client.post(
+        "/api/image-benchmark/suites",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "未支持重试测评",
+            "dataset_id": dataset["id"],
+            "selected_models": ["wan2.7-image"],
+            "baseline_params": {"n": 1},
+        },
+    )
+    suite = suite_resp.json()["suite"]
+
+    set_current_user(user["id"])
+    source_run = image_benchmark_router.ImageBenchmarkRun(
+        suite_id=suite["id"],
+        project_id=project_id,
+        dataset_id=dataset["id"],
+        task_kind="image_edit",
+        status="completed",
+        dataset_snapshot=dataset,
+        model_snapshots=[{"id": "wan2.7-image", "name": "万相 2.7 Image"}],
+        baseline_params={"n": 1},
+        model_overrides={},
+        cell_results=[
+            ImageBenchmarkCellResult(
+                case_id=dataset["items"][0]["id"],
+                case_name="样例1",
+                model_id="wan2.7-image",
+                model_name="万相 2.7 Image",
+                status="unsupported",
+                error_message="第 1 张输入图片无法读取: ",
+            ),
+        ],
+    )
+    storage_service.save_image_benchmark_run(source_run)
+
+    _patch_async_create_task(monkeypatch)
+    retry_resp = client.post(f"/api/image-benchmark/runs/{source_run.id}/retry-failures", headers=auth_header)
+    assert retry_resp.status_code == 200
+    retry_run = retry_resp.json()["run"]
+    assert retry_run["retry_targets"] == [{"case_id": dataset["items"][0]["id"], "model_id": "wan2.7-image"}]
+    assert retry_run["cell_results"] == []
