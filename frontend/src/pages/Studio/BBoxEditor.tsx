@@ -1,6 +1,6 @@
 import { Button, Space, theme } from 'antd'
 import { DeleteOutlined } from '@ant-design/icons'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 interface BBoxEditorProps {
   imageUrl: string
@@ -109,7 +109,7 @@ const BBoxEditor: React.FC<BBoxEditorProps> = ({
     return () => observer.disconnect()
   }, [imageSize.width, imageSize.height])
 
-  const clampPan = (nextPan: { x: number; y: number }, nextZoom: number) => {
+  const clampPan = useCallback((nextPan: { x: number; y: number }, nextZoom: number) => {
     const container = containerRef.current
     const image = imageRef.current
     const width = stageSize.width || image?.clientWidth || 0
@@ -125,7 +125,7 @@ const BBoxEditor: React.FC<BBoxEditorProps> = ({
       x: clamp(nextPan.x, minX, 0),
       y: clamp(nextPan.y, minY, 0),
     }
-  }
+  }, [stageSize.height, stageSize.width])
 
   const getImagePoint = (clientX: number, clientY: number) => {
     const image = imageRef.current
@@ -278,7 +278,10 @@ const BBoxEditor: React.FC<BBoxEditorProps> = ({
     })
   }, [imageSize.height, imageSize.width, stageSize.height, stageSize.width, workingBoxes])
 
-  const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+  const handleWheel = useCallback((event: WheelEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+
     if (interaction) return
     const container = containerRef.current
     const image = imageRef.current
@@ -286,7 +289,6 @@ const BBoxEditor: React.FC<BBoxEditorProps> = ({
     const renderedHeight = stageSize.height || image?.clientHeight || 0
     if (!container || !renderedWidth || !renderedHeight) return
 
-    event.preventDefault()
     const rect = container.getBoundingClientRect()
     const pointerX = event.clientX - rect.left
     const pointerY = event.clientY - rect.top
@@ -301,7 +303,14 @@ const BBoxEditor: React.FC<BBoxEditorProps> = ({
     }, nextZoom)
     setZoom(nextZoom)
     setPan(nextPan)
-  }
+  }, [clampPan, interaction, pan.x, pan.y, stageSize.height, stageSize.width, zoom])
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    return () => container.removeEventListener('wheel', handleWheel)
+  }, [handleWheel])
 
   const resetViewport = () => {
     setZoom(1)
@@ -389,7 +398,6 @@ const BBoxEditor: React.FC<BBoxEditorProps> = ({
           touchAction: 'none',
         }}
         onMouseDown={handleBackgroundMouseDown}
-        onWheel={handleWheel}
         onKeyDown={(event) => {
           if ((event.key === 'Delete' || event.key === 'Backspace') && selectedIndex !== null) {
             event.preventDefault()
@@ -437,7 +445,6 @@ const BBoxEditor: React.FC<BBoxEditorProps> = ({
                 width: box.width,
                 height: box.height,
                 border: `2px solid ${selectedIndex === index ? token.colorPrimary : token.colorError}`,
-                background: selectedIndex === index ? token.colorPrimaryBg : token.colorErrorBg,
                 cursor: 'move',
               }}
             >
