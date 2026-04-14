@@ -23,6 +23,19 @@ import httpx
 from PIL import Image, UnidentifiedImageError
 
 
+def _has_transparent_pixels(image: Image.Image) -> bool:
+    if image.mode not in {"RGBA", "LA", "PA"} and "transparency" not in image.info:
+        return False
+
+    try:
+        alpha = image.getchannel("A") if image.mode in {"RGBA", "LA", "PA"} else image.convert("RGBA").getchannel("A")
+        alpha_extrema = alpha.getextrema()
+    except (OSError, ValueError):
+        return "transparency" in image.info
+
+    return bool(alpha_extrema and alpha_extrema[0] < 255)
+
+
 def _decode_data_uri(value: str) -> Tuple[bytes, str]:
     header, _, payload = value.partition(",")
     if not payload or ";base64" not in header:
@@ -71,7 +84,7 @@ async def inspect_remote_image(url: str) -> Dict[str, Any]:
 
     width, height = image.size
     image_format = (image.format or "").upper()
-    has_alpha = image.mode in {"RGBA", "LA", "PA"} or ("transparency" in image.info)
+    has_alpha = _has_transparent_pixels(image)
 
     return {
         "url": url,
