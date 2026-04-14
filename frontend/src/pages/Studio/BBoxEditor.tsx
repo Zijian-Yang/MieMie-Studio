@@ -22,6 +22,9 @@ interface InteractionState {
 }
 
 const MIN_BOX_SIZE = 8
+const MIN_ZOOM = 1
+const MAX_ZOOM = 6
+const WHEEL_ZOOM_SPEED = 0.0015
 
 const HANDLE_POSITIONS: Array<{ handle: ResizeHandle; left: string; top: string; cursor: string }> = [
   { handle: 'nw', left: '-5px', top: '-5px', cursor: 'nwse-resize' },
@@ -70,8 +73,26 @@ const BBoxEditor: React.FC<BBoxEditorProps> = ({
   const containerRef = useRef<HTMLDivElement | null>(null)
   const imageRef = useRef<HTMLImageElement | null>(null)
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 })
+  const [stageSize, setStageSize] = useState({ width: 0, height: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [interaction, setInteraction] = useState<InteractionState | null>(null)
+
+  const updateStageSize = () => {
+    const image = imageRef.current
+    if (!image) return
+    setStageSize({
+      width: image.clientWidth,
+      height: image.clientHeight,
+    })
+  }
+
+  useEffect(() => {
+    setZoom(1)
+    setPan({ x: 0, y: 0 })
+    setInteraction(null)
+  }, [imageUrl])
 
   useEffect(() => {
     if (selectedIndex !== null && selectedIndex >= value.length) {
@@ -79,14 +100,47 @@ const BBoxEditor: React.FC<BBoxEditorProps> = ({
     }
   }, [selectedIndex, value.length])
 
+  useEffect(() => {
+    const image = imageRef.current
+    if (!image || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(updateStageSize)
+    observer.observe(image)
+    updateStageSize()
+    return () => observer.disconnect()
+  }, [imageSize.width, imageSize.height])
+
+  const clampPan = (nextPan: { x: number; y: number }, nextZoom: number) => {
+    const container = containerRef.current
+    const image = imageRef.current
+    const width = stageSize.width || image?.clientWidth || 0
+    const height = stageSize.height || image?.clientHeight || 0
+    if (!container || !width || !height || nextZoom <= 1) {
+      return { x: 0, y: 0 }
+    }
+
+    const viewport = container.getBoundingClientRect()
+    const minX = Math.min(0, viewport.width - width * nextZoom)
+    const minY = Math.min(0, viewport.height - height * nextZoom)
+    return {
+      x: clamp(nextPan.x, minX, 0),
+      y: clamp(nextPan.y, minY, 0),
+    }
+  }
+
   const getImagePoint = (clientX: number, clientY: number) => {
     const image = imageRef.current
+    const container = containerRef.current
     if (!image || imageSize.width === 0 || imageSize.height === 0) return null
-    const rect = image.getBoundingClientRect()
-    if (!rect.width || !rect.height) return null
+    const rect = container?.getBoundingClientRect()
+    const renderedWidth = stageSize.width || image.clientWidth
+    const renderedHeight = stageSize.height || image.clientHeight
+    if (!rect || !renderedWidth || !renderedHeight) return null
+    const stageX = (clientX - rect.left - pan.x) / zoom
+    const stageY = (clientY - rect.top - pan.y) / zoom
+    if (stageX < 0 || stageX > renderedWidth || stageY < 0 || stageY > renderedHeight) return null
     return {
-      x: clamp(((clientX - rect.left) / rect.width) * imageSize.width, 0, imageSize.width),
-      y: clamp(((clientY - rect.top) / rect.height) * imageSize.height, 0, imageSize.height),
+      x: clamp((stageX / renderedWidth) * imageSize.width, 0, imageSize.width),
+      y: clamp((stageY / renderedHeight) * imageSize.height, 0, imageSize.height),
       rect,
     }
   }
@@ -207,9 +261,10 @@ const BBoxEditor: React.FC<BBoxEditorProps> = ({
   }, [interaction, value])
 
   const displayBoxes = useMemo(() => {
-    if (!imageRef.current || imageSize.width === 0 || imageSize.height === 0) return []
-    const renderedWidth = imageRef.current.clientWidth
-    const renderedHeight = imageRef.current.clientHeight
+    if (imageSize.width === 0 || imageSize.height === 0) return []
+    const renderedWidth = stageSize.width || imageRef.current?.clientWidth || 0
+    const renderedHeight = stageSize.height || imageRef.current?.clientHeight || 0
+    if (!renderedWidth || !renderedHeight) return []
     const scaleX = renderedWidth / imageSize.width
     const scaleY = renderedHeight / imageSize.height
     return workingBoxes.map((box) => {
@@ -221,7 +276,37 @@ const BBoxEditor: React.FC<BBoxEditorProps> = ({
         height: (normalized[3] - normalized[1]) * scaleY,
       }
     })
-  }, [imageSize.height, imageSize.width, workingBoxes])
+  }, [imageSize.height, imageSize.width, stageSize.height, stageSize.width, workingBoxes])
+
+  const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    if (interaction) return
+    const container = containerRef.current
+    const image = imageRef.current
+    const renderedWidth = stageSize.width || image?.clientWidth || 0
+    const renderedHeight = stageSize.height || image?.clientHeight || 0
+    if (!container || !renderedWidth || !renderedHeight) return
+
+    event.preventDefault()
+    const rect = container.getBoundingClientRect()
+    const pointerX = event.clientX - rect.left
+    const pointerY = event.clientY - rect.top
+    const nextZoom = clamp(zoom * Math.exp(-event.deltaY * WHEEL_ZOOM_SPEED), MIN_ZOOM, MAX_ZOOM)
+    if (nextZoom === zoom) return
+
+    const imagePointX = (pointerX - pan.x) / zoom
+    const imagePointY = (pointerY - pan.y) / zoom
+    const nextPan = clampPan({
+      x: pointerX - imagePointX * nextZoom,
+      y: pointerY - imagePointY * nextZoom,
+    }, nextZoom)
+    setZoom(nextZoom)
+    setPan(nextPan)
+  }
+
+  const resetViewport = () => {
+    setZoom(1)
+    setPan({ x: 0, y: 0 })
+  }
 
   const handleBackgroundMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
     if (value.length >= maxBoxes) {
@@ -301,8 +386,10 @@ const BBoxEditor: React.FC<BBoxEditorProps> = ({
           userSelect: 'none',
           cursor: value.length >= maxBoxes ? 'default' : 'crosshair',
           outline: 'none',
+          touchAction: 'none',
         }}
         onMouseDown={handleBackgroundMouseDown}
+        onWheel={handleWheel}
         onKeyDown={(event) => {
           if ((event.key === 'Delete' || event.key === 'Backspace') && selectedIndex !== null) {
             event.preventDefault()
@@ -313,70 +400,85 @@ const BBoxEditor: React.FC<BBoxEditorProps> = ({
           }
         }}
       >
-        <img
-          ref={imageRef}
-          src={imageUrl}
-          alt="bbox"
-          style={{ display: 'block', width: '100%', maxHeight: 360, objectFit: 'contain' }}
-          onLoad={(event) => {
-            setImageSize({
-              width: event.currentTarget.naturalWidth,
-              height: event.currentTarget.naturalHeight,
-            })
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: '0 0',
+            willChange: 'transform',
           }}
-        />
-        {displayBoxes.map((box, index) => (
-          <div
-            key={`${box.left}-${box.top}-${index}`}
-            onMouseDown={(event) => handleBoxMouseDown(index, event)}
-            style={{
-              position: 'absolute',
-              left: box.left,
-              top: box.top,
-              width: box.width,
-              height: box.height,
-              border: selectedIndex === index ? '2px solid #1677ff' : '2px solid #ff4d4f',
-              background: selectedIndex === index ? 'rgba(22,119,255,0.12)' : 'rgba(255,77,79,0.12)',
-              cursor: 'move',
+        >
+          <img
+            ref={imageRef}
+            src={imageUrl}
+            alt="bbox"
+            draggable={false}
+            style={{ display: 'block', width: '100%', maxHeight: 360, objectFit: 'contain', pointerEvents: 'none' }}
+            onLoad={(event) => {
+              setImageSize({
+                width: event.currentTarget.naturalWidth,
+                height: event.currentTarget.naturalHeight,
+              })
+              setStageSize({
+                width: event.currentTarget.clientWidth,
+                height: event.currentTarget.clientHeight,
+              })
             }}
-          >
+          />
+          {displayBoxes.map((box, index) => (
             <div
+              key={`${box.left}-${box.top}-${index}`}
+              onMouseDown={(event) => handleBoxMouseDown(index, event)}
               style={{
                 position: 'absolute',
-                top: 0,
-                left: 0,
-                background: selectedIndex === index ? '#1677ff' : '#ff4d4f',
-                color: '#fff',
-                padding: '0 4px',
-                fontSize: 10,
-                lineHeight: '18px',
+                left: box.left,
+                top: box.top,
+                width: box.width,
+                height: box.height,
+                border: `2px solid ${selectedIndex === index ? token.colorPrimary : token.colorError}`,
+                background: selectedIndex === index ? token.colorPrimaryBg : token.colorErrorBg,
+                cursor: 'move',
               }}
             >
-              框 {index + 1}
-            </div>
-            {selectedIndex === index && HANDLE_POSITIONS.map((item) => (
               <div
-                key={item.handle}
-                onMouseDown={(event) => handleResizeMouseDown(index, item.handle, event)}
                 style={{
                   position: 'absolute',
-                  left: item.left,
-                  top: item.top,
-                  width: 10,
-                  height: 10,
-                  borderRadius: 999,
-                  background: '#fff',
-                  border: '1px solid #1677ff',
-                  cursor: item.cursor,
+                  top: 0,
+                  left: 0,
+                  background: selectedIndex === index ? token.colorPrimary : token.colorError,
+                  color: token.colorTextLightSolid,
+                  padding: '0 4px',
+                  fontSize: 10,
+                  lineHeight: '18px',
                 }}
-              />
-            ))}
-          </div>
-        ))}
+              >
+                框 {index + 1}
+              </div>
+              {selectedIndex === index && HANDLE_POSITIONS.map((item) => (
+                <div
+                  key={item.handle}
+                  onMouseDown={(event) => handleResizeMouseDown(index, item.handle, event)}
+                  style={{
+                    position: 'absolute',
+                    left: item.left,
+                    top: item.top,
+                    width: 10,
+                    height: 10,
+                    borderRadius: 999,
+                    background: token.colorBgContainer,
+                    border: `1px solid ${token.colorPrimary}`,
+                    cursor: item.cursor,
+                  }}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
       <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
         <div style={{ color: token.colorTextSecondary, fontSize: 12 }}>
-          当前 {value.length}/{maxBoxes} 个框。拖拽空白区域新增框，点击已有框后可移动、缩放、按 Delete 删除。
+          当前 {value.length}/{maxBoxes} 个框。拖拽空白区域新增框，滚轮围绕鼠标位置缩放图片，点击已有框后可移动、缩放、按 Delete 删除。
           {selectedBox && (
             <div style={{ marginTop: 4 }}>
               已选框坐标：[{selectedBox[0]}, {selectedBox[1]}, {selectedBox[2]}, {selectedBox[3]}]
@@ -384,6 +486,9 @@ const BBoxEditor: React.FC<BBoxEditorProps> = ({
           )}
         </div>
         <Space size={8}>
+          <Button size="small" disabled={zoom === 1} onClick={resetViewport}>
+            重置缩放 {Math.round(zoom * 100)}%
+          </Button>
           <Button size="small" icon={<DeleteOutlined />} disabled={selectedIndex === null} onClick={handleDeleteSelected}>
             删除选中框
           </Button>

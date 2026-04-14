@@ -258,6 +258,13 @@ const buildImageFromGallery = (image: GalleryImage): ImageBenchmarkDatasetImage 
   source_label: '图库',
 })
 
+const renderGalleryImageOption = (image: GalleryImage) => (
+  <Space size={8} align="center" style={{ width: '100%' }}>
+    <Image src={image.url} alt="" width={36} height={36} preview={false} style={{ objectFit: 'cover', borderRadius: 6, flex: '0 0 auto' }} />
+    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{image.name}</span>
+  </Space>
+)
+
 const analyzeDatasetDraft = (dataset: ImageBenchmarkDataset | null): { warnings: ImageBenchmarkDatasetIssue[]; blockingIssues: ImageBenchmarkDatasetIssue[] } => {
   if (!dataset || !requiresImageSlots(dataset.task_kind)) {
     return { warnings: [], blockingIssues: [] }
@@ -1517,10 +1524,7 @@ const ImageBenchmarkDatasetsPage = () => {
                             >
                               {galleryImages.map((image) => (
                                 <Select.Option key={image.id} value={image.url} label={image.name}>
-                                  <Space>
-                                    <Image src={image.url} width={36} height={36} preview={false} style={{ objectFit: 'cover', borderRadius: 6 }} />
-                                    <span>{image.name}</span>
-                                  </Space>
+                                  {renderGalleryImageOption(image)}
                                 </Select.Option>
                               ))}
                             </Select>
@@ -1608,10 +1612,10 @@ const ImageBenchmarkDatasetsPage = () => {
           </Form.Item>
           {bulkAddSourceMode === 'gallery' ? (
             <Form.Item name="gallery_urls" label="图库图片" rules={[{ required: true, message: '请至少选择一张图片' }]}>
-              <Select mode="multiple" placeholder="多选后会新建多条样例">
+              <Select mode="multiple" optionLabelProp="label" placeholder="多选后会新建多条样例">
                 {galleryImages.map((image) => (
-                  <Select.Option key={image.id} value={image.url}>
-                    {image.name}
+                  <Select.Option key={image.id} value={image.url} label={image.name}>
+                    {renderGalleryImageOption(image)}
                   </Select.Option>
                 ))}
               </Select>
@@ -1671,11 +1675,12 @@ const ImageBenchmarkDatasetsPage = () => {
             >
               <Select
                 mode="multiple"
+                optionLabelProp="label"
                 placeholder={fillSlotApplyMode === 'single' ? '选择一张图片' : '图片数量必须与选中样例数一致'}
               >
                 {galleryImages.map((image) => (
-                  <Select.Option key={image.id} value={image.url}>
-                    {image.name}
+                  <Select.Option key={image.id} value={image.url} label={image.name}>
+                    {renderGalleryImageOption(image)}
                   </Select.Option>
                 ))}
               </Select>
@@ -1797,11 +1802,12 @@ const ImageBenchmarkDatasetsPage = () => {
                 <Form.Item name="gallery_urls" label="图库图片" rules={[{ required: true, message: '请选择图片' }]}>
                   <Select
                     mode="multiple"
+                    optionLabelProp="label"
                     placeholder={bulkEditSlotMode === 'single' ? '选择一张图片' : '图片数量必须与选中样例数一致'}
                   >
                     {galleryImages.map((image) => (
-                      <Select.Option key={image.id} value={image.url}>
-                        {image.name}
+                      <Select.Option key={image.id} value={image.url} label={image.name}>
+                        {renderGalleryImageOption(image)}
                       </Select.Option>
                     ))}
                   </Select>
