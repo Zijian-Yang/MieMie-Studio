@@ -1494,6 +1494,10 @@ export interface ImageBenchmarkSuite {
   status: ImageBenchmarkSuiteStatus
   latest_run_id?: string | null
   latest_run_snapshot?: Record<string, any> | null
+  share_token?: string | null
+  share_enabled?: boolean
+  share_created_at?: string | null
+  share_disabled_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -1533,6 +1537,52 @@ export interface ImageBenchmarkCapabilitiesResponse {
     supported_task_kinds?: ImageBenchmarkTaskKind[]
     size_ui_mode?: string
   }>
+}
+
+export interface ImageBenchmarkPublicCellResult {
+  id: string
+  case_id: string
+  case_name: string
+  model_id: string
+  model_name: string
+  status: ImageBenchmarkCellStatus
+  output_images: ImageBenchmarkOutputImage[]
+  error_message?: string | null
+  validation_warnings: string[]
+  attempt_count: number
+  auto_retry_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ImageBenchmarkPublicRun {
+  id: string
+  suite_id: string
+  project_id: string
+  dataset_id: string
+  task_kind: ImageBenchmarkTaskKind
+  status: ImageBenchmarkRunStatus
+  dataset_snapshot: Record<string, any>
+  model_snapshots: Array<Record<string, any>>
+  cell_results: ImageBenchmarkPublicCellResult[]
+  stats: Record<string, any>
+  created_at: string
+  updated_at: string
+  started_at?: string | null
+  finished_at?: string | null
+}
+
+export interface ImageBenchmarkPublicShareResponse {
+  suite: {
+    id: string
+    name: string
+    description: string
+    task_kind: ImageBenchmarkTaskKind
+    status: ImageBenchmarkSuiteStatus
+    latest_run_id?: string | null
+    updated_at: string
+  }
+  run: ImageBenchmarkPublicRun
 }
 
 export const imageBenchmarkApi = {
@@ -1604,6 +1654,8 @@ export const imageBenchmarkApi = {
     model_overrides?: Record<string, Record<string, any>>
   }) => api.put<any, { suite: ImageBenchmarkSuite }>(`/image-benchmark/suites/${id}`, data),
   deleteSuite: (id: string) => api.delete(`/image-benchmark/suites/${id}`),
+  enableSuiteShare: (id: string) => api.post<any, { suite: ImageBenchmarkSuite; share_url: string; public_api_url: string }>(`/image-benchmark/suites/${id}/share`),
+  disableSuiteShare: (id: string) => api.delete<any, { suite: ImageBenchmarkSuite }>(`/image-benchmark/suites/${id}/share`),
   runSuite: (id: string) => api.post<any, { run: ImageBenchmarkRun; suite: ImageBenchmarkSuite }>(`/image-benchmark/suites/${id}/run`),
   getRun: (id: string) => api.get<any, { run: ImageBenchmarkRun }>(`/image-benchmark/runs/${id}`),
   retryFailedRun: (id: string) => api.post<any, { run: ImageBenchmarkRun; suite: ImageBenchmarkSuite }>(`/image-benchmark/runs/${id}/retry-failures`),
@@ -1628,6 +1680,20 @@ export const imageBenchmarkApi = {
     provider_payload: Record<string, any>
     validation_warnings: string[]
   }>('/image-benchmark/preview-cell', data),
+}
+
+const getPublicJson = async <T>(url: string): Promise<T> => {
+  const response = await fetch(url, { headers: { Accept: 'application/json' } })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data?.detail || '请求失败')
+  }
+  return data as T
+}
+
+export const imageBenchmarkPublicApi = {
+  getShare: (token: string) => getPublicJson<ImageBenchmarkPublicShareResponse>(`/api/image-benchmark/public/shares/${encodeURIComponent(token)}`),
+  getShareMarkdown: (token: string) => getPublicJson<{ filename: string; content: string }>(`/api/image-benchmark/public/shares/${encodeURIComponent(token)}/markdown`),
 }
 
 // ============ 音频库 API ============

@@ -25,6 +25,8 @@ from app.routers import studio as studio_router
 
 BENCHMARK_TASK_KINDS = {"text_to_image", "image_edit", "interactive_edit"}
 CONFIGURABLE_PARAM_EXCLUDES = {"prompt", "images"}
+BENCHMARK_MANAGED_PARAMS = {"bbox_list", "enable_sequential"}
+BENCHMARK_IMAGE_INPUT_DISABLED_PARAMS = {"thinking_mode"}
 AUTO_RETRY_INITIAL_DELAY_SECONDS = 2
 AUTO_RETRY_MAX_RETRIES = 6
 AUTO_RETRY_MAX_DELAY_SECONDS = 64
@@ -57,11 +59,7 @@ async def get_image_benchmark_capabilities() -> Dict[str, Any]:
             continue
         next_model = dict(model)
         next_model["supported_task_kinds"] = supported_task_kinds
-        next_model["configurable_parameters"] = [
-            param
-            for param in model.get("parameters") or []
-            if param.get("name") not in CONFIGURABLE_PARAM_EXCLUDES
-        ]
+        next_model["configurable_parameters"] = _configurable_parameters_for_model(next_model)
         models[model_id] = next_model
     return {
         "task_kinds": [
@@ -209,20 +207,26 @@ def render_markdown_report(run: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _configurable_parameters_for_model(model_meta: Dict[str, Any]) -> List[Dict[str, Any]]:
-    return model_meta.get("configurable_parameters") or [
+def _configurable_parameters_for_model(model_meta: Dict[str, Any], task_kind: Optional[str] = None) -> List[Dict[str, Any]]:
+    params = model_meta.get("configurable_parameters") or [
         param
         for param in model_meta.get("parameters") or []
         if param.get("name") not in CONFIGURABLE_PARAM_EXCLUDES
     ]
+    if task_kind:
+        excluded = set(BENCHMARK_MANAGED_PARAMS)
+        if task_kind != "text_to_image":
+            excluded.update(BENCHMARK_IMAGE_INPUT_DISABLED_PARAMS)
+        params = [param for param in params if param.get("name") not in excluded]
+    return params
 
 
-def _default_params_for_model(model_meta: Dict[str, Any]) -> Dict[str, Any]:
+def _default_params_for_model(model_meta: Dict[str, Any], task_kind: Optional[str] = None) -> Dict[str, Any]:
     defaults: Dict[str, Any] = {}
-    for param in _configurable_parameters_for_model(model_meta):
+    for param in _configurable_parameters_for_model(model_meta, task_kind):
         if param.get("default") is not None:
             defaults[param["name"]] = param["default"]
-    if "n" in {param.get("name") for param in _configurable_parameters_for_model(model_meta)}:
+    if "n" in {param.get("name") for param in _configurable_parameters_for_model(model_meta, task_kind)}:
         defaults.setdefault("n", 1)
     return defaults
 
@@ -231,16 +235,31 @@ def merge_effective_params(
     model_meta: Dict[str, Any],
     baseline_params: Optional[Dict[str, Any]],
     override_params: Optional[Dict[str, Any]],
+    task_kind: Optional[str] = None,
 ) -> Dict[str, Any]:
     """合并某个模型的最终参数"""
 
-    configurable_names = {param.get("name") for param in _configurable_parameters_for_model(model_meta)}
-    effective_params = _default_params_for_model(model_meta)
+    configurable_names = {param.get("name") for param in _configurable_parameters_for_model(model_meta, task_kind)}
+    effective_params = _default_params_for_model(model_meta, task_kind)
     for source in (baseline_params or {}, override_params or {}):
         for key, value in source.items():
             if key in configurable_names and value is not None:
                 effective_params[key] = value
     return effective_params
+
+
+def _extract_effective_color_palette(effective_params: Dict[str, Any]) -> List[Dict[str, str]]:
+    value = effective_params.get("color_palette")
+    if not value:
+        return []
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=400, detail="颜色主题必须是 JSON 数组") from exc
+    if not isinstance(value, list):
+        raise HTTPException(status_code=400, detail="颜色主题必须是数组")
+    return studio_router._serialize_color_palette(value)
 
 
 def _extract_case_input_images(case_data: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -283,6 +302,7 @@ async def preview_benchmark_cell(
     if task_kind == "interactive_edit" and bbox_list is None:
         raise HTTPException(status_code=400, detail="交互式编辑样例需要 bbox_list")
 
+    color_palette = _extract_effective_color_palette(effective_params)
     if model_id in studio_router.WAN27_MODELS and ref_urls:
         image_metadata = await studio_router._inspect_and_validate_wan27_images(ref_urls)
         if task_kind == "interactive_edit":
@@ -308,7 +328,7 @@ async def preview_benchmark_cell(
         enable_sequential=False,
         thinking_mode=None,
         bbox_list=normalized_bbox_list,
-        color_palette=[],
+        color_palette=color_palette,
         size_mode=effective_params.get("size_mode"),
         size_preset=effective_params.get("size_preset"),
         custom_width=effective_params.get("custom_width"),
@@ -369,6 +389,7 @@ async def _execute_benchmark_cell_once(
 
     ref_urls = _extract_case_ref_urls(case_data)
     normalized_bbox_list = (canonical_request.get("normalized_params") or {}).get("bbox_list") or []
+    normalized_color_palette = (canonical_request.get("normalized_params") or {}).get("color_palette") or []
     task = StudioTask(
         project_id=project_id,
         name=case_data.get("name") or "",
@@ -393,7 +414,7 @@ async def _execute_benchmark_cell_once(
         enable_sequential=False,
         thinking_mode=None,
         bbox_list=normalized_bbox_list,
-        color_palette=[],
+        color_palette=normalized_color_palette,
         size_mode=effective_params.get("size_mode"),
         size_preset=effective_params.get("size_preset"),
         custom_width=effective_params.get("custom_width"),
@@ -422,7 +443,7 @@ async def _execute_benchmark_cell_once(
                 enable_sequential=False,
                 thinking_mode=None,
                 bbox_list=normalized_bbox_list if task.task_kind == "interactive_edit" else None,
-                color_palette=[],
+                color_palette=normalized_color_palette,
                 watermark=task.watermark,
                 seed=task.seed,
             )

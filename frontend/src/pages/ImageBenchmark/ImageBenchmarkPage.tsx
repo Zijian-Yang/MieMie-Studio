@@ -22,10 +22,12 @@ import {
 import {
   DeleteOutlined,
   DownloadOutlined,
+  LinkOutlined,
   PlayCircleOutlined,
   PlusOutlined,
   ReloadOutlined,
   SaveOutlined,
+  ShareAltOutlined,
 } from '@ant-design/icons'
 import DynamicModelForm from '../../components/ModelConfig/DynamicModelForm'
 import {
@@ -78,6 +80,14 @@ const getCaseImages = (item: Record<string, any>) => {
 
 const getConfigurableParameters = (model: any): ModelParameterDef[] => (
   (model?.configurable_parameters || model?.parameters || []).filter((param: ModelParameterDef) => !['prompt', 'images'].includes(param.name))
+)
+
+const getBenchmarkParametersForTask = (model: any, taskKind?: string): ModelParameterDef[] => (
+  getConfigurableParameters(model).filter((param) => {
+    if (param.name === 'bbox_list' || param.name === 'enable_sequential') return false
+    if (param.name === 'thinking_mode' && taskKind !== 'text_to_image') return false
+    return true
+  })
 )
 
 const getTaskKindLabel = (taskKind?: string) => {
@@ -151,7 +161,7 @@ const buildDefaultValues = (parameters: ModelParameterDef[]) => {
 }
 
 const buildModelFormInfo = (model: any, taskKind?: string) => {
-  const parameters = getConfigurableParameters(model).map((param) => {
+  const parameters = getBenchmarkParametersForTask(model, taskKind).map((param) => {
     if (param.name === 'size' && model.id?.startsWith('wan2.7-image')) {
       return buildWan27SizeParam(taskKind || '', model.id, param)
     }
@@ -384,6 +394,47 @@ const ImageBenchmarkPage = () => {
       const result = await imageBenchmarkApi.exportRunMarkdown(currentRun.id)
       downloadTextFile(result.filename, result.content, 'text/markdown;charset=utf-8')
       message.success('Markdown 报告已导出')
+    } catch (error) {
+      if (error instanceof Error) {
+        message.error(error.message)
+      }
+    }
+  }
+
+  const openShareUrl = (shareUrl: string) => {
+    const absoluteUrl = `${window.location.origin}${shareUrl}`
+    window.open(absoluteUrl, '_blank', 'noopener,noreferrer')
+  }
+
+  const handleEnableShare = async () => {
+    if (!draftSuite || !currentRun) return
+    try {
+      const result = await imageBenchmarkApi.enableSuiteShare(draftSuite.id)
+      setSuites((prev) => prev.map((item) => item.id === result.suite.id ? result.suite : item))
+      setDraftSuite(result.suite)
+      setSelectedSuiteId(result.suite.id)
+      openShareUrl(result.share_url)
+      message.success('分享链接已开启')
+    } catch (error) {
+      if (error instanceof Error) {
+        message.error(error.message)
+      }
+    }
+  }
+
+  const handleOpenShare = () => {
+    if (!draftSuite?.share_token) return
+    openShareUrl(`/image-benchmark/share/${draftSuite.share_token}`)
+  }
+
+  const handleDisableShare = async () => {
+    if (!draftSuite) return
+    try {
+      const result = await imageBenchmarkApi.disableSuiteShare(draftSuite.id)
+      setSuites((prev) => prev.map((item) => item.id === result.suite.id ? result.suite : item))
+      setDraftSuite(result.suite)
+      setSelectedSuiteId(result.suite.id)
+      message.success('分享链接已关闭')
     } catch (error) {
       if (error instanceof Error) {
         message.error(error.message)
@@ -654,19 +705,37 @@ const ImageBenchmarkPage = () => {
             <Card
               title="运行结果"
               extra={
-                currentRun ? (
-                  <Space>
-                    <Tag color={statusColorMap[currentRun.status] || 'default'}>{currentRun.status}</Tag>
-                    {currentRun.status !== 'running' && getManualRetryCount(currentRun) > 0 && (
-                      <Button icon={<ReloadOutlined />} onClick={handleRetryFailedRun}>
-                        重试失败/未支持任务
-                      </Button>
-                    )}
+                <Space>
+                  {currentRun && <Tag color={statusColorMap[currentRun.status] || 'default'}>{currentRun.status}</Tag>}
+                  {currentRun && currentRun.status !== 'running' && getManualRetryCount(currentRun) > 0 && (
+                    <Button icon={<ReloadOutlined />} onClick={handleRetryFailedRun}>
+                      重试失败/未支持任务
+                    </Button>
+                  )}
+                  {currentRun && (
                     <Button icon={<DownloadOutlined />} onClick={handleExportMarkdown}>
                       导出 Markdown
                     </Button>
-                  </Space>
-                ) : null
+                  )}
+                  {draftSuite.share_enabled && draftSuite.share_token ? (
+                    <>
+                      <Button icon={<LinkOutlined />} onClick={handleOpenShare}>
+                        打开分享页
+                      </Button>
+                      <Popconfirm
+                        title="关闭分享链接吗？"
+                        description="关闭后，已发出的公开链接将无法继续访问。"
+                        onConfirm={handleDisableShare}
+                      >
+                        <Button danger>关闭分享</Button>
+                      </Popconfirm>
+                    </>
+                  ) : (
+                    <Button icon={<ShareAltOutlined />} onClick={handleEnableShare} disabled={!currentRun}>
+                      {currentRun ? '分享结果' : '运行后可分享'}
+                    </Button>
+                  )}
+                </Space>
               }
             >
               {!currentRun ? (

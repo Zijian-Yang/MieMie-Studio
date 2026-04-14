@@ -19,6 +19,7 @@ import VideoStudioPage from './pages/VideoStudio/VideoStudioPage'
 import AudioStudioPage from './pages/AudioStudio/AudioStudioPage'
 import ImageBenchmarkPage from './pages/ImageBenchmark/ImageBenchmarkPage'
 import ImageBenchmarkDatasetsPage from './pages/ImageBenchmarkDatasets/ImageBenchmarkDatasetsPage'
+import ImageBenchmarkSharePage from './pages/ImageBenchmarkShare/ImageBenchmarkSharePage'
 // 登录页
 import LoginPage from './pages/Login/LoginPage'
 import { useAuthStore } from './stores/authStore'
@@ -42,6 +43,7 @@ function App() {
       <Routes>
         {/* 登录页 - 不需要认证 */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/image-benchmark/share/:token" element={<ImageBenchmarkSharePage />} />
         
         {/* 需要认证的路由 */}
         <Route path="/" element={

@@ -1,6 +1,6 @@
 import pytest
 
-from app.models.image_benchmark import ImageBenchmarkCellResult
+from app.models.image_benchmark import ImageBenchmarkCellResult, ImageBenchmarkOutputImage, ImageBenchmarkRun
 from app.routers import image_benchmark as image_benchmark_router
 from app.services.storage import set_current_user, storage_service
 
@@ -17,6 +17,74 @@ def _patch_async_create_task(monkeypatch):
         return None
 
     monkeypatch.setattr(image_benchmark_router.asyncio, "create_task", fake_create_task)
+
+
+def _create_suite_with_public_run(client, auth_header, user_id: str):
+    project_id = _create_project(client, auth_header)
+    dataset_resp = client.post(
+        "/api/image-benchmark/datasets",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "公开分享数据集",
+            "task_kind": "text_to_image",
+            "items": [{"name": "样例1", "prompt": "一张海报", "negative_prompt": "", "tags": []}],
+        },
+    )
+    assert dataset_resp.status_code == 200
+    dataset = dataset_resp.json()["dataset"]
+
+    suite_resp = client.post(
+        "/api/image-benchmark/suites",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "公开分享测评",
+            "description": "给外部查看",
+            "dataset_id": dataset["id"],
+            "selected_models": ["wan2.7-image-pro"],
+            "baseline_params": {"n": 1},
+        },
+    )
+    assert suite_resp.status_code == 200
+    suite = suite_resp.json()["suite"]
+
+    set_current_user(user_id)
+    try:
+        run = ImageBenchmarkRun(
+            suite_id=suite["id"],
+            project_id=project_id,
+            dataset_id=dataset["id"],
+            task_kind="text_to_image",
+            status="completed",
+            dataset_snapshot=dataset,
+            model_snapshots=[{"id": "wan2.7-image-pro", "name": "万相 2.7 Image Pro"}],
+            cell_results=[
+                ImageBenchmarkCellResult(
+                    case_id=dataset["items"][0]["id"],
+                    case_name="样例1",
+                    model_id="wan2.7-image-pro",
+                    model_name="万相 2.7 Image Pro",
+                    status="completed",
+                    output_images=[ImageBenchmarkOutputImage(url="https://oss.example.com/output.png", prompt_used="一张海报")],
+                    request_ids=["req-secret"],
+                    task_ids=["task-secret"],
+                    canonical_request={"secret": "canonical"},
+                    provider_payload={"secret": "provider"},
+                    effective_params={"n": 1},
+                )
+            ],
+            stats={"case_count": 1, "model_count": 1, "success_count": 1, "failure_count": 0},
+        )
+        storage_service.save_image_benchmark_run(run)
+        stored_suite = storage_service.get_image_benchmark_suite(suite["id"])
+        stored_suite.latest_run_id = run.id
+        stored_suite.status = "completed"
+        storage_service.save_image_benchmark_suite(stored_suite)
+    finally:
+        set_current_user(None)
+
+    return suite, run
 
 
 def test_dataset_create_export_and_import_with_new_schema(client, auth_header):
@@ -364,6 +432,165 @@ def test_preview_cell_builds_wan27_interactive_edit_payload(client, auth_header,
     data = resp.json()
     assert data["canonical_request"]["task_kind"] == "interactive_edit"
     assert data["provider_payload"]["parameters"]["bbox_list"] == [[], [[0, 20, 320, 240]]]
+
+
+def test_preview_cell_filters_benchmark_managed_wan27_params(client, auth_header, monkeypatch):
+    async def mock_inspect_remote_image(_url):
+        return {
+            "format": "PNG",
+            "width": 320,
+            "height": 240,
+            "aspect_ratio": 4 / 3,
+            "file_size": 1024,
+            "has_alpha": False,
+        }
+
+    monkeypatch.setattr("app.routers.studio.inspect_remote_image", mock_inspect_remote_image)
+
+    project_id = _create_project(client, auth_header)
+    resp = client.post(
+        "/api/image-benchmark/preview-cell",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "task_kind": "interactive_edit",
+            "model_id": "wan2.7-image-pro",
+            "case_data": {
+                "name": "交互式样例",
+                "prompt": "把图1放到框选位置",
+                "image_slots": [
+                    {"position": 1, "image": {"url": "https://oss.example.com/ref.png", "name": "图1"}},
+                ],
+                "bbox_list": [[[10, 20, 100, 140]]],
+            },
+            "baseline_params": {
+                "n": 1,
+                "thinking_mode": True,
+                "enable_sequential": True,
+                "bbox_list": [[]],
+            },
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "thinking_mode" not in data["effective_params"]
+    assert "enable_sequential" not in data["effective_params"]
+    assert "bbox_list" not in data["effective_params"]
+    assert data["provider_payload"]["parameters"]["bbox_list"] == [[[10, 20, 100, 140]]]
+    assert "thinking_mode" not in data["provider_payload"]["parameters"]
+    assert "enable_sequential" not in data["provider_payload"]["parameters"]
+
+
+def test_preview_cell_applies_wan27_color_palette(client, auth_header):
+    project_id = _create_project(client, auth_header)
+    color_palette = [
+        {"hex": "#C2D1E6", "ratio": "34.00%"},
+        {"hex": "#C0B5B4", "ratio": "33.00%"},
+        {"hex": "#636574", "ratio": "33.00%"},
+    ]
+    resp = client.post(
+        "/api/image-benchmark/preview-cell",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "task_kind": "text_to_image",
+            "model_id": "wan2.7-image-pro",
+            "case_data": {
+                "name": "文生图样例",
+                "prompt": "一张品牌海报",
+            },
+            "baseline_params": {"n": 1, "color_palette": color_palette},
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["provider_payload"]["parameters"]["color_palette"] == color_palette
+
+
+def test_public_share_exposes_latest_run_without_auth_and_hides_sensitive_fields(client, auth_header, registered_user):
+    _, user = registered_user
+    suite, run = _create_suite_with_public_run(client, auth_header, user["id"])
+
+    share_resp = client.post(f"/api/image-benchmark/suites/{suite['id']}/share", headers=auth_header)
+    assert share_resp.status_code == 200
+    token = share_resp.json()["suite"]["share_token"]
+    assert share_resp.json()["share_url"] == f"/image-benchmark/share/{token}"
+
+    public_resp = client.get(f"/api/image-benchmark/public/shares/{token}")
+    assert public_resp.status_code == 200
+    data = public_resp.json()
+    assert data["suite"]["name"] == "公开分享测评"
+    assert data["run"]["id"] == run.id
+    cell = data["run"]["cell_results"][0]
+    assert cell["output_images"][0]["url"] == "https://oss.example.com/output.png"
+    assert "provider_payload" not in cell
+    assert "canonical_request" not in cell
+    assert "request_ids" not in cell
+    assert "task_ids" not in cell
+    assert "effective_params" not in cell
+
+
+def test_public_share_can_be_disabled(client, auth_header, registered_user):
+    _, user = registered_user
+    suite, _ = _create_suite_with_public_run(client, auth_header, user["id"])
+
+    share_resp = client.post(f"/api/image-benchmark/suites/{suite['id']}/share", headers=auth_header)
+    token = share_resp.json()["suite"]["share_token"]
+
+    disable_resp = client.delete(f"/api/image-benchmark/suites/{suite['id']}/share", headers=auth_header)
+    assert disable_resp.status_code == 200
+    assert disable_resp.json()["suite"]["share_enabled"] is False
+
+    public_resp = client.get(f"/api/image-benchmark/public/shares/{token}")
+    assert public_resp.status_code == 404
+
+
+def test_public_share_tracks_suite_latest_run(client, auth_header, registered_user):
+    _, user = registered_user
+    suite, first_run = _create_suite_with_public_run(client, auth_header, user["id"])
+    share_resp = client.post(f"/api/image-benchmark/suites/{suite['id']}/share", headers=auth_header)
+    token = share_resp.json()["suite"]["share_token"]
+
+    set_current_user(user["id"])
+    try:
+        stored_suite = storage_service.get_image_benchmark_suite(suite["id"])
+        second_run = ImageBenchmarkRun(
+            suite_id=suite["id"],
+            project_id=first_run.project_id,
+            dataset_id=first_run.dataset_id,
+            task_kind="text_to_image",
+            status="completed",
+            dataset_snapshot=first_run.dataset_snapshot,
+            model_snapshots=first_run.model_snapshots,
+            cell_results=[],
+            stats={"case_count": 1, "model_count": 1, "success_count": 0, "failure_count": 0},
+        )
+        storage_service.save_image_benchmark_run(second_run)
+        stored_suite.latest_run_id = second_run.id
+        storage_service.save_image_benchmark_suite(stored_suite)
+    finally:
+        set_current_user(None)
+
+    public_resp = client.get(f"/api/image-benchmark/public/shares/{token}")
+    assert public_resp.status_code == 200
+    assert public_resp.json()["run"]["id"] == second_run.id
+
+
+def test_public_share_markdown_contains_visible_results(client, auth_header, registered_user):
+    _, user = registered_user
+    suite, _ = _create_suite_with_public_run(client, auth_header, user["id"])
+    share_resp = client.post(f"/api/image-benchmark/suites/{suite['id']}/share", headers=auth_header)
+    token = share_resp.json()["suite"]["share_token"]
+
+    markdown_resp = client.get(f"/api/image-benchmark/public/shares/{token}/markdown")
+    assert markdown_resp.status_code == 200
+    content = markdown_resp.json()["content"]
+    assert "公开分享测评" in content
+    assert "一张海报" in content
+    assert "https://oss.example.com/output.png" in content
+    assert "canonical" not in content
+    assert "provider" not in content
+    assert "req-secret" not in content
 
 
 @pytest.mark.asyncio

@@ -139,6 +139,10 @@ class ImageBenchmarkSuite(BaseModel):
     status: ImageBenchmarkSuiteStatus = "draft"
     latest_run_id: Optional[str] = None
     latest_run_snapshot: Optional[Dict[str, Any]] = None
+    share_token: Optional[str] = None
+    share_enabled: bool = False
+    share_created_at: Optional[datetime] = None
+    share_disabled_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 

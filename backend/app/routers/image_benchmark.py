@@ -5,7 +5,12 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import os
+import secrets
+import threading
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -31,8 +36,11 @@ from app.services.image_benchmark_runtime import (
 )
 from app.services.oss import oss_service
 from app.services.storage import get_current_user_id, set_current_user, storage_service
+from app.services.user_service import get_user_service
 
 router = APIRouter()
+
+_share_index_lock = threading.RLock()
 
 
 class DatasetImageInput(BaseModel):
@@ -135,6 +143,212 @@ class PreviewCellRequest(BaseModel):
 def _ensure_project_exists(project_id: str) -> None:
     if not storage_service.get_project(project_id):
         raise HTTPException(status_code=404, detail="项目不存在")
+
+
+def _share_index_path() -> Path:
+    return Path(get_user_service().data_dir) / "image_benchmark_share_index.json"
+
+
+def _read_share_index() -> Dict[str, Dict[str, Any]]:
+    path = _share_index_path()
+    if not path.exists():
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as file:
+            data = json.load(file)
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _write_share_index(data: Dict[str, Dict[str, Any]]) -> None:
+    path = _share_index_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(".tmp")
+    with open(tmp_path, "w", encoding="utf-8") as file:
+        json.dump(data, file, ensure_ascii=False, indent=2)
+        file.flush()
+        os.fsync(file.fileno())
+    os.replace(str(tmp_path), str(path))
+
+
+def _upsert_share_index(token: str, owner_user_id: str, suite_id: str) -> None:
+    with _share_index_lock:
+        index = _read_share_index()
+        index[token] = {
+            "owner_user_id": owner_user_id,
+            "suite_id": suite_id,
+            "updated_at": datetime.now().isoformat(),
+        }
+        _write_share_index(index)
+
+
+def _remove_share_index(token: Optional[str]) -> None:
+    if not token:
+        return
+    with _share_index_lock:
+        index = _read_share_index()
+        if token in index:
+            del index[token]
+            _write_share_index(index)
+
+
+def _lookup_share_index(token: str) -> Dict[str, Any]:
+    with _share_index_lock:
+        data = _read_share_index().get(token)
+    if not data:
+        raise HTTPException(status_code=404, detail="分享链接不存在或已关闭")
+    return data
+
+
+def _public_share_url(token: str) -> str:
+    return f"/image-benchmark/share/{token}"
+
+
+def _public_api_share_url(token: str) -> str:
+    return f"/api/image-benchmark/public/shares/{token}"
+
+
+def _sanitize_public_cell(cell: ImageBenchmarkCellResult) -> Dict[str, Any]:
+    return {
+        "id": cell.id,
+        "case_id": cell.case_id,
+        "case_name": cell.case_name,
+        "model_id": cell.model_id,
+        "model_name": cell.model_name,
+        "status": cell.status,
+        "output_images": [image.model_dump() for image in cell.output_images],
+        "error_message": cell.error_message,
+        "validation_warnings": cell.validation_warnings,
+        "attempt_count": cell.attempt_count,
+        "auto_retry_count": cell.auto_retry_count,
+        "created_at": cell.created_at,
+        "updated_at": cell.updated_at,
+    }
+
+
+def _sanitize_public_run(run: ImageBenchmarkRun) -> Dict[str, Any]:
+    return {
+        "id": run.id,
+        "suite_id": run.suite_id,
+        "project_id": run.project_id,
+        "dataset_id": run.dataset_id,
+        "task_kind": run.task_kind,
+        "status": run.status,
+        "dataset_snapshot": run.dataset_snapshot,
+        "model_snapshots": [
+            {
+                "id": model.get("id"),
+                "name": model.get("name"),
+                "description": model.get("description"),
+            }
+            for model in run.model_snapshots
+        ],
+        "cell_results": [_sanitize_public_cell(cell) for cell in run.cell_results],
+        "stats": run.stats,
+        "created_at": run.created_at,
+        "updated_at": run.updated_at,
+        "started_at": run.started_at,
+        "finished_at": run.finished_at,
+    }
+
+
+def _public_suite_payload(suite: ImageBenchmarkSuite, run: ImageBenchmarkRun) -> Dict[str, Any]:
+    return {
+        "suite": {
+            "id": suite.id,
+            "name": suite.name,
+            "description": suite.description,
+            "task_kind": suite.task_kind,
+            "status": suite.status,
+            "latest_run_id": suite.latest_run_id,
+            "updated_at": suite.updated_at,
+        },
+        "run": _sanitize_public_run(run),
+    }
+
+
+def _markdown_cell(value: Any) -> str:
+    return str(value or "").replace("|", "\\|").replace("\n", "<br/>")
+
+
+def _render_public_markdown(suite: ImageBenchmarkSuite, run: ImageBenchmarkRun) -> str:
+    run_data = _sanitize_public_run(run)
+    dataset_items = sorted((run_data.get("dataset_snapshot") or {}).get("items") or [], key=lambda item: item.get("sort_order", 0))
+    model_snapshots = run_data.get("model_snapshots") or []
+    result_map = {
+        (cell.get("case_id"), cell.get("model_id")): cell
+        for cell in run_data.get("cell_results") or []
+    }
+
+    lines = [
+        f"# {suite.name}",
+        "",
+        suite.description or "",
+        "",
+        f"- 任务类型: {run.task_kind}",
+        f"- 状态: {run.status}",
+        f"- 样例数: {(run.stats or {}).get('case_count', 0)}",
+        f"- 模型数: {(run.stats or {}).get('model_count', 0)}",
+        "",
+        "## 测评结果",
+        "",
+    ]
+    headers = ["样例", "Prompt", "输入图"] + [model.get("name") or model.get("id") for model in model_snapshots]
+    lines.append("| " + " | ".join(headers) + " |")
+    lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
+
+    for item in dataset_items:
+        input_images = [
+            image
+            for slot in sorted(item.get("image_slots") or [], key=lambda current: current.get("position", 0))
+            for image in [slot.get("image") or {}]
+            if image.get("url")
+        ]
+        if not input_images:
+            input_images = [image for image in item.get("input_images") or [] if image.get("url")]
+        input_html = "<br/>".join(f'<img src="{image.get("url")}" width="160" />' for image in input_images)
+        row = [
+            _markdown_cell(item.get("name")),
+            _markdown_cell(item.get("prompt")),
+            input_html,
+        ]
+        for model in model_snapshots:
+            cell = result_map.get((item.get("id"), model.get("id")), {})
+            output_images = cell.get("output_images") or []
+            output_html = "<br/>".join(
+                f'<img src="{image.get("url")}" width="220" />'
+                for image in output_images
+                if image.get("url")
+            )
+            row.append(output_html or _markdown_cell(cell.get("error_message") or cell.get("status") or "未运行"))
+        lines.append("| " + " | ".join(row) + " |")
+
+    return "\n".join(line for line in lines if line is not None)
+
+
+def _load_public_share(token: str) -> tuple[ImageBenchmarkSuite, ImageBenchmarkRun]:
+    share = _lookup_share_index(token)
+    owner_user_id = share.get("owner_user_id")
+    suite_id = share.get("suite_id")
+    if not owner_user_id or not suite_id:
+        raise HTTPException(status_code=404, detail="分享链接不存在或已关闭")
+
+    set_current_user(owner_user_id)
+    set_user_config_dir(str(get_user_service().get_user_data_path(owner_user_id)))
+    try:
+        suite = storage_service.get_image_benchmark_suite(suite_id)
+        if not suite or not suite.share_enabled or suite.share_token != token:
+            raise HTTPException(status_code=404, detail="分享链接不存在或已关闭")
+        if not suite.latest_run_id:
+            raise HTTPException(status_code=404, detail="该分享暂无运行结果")
+        run = storage_service.get_image_benchmark_run(suite.latest_run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="运行记录不存在")
+        return suite, run
+    finally:
+        set_current_user(None)
+        set_user_config_dir(None)
 
 
 def _normalize_dataset_image(image: DatasetImageInput) -> ImageBenchmarkDatasetImage:
@@ -398,6 +612,7 @@ async def _background_run_suite(run_id: str, suite_id: str, user_id: Optional[st
                 model_meta,
                 run.baseline_params,
                 (run.model_overrides or {}).get(model_meta["id"]),
+                run.task_kind,
             )
             async with global_semaphore, model_semaphores[model_meta["id"]]:
                 cell = await execute_benchmark_cell(
@@ -484,6 +699,21 @@ async def _background_run_suite(run_id: str, suite_id: str, user_id: Optional[st
 @router.get("/capabilities")
 async def get_capabilities():
     return await get_image_benchmark_capabilities()
+
+
+@router.get("/public/shares/{token}")
+async def get_public_share(token: str):
+    suite, run = _load_public_share(token)
+    return _public_suite_payload(suite, run)
+
+
+@router.get("/public/shares/{token}/markdown")
+async def get_public_share_markdown(token: str):
+    suite, run = _load_public_share(token)
+    return {
+        "filename": f"image_benchmark_{suite.id}.md",
+        "content": _render_public_markdown(suite, run),
+    }
 
 
 @router.get("/datasets")
@@ -675,11 +905,57 @@ async def update_suite(suite_id: str, request: SuiteUpdateRequest):
     return {"suite": suite}
 
 
+@router.post("/suites/{suite_id}/share")
+async def enable_suite_share(suite_id: str):
+    suite = storage_service.get_image_benchmark_suite(suite_id)
+    if not suite:
+        raise HTTPException(status_code=404, detail="测评任务不存在")
+    if not suite.latest_run_id or not storage_service.get_image_benchmark_run(suite.latest_run_id):
+        raise HTTPException(status_code=400, detail="当前测评暂无运行结果，无法分享")
+
+    owner_user_id = get_current_user_id()
+    if not owner_user_id:
+        raise HTTPException(status_code=401, detail="未登录")
+
+    if not suite.share_token or (not suite.share_enabled and suite.share_disabled_at is not None):
+        _remove_share_index(suite.share_token)
+        with _share_index_lock:
+            index = _read_share_index()
+            token = secrets.token_urlsafe(24)
+            while token in index:
+                token = secrets.token_urlsafe(24)
+        suite.share_token = token
+
+    suite.share_enabled = True
+    suite.share_created_at = suite.share_created_at or datetime.now()
+    suite.share_disabled_at = None
+    storage_service.save_image_benchmark_suite(suite)
+    _upsert_share_index(suite.share_token, owner_user_id, suite.id)
+    return {
+        "suite": suite,
+        "share_url": _public_share_url(suite.share_token),
+        "public_api_url": _public_api_share_url(suite.share_token),
+    }
+
+
+@router.delete("/suites/{suite_id}/share")
+async def disable_suite_share(suite_id: str):
+    suite = storage_service.get_image_benchmark_suite(suite_id)
+    if not suite:
+        raise HTTPException(status_code=404, detail="测评任务不存在")
+    _remove_share_index(suite.share_token)
+    suite.share_enabled = False
+    suite.share_disabled_at = datetime.now()
+    storage_service.save_image_benchmark_suite(suite)
+    return {"suite": suite}
+
+
 @router.delete("/suites/{suite_id}")
 async def delete_suite(suite_id: str):
     suite = storage_service.get_image_benchmark_suite(suite_id)
     if not suite:
         raise HTTPException(status_code=404, detail="测评任务不存在")
+    _remove_share_index(suite.share_token)
     for run in storage_service.get_image_benchmark_runs_by_suite(suite_id):
         storage_service.delete_image_benchmark_run(run.id)
     storage_service.delete_image_benchmark_suite(suite_id)
@@ -821,7 +1097,7 @@ async def preview_cell(request: PreviewCellRequest):
         raise HTTPException(status_code=400, detail="未知模型")
     if request.task_kind not in (model_meta.get("supported_task_kinds") or []):
         raise HTTPException(status_code=400, detail=f"模型 {request.model_id} 不支持任务类型 {request.task_kind}")
-    effective_params = merge_effective_params(model_meta, request.baseline_params, request.override_params)
+    effective_params = merge_effective_params(model_meta, request.baseline_params, request.override_params, request.task_kind)
     canonical_request, provider_payload, validation_warnings = await preview_benchmark_cell(
         project_id=request.project_id,
         task_kind=request.task_kind,
