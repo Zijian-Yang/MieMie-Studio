@@ -57,6 +57,7 @@ class DatasetItemInput(BaseModel):
     tags: List[str] = []
     image_slots: List[DatasetImageSlotInput] = []
     input_images: List[DatasetImageInput] = []
+    bbox_list: List[List[List[int]]] = []
 
     @model_validator(mode="before")
     @classmethod
@@ -183,6 +184,7 @@ def _normalize_dataset_items(task_kind: str, items: List[DatasetItemInput]) -> L
                 sort_order=index,
                 tags=item.tags,
                 image_slots=image_slots,
+                bbox_list=item.bbox_list or [],
             )
         )
     return normalized_items
@@ -255,7 +257,7 @@ def _analyze_dataset(task_kind: str, items: List[ImageBenchmarkDatasetItem]) -> 
     warnings: List[Dict[str, Any]] = []
     blocking_issues: List[Dict[str, Any]] = []
 
-    if task_kind != "image_edit":
+    if task_kind not in {"image_edit", "interactive_edit"}:
         return {"warnings": warnings, "blocking_issues": blocking_issues}
 
     for item in items:
@@ -284,6 +286,41 @@ def _analyze_dataset(task_kind: str, items: List[ImageBenchmarkDatasetItem]) -> 
             }
             warnings.append(issue)
             blocking_issues.append(issue)
+
+        if task_kind == "interactive_edit":
+            bbox_list = item.bbox_list or []
+            expected_count = len(positions)
+            if len(bbox_list) != expected_count:
+                issue = {
+                    "item_id": item.id,
+                    "item_name": item_name,
+                    "missing_positions": [],
+                    "message": f"bbox_list 长度需与输入图数量一致：当前 {len(bbox_list)}，应为 {expected_count}",
+                }
+                warnings.append(issue)
+                blocking_issues.append(issue)
+                continue
+            for index, box_group in enumerate(bbox_list, start=1):
+                if len(box_group) > 2:
+                    issue = {
+                        "item_id": item.id,
+                        "item_name": item_name,
+                        "missing_positions": [],
+                        "message": f"图{index}最多支持 2 个框选区域",
+                    }
+                    warnings.append(issue)
+                    blocking_issues.append(issue)
+                for box in box_group:
+                    if len(box) != 4:
+                        issue = {
+                            "item_id": item.id,
+                            "item_name": item_name,
+                            "missing_positions": [],
+                            "message": f"图{index}存在无效框选坐标，格式必须为 [x1, y1, x2, y2]",
+                        }
+                        warnings.append(issue)
+                        blocking_issues.append(issue)
+                        break
 
     return {"warnings": warnings, "blocking_issues": blocking_issues}
 
@@ -458,8 +495,8 @@ async def list_datasets(project_id: str):
 @router.post("/datasets")
 async def create_dataset(request: DatasetCreateRequest):
     _ensure_project_exists(request.project_id)
-    if request.task_kind not in {"text_to_image", "image_edit"}:
-        raise HTTPException(status_code=400, detail="数据集任务类型仅支持 text_to_image / image_edit")
+    if request.task_kind not in {"text_to_image", "image_edit", "interactive_edit"}:
+        raise HTTPException(status_code=400, detail="数据集任务类型仅支持 text_to_image / image_edit / interactive_edit")
 
     items = _normalize_dataset_items(request.task_kind, request.items)
     dataset = ImageBenchmarkDataset(
@@ -528,7 +565,7 @@ async def import_dataset(request: DatasetImportRequest):
     if data.get("type") != "image_benchmark_dataset":
         raise HTTPException(status_code=400, detail="导入文件类型不正确")
     task_kind = data.get("task_kind")
-    if task_kind not in {"text_to_image", "image_edit"}:
+    if task_kind not in {"text_to_image", "image_edit", "interactive_edit"}:
         raise HTTPException(status_code=400, detail="导入数据集的 task_kind 非法")
 
     items = []
@@ -541,6 +578,7 @@ async def import_dataset(request: DatasetImportRequest):
             "tags": item.get("tags") or [],
             "image_slots": item.get("image_slots") or [],
             "input_images": item.get("input_images") or [],
+            "bbox_list": item.get("bbox_list") or [],
         }
         items.append(DatasetItemInput.model_validate(normalized_item))
 
@@ -781,6 +819,8 @@ async def preview_cell(request: PreviewCellRequest):
     model_meta = capabilities["models"].get(request.model_id)
     if not model_meta:
         raise HTTPException(status_code=400, detail="未知模型")
+    if request.task_kind not in (model_meta.get("supported_task_kinds") or []):
+        raise HTTPException(status_code=400, detail=f"模型 {request.model_id} 不支持任务类型 {request.task_kind}")
     effective_params = merge_effective_params(model_meta, request.baseline_params, request.override_params)
     canonical_request, provider_payload, validation_warnings = await preview_benchmark_cell(
         project_id=request.project_id,

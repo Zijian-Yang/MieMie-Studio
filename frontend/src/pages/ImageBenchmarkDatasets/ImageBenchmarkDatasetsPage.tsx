@@ -64,6 +64,7 @@ import {
   galleryApi,
   imageBenchmarkApi,
 } from '../../services/api'
+import BBoxEditor from '../Studio/BBoxEditor'
 
 const { TextArea } = Input
 const { Title, Text } = Typography
@@ -71,7 +72,16 @@ const { Title, Text } = Typography
 const TASK_KIND_OPTIONS: Array<{ value: ImageBenchmarkTaskKind; label: string; description: string }> = [
   { value: 'text_to_image', label: '文生图', description: '仅包含 prompt 和 negative prompt' },
   { value: 'image_edit', label: '图片编辑', description: '支持输入图1、输入图2、输入图N 等槽位' },
+  { value: 'interactive_edit', label: '交互式编辑', description: '仅 wan2.7 image，输入图槽位与 bbox_list 一一对应' },
 ]
+
+const getTaskKindLabel = (value: ImageBenchmarkTaskKind | string) => (
+  TASK_KIND_OPTIONS.find((item) => item.value === value)?.label || value
+)
+
+const getTaskKindColor = (value: ImageBenchmarkTaskKind | string) => (
+  value === 'text_to_image' ? 'blue' : value === 'interactive_edit' ? 'purple' : 'green'
+)
 
 type BulkTextMode = 'single' | 'list' | 'clear'
 type BulkTagMode = 'replace' | 'append' | 'remove' | 'clear'
@@ -194,6 +204,22 @@ const sortImageSlots = (slots: ImageBenchmarkImageSlot[]) => (
   [...slots].sort((left, right) => left.position - right.position)
 )
 
+const requiresImageSlots = (taskKind?: ImageBenchmarkTaskKind | string | null) => (
+  taskKind === 'image_edit' || taskKind === 'interactive_edit'
+)
+
+const isInteractiveDataset = (dataset: ImageBenchmarkDataset | null) => dataset?.task_kind === 'interactive_edit'
+
+const normalizeBBoxList = (value: unknown): number[][][] => {
+  if (!Array.isArray(value)) return []
+  return value.map((group) => {
+    if (!Array.isArray(group)) return []
+    return group
+      .filter((box): box is number[] => Array.isArray(box) && box.length === 4)
+      .map((box) => box.map((point) => Number(point)))
+  })
+}
+
 const getSlotImage = (item: ImageBenchmarkDatasetItem, position: number) => (
   item.image_slots.find((slot) => slot.position === position)?.image || null
 )
@@ -233,7 +259,7 @@ const buildImageFromGallery = (image: GalleryImage): ImageBenchmarkDatasetImage 
 })
 
 const analyzeDatasetDraft = (dataset: ImageBenchmarkDataset | null): { warnings: ImageBenchmarkDatasetIssue[]; blockingIssues: ImageBenchmarkDatasetIssue[] } => {
-  if (!dataset || dataset.task_kind !== 'image_edit') {
+  if (!dataset || !requiresImageSlots(dataset.task_kind)) {
     return { warnings: [], blockingIssues: [] }
   }
   const warnings: ImageBenchmarkDatasetIssue[] = []
@@ -267,6 +293,19 @@ const analyzeDatasetDraft = (dataset: ImageBenchmarkDataset | null): { warnings:
       warnings.push(issue)
       blockingIssues.push(issue)
     }
+    if (dataset.task_kind === 'interactive_edit') {
+      const bboxList = normalizeBBoxList(item.bbox_list)
+      if (bboxList.length !== positions.length) {
+        const issue = {
+          item_id: item.id,
+          item_name: itemName,
+          missing_positions: [],
+          message: `bbox_list 长度需与输入图数量一致：当前 ${bboxList.length}，应为 ${positions.length}`,
+        }
+        warnings.push(issue)
+        blockingIssues.push(issue)
+      }
+    }
   }
   return { warnings, blockingIssues }
 }
@@ -290,7 +329,9 @@ const ImageBenchmarkDatasetsPage = () => {
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
   const [itemModalSlotCount, setItemModalSlotCount] = useState(0)
   const [itemModalSlotOrder, setItemModalSlotOrder] = useState<number[]>([])
+  const [itemModalBBoxList, setItemModalBBoxList] = useState<number[][][]>([])
   const [itemForm] = Form.useForm()
+  const itemFormValues = Form.useWatch([], itemForm) || {}
 
   const [promptImportOpen, setPromptImportOpen] = useState(false)
   const [promptImportForm] = Form.useForm()
@@ -429,7 +470,7 @@ const ImageBenchmarkDatasetsPage = () => {
         description: values.description,
         task_kind: values.task_kind,
         items: [],
-        max_image_slot_index: values.task_kind === 'image_edit' ? 0 : 0,
+        max_image_slot_index: requiresImageSlots(values.task_kind) ? 0 : 0,
       })
       setDatasetModalOpen(false)
       await refreshDatasets(result.dataset.id)
@@ -465,6 +506,7 @@ const ImageBenchmarkDatasetsPage = () => {
           prompt: item.prompt,
           negative_prompt: item.negative_prompt,
           tags: item.tags,
+          bbox_list: normalizeBBoxList(item.bbox_list),
           image_slots: sortImageSlots(item.image_slots),
         })),
       })
@@ -551,9 +593,11 @@ const ImageBenchmarkDatasetsPage = () => {
       sort_order: 0,
       tags: [],
       image_slots: [],
+      bbox_list: [],
     }
-    const slotCount = Math.max(maxSlotIndex, draftDataset?.task_kind === 'image_edit' ? 1 : 0, ...workingItem.image_slots.map((slot) => slot.position), 0)
+    const slotCount = Math.max(maxSlotIndex, requiresImageSlots(draftDataset?.task_kind) ? 1 : 0, ...workingItem.image_slots.map((slot) => slot.position), 0)
     setItemModalSlotCount(slotCount)
+    setItemModalBBoxList(Array.from({ length: slotCount }, (_, index) => normalizeBBoxList(workingItem.bbox_list)[index] || []))
 
     const nextValues: Record<string, any> = {
       name: workingItem.name,
@@ -583,6 +627,7 @@ const ImageBenchmarkDatasetsPage = () => {
         slot_gallery: itemForm.getFieldValue(`slot_gallery_${position}`),
         slot_url: itemForm.getFieldValue(`slot_url_${position}`),
         slot_name: itemForm.getFieldValue(`slot_name_${position}`),
+        bbox_list: itemModalBBoxList[position - 1] || [],
       }
     })
     const fromIndex = fromPosition - 1
@@ -597,6 +642,7 @@ const ImageBenchmarkDatasetsPage = () => {
       nextValues[`slot_name_${position}`] = entry.slot_name
     })
     itemForm.setFieldsValue(nextValues)
+    setItemModalBBoxList(reorderedEntries.map((entry) => entry.bbox_list || []))
     setItemModalSlotOrder(Array.from({ length: reorderedEntries.length }, (_, index) => index + 1))
   }
 
@@ -637,7 +683,10 @@ const ImageBenchmarkDatasetsPage = () => {
         prompt: values.prompt || '',
         negative_prompt: values.negative_prompt || '',
         tags: values.tags || [],
-        image_slots: sortImageSlots(draftDataset.task_kind === 'image_edit' ? imageSlots : []),
+        image_slots: sortImageSlots(requiresImageSlots(draftDataset.task_kind) ? imageSlots : []),
+        bbox_list: draftDataset.task_kind === 'interactive_edit'
+          ? sortImageSlots(imageSlots).map((slot) => itemModalBBoxList[slot.position - 1] || [])
+          : [],
         sort_order: 0,
       }
 
@@ -652,6 +701,7 @@ const ImageBenchmarkDatasetsPage = () => {
       })
       setItemModalOpen(false)
       setItemModalSlotOrder([])
+      setItemModalBBoxList([])
       itemForm.resetFields()
     } catch (error) {
       if (error instanceof Error) {
@@ -678,6 +728,7 @@ const ImageBenchmarkDatasetsPage = () => {
           negative_prompt: values.shared_negative_prompt || '',
           tags: [],
           image_slots: [],
+          bbox_list: [],
           sort_order: nextItems.length,
         })
       })
@@ -752,6 +803,7 @@ const ImageBenchmarkDatasetsPage = () => {
           negative_prompt: '',
           tags: [],
           image_slots: [{ position: slotPosition, image }],
+          bbox_list: draftDataset.task_kind === 'interactive_edit' ? [[]] : [],
           sort_order: nextItems.length,
         })
       })
@@ -874,10 +926,13 @@ const ImageBenchmarkDatasetsPage = () => {
     updateDraftItems((items) => items.map((item) => {
       if (!selectedSet.has(item.id)) return item
       const slotImageMap = new Map<number, ImageBenchmarkDatasetImage>()
-      item.image_slots.forEach((slot) => {
+      const slotBBoxMap = new Map<number, number[][]>()
+      sortImageSlots(item.image_slots).forEach((slot, index) => {
         slotImageMap.set(slot.position, slot.image)
+        slotBBoxMap.set(slot.position, normalizeBBoxList(item.bbox_list)[index] || [])
       })
       const nextSlots: ImageBenchmarkImageSlot[] = []
+      const nextBBoxList: number[][][] = []
       batchReorderOrder.forEach((oldPosition, index) => {
         const image = slotImageMap.get(oldPosition)
         if (!image) return
@@ -885,10 +940,12 @@ const ImageBenchmarkDatasetsPage = () => {
           position: index + 1,
           image,
         })
+        nextBBoxList.push(slotBBoxMap.get(oldPosition) || [])
       })
       return {
         ...item,
         image_slots: sortImageSlots(nextSlots),
+        bbox_list: item.bbox_list?.length ? nextBBoxList : [],
       }
     }))
     setBatchReorderOpen(false)
@@ -1058,7 +1115,7 @@ const ImageBenchmarkDatasetsPage = () => {
       },
     ]
 
-    const slotColumns = draftDataset?.task_kind === 'image_edit'
+    const slotColumns = requiresImageSlots(draftDataset?.task_kind)
       ? Array.from({ length: maxSlotIndex }, (_, index) => {
         const position = index + 1
         return {
@@ -1180,8 +1237,8 @@ const ImageBenchmarkDatasetsPage = () => {
                   <div style={{ width: '100%' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                       <Text strong>{item.name}</Text>
-                      <Tag color={item.task_kind === 'text_to_image' ? 'blue' : 'green'}>
-                        {item.task_kind === 'text_to_image' ? '文生图' : '图片编辑'}
+                      <Tag color={getTaskKindColor(item.task_kind)}>
+                        {getTaskKindLabel(item.task_kind)}
                       </Tag>
                     </div>
                     <Text type="secondary">{item.description || '暂无描述'}</Text>
@@ -1204,8 +1261,8 @@ const ImageBenchmarkDatasetsPage = () => {
             title={
               <Space>
                 <span>{draftDataset.name || '未命名数据集'}</span>
-                <Tag color={draftDataset.task_kind === 'text_to_image' ? 'blue' : 'green'}>
-                  {draftDataset.task_kind === 'text_to_image' ? '文生图' : '图片编辑'}
+                <Tag color={getTaskKindColor(draftDataset.task_kind)}>
+                  {getTaskKindLabel(draftDataset.task_kind)}
                 </Tag>
               </Space>
             }
@@ -1278,7 +1335,7 @@ const ImageBenchmarkDatasetsPage = () => {
                   <Button icon={<InboxOutlined />} onClick={() => setPromptImportOpen(true)}>
                     批量导入 Prompt
                   </Button>
-                  {draftDataset.task_kind === 'image_edit' && (
+                  {requiresImageSlots(draftDataset.task_kind) && (
                     <>
                       <Button icon={<PictureOutlined />} onClick={() => {
                         bulkAddImagesForm.resetFields()
@@ -1314,7 +1371,7 @@ const ImageBenchmarkDatasetsPage = () => {
                   >
                     批量编辑字段
                   </Button>
-                  {draftDataset.task_kind === 'image_edit' && (
+                  {requiresImageSlots(draftDataset.task_kind) && (
                     <Button disabled={!selectedRowsInOrder.length || maxSlotIndex < 2} onClick={openBatchReorderModal}>
                       批量调整输入图顺序
                     </Button>
@@ -1418,7 +1475,7 @@ const ImageBenchmarkDatasetsPage = () => {
             <TextArea rows={3} placeholder="输入负面提示词（可选）" />
           </Form.Item>
 
-          {draftDataset?.task_kind === 'image_edit' && (
+          {requiresImageSlots(draftDataset?.task_kind) && (
             <Space direction="vertical" style={{ width: '100%' }} size={16}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text strong>图片槽位</Text>
@@ -1427,6 +1484,7 @@ const ImageBenchmarkDatasetsPage = () => {
                   onClick={() => {
                     const nextCount = itemModalSlotCount + 1
                     setItemModalSlotCount(nextCount)
+                    setItemModalBBoxList((prev) => [...prev, []])
                     setItemModalSlotOrder(Array.from({ length: nextCount }, (_, index) => index + 1))
                     if (draftDataset) {
                       setDraftDataset({
@@ -1474,6 +1532,23 @@ const ImageBenchmarkDatasetsPage = () => {
                             <Input placeholder="可选" />
                           </Form.Item>
                         </div>
+                        {isInteractiveDataset(draftDataset) && (
+                          <div style={{ marginTop: 12 }}>
+                            {itemFormValues[`slot_gallery_${position}`] || itemFormValues[`slot_url_${position}`] ? (
+                              <BBoxEditor
+                                imageUrl={itemFormValues[`slot_gallery_${position}`] || itemFormValues[`slot_url_${position}`]}
+                                value={itemModalBBoxList[position - 1] || []}
+                                onChange={(boxes) => {
+                                  const current = [...itemModalBBoxList]
+                                  current[position - 1] = boxes
+                                  setItemModalBBoxList(current)
+                                }}
+                              />
+                            ) : (
+                              <Alert type="info" showIcon message="选择图片后可在此绘制交互式框选区域" />
+                            )}
+                          </div>
+                        )}
                       </SortableSlotCard>
                     ))}
                   </Space>
@@ -1633,7 +1708,7 @@ const ImageBenchmarkDatasetsPage = () => {
                 { value: 'prompt', label: 'Prompt' },
                 { value: 'negative_prompt', label: 'Negative Prompt' },
                 { value: 'tags', label: '标签' },
-                ...(draftDataset?.task_kind === 'image_edit' ? [{ value: 'image_slot', label: '指定槽位图片' }] : []),
+                ...(requiresImageSlots(draftDataset?.task_kind) ? [{ value: 'image_slot', label: '指定槽位图片' }] : []),
               ]}
             />
           </Form.Item>

@@ -502,11 +502,13 @@ response = await asyncio.to_thread(MultiModalConversation.call, api_key=key, **p
 
 - 图片测评由 `routers/image_benchmark.py` 提供 API，由 `services/image_benchmark_runtime.py` 复用图片工作室的模型能力、payload 构造和生成函数。
 - 数据集支持 `schema_version=2.0` 的 `image_slots`，使用 `position` 保留“图1 / 图2 / 图N”的顺序语义；旧版 `input_images` 会在导入时迁移为槽位。
+- 测评任务类型包含 `text_to_image`、`image_edit`、`interactive_edit`。`interactive_edit` 仅由 wan2.7 image 系列承载，复用图片工作室的 `bbox_list` 构参和坐标归一化逻辑。
+- `ImageBenchmarkDatasetItem.bbox_list` 与 `image_slots` 一起存储、导出和导入，长度必须与有效输入图数量一致；每张图最多 2 个框，不需要框选的位置必须保留空数组 `[]`。
 - 跨环境导入数据集时可传 `migrate_images_to_oss=true`：
   - 后端会把输入图下载并上传到当前用户 OSS
   - 成功后把数据集中的 URL 替换为当前环境 OSS URL
   - 重复 URL 只上传一次，转存失败会写入 `migration_report.errors`
-- 运行前会阻止图片编辑数据集中存在槽位空缺的情况，避免提示词中的“图1 / 图2”与实际数组顺序错位。
+- 运行前会阻止图片编辑/交互式编辑数据集中存在槽位空缺的情况，避免提示词中的“图1 / 图2”与实际数组顺序错位；交互式编辑还会阻止 bbox 长度或格式不合法的样例。
 - 单元结果 `ImageBenchmarkCellResult` 会保留：
   - `canonical_request`
   - `provider_payload`

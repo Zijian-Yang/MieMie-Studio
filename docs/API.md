@@ -234,13 +234,14 @@ Authorization: Bearer {token}
   "data": {
     "type": "image_benchmark_dataset",
     "schema_version": "2.0",
-    "task_kind": "image_edit",
+    "task_kind": "interactive_edit",
     "max_image_slot_index": 2,
     "items": [
       {
         "id": "case-1",
         "name": "样例1",
         "prompt": "将图2中的人物换成图1中的人物",
+        "bbox_list": [[], [[10, 20, 100, 140]]],
         "image_slots": [
           {"position": 1, "image": {"url": "https://...", "name": "图1"}},
           {"position": 2, "image": {"url": "https://...", "name": "图2"}}
@@ -254,6 +255,7 @@ Authorization: Bearer {token}
 - `migrate_images_to_oss=false`（默认）：只保留导入 JSON 中的图片 URL。
 - `migrate_images_to_oss=true`：后端会下载每个输入图并上传到当前用户配置的 OSS，再把数据集中的 URL 替换为当前环境 OSS URL；重复 URL 会复用同一次上传结果。
 - 响应中的 `migration_report` 包含 `enabled`、`attempted`、`succeeded`、`failed`、`skipped` 和 `errors`，用于判断是否有图片转存失败。
+- `interactive_edit` 数据集会保留 `bbox_list`，其长度必须与输入图数量一致；每张图最多 2 个框，不需要框选的位置使用空数组 `[]`。导出后再导入不会丢失 bbox 数据。
 
 #### 运行记录中的追踪字段
 

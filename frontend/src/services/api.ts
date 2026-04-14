@@ -1404,7 +1404,7 @@ export const studioApi = {
 
 // ============ 图片测评 API ============
 
-export type ImageBenchmarkTaskKind = 'text_to_image' | 'image_edit'
+export type ImageBenchmarkTaskKind = 'text_to_image' | 'image_edit' | 'interactive_edit'
 export type ImageBenchmarkSuiteStatus = 'draft' | 'running' | 'completed' | 'failed'
 export type ImageBenchmarkRunStatus = 'pending' | 'running' | 'completed' | 'failed'
 export type ImageBenchmarkCellStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'unsupported'
@@ -1431,6 +1431,7 @@ export interface ImageBenchmarkDatasetItem {
   sort_order: number
   tags: string[]
   image_slots: ImageBenchmarkImageSlot[]
+  bbox_list: number[][][]
 }
 
 export interface ImageBenchmarkDataset {

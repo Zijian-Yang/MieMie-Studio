@@ -713,8 +713,12 @@ const startPolling = useCallback((taskId: string) => {
 - 图片工作室的问号帮助统一使用 `HoverInfoPopover`
 - 图片任务完成通知受设置页 `image_task_notifications_enabled` 控制
 - 图片测评新增两个独立页面：
-  - 数据集页：管理项目级可复用样例，支持图片槽位、批量导入 prompt、批量填充图片、拖拽排序和 JSON 导入导出
+  - 数据集页：管理项目级可复用样例，支持图片槽位、交互式编辑 bbox 画框、批量导入 prompt、批量填充图片、拖拽排序和 JSON 导入导出
   - 测评页：基于数据集创建多模型矩阵测评，展示每个 case × model 的状态、输出图和详情
+- 数据集页的交互式编辑任务复用图片工作室 `BBoxEditor`：
+  - 每个输入图槽位下方可绘制最多 2 个框
+  - 拖拽调整图片槽位顺序时，bbox 组会随对应图片一起移动
+  - 保存后写入 `bbox_list`，导出数据集再导入不会丢失
 - 数据集页导入 JSON 时提供“导入时转存图片到当前 OSS”开关：
   - 默认关闭，保留 JSON 中原始图片 URL
   - 开启后后端会返回 `migration_report`，前端根据成功/失败数量提示用户

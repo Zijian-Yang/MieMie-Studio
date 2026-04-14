@@ -23,7 +23,7 @@ from app.models.studio import StudioTask
 from app.routers import studio as studio_router
 
 
-BENCHMARK_TASK_KINDS = {"text_to_image", "image_edit"}
+BENCHMARK_TASK_KINDS = {"text_to_image", "image_edit", "interactive_edit"}
 CONFIGURABLE_PARAM_EXCLUDES = {"prompt", "images"}
 AUTO_RETRY_INITIAL_DELAY_SECONDS = 2
 AUTO_RETRY_MAX_RETRIES = 6
@@ -67,6 +67,7 @@ async def get_image_benchmark_capabilities() -> Dict[str, Any]:
         "task_kinds": [
             {"id": "text_to_image", "label": "文生图"},
             {"id": "image_edit", "label": "图片编辑"},
+            {"id": "interactive_edit", "label": "交互式编辑"},
         ],
         "models": models,
     }
@@ -89,6 +90,7 @@ def export_dataset_payload(dataset: ImageBenchmarkDataset) -> Dict[str, Any]:
                 "prompt": item.prompt,
                 "negative_prompt": item.negative_prompt,
                 "tags": item.tags,
+                "bbox_list": item.bbox_list,
                 "image_slots": [
                     {
                         "position": slot.position,
@@ -256,6 +258,11 @@ def _extract_case_ref_urls(case_data: Dict[str, Any]) -> List[str]:
     return [image.get("url") for image in _extract_case_input_images(case_data) if image.get("url")]
 
 
+def _extract_case_bbox_list(case_data: Dict[str, Any]) -> Optional[List[List[List[int]]]]:
+    value = case_data.get("bbox_list")
+    return value if isinstance(value, list) else None
+
+
 async def preview_benchmark_cell(
     *,
     project_id: str,
@@ -267,13 +274,19 @@ async def preview_benchmark_cell(
     """预览单个测评单元的 payload"""
 
     ref_urls = _extract_case_ref_urls(case_data)
+    bbox_list = _extract_case_bbox_list(case_data)
+    normalized_bbox_list = bbox_list
     if task_kind == "text_to_image" and ref_urls:
         raise HTTPException(status_code=400, detail="文生图样例不能包含输入图片")
-    if task_kind == "image_edit" and not ref_urls:
+    if task_kind in {"image_edit", "interactive_edit"} and not ref_urls:
         raise HTTPException(status_code=400, detail="图片编辑样例至少需要 1 张输入图片")
+    if task_kind == "interactive_edit" and bbox_list is None:
+        raise HTTPException(status_code=400, detail="交互式编辑样例需要 bbox_list")
 
     if model_id in studio_router.WAN27_MODELS and ref_urls:
-        await studio_router._inspect_and_validate_wan27_images(ref_urls)
+        image_metadata = await studio_router._inspect_and_validate_wan27_images(ref_urls)
+        if task_kind == "interactive_edit":
+            normalized_bbox_list = studio_router._normalize_bbox_list(bbox_list, image_metadata)
 
     canonical, provider_payload, warnings = studio_router._build_provider_payload(
         model_name=model_id,
@@ -294,7 +307,7 @@ async def preview_benchmark_cell(
         max_images=int(effective_params.get("max_images") or 5),
         enable_sequential=False,
         thinking_mode=None,
-        bbox_list=None,
+        bbox_list=normalized_bbox_list,
         color_palette=[],
         size_mode=effective_params.get("size_mode"),
         size_preset=effective_params.get("size_preset"),
@@ -355,6 +368,7 @@ async def _execute_benchmark_cell_once(
         )
 
     ref_urls = _extract_case_ref_urls(case_data)
+    normalized_bbox_list = (canonical_request.get("normalized_params") or {}).get("bbox_list") or []
     task = StudioTask(
         project_id=project_id,
         name=case_data.get("name") or "",
@@ -378,7 +392,7 @@ async def _execute_benchmark_cell_once(
         max_images=int(effective_params.get("max_images") or 5),
         enable_sequential=False,
         thinking_mode=None,
-        bbox_list=[],
+        bbox_list=normalized_bbox_list,
         color_palette=[],
         size_mode=effective_params.get("size_mode"),
         size_preset=effective_params.get("size_preset"),
@@ -407,7 +421,7 @@ async def _execute_benchmark_cell_once(
                 size=task.size,
                 enable_sequential=False,
                 thinking_mode=None,
-                bbox_list=None,
+                bbox_list=normalized_bbox_list if task.task_kind == "interactive_edit" else None,
                 color_palette=[],
                 watermark=task.watermark,
                 seed=task.seed,

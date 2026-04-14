@@ -230,6 +230,7 @@ class ImageBenchmarkDatasetItem(BaseModel):
     sort_order: int = 0
     tags: List[str] = []
     image_slots: List[ImageBenchmarkImageSlot] = []
+    bbox_list: List[List[List[int]]] = []
 
 class ImageBenchmarkImageSlot(BaseModel):
     position: int                 # 图1 / 图2 / 图N 的顺序语义
@@ -277,6 +278,7 @@ class ImageBenchmarkCellResult(BaseModel):
 
 说明：
 - `image_slots` 替代旧版 `input_images`，用 `position` 保证图片顺序语义稳定。
+- `interactive_edit` 样例使用 `bbox_list` 保存交互式框选数据，数组顺序与有效输入图顺序一致；不需要框选的图片位置也必须保留空数组 `[]`。
 - 数据集导入时可启用图片转存到当前 OSS，但数据模型仍只保存 URL，不保存图片二进制。
 - `unsupported` 代表前置校验未通过，常见于模型不支持、输入图无法读取或暂时下载失败。
 - 自动重试时最终 `cell_results` 会累计所有尝试产生的 `task_ids` 和 `request_ids`。

@@ -17,6 +17,11 @@
   - `POST /api/image-benchmark/datasets/import` 新增 `migrate_images_to_oss` 参数
   - 跨环境导入时可将输入图下载并重新上传到当前用户 OSS
   - 响应返回 `migration_report`，包含转存成功、失败、跳过数量和失败明细
+- 图片测评支持 wan2.7 交互式编辑：
+  - 新增 `interactive_edit` 测评任务类型
+  - 数据集样例新增 `bbox_list`，导入/导出/保存均保留框选数据
+  - 数据集编辑弹窗复用图片工作室画框组件，可对每个输入图绘制最多 2 个框
+  - 测评运行时会将 bbox 归一化后传入 wan2.7 provider payload
 - 图片测评单元详情增强：
   - 单元详情弹窗展示完整 `task_ids` 与 `request_ids`
   - 自动重试时会累计每次尝试产生的所有 task/request id

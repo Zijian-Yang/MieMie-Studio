@@ -80,6 +80,12 @@ const getConfigurableParameters = (model: any): ModelParameterDef[] => (
   (model?.configurable_parameters || model?.parameters || []).filter((param: ModelParameterDef) => !['prompt', 'images'].includes(param.name))
 )
 
+const getTaskKindLabel = (taskKind?: string) => {
+  if (taskKind === 'text_to_image') return '文生图'
+  if (taskKind === 'interactive_edit') return '交互式编辑'
+  return '图片编辑'
+}
+
 const getManualRetryCount = (run: ImageBenchmarkRun | null) => (
   run ? (run.stats.failure_count || 0) + (run.stats.unsupported_count || 0) : 0
 )
@@ -582,7 +588,7 @@ const ImageBenchmarkPage = () => {
                       style={{ width: '100%' }}
                       options={datasets.map((dataset) => ({
                         value: dataset.id,
-                        label: `${dataset.name} (${dataset.task_kind === 'text_to_image' ? '文生图' : '图片编辑'})`,
+                        label: `${dataset.name} (${getTaskKindLabel(dataset.task_kind)})`,
                       }))}
                       onChange={(value) => setDraftSuite({ ...draftSuite, dataset_id: value })}
                     />
@@ -728,7 +734,7 @@ const ImageBenchmarkPage = () => {
               style={{ width: '100%' }}
               options={datasets.map((dataset) => ({
                 value: dataset.id,
-                label: `${dataset.name} (${dataset.task_kind === 'text_to_image' ? '文生图' : '图片编辑'})`,
+                label: `${dataset.name} (${getTaskKindLabel(dataset.task_kind)})`,
               }))}
               onChange={(value) => setSuiteFormValues({ ...suiteFormValues, dataset_id: value })}
             />

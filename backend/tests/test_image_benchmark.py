@@ -165,6 +165,49 @@ def test_dataset_import_can_rehost_images_to_current_oss(client, auth_header, mo
     assert second_item_slots[0]["image"]["url"] == "https://new-oss.example.com/ref1.png"
 
 
+def test_dataset_export_and_import_preserves_interactive_bbox(client, auth_header):
+    project_id = _create_project(client, auth_header)
+    create_resp = client.post(
+        "/api/image-benchmark/datasets",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "交互式编辑集",
+            "task_kind": "interactive_edit",
+            "items": [
+                {
+                    "name": "框选样例",
+                    "prompt": "把图1的闹钟放到图2框选位置",
+                    "image_slots": [
+                        {"position": 1, "image": {"url": "https://oss.example.com/ref1.png", "name": "图1"}},
+                        {"position": 2, "image": {"url": "https://oss.example.com/ref2.png", "name": "图2"}},
+                    ],
+                    "bbox_list": [[], [[10, 20, 100, 140]]],
+                }
+            ],
+        },
+    )
+    assert create_resp.status_code == 200
+    dataset = create_resp.json()["dataset"]
+    assert dataset["task_kind"] == "interactive_edit"
+    assert dataset["items"][0]["bbox_list"] == [[], [[10, 20, 100, 140]]]
+
+    export_resp = client.get(f"/api/image-benchmark/datasets/{dataset['id']}/export", headers=auth_header)
+    assert export_resp.status_code == 200
+    exported = export_resp.json()
+    assert exported["items"][0]["bbox_list"] == [[], [[10, 20, 100, 140]]]
+
+    import_resp = client.post(
+        "/api/image-benchmark/datasets/import",
+        headers=auth_header,
+        json={"project_id": project_id, "data": exported, "name": "导入交互式编辑集"},
+    )
+    assert import_resp.status_code == 200
+    imported = import_resp.json()["dataset"]
+    assert imported["task_kind"] == "interactive_edit"
+    assert imported["items"][0]["bbox_list"] == [[], [[10, 20, 100, 140]]]
+
+
 def test_dataset_save_allows_sparse_slots_and_returns_warnings(client, auth_header):
     project_id = _create_project(client, auth_header)
     resp = client.post(
@@ -273,6 +316,54 @@ def test_preview_cell_merges_baseline_and_override(client, auth_header):
     assert data["effective_params"]["n"] == 1
     assert data["effective_params"]["seed"] == 123
     assert data["provider_payload"]["parameters"]["size"] == "1024*1024"
+
+
+def test_preview_cell_builds_wan27_interactive_edit_payload(client, auth_header, monkeypatch):
+    async def mock_inspect_remote_image(url):
+        if url.endswith("ref1.png"):
+            return {
+                "format": "PNG",
+                "width": 320,
+                "height": 320,
+                "aspect_ratio": 1.0,
+                "file_size": 1024,
+                "has_alpha": False,
+            }
+        return {
+            "format": "PNG",
+            "width": 320,
+            "height": 240,
+            "aspect_ratio": 4 / 3,
+            "file_size": 1024,
+            "has_alpha": False,
+        }
+
+    monkeypatch.setattr("app.routers.studio.inspect_remote_image", mock_inspect_remote_image)
+
+    project_id = _create_project(client, auth_header)
+    resp = client.post(
+        "/api/image-benchmark/preview-cell",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "task_kind": "interactive_edit",
+            "model_id": "wan2.7-image-pro",
+            "case_data": {
+                "name": "交互式样例",
+                "prompt": "把图1放到图2框选位置",
+                "image_slots": [
+                    {"position": 1, "image": {"url": "https://oss.example.com/ref1.png", "name": "图1"}},
+                    {"position": 2, "image": {"url": "https://oss.example.com/ref2.png", "name": "图2"}},
+                ],
+                "bbox_list": [[], [[500, 400, -10, 20]]],
+            },
+            "baseline_params": {"n": 1, "size_preset": "2K", "size_mode": "preset"},
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["canonical_request"]["task_kind"] == "interactive_edit"
+    assert data["provider_payload"]["parameters"]["bbox_list"] == [[], [[0, 20, 320, 240]]]
 
 
 @pytest.mark.asyncio

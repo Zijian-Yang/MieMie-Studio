@@ -11,7 +11,7 @@ import uuid
 from pydantic import BaseModel, Field, model_validator
 
 
-ImageBenchmarkTaskKind = Literal["text_to_image", "image_edit"]
+ImageBenchmarkTaskKind = Literal["text_to_image", "image_edit", "interactive_edit"]
 ImageBenchmarkSuiteStatus = Literal["draft", "running", "completed", "failed"]
 ImageBenchmarkRunStatus = Literal["pending", "running", "completed", "failed"]
 ImageBenchmarkCellStatus = Literal["pending", "running", "completed", "failed", "skipped", "unsupported"]
@@ -45,6 +45,7 @@ class ImageBenchmarkDatasetItem(BaseModel):
     sort_order: int = 0
     tags: List[str] = []
     image_slots: List[ImageBenchmarkImageSlot] = []
+    bbox_list: List[List[List[int]]] = []
 
     @model_validator(mode="before")
     @classmethod
