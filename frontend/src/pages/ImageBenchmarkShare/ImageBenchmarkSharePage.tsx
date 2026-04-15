@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Alert, Button, Card, Empty, Image, Space, Spin, Statistic, Table, Tag, Typography, message, theme } from 'antd'
-import { CopyOutlined } from '@ant-design/icons'
+import { Alert, Button, Card, Empty, Image, Space, Spin, Table, Tag, Typography, message, theme } from 'antd'
+import { CopyOutlined, PushpinFilled, PushpinOutlined } from '@ant-design/icons'
 import {
   ImageBenchmarkPublicShareResponse,
   ImageBenchmarkPublicCellResult,
@@ -29,6 +29,8 @@ const getCaseImages = (item: Record<string, any>) => {
   return item.input_images || []
 }
 
+type FreezeColumnKey = 'name' | 'prompt' | 'input_images'
+
 const copyText = async (text: string) => {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text)
@@ -51,6 +53,7 @@ const ImageBenchmarkSharePage = () => {
   const [data, setData] = useState<ImageBenchmarkPublicShareResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [frozenColumns, setFrozenColumns] = useState<FreezeColumnKey[]>(['input_images'])
 
   useEffect(() => {
     if (!shareToken) {
@@ -80,21 +83,48 @@ const ImageBenchmarkSharePage = () => {
     return map
   }, [data?.run.cell_results])
 
+  const toggleFrozenColumn = (columnKey: FreezeColumnKey) => {
+    setFrozenColumns((current) => (
+      current.includes(columnKey)
+        ? current.filter((item) => item !== columnKey)
+        : [...current, columnKey]
+    ))
+  }
+
+  const renderFreezeTitle = (label: string, columnKey: FreezeColumnKey) => {
+    const active = frozenColumns.includes(columnKey)
+    return (
+      <Space size={6}>
+        <span>{label}</span>
+        <Button
+          type="text"
+          size="small"
+          icon={active ? <PushpinFilled /> : <PushpinOutlined />}
+          onClick={(event) => {
+            event.stopPropagation()
+            toggleFrozenColumn(columnKey)
+          }}
+          aria-label={active ? `取消冻结${label}列` : `冻结${label}列`}
+        />
+      </Space>
+    )
+  }
+
   const columns = useMemo(() => {
     const baseColumns = [
       {
-        title: '样例',
+        title: renderFreezeTitle('样例', 'name'),
         dataIndex: 'name',
         key: 'name',
-        fixed: 'left' as const,
+        fixed: frozenColumns.includes('name') ? 'left' as const : undefined,
         width: 180,
         render: (value: string) => <Text strong>{value || '未命名样例'}</Text>,
       },
       {
-        title: 'Prompt',
+        title: renderFreezeTitle('Prompt', 'prompt'),
         dataIndex: 'prompt',
         key: 'prompt',
-        fixed: 'left' as const,
+        fixed: frozenColumns.includes('prompt') ? 'left' as const : undefined,
         width: 320,
         render: (value: string) => (
           <div style={{ whiteSpace: 'pre-wrap', maxHeight: 220, overflow: 'auto' }}>
@@ -103,9 +133,9 @@ const ImageBenchmarkSharePage = () => {
         ),
       },
       {
-        title: '输入图',
+        title: renderFreezeTitle('输入图', 'input_images'),
         key: 'input_images',
-        fixed: 'left' as const,
+        fixed: frozenColumns.includes('input_images') ? 'left' as const : undefined,
         width: 260,
         render: (_: unknown, record: Record<string, any>) => (
           <Image.PreviewGroup>
@@ -161,7 +191,7 @@ const ImageBenchmarkSharePage = () => {
     }))
 
     return [...baseColumns, ...modelColumns]
-  }, [data?.run.model_snapshots, resultMap])
+  }, [data?.run.model_snapshots, frozenColumns, resultMap])
 
   const handleCopyMarkdown = async () => {
     if (!shareToken) return
@@ -212,11 +242,11 @@ const ImageBenchmarkSharePage = () => {
           </div>
         </Card>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(160px, 1fr))', gap: 16 }}>
-          <Card><Statistic title="样例数" value={data.run.stats.case_count || 0} /></Card>
-          <Card><Statistic title="模型数" value={data.run.stats.model_count || 0} /></Card>
-          <Card><Statistic title="成功单元" value={data.run.stats.success_count || 0} /></Card>
-          <Card><Statistic title="失败单元" value={data.run.stats.failure_count || 0} /></Card>
+        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', color: token.colorTextSecondary }}>
+          <span>样例数：<Text strong>{data.run.stats.case_count || 0}</Text></span>
+          <span>模型数：<Text strong>{data.run.stats.model_count || 0}</Text></span>
+          <span>成功单元：<Text strong>{data.run.stats.success_count || 0}</Text></span>
+          <span>失败单元：<Text strong>{data.run.stats.failure_count || 0}</Text></span>
         </div>
 
         <Card>
