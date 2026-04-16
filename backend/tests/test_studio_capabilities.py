@@ -1,8 +1,23 @@
 import pytest
 
 from app.models.studio import ReferenceItem
+from app.routers import studio as studio_router
 from app.models_registry.image.wan27_image import Wan27ImageService
 from app.routers.studio import get_image_size_templates
+
+
+def _create_project(client, auth_header):
+    resp = client.post("/api/projects", headers=auth_header, json={"name": "能力测试项目"})
+    assert resp.status_code == 200
+    return resp.json()["id"]
+
+
+def _patch_async_create_task(monkeypatch):
+    def fake_create_task(coro):
+        coro.close()
+        return None
+
+    monkeypatch.setattr(studio_router.asyncio, "create_task", fake_create_task)
 
 
 def _mock_reference_items(urls):
@@ -252,6 +267,153 @@ def test_preview_payload_rejects_wan27_invalid_custom_size_ratio(client, auth_he
     )
     assert resp.status_code == 400
     assert "宽高比" in resp.json()["detail"]
+
+
+def test_preview_payload_builds_wan27_custom_text_size(client, auth_header):
+    resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "wan2.7-image-pro",
+            "task_kind": "text_to_image",
+            "prompt": "生成一张 16:9 海报",
+            "n": 1,
+            "size_mode": "custom",
+            "custom_width": 3072,
+            "custom_height": 1728,
+            "references": [],
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["provider_payload"]["parameters"]["size"] == "3072*1728"
+    assert data["canonical_request"]["normalized_params"]["size"] == "3072*1728"
+
+
+def test_generate_wan27_uses_canonical_custom_size(client, auth_header, monkeypatch):
+    project_id = _create_project(client, auth_header)
+    _patch_async_create_task(monkeypatch)
+    create_resp = client.post(
+        "/api/studio",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "wan27 自定义比例",
+            "model": "wan2.7-image-pro",
+            "task_kind": "text_to_image",
+            "prompt": "生成一张 16:9 海报",
+            "n": 1,
+        },
+    )
+    assert create_resp.status_code == 200
+    task_id = create_resp.json()["id"]
+
+    generate_resp = client.post(
+        f"/api/studio/{task_id}/generate",
+        headers=auth_header,
+        json={
+            "task_kind": "text_to_image",
+            "n": 1,
+            "size": None,
+            "size_mode": "custom",
+            "size_preset": None,
+            "custom_width": 3072,
+            "custom_height": 1728,
+        },
+    )
+    assert generate_resp.status_code == 200
+    task = generate_resp.json()["task"]
+    assert task["size"] == "3072*1728"
+    assert task["normalized_params"]["size"] == "3072*1728"
+    assert task["provider_payload_snapshot"]["parameters"]["size"] == "3072*1728"
+
+
+def test_update_studio_task_can_clear_wan27_optional_size_fields(client, auth_header):
+    project_id = _create_project(client, auth_header)
+    create_resp = client.post(
+        "/api/studio",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "待清空参数",
+            "model": "wan2.7-image-pro",
+            "task_kind": "text_to_image",
+            "prompt": "生成海报",
+            "seed": 123,
+            "size": "3072*1728",
+            "size_mode": "custom",
+            "custom_width": 3072,
+            "custom_height": 1728,
+        },
+    )
+    assert create_resp.status_code == 200
+    task_id = create_resp.json()["id"]
+
+    update_resp = client.put(
+        f"/api/studio/{task_id}",
+        headers=auth_header,
+        json={
+            "seed": None,
+            "size": None,
+            "size_mode": "preset",
+            "size_preset": "2K",
+            "custom_width": None,
+            "custom_height": None,
+        },
+    )
+    assert update_resp.status_code == 200
+    task = update_resp.json()
+    assert task["seed"] is None
+    assert task["size"] is None
+    assert task["size_mode"] == "preset"
+    assert task["size_preset"] == "2K"
+    assert task["custom_width"] is None
+    assert task["custom_height"] is None
+
+
+def test_preview_payload_rejects_invalid_wan27_color_palette(client, auth_header):
+    resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "wan2.7-image-pro",
+            "task_kind": "text_to_image",
+            "prompt": "生成一张海报",
+            "n": 1,
+            "color_palette": [
+                {"hex": "C2D1E6", "ratio": "34.00%"},
+                {"hex": "#C0B5B4", "ratio": "33.0%"},
+                {"hex": "#636574", "ratio": "33.00%"},
+            ],
+            "references": [],
+        },
+    )
+    assert resp.status_code == 400
+    assert "hex" in resp.json()["detail"]
+
+
+def test_preview_payload_rejects_invalid_wan27_color_ratio_format(client, auth_header):
+    resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "wan2.7-image-pro",
+            "task_kind": "text_to_image",
+            "prompt": "生成一张海报",
+            "n": 1,
+            "color_palette": [
+                {"hex": "#C2D1E6", "ratio": "34.0%"},
+                {"hex": "#C0B5B4", "ratio": "33.00%"},
+                {"hex": "#636574", "ratio": "33.00%"},
+            ],
+            "references": [],
+        },
+    )
+    assert resp.status_code == 400
+    assert "两位小数" in resp.json()["detail"]
 
 
 def test_preview_payload_accepts_wan25_t2i_custom_size(client, auth_header):

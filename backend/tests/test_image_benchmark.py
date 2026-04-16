@@ -507,6 +507,42 @@ def test_preview_cell_applies_wan27_color_palette(client, auth_header):
     assert data["provider_payload"]["parameters"]["color_palette"] == color_palette
 
 
+def test_benchmark_capabilities_expose_wan27_custom_size_params(client, auth_header):
+    resp = client.get("/api/image-benchmark/capabilities", headers=auth_header)
+    assert resp.status_code == 200
+    model = resp.json()["models"]["wan2.7-image-pro"]
+    param_names = {param["name"] for param in model["configurable_parameters"]}
+    assert "size" not in param_names
+    assert {"size_mode", "size_preset", "custom_width", "custom_height"} <= param_names
+
+
+def test_preview_cell_wan27_custom_size(client, auth_header):
+    project_id = _create_project(client, auth_header)
+    resp = client.post(
+        "/api/image-benchmark/preview-cell",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "task_kind": "text_to_image",
+            "model_id": "wan2.7-image-pro",
+            "case_data": {
+                "name": "文生图样例",
+                "prompt": "16:9 海报",
+            },
+            "baseline_params": {
+                "n": 1,
+                "size_mode": "custom",
+                "custom_width": 3072,
+                "custom_height": 1728,
+            },
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["provider_payload"]["parameters"]["size"] == "3072*1728"
+    assert data["canonical_request"]["normalized_params"]["size"] == "3072*1728"
+
+
 def test_public_share_exposes_latest_run_without_auth_and_hides_sensitive_fields(client, auth_header, registered_user):
     _, user = registered_user
     suite, run = _create_suite_with_public_run(client, auth_header, user["id"])

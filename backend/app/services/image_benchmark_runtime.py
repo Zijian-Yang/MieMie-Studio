@@ -213,6 +213,13 @@ def _configurable_parameters_for_model(model_meta: Dict[str, Any], task_kind: Op
         for param in model_meta.get("parameters") or []
         if param.get("name") not in CONFIGURABLE_PARAM_EXCLUDES
     ]
+    if str(model_meta.get("id") or "").startswith("wan2.7-image"):
+        params = [param for param in params if param.get("name") != "size"]
+        existing_names = {param.get("name") for param in params}
+        params = params + [
+            param for param in studio_router.get_wan27_size_mode_parameters()
+            if param.get("name") not in existing_names
+        ]
     if task_kind:
         excluded = set(BENCHMARK_MANAGED_PARAMS)
         if task_kind != "text_to_image":
@@ -388,6 +395,7 @@ async def _execute_benchmark_cell_once(
         )
 
     ref_urls = _extract_case_ref_urls(case_data)
+    canonical_size = (canonical_request.get("normalized_params") or {}).get("size") or (provider_payload.get("parameters") or {}).get("size")
     normalized_bbox_list = (canonical_request.get("normalized_params") or {}).get("bbox_list") or []
     normalized_color_palette = (canonical_request.get("normalized_params") or {}).get("color_palette") or []
     task = StudioTask(
@@ -401,7 +409,7 @@ async def _execute_benchmark_cell_once(
         negative_prompt=case_data.get("negative_prompt") or "",
         n=int(effective_params.get("n") or 1),
         group_count=1,
-        size=effective_params.get("size"),
+        size=canonical_size,
         prompt_extend=(
             effective_params.get("prompt_extend")
             if effective_params.get("prompt_extend") is not None
@@ -439,7 +447,7 @@ async def _execute_benchmark_cell_once(
                 api_key=provider_api_key,
                 base_url=config.base_url,
                 ref_urls=ref_urls,
-                size=task.size,
+                size=canonical_size,
                 enable_sequential=False,
                 thinking_mode=None,
                 bbox_list=normalized_bbox_list if task.task_kind == "interactive_edit" else None,

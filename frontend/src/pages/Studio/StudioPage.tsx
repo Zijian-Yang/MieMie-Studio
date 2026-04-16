@@ -54,6 +54,15 @@ const formatSizeLabel = (size: string | { width: number; height: number; label?:
   }
 }
 
+const parseCustomSizeString = (size?: string | null) => {
+  if (!size || !size.includes('*')) return null
+  const [widthText, heightText] = size.split('*', 2)
+  const width = Number(widthText)
+  const height = Number(heightText)
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null
+  return { width, height }
+}
+
 type ImageTaskKind = 'text_to_image' | 'image_edit' | 'interactive_edit' | 'sequential_generation'
 type ImageSizeUiMode = 'preset_only' | 'preset_plus_custom_with_templates'
 type ImageSizeTemplate = {
@@ -106,9 +115,9 @@ const IMAGE_TEMPLATE_RATIOS: Array<{ ratio: string; orientation: string; value: 
   { ratio: '21:9', orientation: '横版', value: 21 / 9 },
 ]
 const IMAGE_QUALITY_LEVELS: Array<{ value: ImageQualityLevel; label: string; scale: number }> = [
-  { value: 'low', label: '低清', scale: 0.6 },
-  { value: 'medium', label: '中清', scale: 0.8 },
-  { value: 'high', label: '高清', scale: 1 },
+  { value: 'low', label: '小尺寸', scale: 0.6 },
+  { value: 'medium', label: '标准', scale: 0.8 },
+  { value: 'high', label: '最大像素', scale: 1 },
 ]
 
 const mergeHelpContent = (...helps: Array<HelpContent | string | null | undefined>): HelpContent | null => {
@@ -233,9 +242,9 @@ const buildImageQualityTemplateGroups = (
         orientation: template.orientation,
         width: template.width,
         height: template.height,
-        label: `${template.ratio} ${template.orientation} · 高清 ${template.width}×${template.height}`,
+        label: `${template.ratio} ${template.orientation} · 最大像素 ${template.width}×${template.height}`,
         quality: 'high',
-        qualityLabel: '高清',
+        qualityLabel: '最大像素',
       })
     }
     return {
@@ -291,6 +300,9 @@ const StudioPage = () => {
   const watchedReferences = Form.useWatch('references', form) || []
   const watchedEnableSequential = Form.useWatch('enable_sequential', form)
   const watchedSizeMode = Form.useWatch('size_mode', form)
+  const watchedSizePreset = Form.useWatch('size_preset', form)
+  const watchedCustomWidth = Form.useWatch('custom_width', form)
+  const watchedCustomHeight = Form.useWatch('custom_height', form)
   const watchedN = Form.useWatch('n', form)
   const watchedBBoxList = Form.useWatch('bbox_list', form) || []
   const watchedColorPalette = Form.useWatch('color_palette', form) || []
@@ -319,6 +331,7 @@ const StudioPage = () => {
     validation_warnings: string[]
   } | null>(null)
   const [wan27BBoxList, setWan27BBoxList] = useState<number[][][]>([])
+  const [wan27SizeModeChoice, setWan27SizeModeChoice] = useState<'custom' | 'preset'>('custom')
   const [wan27RatioChoice, setWan27RatioChoice] = useState<string>('1:1')
   const [wan27QualityChoice, setWan27QualityChoice] = useState<ImageQualityLevel>('medium')
   
@@ -431,12 +444,14 @@ const StudioPage = () => {
     if (!isWan27Model) return []
     const allow4K = activeModelId === 'wan2.7-image-pro' && activeTaskKind === 'text_to_image' && selectedReferenceItems.length === 0
     const presets = allow4K ? ['1K', '2K', '4K'] : ['1K', '2K']
-    const ratioLabel = selectedReferenceItems.length > 0 ? '跟随最后一张输入图比例' : '默认正方形输出'
+    const ratioLabel = selectedReferenceItems.length > 0 ? '跟随最后一张输入图比例' : '默认正方形'
     return presets.map((preset) => ({ value: preset, label: `${preset}（${ratioLabel}）` }))
   }, [activeModelId, activeTaskKind, isWan27Model, selectedReferenceItems.length])
   const wan27HasInputImages = isWan27Model && selectedReferenceItems.length > 0
-  const wan27PreferredEntryMode = wan27HasInputImages ? 'preset' : 'custom'
-  const effectiveWan27EntryMode = (watchedSizeMode as 'preset' | 'custom' | undefined) || (isWan27Model ? wan27PreferredEntryMode : undefined)
+  const wan27PreferredEntryMode = 'custom'
+  const effectiveWan27EntryMode = isWan27Model
+    ? wan27SizeModeChoice
+    : ((watchedSizeMode as 'preset' | 'custom' | undefined) || wan27PreferredEntryMode)
   const wan27QualityGroups = useMemo(
     () => isWan27Model ? buildImageQualityTemplateGroups(activeCustomSizeLimits) : [],
     [activeCustomSizeLimits, isWan27Model]
@@ -445,11 +460,20 @@ const StudioPage = () => {
     () => wan27QualityGroups.find((group) => group.ratio === wan27RatioChoice) || wan27QualityGroups[0] || null,
     [wan27QualityGroups, wan27RatioChoice]
   )
+  const wan27SubmittedSize = useMemo(() => {
+    if (!isWan27Model) return ''
+    if (effectiveWan27EntryMode === 'custom') {
+      const width = form.getFieldValue('custom_width')
+      const height = form.getFieldValue('custom_height')
+      return width && height ? `${width}*${height}` : '请填写宽高'
+    }
+    return form.getFieldValue('size_preset') || '2K'
+  }, [effectiveWan27EntryMode, form, isWan27Model, watchedCustomHeight, watchedCustomWidth, watchedSizeMode, watchedSizePreset])
 
-  const validateCustomDimension = useCallback(async (_: any, value: number | null | undefined) => {
+  const validateCustomDimension = useCallback(async (_: any, _value: number | null | undefined) => {
     if (activeSizeUiMode !== 'preset_plus_custom_with_templates' || watchedSizeMode !== 'custom' || !activeCustomSizeLimits) return Promise.resolve()
-    const width = Number(form.getFieldValue('custom_width') ?? (value ?? 0))
-    const height = Number(form.getFieldValue('custom_height') ?? (value ?? 0))
+    const width = Number(form.getFieldValue('custom_width') || 0)
+    const height = Number(form.getFieldValue('custom_height') || 0)
     if (!width || !height) return Promise.resolve()
     const ratio = width / height
     const pixels = width * height
@@ -464,11 +488,17 @@ const StudioPage = () => {
   }, [activeCustomSizeLimits, activeSizeUiMode, form, watchedSizeMode])
 
   const computeEffectiveSize = useCallback((values: any) => {
-    if (WAN27_MODELS.has(values.model) || values.model === 'wan2.5-t2i-preview' || values.model === 'wan2.5-i2i-preview') {
+    if (WAN27_MODELS.has(values.model)) {
       if (values.size_mode === 'custom' && values.custom_width && values.custom_height) {
         return `${values.custom_width}*${values.custom_height}`
       }
-      return values.size_preset || values.size || (WAN27_MODELS.has(values.model) ? '2K' : '1024*1024')
+      return values.size_preset || '2K'
+    }
+    if (values.model === 'wan2.5-t2i-preview' || values.model === 'wan2.5-i2i-preview') {
+      if (values.size_mode === 'custom' && values.custom_width && values.custom_height) {
+        return `${values.custom_width}*${values.custom_height}`
+      }
+      return values.size_preset || values.size || '1024*1024'
     }
     return values.size
   }, [])
@@ -491,7 +521,7 @@ const StudioPage = () => {
       negative_prompt: options?.negativePrompt ?? values.negative_prompt,
       n: values.n,
       group_count: WAN27_MODELS.has(values.model) ? 1 : values.group_count,
-      size: effectiveSize || undefined,
+      size: WAN27_MODELS.has(values.model) ? null : (effectiveSize || undefined),
       prompt_extend: values.prompt_extend,
       watermark: values.watermark,
       seed: values.seed || undefined,
@@ -552,7 +582,7 @@ const StudioPage = () => {
         negative_prompt: finalNegativePrompt,
         n: values.n,
         group_count: values.group_count,
-        size: computeEffectiveSize(values),
+        size: WAN27_MODELS.has(values.model) ? null : computeEffectiveSize(values),
         prompt_extend: values.prompt_extend,
         watermark: values.watermark,
         seed: values.seed ?? null,
@@ -758,7 +788,8 @@ const StudioPage = () => {
       form.setFieldValue('group_count', 1)
     }
     if (!form.getFieldValue('size_mode')) {
-      form.setFieldValue('size_mode', wan27PreferredEntryMode)
+      form.setFieldsValue({ size_mode: wan27PreferredEntryMode, size: undefined })
+      setWan27SizeModeChoice(wan27PreferredEntryMode)
     }
     if (form.getFieldValue('size_mode') === 'preset' && !form.getFieldValue('size_preset')) {
       form.setFieldValue('size_preset', '2K')
@@ -864,6 +895,7 @@ const StudioPage = () => {
     setSelectedImages(new Set())
     setPreviewPayload(null)
     setWan27BBoxList([])
+    setWan27SizeModeChoice('custom')
     form.resetFields()
     form.setFieldsValue({
       name: '',
@@ -1050,6 +1082,9 @@ const StudioPage = () => {
     setSelectedStyleId(null)
     setPreviewPayload(null)
     const restoredBBoxList = resolvePreferredBBoxList(task.bbox_list, task.provider_payload_snapshot?.parameters?.bbox_list)
+    const restoredCustomSize = parseCustomSizeString(task.size)
+    const restoredSizeMode = task.size_mode || (restoredCustomSize ? 'custom' : (task.size_preset || (task.size && !task.size.includes('*')) ? 'preset' : null))
+    setWan27SizeModeChoice(restoredSizeMode === 'preset' ? 'preset' : 'custom')
     setWan27BBoxList(restoredBBoxList)
     form.setFieldsValue({
       name: task.name,
@@ -1072,10 +1107,10 @@ const StudioPage = () => {
       thinking_mode: task.thinking_mode ?? null,
       bbox_list: restoredBBoxList,
       color_palette: task.color_palette || [],
-      size_mode: task.size_mode || ((task.custom_width && task.custom_height) ? 'custom' : (task.size_preset || (task.size && !task.size.includes('*')) ? 'preset' : null)),
+      size_mode: restoredSizeMode,
       size_preset: task.size_preset || (task.size && !task.size.includes('*') ? task.size : undefined),
-      custom_width: task.custom_width || undefined,
-      custom_height: task.custom_height || undefined,
+      custom_width: task.custom_width || restoredCustomSize?.width || undefined,
+      custom_height: task.custom_height || restoredCustomSize?.height || undefined,
       // 还原参考素材选择（编辑时显示）
       references: task.references?.map(ref => `${ref.type}:${ref.id}`) || [],
     })
@@ -1127,17 +1162,19 @@ const StudioPage = () => {
   }, [applyCustomSizeTemplate, wan27QualityGroups])
 
   const switchWan27SizeMode = useCallback((mode: 'preset' | 'custom') => {
+    setWan27SizeModeChoice(mode)
     if (mode === 'preset') {
       form.setFieldsValue({
         size_mode: 'preset',
         size_preset: form.getFieldValue('size_preset') || '2K',
+        size: undefined,
         custom_width: undefined,
         custom_height: undefined,
       })
       queueStudioAutoSave()
       return
     }
-    form.setFieldValue('size_mode', 'custom')
+    form.setFieldsValue({ size_mode: 'custom', size: undefined, size_preset: undefined })
     const preferredGroup = wan27QualityGroups.find((group) => group.ratio === wan27RatioChoice) || wan27QualityGroups[0]
     const preferredOption =
       preferredGroup?.options.find((item) => item.quality === wan27QualityChoice) ||
@@ -1198,14 +1235,14 @@ const StudioPage = () => {
     if (changedValues.model) {
       const model = changedValues.model
       if (WAN27_MODELS.has(model)) {
-        const hasImages = (form.getFieldValue('references') || []).length > 0
-        const preferredMode = hasImages ? 'preset' : 'custom'
+        setWan27SizeModeChoice('custom')
         form.setFieldsValue({
           group_count: 1,
-          size_mode: preferredMode,
-          size_preset: preferredMode === 'preset' ? (form.getFieldValue('size_preset') || '2K') : undefined,
-          custom_width: preferredMode === 'custom' ? form.getFieldValue('custom_width') : undefined,
-          custom_height: preferredMode === 'custom' ? form.getFieldValue('custom_height') : undefined,
+          size: undefined,
+          size_mode: 'custom',
+          size_preset: undefined,
+          custom_width: form.getFieldValue('custom_width'),
+          custom_height: form.getFieldValue('custom_height'),
           n: getWan27DefaultN(activeTaskKind),
           watermark: false,
         })
@@ -1278,10 +1315,10 @@ const StudioPage = () => {
     }
 
     if (changedValues.size_mode === 'preset') {
-      form.setFieldsValue({ custom_width: undefined, custom_height: undefined })
+      form.setFieldsValue({ size: undefined, custom_width: undefined, custom_height: undefined })
     }
     if (changedValues.size_mode === 'custom') {
-      form.setFieldsValue({ size_preset: undefined })
+      form.setFieldsValue({ size: undefined, size_preset: undefined })
     }
     if ((changedValues.n !== undefined || changedValues.model) && (form.getFieldValue('model') || '').startsWith('qwen-image-edit')) {
       const nextN = Number(form.getFieldValue('n') || 1)
@@ -2291,8 +2328,8 @@ const StudioPage = () => {
                         当前能力：{getTaskKindLabel(activeTaskKind)}
                       </div>
                       <div style={{ color: token.colorTextTertiary, fontSize: 12 }}>
-                        {activeTaskKind === 'text_to_image' && '纯文生图。无输入图时可启用思考模式；规格档位默认输出正方形，自定义像素适合精确版式。'}
-                        {activeTaskKind === 'image_edit' && '图像编辑/多图参考生成。输入图片顺序会影响图1、图2等提示词引用，规格档位输出比例跟随最后一张图。'}
+                        {activeTaskKind === 'text_to_image' && '纯文生图。自定义宽高会按指定比例出图；规格档位 1K/2K/4K 默认输出正方形。'}
+                        {activeTaskKind === 'image_edit' && '图像编辑/多图参考生成。自定义宽高会按指定比例出图；规格档位 1K/2K 会跟随最后一张输入图比例。'}
                         {activeTaskKind === 'interactive_edit' && '交互式编辑。bbox_list 必须和输入图一一对应，不需要框选的图位也要保留空数组 []。'}
                         {activeTaskKind === 'sequential_generation' && '组图生成。enable_sequential 自动开启，n 代表最大组图数，模型可能少于该上限返回。'}
                       </div>
@@ -2301,29 +2338,20 @@ const StudioPage = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                       <div>
                         <div style={{ marginBottom: 8, color: token.colorTextSecondary, fontSize: 12 }}>
-                          {wan27HasInputImages ? '主尺寸入口：输出规格' : '主尺寸入口：画面比例 + 清晰度'}
+                          尺寸模式
                         </div>
-                        <Space wrap>
-                          {wan27HasInputImages ? (
-                            <>
-                              <Button type={effectiveWan27EntryMode !== 'custom' ? 'primary' : 'default'} size="small" onClick={() => switchWan27SizeMode('preset')}>
-                                输出规格
-                              </Button>
-                              <Button type={effectiveWan27EntryMode === 'custom' ? 'primary' : 'default'} size="small" onClick={() => switchWan27SizeMode('custom')}>
-                                改为自定义比例
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button type={effectiveWan27EntryMode === 'custom' ? 'primary' : 'default'} size="small" onClick={() => switchWan27SizeMode('custom')}>
-                                画面比例 + 清晰度
-                              </Button>
-                              <Button type={effectiveWan27EntryMode !== 'custom' ? 'primary' : 'default'} size="small" onClick={() => switchWan27SizeMode('preset')}>
-                                使用快速规格
-                              </Button>
-                            </>
-                          )}
-                        </Space>
+                        <Segmented
+                          block
+                          value={effectiveWan27EntryMode}
+                          options={[
+                            { value: 'custom', label: '自定义宽高（指定比例）' },
+                            { value: 'preset', label: `规格档位（${wan27HasInputImages ? '跟随输入图' : '默认正方形'}）` },
+                          ]}
+                          onChange={(value) => switchWan27SizeMode(value as 'custom' | 'preset')}
+                        />
+                        <div style={{ marginTop: 8, color: token.colorTextSecondary, fontSize: 12 }}>
+                          本次实际发送 size：{wan27SubmittedSize}
+                        </div>
                       </div>
                       <Form.Item
                         name="seed"
@@ -2339,28 +2367,30 @@ const StudioPage = () => {
                         <Form.Item
                           name="size_preset"
                           label={renderFormLabel(activeModelId, 'size', '输出规格', {
-                            summary: wan27HasInputImages ? '当前场景更适合直接选规格档位，输出比例会跟随最后一张输入图。' : '快速规格适合直接选 1K / 2K / 4K，不自己指定宽高。',
-                            notes: wan27HasInputImages ? ['当前输出比例跟随最后一张输入图。若你要显式覆盖比例，请切到“改为自定义比例”。'] : ['无输入图时规格档位默认输出正方形。想精确控制横竖比例时，请切到“画面比例 + 清晰度”。'],
+                            summary: wan27HasInputImages ? '规格档位只控制总像素级别，输出比例会跟随最后一张输入图。' : '规格档位只提交 1K / 2K / 4K，无输入图时默认输出正方形。',
+                            notes: wan27HasInputImages ? ['如果要指定横竖比例，请切到“自定义宽高（指定比例）”。'] : ['如果要指定横竖比例，请切到“自定义宽高（指定比例）”。'],
                           })}
                           style={{ marginBottom: 12 }}
                         >
                           <Select options={wan27PresetOptions} />
                         </Form.Item>
                         <div style={{ marginBottom: 12, color: token.colorTextSecondary, fontSize: 12 }}>
-                          {wan27HasInputImages ? '已按文档使用规格档位，输出比例将跟随最后一张输入图。' : '当前使用快速规格，默认按正方形输出。'}
+                          {wan27HasInputImages ? '当前使用规格档位，输出比例将跟随最后一张输入图。' : '当前使用规格档位，默认按正方形输出。'}
                         </div>
                       </>
                     ) : (
                       <>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '200px minmax(0, 1fr)', gap: 12, marginBottom: 12 }}>
                           <Form.Item
                             label={renderFormLabel(activeModelId, 'size', '画面比例', {
-                              summary: '比例 + 清晰度是平台提供的自定义像素快捷入口，底层仍会提交真实宽高。',
-                              notes: ['有输入图时这代表你要显式覆盖输出宽高，不再完全跟随最后一张输入图比例。'],
+                              summary: '选择比例后，平台会填入对应的自定义宽高像素，并向模型提交 size=宽*高。',
+                              notes: ['这是文档中的自定义像素方式，可显式指定输出比例。'],
                             })}
                             style={{ marginBottom: 0 }}
                           >
                             <Select
+                              style={{ width: '100%' }}
+                              popupMatchSelectWidth={260}
                               value={activeWan27QualityGroup?.ratio}
                               options={wan27QualityGroups.map((group) => ({
                                 value: group.ratio,
@@ -2380,14 +2410,16 @@ const StudioPage = () => {
                             />
                           </Form.Item>
                           <Form.Item
-                            label={renderFormLabel(activeModelId, 'size', '清晰度', {
-                              summary: '清晰度是同比例下的不同像素档位。通常越高越清晰，但生成耗时也更高。',
-                              notes: ['这是平台对自定义像素的快捷分档，不是模型原生参数。'],
+                            label={renderFormLabel(undefined, 'quality_preset', '清晰度', {
+                              summary: '像素档位是同比例下的不同宽高模板，像素越高通常细节越多。',
+                              notes: ['这是平台对自定义像素的快捷模板，不是模型原生质量参数。'],
                             })}
                             style={{ marginBottom: 0 }}
                           >
-                            <Segmented
+                            <Select
                               value={wan27QualityChoice}
+                              style={{ width: '100%' }}
+                              popupMatchSelectWidth={320}
                               options={(activeWan27QualityGroup?.options || []).map((option) => ({
                                 value: option.quality,
                                 label: `${option.qualityLabel} ${option.width}×${option.height}`,

@@ -16,6 +16,7 @@ import asyncio
 import copy
 import logging
 import math
+import re
 from dataclasses import asdict, dataclass
 from typing import Optional, List, Any, Tuple, Dict
 from urllib.parse import urlparse
@@ -235,6 +236,8 @@ WAN27_MAX_IMAGE_DIM = 8000
 WAN27_MAX_IMAGE_BYTES = 20 * 1024 * 1024
 WAN27_MIN_RATIO = 0.125
 WAN27_MAX_RATIO = 8.0
+WAN27_HEX_COLOR_PATTERN = re.compile(r"^#[0-9A-Fa-f]{6}$")
+WAN27_RATIO_PATTERN = re.compile(r"^(?:100|[0-9]{1,2})\.[0-9]{2}%$")
 
 IMAGE_TASK_KIND_SUPPORT: Dict[str, List[str]] = {
     "wan2.7-image-pro": ["text_to_image", "image_edit", "interactive_edit", "sequential_generation"],
@@ -340,11 +343,15 @@ def _build_wan27_size(
     custom_height: Optional[int],
     has_images: bool,
 ) -> str:
-    if size_mode == "custom" and (custom_width is None or custom_height is None):
-        raise HTTPException(status_code=400, detail="自定义尺寸需要同时填写宽度和高度")
-    if size_mode == "custom" and custom_width and custom_height:
+    if size_mode == "custom":
+        if custom_width is None or custom_height is None:
+            raise HTTPException(status_code=400, detail="自定义尺寸需要同时填写宽度和高度")
         return f"{custom_width}*{custom_height}"
-    if size_mode == "preset" and size_preset:
+    if size_mode == "preset":
+        return size_preset or "2K"
+    if custom_width is not None and custom_height is not None:
+        return f"{custom_width}*{custom_height}"
+    if size_preset:
         return size_preset
     if size:
         return size
@@ -469,6 +476,64 @@ def get_image_size_templates(
     return templates
 
 
+def get_wan27_size_mode_parameters() -> List[Dict[str, Any]]:
+    return [
+        {
+            "name": "size_mode",
+            "label": "尺寸定义方式",
+            "type": "select",
+            "description": "选择规格档位或自定义宽高像素。",
+            "default": "custom",
+            "group": "size",
+            "order": 1,
+            "constraint": {
+                "options": [
+                    {"value": "custom", "label": "自定义宽高（指定比例）"},
+                    {"value": "preset", "label": "规格档位（跟随输入图/默认正方形）"},
+                ]
+            },
+        },
+        {
+            "name": "size_preset",
+            "label": "规格档位",
+            "type": "select",
+            "description": "1K/2K/4K 档位。有输入图时跟随最后一张输入图比例，无输入图时默认正方形。",
+            "default": "2K",
+            "group": "size",
+            "order": 2,
+            "constraint": {
+                "depends_on": "size_mode",
+                "depends_value": "preset",
+                "options": [
+                    {"value": "1K", "label": "1K"},
+                    {"value": "2K", "label": "2K"},
+                    {"value": "4K", "label": "4K（仅 wan2.7-image-pro 纯文生图）"},
+                ],
+            },
+        },
+        {
+            "name": "custom_width",
+            "label": "自定义宽度",
+            "type": "integer",
+            "description": "自定义像素宽度。",
+            "default": 2048,
+            "group": "size",
+            "order": 3,
+            "constraint": {"min_value": 1, "max_value": 12000, "depends_on": "size_mode", "depends_value": "custom"},
+        },
+        {
+            "name": "custom_height",
+            "label": "自定义高度",
+            "type": "integer",
+            "description": "自定义像素高度。",
+            "default": 2048,
+            "group": "size",
+            "order": 4,
+            "constraint": {"min_value": 1, "max_value": 12000, "depends_on": "size_mode", "depends_value": "custom"},
+        },
+    ]
+
+
 async def _inspect_and_validate_wan27_images(ref_urls: List[str]) -> List[Dict[str, Any]]:
     metadata_list: List[Dict[str, Any]] = []
     for index, url in enumerate(ref_urls, start=1):
@@ -583,11 +648,13 @@ def _validate_wan27_request(
             raise HTTPException(status_code=400, detail="颜色主题必须包含 3-10 种颜色")
         total_ratio = 0.0
         for item in color_palette:
-            ratio = item.get("ratio", "").replace("%", "").strip()
-            try:
-                total_ratio += float(ratio)
-            except ValueError as exc:
-                raise HTTPException(status_code=400, detail="颜色主题比例格式无效") from exc
+            hex_value = (item.get("hex") or "").strip()
+            ratio_text = (item.get("ratio") or "").strip()
+            if not WAN27_HEX_COLOR_PATTERN.match(hex_value):
+                raise HTTPException(status_code=400, detail="颜色主题 hex 必须是 #RRGGBB 格式")
+            if not WAN27_RATIO_PATTERN.match(ratio_text):
+                raise HTTPException(status_code=400, detail="颜色主题比例必须是两位小数百分比格式，例如 25.00%")
+            total_ratio += float(ratio_text[:-1])
         if abs(total_ratio - 100.0) > 0.01:
             raise HTTPException(status_code=400, detail="颜色主题比例总和必须为 100.00%")
 
@@ -1064,6 +1131,16 @@ async def update_studio_task(task_id: str, request: TaskUpdateRequest):
         raise HTTPException(status_code=404, detail="任务不存在")
     
     update_data = request.model_dump(exclude_unset=True)
+    nullable_fields = {
+        "negative_prompt",
+        "size",
+        "seed",
+        "thinking_mode",
+        "size_mode",
+        "size_preset",
+        "custom_width",
+        "custom_height",
+    }
     
     # 如果更新了参考素材，需要重新获取URL
     if "references" in update_data and update_data["references"] is not None:
@@ -1076,12 +1153,16 @@ async def update_studio_task(task_id: str, request: TaskUpdateRequest):
         task.references = references
         del update_data["references"]
 
-    if "color_palette" in update_data and update_data["color_palette"] is not None:
-        task.color_palette = _serialize_color_palette(update_data["color_palette"])
+    if "color_palette" in update_data:
+        task.color_palette = _serialize_color_palette(update_data["color_palette"]) if update_data["color_palette"] is not None else []
         del update_data["color_palette"]
 
+    if "bbox_list" in update_data and update_data["bbox_list"] is None:
+        task.bbox_list = []
+        del update_data["bbox_list"]
+
     for key, value in update_data.items():
-        if value is not None:
+        if value is not None or key in nullable_fields:
             setattr(task, key, value)
 
     ref_urls = [ref.url for ref in task.references if ref.url]
@@ -1143,44 +1224,46 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
 
+    provided_fields = request.model_fields_set
+
     # 更新任务参数
-    if request.prompt:
+    if "prompt" in provided_fields and request.prompt is not None:
         task.prompt = request.prompt
-    if request.negative_prompt:
+    if "negative_prompt" in provided_fields:
         task.negative_prompt = request.negative_prompt
-    if request.n is not None:
+    if "n" in provided_fields and request.n is not None:
         task.n = request.n
-    if request.group_count is not None:
+    if "group_count" in provided_fields and request.group_count is not None:
         task.group_count = request.group_count
-    if request.task_kind is not None:
+    if "task_kind" in provided_fields and request.task_kind is not None:
         task.task_kind = request.task_kind
-    if request.size is not None:
+    if "size" in provided_fields:
         task.size = request.size
-    if request.prompt_extend is not None:
+    if "prompt_extend" in provided_fields and request.prompt_extend is not None:
         task.prompt_extend = request.prompt_extend
-    if request.watermark is not None:
+    if "watermark" in provided_fields and request.watermark is not None:
         task.watermark = request.watermark
-    if request.seed is not None:
+    if "seed" in provided_fields:
         task.seed = request.seed
-    if request.enable_interleave is not None:
+    if "enable_interleave" in provided_fields and request.enable_interleave is not None:
         task.enable_interleave = request.enable_interleave
-    if request.max_images is not None:
+    if "max_images" in provided_fields and request.max_images is not None:
         task.max_images = request.max_images
-    if request.enable_sequential is not None:
+    if "enable_sequential" in provided_fields and request.enable_sequential is not None:
         task.enable_sequential = request.enable_sequential
-    if request.thinking_mode is not None:
+    if "thinking_mode" in provided_fields:
         task.thinking_mode = request.thinking_mode
-    if request.bbox_list is not None:
-        task.bbox_list = request.bbox_list
-    if request.color_palette is not None:
-        task.color_palette = _serialize_color_palette(request.color_palette)
-    if request.size_mode is not None:
+    if "bbox_list" in provided_fields:
+        task.bbox_list = request.bbox_list or []
+    if "color_palette" in provided_fields:
+        task.color_palette = _serialize_color_palette(request.color_palette) if request.color_palette is not None else []
+    if "size_mode" in provided_fields:
         task.size_mode = request.size_mode
-    if request.size_preset is not None:
+    if "size_preset" in provided_fields:
         task.size_preset = request.size_preset
-    if request.custom_width is not None:
+    if "custom_width" in provided_fields:
         task.custom_width = request.custom_width
-    if request.custom_height is not None:
+    if "custom_height" in provided_fields:
         task.custom_height = request.custom_height
 
     model_name = task.model or "wan2.5-i2i-preview"
@@ -1192,7 +1275,7 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
         normalized_bbox_list = _normalize_bbox_list(normalized_bbox_list, image_metadata)
 
     # --- 同步验证（在返回前完成）---
-    enable_interleave = request.enable_interleave if hasattr(request, 'enable_interleave') else False
+    enable_interleave = task.enable_interleave
     if model_name == "wan2.6-image" and not enable_interleave and not ref_urls:
         raise HTTPException(
             status_code=400,
@@ -1230,6 +1313,8 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
         custom_height=task.custom_height,
     )
     canonical.project_id = task.project_id
+    canonical_size = (canonical.normalized_params or {}).get("size") or (provider_payload.get("parameters") or {}).get("size") or task.size
+    task.size = canonical_size
     task.task_kind = canonical.task_kind
     task.provider = canonical.provider
     task.model_id = canonical.model_id
@@ -1252,11 +1337,11 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
     user_config_dir = get_user_config_dir()
     config = get_config()
 
-    size = request.size if request.size is not None else task.size
-    prompt_extend = request.prompt_extend if request.prompt_extend is not None else task.prompt_extend
-    watermark = request.watermark if request.watermark is not None else task.watermark
-    seed = request.seed if request.seed is not None else task.seed
-    max_images = request.max_images if hasattr(request, 'max_images') else 5
+    size = canonical_size
+    prompt_extend = task.prompt_extend
+    watermark = task.watermark
+    seed = task.seed
+    max_images = task.max_images
 
     # 后台执行生成，立即返回
     asyncio.create_task(_background_generate(
@@ -1273,14 +1358,14 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
         seed=seed,
         enable_interleave=enable_interleave,
         max_images=max_images,
-        enable_sequential=bool(request.enable_sequential if request.enable_sequential is not None else task.enable_sequential),
-        thinking_mode=request.thinking_mode if request.thinking_mode is not None else task.thinking_mode,
+        enable_sequential=task.enable_sequential,
+        thinking_mode=task.thinking_mode,
         bbox_list=normalized_bbox_list,
-        color_palette=_serialize_color_palette(request.color_palette) if request.color_palette is not None else task.color_palette,
-        size_mode=request.size_mode if request.size_mode is not None else task.size_mode,
-        size_preset=request.size_preset if request.size_preset is not None else task.size_preset,
-        custom_width=request.custom_width if request.custom_width is not None else task.custom_width,
-        custom_height=request.custom_height if request.custom_height is not None else task.custom_height,
+        color_palette=task.color_palette,
+        size_mode=task.size_mode,
+        size_preset=task.size_preset,
+        custom_width=task.custom_width,
+        custom_height=task.custom_height,
         provider_payload=provider_payload,
     ))
 

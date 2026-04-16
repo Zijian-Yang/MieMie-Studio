@@ -183,8 +183,8 @@ const buildRunHtmlReport = (run: ImageBenchmarkRun, suite?: ImageBenchmarkSuite 
 
 const buildWan27SizeParam = (taskKind: string, modelId: string, originalParam?: ModelParameterDef): ModelParameterDef => ({
   ...(originalParam || {
-    name: 'size',
-    label: '尺寸',
+    name: 'size_preset',
+    label: '规格档位',
     description: '输出尺寸',
   }),
   type: 'select',
@@ -243,7 +243,7 @@ const buildDefaultValues = (parameters: ModelParameterDef[]) => {
 
 const buildModelFormInfo = (model: any, taskKind?: string) => {
   const parameters = getBenchmarkParametersForTask(model, taskKind).map((param) => {
-    if (param.name === 'size' && model.id?.startsWith('wan2.7-image')) {
+    if (param.name === 'size_preset' && model.id?.startsWith('wan2.7-image')) {
       return buildWan27SizeParam(taskKind || '', model.id, param)
     }
     if (param.name === 'size' && (model.id === 'qwen-image-2.0-pro' || model.id === 'qwen-image-2.0')) {
