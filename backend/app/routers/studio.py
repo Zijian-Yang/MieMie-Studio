@@ -52,6 +52,47 @@ def _summarize_media_url(url: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}/{short_path}" if short_path else f"{parsed.scheme}://{parsed.netloc}"
 
 
+async def _ensure_generated_images_persisted(
+    images: List[StudioTaskImage],
+    project_id: str,
+) -> List[str]:
+    """在写入任务前统一将生成结果转存到当前 OSS。"""
+    if not images or not oss_service.is_enabled():
+        return []
+
+    migrated_url_cache: Dict[str, str] = {}
+    failed_url_cache: Dict[str, str] = {}
+    errors: List[str] = []
+
+    for image in images:
+        original_url = image.url
+        if not original_url:
+            continue
+        if not oss_service.should_persist_generated_url(original_url):
+            continue
+        if original_url in migrated_url_cache:
+            image.url = migrated_url_cache[original_url]
+            continue
+        if original_url in failed_url_cache:
+            image.url = None
+            continue
+
+        try:
+            persisted_url = await oss_service.ensure_image_persisted_async(
+                original_url,
+                project_id,
+                strict=True,
+            )
+            migrated_url_cache[original_url] = persisted_url
+            image.url = persisted_url
+        except Exception as exc:
+            failed_url_cache[original_url] = str(exc)
+            image.url = None
+            errors.append(str(exc))
+
+    return errors
+
+
 class ReferenceItemInput(BaseModel):
     """参考素材输入"""
     type: str  # character, scene, prop, gallery, style
@@ -1484,6 +1525,11 @@ async def _background_generate(
                 prompt_extend=prompt_extend,
                 seed=seed,
             )
+
+        persist_errors = await _ensure_generated_images_persisted(images, task.project_id)
+        if persist_errors:
+            existing_errors = getattr(task, "_group_errors", [])
+            task._group_errors = existing_errors + persist_errors
 
         task.images = images
         task.task_ids = task_ids or task.task_ids or ([task.last_task_id] if task.last_task_id else [])

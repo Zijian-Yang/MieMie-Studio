@@ -427,6 +427,9 @@ async def _migrate_dataset_images_to_current_oss(
             original_url = slot.image.url
             if not original_url:
                 continue
+            if not oss_service.should_persist_remote_url(original_url):
+                report["skipped"] += 1
+                continue
             if original_url in migrated_url_cache:
                 slot.image.url = migrated_url_cache[original_url]
                 report["skipped"] += 1
@@ -436,13 +439,17 @@ async def _migrate_dataset_images_to_current_oss(
                 continue
 
             report["attempted"] += 1
-            success, result = await oss_service.upload_from_url_async(original_url, "image", "png", project_id)
-            if success:
+            try:
+                result = await oss_service.ensure_image_persisted_async(
+                    original_url,
+                    project_id,
+                    strict=True,
+                )
                 migrated_url_cache[original_url] = result
                 slot.image.url = result
                 report["succeeded"] += 1
-            else:
-                failed_url_cache[original_url] = result
+            except Exception as exc:
+                failed_url_cache[original_url] = str(exc)
                 report["failed"] += 1
                 report["errors"].append(
                     {
@@ -450,7 +457,7 @@ async def _migrate_dataset_images_to_current_oss(
                         "item_name": item.name,
                         "position": slot.position,
                         "url": original_url,
-                        "error": result,
+                        "error": str(exc),
                     }
                 )
     return report
@@ -983,6 +990,10 @@ async def run_suite(suite_id: str):
         )
 
     model_snapshots = [model_lookup[model_id] for model_id in suite.selected_models]
+    migration_report = await _migrate_dataset_images_to_current_oss(suite.project_id, dataset.items)
+    if migration_report["succeeded"] > 0:
+        dataset.updated_at = datetime.now()
+        storage_service.save_image_benchmark_dataset(dataset)
     run = ImageBenchmarkRun(
         suite_id=suite.id,
         project_id=suite.project_id,

@@ -1671,6 +1671,7 @@ export const imageBenchmarkApi = {
       negative_prompt: string
       tags?: string[]
       image_slots: ImageBenchmarkImageSlot[]
+      bbox_list?: number[][][]
     }
     baseline_params?: Record<string, any>
     override_params?: Record<string, any>

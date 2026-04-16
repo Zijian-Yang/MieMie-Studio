@@ -950,7 +950,18 @@ async def get_task_status(task_id: str):
         }
         normalized_status = str(result.status).upper()
         if normalized_status == "SUCCEEDED" and result.video_url:
-            video_urls.append(result.video_url)
+            try:
+                persisted_video_url = result.video_url
+                if oss_service.should_persist_generated_url(result.video_url):
+                    persisted_video_url = await oss_service.ensure_video_persisted_async(
+                        result.video_url,
+                        task.project_id,
+                        strict=True,
+                    )
+                video_urls.append(persisted_video_url)
+            except Exception as exc:
+                all_succeeded = False
+                task.error_message = str(exc)
         elif normalized_status == "FAILED":
             all_succeeded = False
             if result.error_message:

@@ -19,8 +19,9 @@ from app.models.image_benchmark import (
     ImageBenchmarkDataset,
     ImageBenchmarkOutputImage,
 )
-from app.models.studio import StudioTask
+from app.models.studio import StudioTask, StudioTaskImage
 from app.routers import studio as studio_router
+from app.services.oss import oss_service
 
 
 BENCHMARK_TASK_KINDS = {"text_to_image", "image_edit", "interactive_edit"}
@@ -363,6 +364,47 @@ def _merge_unique_ids(existing: List[str], incoming: List[str]) -> List[str]:
     return merged
 
 
+async def _ensure_benchmark_images_persisted(
+    images: List[StudioTaskImage],
+    project_id: str,
+) -> List[str]:
+    """在测评结果写入前，统一将输出图片转存到当前 OSS。"""
+    if not images or not oss_service.is_enabled():
+        return []
+
+    migrated_url_cache: Dict[str, str] = {}
+    failed_url_cache: Dict[str, str] = {}
+    errors: List[str] = []
+
+    for image in images:
+        original_url = image.url
+        if not original_url:
+            continue
+        if not oss_service.should_persist_generated_url(original_url):
+            continue
+        if original_url in migrated_url_cache:
+            image.url = migrated_url_cache[original_url]
+            continue
+        if original_url in failed_url_cache:
+            image.url = None
+            continue
+
+        try:
+            persisted_url = await oss_service.ensure_image_persisted_async(
+                original_url,
+                project_id,
+                strict=True,
+            )
+            migrated_url_cache[original_url] = persisted_url
+            image.url = persisted_url
+        except Exception as exc:
+            failed_url_cache[original_url] = str(exc)
+            image.url = None
+            errors.append(str(exc))
+
+    return errors
+
+
 async def _execute_benchmark_cell_once(
     *,
     project_id: str,
@@ -535,8 +577,11 @@ async def _execute_benchmark_cell_once(
             provider_result_meta=provider_result_meta,
         )
 
+    persist_errors = await _ensure_benchmark_images_persisted(images, project_id)
     valid_images = [image for image in images if image.url]
     group_errors = getattr(task, "_group_errors", [])
+    if persist_errors:
+        group_errors = group_errors + persist_errors
     error_detail = "; ".join(dict.fromkeys(group_errors)) if group_errors else ""
     if not images or not valid_images:
         status = "failed"

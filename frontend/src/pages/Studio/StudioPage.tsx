@@ -21,6 +21,14 @@ import { useModelRegistry } from '../../hooks/useModelRegistry'
 import HoverInfoPopover from '../../components/Help/HoverInfoPopover'
 import BBoxEditor from './BBoxEditor'
 import ColorPaletteEditor from './ColorPaletteEditor'
+import {
+  WAN27_MIN_RATIO,
+  buildWan27QualityTemplateGroups,
+  buildWan27SizeTemplates,
+  getWan27CustomSizeLimits,
+  matchWan27QualityTemplate,
+  type ImageQualityLevel,
+} from '../../utils/wan27Size'
 
 const { TextArea } = Input
 
@@ -72,12 +80,6 @@ type ImageSizeTemplate = {
   height: number
   label: string
 }
-type ImageQualityLevel = 'low' | 'medium' | 'high'
-type ImageQualityTemplateGroup = {
-  ratio: string
-  orientation: string
-  options: Array<ImageSizeTemplate & { quality: ImageQualityLevel; qualityLabel: string }>
-}
 
 const TASK_KIND_OPTIONS: Array<{ value: ImageTaskKind; label: string; help: string }> = [
   { value: 'text_to_image', label: '文生图', help: '只用提示词生成图片，不依赖输入图。' },
@@ -87,11 +89,6 @@ const TASK_KIND_OPTIONS: Array<{ value: ImageTaskKind; label: string; help: stri
 ]
 
 const WAN27_MODELS = new Set(['wan2.7-image-pro', 'wan2.7-image'])
-const WAN27_MIN_TOTAL_PIXELS = 768 * 768
-const WAN27_PRO_MAX_TOTAL_PIXELS = 4096 * 4096
-const WAN27_STANDARD_MAX_TOTAL_PIXELS = 2048 * 2048
-const WAN27_MIN_RATIO = 1 / 8
-const WAN27_MAX_RATIO = 8
 const WAN27_MAX_CUSTOM_DIMENSION = 12000
 const WAN25_T2I_MIN_TOTAL_PIXELS = 768 * 768
 const WAN25_T2I_MAX_TOTAL_PIXELS = 1440 * 1440
@@ -105,20 +102,6 @@ const DEFAULT_MODEL_BY_TASK_KIND: Record<ImageTaskKind, string> = {
   interactive_edit: 'wan2.7-image-pro',
   sequential_generation: 'wan2.7-image-pro',
 }
-
-const IMAGE_TEMPLATE_RATIOS: Array<{ ratio: string; orientation: string; value: number }> = [
-  { ratio: '1:1', orientation: '方图', value: 1 },
-  { ratio: '4:3', orientation: '横版', value: 4 / 3 },
-  { ratio: '3:4', orientation: '竖版', value: 3 / 4 },
-  { ratio: '16:9', orientation: '横版', value: 16 / 9 },
-  { ratio: '9:16', orientation: '竖版', value: 9 / 16 },
-  { ratio: '21:9', orientation: '横版', value: 21 / 9 },
-]
-const IMAGE_QUALITY_LEVELS: Array<{ value: ImageQualityLevel; label: string; scale: number }> = [
-  { value: 'low', label: '小尺寸', scale: 0.6 },
-  { value: 'medium', label: '标准', scale: 0.8 },
-  { value: 'high', label: '最大像素', scale: 1 },
-]
 
 const mergeHelpContent = (...helps: Array<HelpContent | string | null | undefined>): HelpContent | null => {
   const merged: HelpContent = {}
@@ -144,19 +127,6 @@ const mergeHelpContent = (...helps: Array<HelpContent | string | null | undefine
 const getWan27DefaultN = (taskKind: ImageTaskKind) => (
   taskKind === 'sequential_generation' ? 12 : 4
 )
-
-const getWan27CustomSizeLimits = (
-  modelId: string,
-  taskKind: ImageTaskKind,
-  referenceCount: number,
-) => ({
-  minTotalPixels: WAN27_MIN_TOTAL_PIXELS,
-  maxTotalPixels: modelId === 'wan2.7-image-pro' && taskKind === 'text_to_image' && referenceCount === 0
-    ? WAN27_PRO_MAX_TOTAL_PIXELS
-    : WAN27_STANDARD_MAX_TOTAL_PIXELS,
-  minRatio: WAN27_MIN_RATIO,
-  maxRatio: WAN27_MAX_RATIO,
-})
 
 const getImageCustomSizeLimits = (
   modelId: string,
@@ -185,75 +155,6 @@ const getImageCustomSizeLimits = (
   return null
 }
 
-const buildImageSizeTemplates = (
-  limits: { minTotalPixels: number; maxTotalPixels: number; minRatio: number; maxRatio: number } | null,
-): ImageSizeTemplate[] => {
-  if (!limits) return []
-  return IMAGE_TEMPLATE_RATIOS
-    .filter((item) => item.value >= limits.minRatio && item.value <= limits.maxRatio)
-    .map((item) => {
-      let width = Math.max(1, Math.floor(Math.sqrt(limits.maxTotalPixels * item.value)))
-      let height = Math.max(1, Math.floor(Math.sqrt(limits.maxTotalPixels / item.value)))
-      while (width * height > limits.maxTotalPixels && width > 1 && height > 1) {
-        width -= 1
-        height -= 1
-      }
-      return {
-        ratio: item.ratio,
-        orientation: item.orientation,
-        width,
-        height,
-        label: `${item.ratio} ${item.orientation} ${width}×${height}`,
-      }
-    })
-    .filter((item) => item.width * item.height >= limits.minTotalPixels)
-}
-
-const buildImageQualityTemplateGroups = (
-  limits: { minTotalPixels: number; maxTotalPixels: number; minRatio: number; maxRatio: number } | null,
-): ImageQualityTemplateGroup[] => {
-  const maxTemplates = buildImageSizeTemplates(limits)
-  return maxTemplates.map((template) => {
-    const options: Array<ImageSizeTemplate & { quality: ImageQualityLevel; qualityLabel: string }> = []
-    for (const level of IMAGE_QUALITY_LEVELS) {
-      const width = Math.max(1, Math.floor(template.width * level.scale))
-      const height = Math.max(1, Math.floor(template.height * level.scale))
-      const pixels = width * height
-      if (!limits || pixels < limits.minTotalPixels || pixels > limits.maxTotalPixels) {
-        continue
-      }
-      const key = `${width}x${height}`
-      if (options.some((item) => `${item.width}x${item.height}` === key)) {
-        continue
-      }
-      options.push({
-        ratio: template.ratio,
-        orientation: template.orientation,
-        width,
-        height,
-        label: `${template.ratio} ${template.orientation} · ${level.label} ${width}×${height}`,
-        quality: level.value,
-        qualityLabel: level.label,
-      })
-    }
-    if (!options.length) {
-      options.push({
-        ratio: template.ratio,
-        orientation: template.orientation,
-        width: template.width,
-        height: template.height,
-        label: `${template.ratio} ${template.orientation} · 最大像素 ${template.width}×${template.height}`,
-        quality: 'high',
-        qualityLabel: '最大像素',
-      })
-    }
-    return {
-      ratio: template.ratio,
-      orientation: template.orientation,
-      options,
-    }
-  })
-}
 
 const normalizeBBoxList = (value: unknown): number[][][] => {
   if (!Array.isArray(value)) return []
@@ -299,11 +200,19 @@ const StudioPage = () => {
   const watchedEnableInterleave = Form.useWatch('enable_interleave', form)
   const watchedReferences = Form.useWatch('references', form) || []
   const watchedEnableSequential = Form.useWatch('enable_sequential', form)
+  const watchedPrompt = Form.useWatch('prompt', form)
+  const watchedNegativePrompt = Form.useWatch('negative_prompt', form)
   const watchedSizeMode = Form.useWatch('size_mode', form)
   const watchedSizePreset = Form.useWatch('size_preset', form)
   const watchedCustomWidth = Form.useWatch('custom_width', form)
   const watchedCustomHeight = Form.useWatch('custom_height', form)
   const watchedN = Form.useWatch('n', form)
+  const watchedGroupCount = Form.useWatch('group_count', form)
+  const watchedPromptExtend = Form.useWatch('prompt_extend', form)
+  const watchedWatermark = Form.useWatch('watermark', form)
+  const watchedSeed = Form.useWatch('seed', form)
+  const watchedMaxImages = Form.useWatch('max_images', form)
+  const watchedStyleId = Form.useWatch('style_id', form)
   const watchedBBoxList = Form.useWatch('bbox_list', form) || []
   const watchedColorPalette = Form.useWatch('color_palette', form) || []
   
@@ -437,7 +346,7 @@ const StudioPage = () => {
     [activeModelId, activeTaskKind, selectedReferenceItems.length]
   )
   const sizeTemplateOptions = useMemo(
-    () => activeSizeUiMode === 'preset_plus_custom_with_templates' ? buildImageSizeTemplates(activeCustomSizeLimits) : [],
+    () => activeSizeUiMode === 'preset_plus_custom_with_templates' ? buildWan27SizeTemplates(activeCustomSizeLimits) : [],
     [activeCustomSizeLimits, activeSizeUiMode]
   )
   const wan27PresetOptions = useMemo(() => {
@@ -453,7 +362,7 @@ const StudioPage = () => {
     ? wan27SizeModeChoice
     : ((watchedSizeMode as 'preset' | 'custom' | undefined) || wan27PreferredEntryMode)
   const wan27QualityGroups = useMemo(
-    () => isWan27Model ? buildImageQualityTemplateGroups(activeCustomSizeLimits) : [],
+    () => isWan27Model ? buildWan27QualityTemplateGroups(activeCustomSizeLimits) : [],
     [activeCustomSizeLimits, isWan27Model]
   )
   const activeWan27QualityGroup = useMemo(
@@ -469,6 +378,18 @@ const StudioPage = () => {
     }
     return form.getFieldValue('size_preset') || '2K'
   }, [effectiveWan27EntryMode, form, isWan27Model, watchedCustomHeight, watchedCustomWidth, watchedSizeMode, watchedSizePreset])
+  const hasPreviousTaskRequest = useMemo(() => {
+    if (!selectedTask) return false
+    return (
+      selectedTask.status !== 'pending' ||
+      (selectedTask.images?.length || 0) > 0 ||
+      (selectedTask.task_ids?.length || 0) > 0 ||
+      (selectedTask.request_ids?.length || 0) > 0 ||
+      !!selectedTask.last_task_id ||
+      !!selectedTask.last_request_id ||
+      Object.keys(selectedTask.provider_result_meta || {}).length > 0
+    )
+  }, [selectedTask])
 
   const validateCustomDimension = useCallback(async (_: any, _value: number | null | undefined) => {
     if (activeSizeUiMode !== 'preset_plus_custom_with_templates' || watchedSizeMode !== 'custom' || !activeCustomSizeLimits) return Promise.resolve()
@@ -733,10 +654,22 @@ const StudioPage = () => {
     requestPayloadPreview,
     watchedModel,
     watchedTaskKind,
+    watchedPrompt,
+    watchedNegativePrompt,
+    watchedN,
+    watchedGroupCount,
+    watchedPromptExtend,
+    watchedWatermark,
+    watchedSeed,
     watchedEnableInterleave,
+    watchedMaxImages,
     watchedEnableSequential,
     watchedSizeMode,
+    watchedSizePreset,
+    watchedCustomWidth,
+    watchedCustomHeight,
     watchedReferences,
+    watchedStyleId,
     watchedBBoxList,
     watchedColorPalette,
   ])
@@ -862,15 +795,7 @@ const StudioPage = () => {
     const width = Number(form.getFieldValue('custom_width') || 0)
     const height = Number(form.getFieldValue('custom_height') || 0)
     if (!width || !height) return
-    let bestMatch: { ratio: string; quality: ImageQualityLevel; score: number } | null = null
-    for (const group of wan27QualityGroups) {
-      for (const option of group.options) {
-        const score = Math.abs(option.width - width) + Math.abs(option.height - height)
-        if (!bestMatch || score < bestMatch.score) {
-          bestMatch = { ratio: group.ratio, quality: option.quality, score }
-        }
-      }
-    }
+    const bestMatch = matchWan27QualityTemplate(wan27QualityGroups, width, height)
     if (bestMatch) {
       setWan27RatioChoice(bestMatch.ratio)
       setWan27QualityChoice(bestMatch.quality)
@@ -1764,6 +1689,7 @@ const StudioPage = () => {
               <div style={{ marginBottom: 12, color: token.colorTextSecondary }}>
                 {isCreating ? '尚未提交' : `任务 ID: ${selectedTask?.id || '未知'}`}
               </div>
+              <div style={{ marginBottom: 8, fontWeight: 500 }}>预览下次请求体参数</div>
               {previewPayload?.validation_warnings?.length ? (
                 <Alert
                   type="warning"
@@ -1779,16 +1705,17 @@ const StudioPage = () => {
                   }
                 />
               ) : null}
-              <div style={{ marginBottom: 8, fontWeight: 500 }}>Canonical 请求体</div>
+              <div style={{ marginBottom: 8, fontWeight: 500 }}>Canonical 请求体（预览）</div>
               <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout, marginBottom: 12 }}>
                 {JSON.stringify(previewPayload?.canonical_request || {}, null, 2)}
               </pre>
-              <div style={{ marginBottom: 8, fontWeight: 500 }}>厂商请求体</div>
+              <div style={{ marginBottom: 8, fontWeight: 500 }}>厂商请求体（预览）</div>
               <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout, marginBottom: 12 }}>
                 {JSON.stringify(previewPayload?.provider_payload || {}, null, 2)}
               </pre>
-              {!isCreating && selectedTask && (
+              {!isCreating && selectedTask && hasPreviousTaskRequest && (
                 <>
+                  <div style={{ marginBottom: 8, fontWeight: 500 }}>上一次任务请求体参数</div>
                   <div style={{ marginBottom: 8, fontWeight: 500 }}>Task IDs</div>
                   <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout, marginBottom: 12 }}>
                     {JSON.stringify(selectedTask.task_ids || [], null, 2)}
@@ -1806,6 +1733,14 @@ const StudioPage = () => {
                     {JSON.stringify(selectedTask.provider_result_meta || {}, null, 2)}
                   </pre>
                 </>
+              )}
+              {!isCreating && selectedTask && !hasPreviousTaskRequest && (
+                <Alert
+                  type="info"
+                  showIcon
+                  message="当前任务还未生成过"
+                  description="现在只显示下一次提交时的预览请求体；生成一次后，这里会同时展示上一次任务请求体。"
+                />
               )}
             </div>
           ),

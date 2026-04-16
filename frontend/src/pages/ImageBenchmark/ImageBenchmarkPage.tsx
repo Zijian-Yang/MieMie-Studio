@@ -4,11 +4,13 @@ import {
   Alert,
   Button,
   Card,
+  Collapse,
   Empty,
   Image,
   Input,
   Modal,
   Popconfirm,
+  Segmented,
   Select,
   Space,
   Spin,
@@ -42,6 +44,12 @@ import {
   ModelParameterDef,
   imageBenchmarkApi,
 } from '../../services/api'
+import {
+  buildWan27QualityTemplateGroups,
+  getWan27CustomSizeLimits,
+  matchWan27QualityTemplate,
+  type ImageQualityLevel,
+} from '../../utils/wan27Size'
 
 const { TextArea } = Input
 const { Title, Text } = Typography
@@ -258,6 +266,384 @@ const buildModelFormInfo = (model: any, taskKind?: string) => {
     parameters,
     default_values: buildDefaultValues(parameters),
   }
+}
+
+const JsonPreviewBlock = ({ title, value }: { title: string; value: Record<string, any> | null | undefined }) => (
+  <Card size="small" title={title}>
+    <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(value || {}, null, 2)}</pre>
+  </Card>
+)
+
+const Wan27SizeOverrideEditor = ({
+  modelId,
+  taskKind,
+  value,
+  defaultValues,
+  onChange,
+}: {
+  modelId: string
+  taskKind?: string
+  value: Record<string, any>
+  defaultValues?: Record<string, any>
+  onChange: (values: Record<string, any>) => void
+}) => {
+  const { token } = theme.useToken()
+  const referenceCount = taskKind === 'text_to_image' ? 0 : 1
+  const limits = useMemo(
+    () => getWan27CustomSizeLimits(modelId, (taskKind || 'text_to_image') as any, referenceCount),
+    [modelId, referenceCount, taskKind]
+  )
+  const qualityGroups = useMemo(() => buildWan27QualityTemplateGroups(limits), [limits])
+  const effectiveSizeMode = ((value.size_mode ?? defaultValues?.size_mode) || 'custom') as 'preset' | 'custom'
+  const effectivePreset = value.size_preset ?? defaultValues?.size_preset ?? '2K'
+  const [ratioChoice, setRatioChoice] = useState('1:1')
+  const [qualityChoice, setQualityChoice] = useState<ImageQualityLevel>('medium')
+
+  useEffect(() => {
+    if (!qualityGroups.length) return
+    if (effectiveSizeMode !== 'custom') {
+      const firstGroup = qualityGroups[0]
+      if (!firstGroup) return
+      setRatioChoice(firstGroup.ratio)
+      setQualityChoice(firstGroup.options.find((item) => item.quality === 'medium')?.quality || firstGroup.options[0].quality)
+      return
+    }
+    const width = Number(value.custom_width ?? defaultValues?.custom_width ?? 0)
+    const height = Number(value.custom_height ?? defaultValues?.custom_height ?? 0)
+    const match = matchWan27QualityTemplate(qualityGroups, width, height)
+    if (match) {
+      setRatioChoice(match.ratio)
+      setQualityChoice(match.quality)
+      return
+    }
+    const firstGroup = qualityGroups[0]
+    if (!firstGroup) return
+    setRatioChoice(firstGroup.ratio)
+    setQualityChoice(firstGroup.options.find((item) => item.quality === 'medium')?.quality || firstGroup.options[0].quality)
+  }, [defaultValues?.custom_height, defaultValues?.custom_width, effectiveSizeMode, qualityGroups, value.custom_height, value.custom_width])
+
+  const presetOptions = useMemo(() => {
+    const allow4K = modelId === 'wan2.7-image-pro' && taskKind === 'text_to_image'
+    const presetList = allow4K ? ['1K', '2K', '4K'] : ['1K', '2K']
+    const ratioLabel = taskKind === 'text_to_image' ? '纯文生图默认正方形' : '跟随当前样例最后一张输入图比例'
+    return presetList.map((preset) => ({
+      value: preset,
+      label: `${preset}（${ratioLabel}）`,
+    }))
+  }, [modelId, taskKind])
+
+  const activeGroup = useMemo(
+    () => qualityGroups.find((group) => group.ratio === ratioChoice) || qualityGroups[0] || null,
+    [qualityGroups, ratioChoice]
+  )
+
+  const applyTemplate = (ratio: string, quality: ImageQualityLevel) => {
+    const group = qualityGroups.find((item) => item.ratio === ratio) || qualityGroups[0]
+    const option = group?.options.find((item) => item.quality === quality) || group?.options[0]
+    if (!group || !option) return
+    setRatioChoice(group.ratio)
+    setQualityChoice(option.quality)
+    onChange({
+      ...value,
+      size_mode: 'custom',
+      size_preset: undefined,
+      custom_width: option.width,
+      custom_height: option.height,
+    })
+  }
+
+  return (
+    <Card
+      size="small"
+      title="Wan2.7 尺寸设置"
+      style={{ marginBottom: 16 }}
+    >
+      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Segmented
+          block
+          value={effectiveSizeMode}
+          options={[
+            { value: 'custom', label: '自定义宽高（指定比例）' },
+            { value: 'preset', label: '规格档位（1K/2K/4K）' },
+          ]}
+          onChange={(nextMode) => {
+            if (nextMode === 'preset') {
+              onChange({
+                ...value,
+                size_mode: 'preset',
+                size_preset: effectivePreset,
+                custom_width: undefined,
+                custom_height: undefined,
+              })
+              return
+            }
+            applyTemplate(ratioChoice, qualityChoice)
+          }}
+        />
+        {effectiveSizeMode === 'preset' ? (
+          <>
+            <Select
+              value={effectivePreset}
+              style={{ width: '100%' }}
+              options={presetOptions}
+              onChange={(nextPreset) => onChange({
+                ...value,
+                size_mode: 'preset',
+                size_preset: nextPreset,
+                custom_width: undefined,
+                custom_height: undefined,
+              })}
+            />
+            <Text type="secondary">
+              规格档位只控制像素档位，不指定横竖比例；纯文生图默认正方形，图像编辑会跟随当前样例最后一张输入图比例。
+            </Text>
+          </>
+        ) : (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Select
+                value={activeGroup?.ratio}
+                style={{ width: '100%' }}
+                options={qualityGroups.map((group) => ({
+                  value: group.ratio,
+                  label: `${group.ratio} ${group.orientation}`,
+                }))}
+                onChange={(nextRatio) => {
+                  const nextGroup = qualityGroups.find((group) => group.ratio === nextRatio)
+                  const nextOption =
+                    nextGroup?.options.find((item) => item.quality === qualityChoice) ||
+                    nextGroup?.options.find((item) => item.quality === 'medium') ||
+                    nextGroup?.options[0]
+                  if (nextOption) {
+                    applyTemplate(nextRatio, nextOption.quality)
+                  }
+                }}
+              />
+              <Select
+                value={qualityChoice}
+                style={{ width: '100%' }}
+                options={(activeGroup?.options || []).map((option) => ({
+                  value: option.quality,
+                  label: `${option.qualityLabel} ${option.width}×${option.height}`,
+                }))}
+                onChange={(nextQuality) => applyTemplate(activeGroup?.ratio || ratioChoice, nextQuality as ImageQualityLevel)}
+              />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Input
+                value={value.custom_width ?? defaultValues?.custom_width ?? ''}
+                readOnly
+                style={{ color: token.colorText }}
+                placeholder="宽度"
+              />
+              <Input
+                value={value.custom_height ?? defaultValues?.custom_height ?? ''}
+                readOnly
+                style={{ color: token.colorText }}
+                placeholder="高度"
+              />
+            </div>
+            <Text type="secondary">
+              清晰度是平台映射到自定义像素模板的快捷项，不是 Wan2.7 模型原生质量参数。开发者模式预览中会看到最终提交的 `size=宽*高`。
+            </Text>
+          </>
+        )}
+      </Space>
+    </Card>
+  )
+}
+
+const BenchmarkModelOverrideCard = ({
+  projectId,
+  modelMeta,
+  taskKind,
+  dataset,
+  baselineParams,
+  currentRun,
+  value,
+  onChange,
+}: {
+  projectId?: string
+  modelMeta: any
+  taskKind?: string
+  dataset: ImageBenchmarkDataset | null
+  baselineParams?: Record<string, any>
+  currentRun: ImageBenchmarkRun | null
+  value: Record<string, any>
+  onChange: (values: Record<string, any>) => void
+}) => {
+  const modelInfo = useMemo(() => buildModelFormInfo(modelMeta, taskKind), [modelMeta, taskKind])
+  const isWan27Model = String(modelMeta.id || '').startsWith('wan2.7-image')
+  const datasetCases = useMemo(
+    () => [...(dataset?.items || [])].sort((left, right) => (left.sort_order || 0) - (right.sort_order || 0)),
+    [dataset?.items]
+  )
+  const [developerOpen, setDeveloperOpen] = useState(false)
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(datasetCases[0]?.id || null)
+  const [previewData, setPreviewData] = useState<{
+    loading: boolean
+    error?: string
+    result?: {
+      effective_params: Record<string, any>
+      canonical_request: Record<string, any>
+      provider_payload: Record<string, any>
+      validation_warnings: string[]
+    }
+  }>({ loading: false })
+
+  useEffect(() => {
+    if (selectedCaseId && datasetCases.some((item) => item.id === selectedCaseId)) return
+    setSelectedCaseId(datasetCases[0]?.id || null)
+  }, [datasetCases, selectedCaseId])
+
+  const selectedCase = useMemo(
+    () => datasetCases.find((item) => item.id === selectedCaseId) || null,
+    [datasetCases, selectedCaseId]
+  )
+
+  const latestRunCell = useMemo(
+    () => currentRun?.cell_results?.find((cell) => cell.case_id === selectedCaseId && cell.model_id === modelMeta.id) || null,
+    [currentRun?.cell_results, modelMeta.id, selectedCaseId]
+  )
+
+  useEffect(() => {
+    if (!developerOpen || !projectId || !selectedCase || !taskKind) return
+    let cancelled = false
+    const timer = window.setTimeout(async () => {
+      setPreviewData((prev) => ({ ...prev, loading: true, error: undefined }))
+      try {
+        const result = await imageBenchmarkApi.previewCell({
+          project_id: projectId,
+          task_kind: taskKind as any,
+          model_id: modelMeta.id,
+          case_data: {
+            id: selectedCase.id,
+            name: selectedCase.name,
+            prompt: selectedCase.prompt,
+            negative_prompt: selectedCase.negative_prompt,
+            tags: selectedCase.tags,
+            image_slots: selectedCase.image_slots,
+            bbox_list: selectedCase.bbox_list,
+          },
+          baseline_params: baselineParams || {},
+          override_params: value || {},
+        })
+        if (cancelled) return
+        setPreviewData({
+          loading: false,
+          result,
+        })
+      } catch (error) {
+        if (cancelled) return
+        setPreviewData({
+          loading: false,
+          error: error instanceof Error ? error.message : '预览失败',
+        })
+      }
+    }, 250)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [baselineParams, developerOpen, modelMeta.id, projectId, selectedCase, taskKind, value])
+
+  return (
+    <Card key={modelMeta.id} size="small" title={`模型覆盖：${modelMeta.name}`}>
+      {isWan27Model && (
+        <Wan27SizeOverrideEditor
+          modelId={modelMeta.id}
+          taskKind={taskKind}
+          value={value}
+          defaultValues={modelInfo.default_values}
+          onChange={onChange}
+        />
+      )}
+      <DynamicModelForm
+        modelInfo={modelInfo as any}
+        value={value}
+        onChange={onChange}
+        columns={2}
+        excludeParams={isWan27Model ? ['size_mode', 'size_preset', 'custom_width', 'custom_height'] : []}
+      />
+      <Collapse
+        style={{ marginTop: 12 }}
+        onChange={(keys) => setDeveloperOpen(Array.isArray(keys) ? keys.includes('developer-mode') : keys === 'developer-mode')}
+        items={[
+          {
+            key: 'developer-mode',
+            label: '开发者模式',
+            children: (
+              <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                <div>
+                  <Text style={{ display: 'block', marginBottom: 8 }}>预览样例</Text>
+                  <Select
+                    value={selectedCaseId || undefined}
+                    style={{ width: '100%' }}
+                    placeholder="选择用于预览 payload 的样例"
+                    options={datasetCases.map((item) => ({
+                      value: item.id,
+                      label: item.name || item.id,
+                    }))}
+                    onChange={(nextId) => setSelectedCaseId(nextId)}
+                  />
+                </div>
+                {!selectedCase ? (
+                  <Alert type="info" showIcon message="当前数据集没有可预览样例" />
+                ) : (
+                  <>
+                    <Card size="small" title="预览下次单元请求体">
+                      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                        <Text type="secondary">
+                          当前预览样例：{selectedCase.name || selectedCase.id}
+                        </Text>
+                        {previewData.loading && <Spin />}
+                        {previewData.error && (
+                          <Alert type="error" showIcon message={previewData.error} />
+                        )}
+                        {!previewData.loading && !previewData.error && previewData.result?.validation_warnings?.length ? (
+                          <Alert
+                            type="warning"
+                            showIcon
+                            message="校验提醒"
+                            description={previewData.result.validation_warnings.join('；')}
+                          />
+                        ) : null}
+                        {!previewData.loading && !previewData.error && previewData.result && (
+                          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                            <JsonPreviewBlock title="Effective Params（预览）" value={previewData.result.effective_params} />
+                            <JsonPreviewBlock title="Canonical Request（预览）" value={previewData.result.canonical_request} />
+                            <JsonPreviewBlock title="Provider Payload（预览）" value={previewData.result.provider_payload} />
+                          </Space>
+                        )}
+                      </Space>
+                    </Card>
+                    {latestRunCell && (
+                      <Card size="small" title="上一次运行请求体">
+                        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                          <Tag color={statusColorMap[latestRunCell.status] || 'default'}>{latestRunCell.status}</Tag>
+                          {latestRunCell.validation_warnings?.length ? (
+                            <Alert
+                              type="warning"
+                              showIcon
+                              message="上一次运行校验提醒"
+                              description={latestRunCell.validation_warnings.join('；')}
+                            />
+                          ) : null}
+                          <JsonPreviewBlock title="Effective Params（上一次）" value={latestRunCell.effective_params || {}} />
+                          <JsonPreviewBlock title="Canonical Request（上一次）" value={latestRunCell.canonical_request || {}} />
+                          <JsonPreviewBlock title="Provider Payload（上一次）" value={latestRunCell.provider_payload || {}} />
+                        </Space>
+                      </Card>
+                    )}
+                  </>
+                )}
+              </Space>
+            ),
+          },
+        ]}
+      />
+    </Card>
+  )
 }
 
 const ImageBenchmarkPage = () => {
@@ -769,20 +1155,23 @@ const ImageBenchmarkPage = () => {
                       const modelMeta = capabilities?.models[modelId]
                       if (!modelMeta) return null
                       return (
-                        <Card key={modelId} size="small" title={`模型覆盖：${modelMeta.name}`}>
-                          <DynamicModelForm
-                            modelInfo={buildModelFormInfo(modelMeta, selectedDataset?.task_kind) as any}
-                            value={draftSuite.model_overrides?.[modelId] || {}}
-                            onChange={(values) => setDraftSuite({
-                              ...draftSuite,
-                              model_overrides: {
-                                ...(draftSuite.model_overrides || {}),
-                                [modelId]: values,
-                              },
-                            })}
-                            columns={2}
-                          />
-                        </Card>
+                        <BenchmarkModelOverrideCard
+                          key={modelId}
+                          projectId={projectId}
+                          modelMeta={modelMeta}
+                          taskKind={selectedDataset?.task_kind}
+                          dataset={selectedDataset}
+                          baselineParams={draftSuite.baseline_params}
+                          currentRun={currentRun}
+                          value={draftSuite.model_overrides?.[modelId] || {}}
+                          onChange={(values) => setDraftSuite({
+                            ...draftSuite,
+                            model_overrides: {
+                              ...(draftSuite.model_overrides || {}),
+                              [modelId]: values,
+                            },
+                          })}
+                        />
                       )
                     })}
                   </Space>

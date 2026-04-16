@@ -13,6 +13,7 @@ import hashlib
 import httpx
 import threading
 import asyncio
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 from concurrent.futures import ThreadPoolExecutor
@@ -31,6 +32,13 @@ from app.config import get_config, OSSConfig
 
 # 全局线程池，用于执行 OSS 上传操作
 _oss_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="oss_upload")
+
+
+@dataclass
+class _StagedFile:
+    path: Path
+    local_url: str
+    extension: str
 
 
 class OSSService:
@@ -112,7 +120,133 @@ class OSSService:
             return f"{prefix}/{file_type}/{project_id}/{date_str}/{timestamp}_{unique_id}.{extension}"
         else:
             return f"{prefix}/{file_type}/{date_str}/{timestamp}_{unique_id}.{extension}"
-    
+
+    def _assets_dir(self) -> Path:
+        """本地静态素材目录"""
+        return Path(__file__).parent.parent.parent / "data" / "assets"
+
+    def _safe_path_part(self, value: str, default: str) -> str:
+        """生成安全的本地路径片段"""
+        normalized = "".join(ch if ch.isalnum() or ch in {"_", "-"} else "_" for ch in value.strip())
+        return normalized[:80] or default
+
+    def _project_staging_part(self, project_id: str) -> str:
+        if not project_id:
+            return "_global"
+        digest = hashlib.sha256(project_id.encode("utf-8")).hexdigest()[:16]
+        return self._safe_path_part(project_id, digest)
+
+    def _normalize_extension(self, extension: str) -> str:
+        normalized = (extension or "").strip().lower().lstrip(".")
+        if normalized == "jpeg":
+            normalized = "jpg"
+        if not normalized or any(not (ch.isalnum() or ch in {"_", "-"}) for ch in normalized):
+            return "bin"
+        return normalized[:12]
+
+    def _extension_from_content_type(self, content_type: str, fallback: str) -> str:
+        content_type = (content_type or "").lower()
+        if "jpeg" in content_type or "jpg" in content_type:
+            return "jpg"
+        if "png" in content_type:
+            return "png"
+        if "webp" in content_type:
+            return "webp"
+        if "gif" in content_type:
+            return "gif"
+        if "mp4" in content_type or "video" in content_type:
+            return "mp4"
+        if "mpeg" in content_type:
+            return "mp3"
+        if "wav" in content_type:
+            return "wav"
+        return self._normalize_extension(fallback)
+
+    def _build_staging_target(
+        self,
+        file_type: str,
+        extension: str,
+        project_id: str = "",
+    ) -> tuple[Path, str]:
+        """构造本地暂存文件路径和可访问 URL"""
+        safe_file_type = self._safe_path_part(file_type, "file")
+        safe_project = self._project_staging_part(project_id)
+        date_str = datetime.now().strftime("%Y%m%d")
+        timestamp = datetime.now().strftime("%H%M%S")
+        unique_id = uuid.uuid4().hex[:12]
+        safe_extension = self._normalize_extension(extension)
+        relative_path = Path("oss_staging") / safe_file_type / safe_project / date_str / f"{timestamp}_{unique_id}.{safe_extension}"
+        file_path = self._assets_dir() / relative_path
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        local_url = "/" + str(Path("assets") / relative_path).replace(os.sep, "/")
+        return file_path, local_url
+
+    def _cleanup_staged_file(self, file_path: Path) -> None:
+        """清理本地暂存文件，父目录为空时顺带清理"""
+        try:
+            file_path.unlink(missing_ok=True)
+        except OSError as exc:
+            logger.warning(f"[OSS] 清理本地暂存文件失败: {file_path} ({exc})")
+            return
+
+        assets_dir = self._assets_dir()
+        current = file_path.parent
+        while current != assets_dir and assets_dir in current.parents:
+            try:
+                current.rmdir()
+            except OSError:
+                break
+            current = current.parent
+
+    def _download_url_to_staging_sync(
+        self,
+        url: str,
+        file_type: str = "image",
+        extension: str = "png",
+        project_id: str = "",
+    ) -> Tuple[bool, str | _StagedFile]:
+        """下载远程 URL 到本地暂存文件；仅在 OSS 启用链路中调用"""
+        dl_timeout = httpx.Timeout(10.0, read=300.0) if file_type.startswith("video") else httpx.Timeout(60.0)
+        staged_path: Optional[Path] = None
+
+        try:
+            with httpx.stream("GET", url, timeout=dl_timeout, follow_redirects=True) as response:
+                if response.status_code != 200:
+                    return False, f"下载文件失败: HTTP {response.status_code}"
+
+                final_extension = self._extension_from_content_type(
+                    response.headers.get("Content-Type", ""),
+                    extension,
+                )
+                staged_path, local_url = self._build_staging_target(file_type, final_extension, project_id)
+                with open(staged_path, "wb") as file:
+                    for chunk in response.iter_bytes():
+                        if chunk:
+                            file.write(chunk)
+                    file.flush()
+                    os.fsync(file.fileno())
+
+            if not staged_path or staged_path.stat().st_size <= 0:
+                return False, "下载文件为空"
+
+            return True, _StagedFile(
+                path=staged_path,
+                local_url=local_url,
+                extension=final_extension,
+            )
+        except httpx.TimeoutException:
+            logger.warning(f"[OSS] 下载超时 ({file_type}): {url[:120]}...")
+            return False, f"下载超时（{file_type}）"
+        except httpx.HTTPError as e:
+            logger.error(f"[OSS] 下载失败 ({file_type}): {e}")
+            return False, f"下载失败: {str(e)}"
+        except OSError as e:
+            logger.error(f"[OSS] 写入本地暂存失败 ({file_type}): {e}")
+            return False, f"写入本地暂存失败: {str(e)}"
+        finally:
+            if staged_path and staged_path.exists() and staged_path.stat().st_size == 0:
+                staged_path.unlink(missing_ok=True)
+
     def _upload_from_url_sync(
         self, 
         url: str, 
@@ -135,52 +269,41 @@ class OSSService:
         """
         if not self.is_enabled():
             return True, url
-        
-        # 视频文件较大，使用更长的超时时间（DashScope 建议 300s）
-        dl_timeout = httpx.Timeout(10.0, read=300.0) if file_type == "video" else httpx.Timeout(60.0)
 
-        try:
-            response = httpx.get(url, timeout=dl_timeout, follow_redirects=True)
-            if response.status_code != 200:
-                return False, f"下载文件失败: HTTP {response.status_code}"
-        except httpx.TimeoutException:
-            logger.warning(f"[OSS] 下载超时 ({file_type}): {url[:120]}...")
-            return False, f"下载超时（{file_type}）"
-        except httpx.HTTPError as e:
-            logger.error(f"[OSS] 下载失败 ({file_type}): {e}")
-            return False, f"下载失败: {str(e)}"
-
-        content_type = response.headers.get('Content-Type', '')
-        if 'jpeg' in content_type or 'jpg' in content_type:
-            extension = 'jpg'
-        elif 'png' in content_type:
-            extension = 'png'
-        elif 'webp' in content_type:
-            extension = 'webp'
-        elif 'mp4' in content_type or 'video' in content_type:
-            extension = 'mp4'
+        staged_success, staged_result = self._download_url_to_staging_sync(
+            url,
+            file_type,
+            extension,
+            project_id,
+        )
+        if not staged_success:
+            return False, str(staged_result)
+        staged_file = staged_result
+        assert isinstance(staged_file, _StagedFile)
 
         with self._lock:
             success, bucket = self._init_client()
             if not success or bucket is None:
-                return False, "OSS 初始化失败"
+                return False, f"OSS 初始化失败，本地暂存: {staged_file.local_url}"
             
             try:
-                object_key = self._generate_object_key(file_type, extension, project_id)
-                result = bucket.put_object(object_key, response.content)
+                object_key = self._generate_object_key(file_type, staged_file.extension, project_id)
+                with open(staged_file.path, "rb") as file:
+                    result = bucket.put_object(object_key, file)
 
                 if result.status == 200:
                     config = self._get_config()
                     oss_url = f"https://{config.bucket_name}.{config.endpoint_host}/{object_key}"
                     logger.info(f"[OSS] 上传成功 ({file_type}): {oss_url}")
+                    self._cleanup_staged_file(staged_file.path)
                     return True, oss_url
                 else:
                     logger.error(f"[OSS] 上传失败: HTTP {result.status}")
-                    return False, f"上传失败: HTTP {result.status}"
+                    return False, f"上传失败: HTTP {result.status}，本地暂存: {staged_file.local_url}"
 
             except Exception as e:
                 logger.error(f"[OSS] 上传异常 ({file_type}): {e}")
-                return False, f"上传失败: {str(e)}"
+                return False, f"上传失败: {str(e)}，本地暂存: {staged_file.local_url}"
     
     def upload_from_url(
         self, 
@@ -416,6 +539,117 @@ class OSSService:
         else:
             logger.warning(f"[OSS] 视频上传到 OSS 失败: {result}，使用原始临时 URL（24小时后过期）")
             return url
+
+    def is_current_oss_url(self, url: str) -> bool:
+        """判断 URL 是否已经是当前用户配置的 OSS 链接"""
+        if not url:
+            return False
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            return False
+
+        config = self._get_config()
+        if not config.bucket_name or not config.endpoint_host:
+            return False
+        return parsed.netloc == f"{config.bucket_name}.{config.endpoint_host}"
+
+    def should_rehost_remote_url(self, url: str) -> bool:
+        """判断远程 URL 是否需要重托管到当前 OSS"""
+        if not url or not self.is_enabled():
+            return False
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            return False
+        return not self.is_current_oss_url(url)
+
+    def is_probably_temporary_url(self, url: str) -> bool:
+        """判断 URL 是否像厂商返回的临时签名链接"""
+        if not url:
+            return False
+        parsed = urlparse(url)
+        host = parsed.netloc.lower()
+        query = parsed.query.lower()
+        if host.startswith("dashscope-result-"):
+            return True
+        temporary_markers = (
+            "expires=",
+            "ossaccesskeyid=",
+            "signature=",
+            "x-oss-",
+            "x-amz-",
+        )
+        return any(marker in query for marker in temporary_markers)
+
+    def should_persist_generated_url(self, url: str) -> bool:
+        """判断生成结果 URL 是否需要转存到当前 OSS"""
+        return self.should_rehost_remote_url(url) and self.is_probably_temporary_url(url)
+
+    def should_persist_remote_url(self, url: str) -> bool:
+        """兼容旧调用：等价于 should_rehost_remote_url。"""
+        return self.should_rehost_remote_url(url)
+
+    async def _ensure_remote_url_persisted_async(
+        self,
+        url: str,
+        file_type: str,
+        extension: str,
+        project_id: str = "",
+        strict: bool = False,
+        max_retries: int = 3,
+    ) -> str:
+        """将生成结果 URL 持久化到当前 OSS，可选择失败时抛错"""
+        if not self.should_rehost_remote_url(url):
+            return url
+
+        last_error = ""
+        attempts = max(1, max_retries)
+        for attempt in range(attempts):
+            success, result = await self.upload_from_url_async(url, file_type, extension, project_id)
+            if success:
+                return result
+            last_error = result
+            if attempt < attempts - 1:
+                await asyncio.sleep(min(2 ** attempt, 8))
+
+        message = f"{file_type} 结果转存 OSS 失败: {last_error or '未知错误'}"
+        if strict:
+            raise RuntimeError(message)
+        logger.warning(f"[OSS] {message}，保留原始 URL: {url[:120]}...")
+        return url
+
+    async def ensure_image_persisted_async(
+        self,
+        url: str,
+        project_id: str = "",
+        strict: bool = False,
+        max_retries: int = 3,
+    ) -> str:
+        """确保图片 URL 已转存到当前 OSS"""
+        return await self._ensure_remote_url_persisted_async(
+            url,
+            "image",
+            "png",
+            project_id,
+            strict,
+            max_retries,
+        )
+
+    async def ensure_video_persisted_async(
+        self,
+        url: str,
+        project_id: str = "",
+        strict: bool = False,
+        max_retries: int = 3,
+    ) -> str:
+        """确保视频 URL 已转存到当前 OSS"""
+        return await self._ensure_remote_url_persisted_async(
+            url,
+            "video",
+            "mp4",
+            project_id,
+            strict,
+            max_retries,
+        )
     
     def reinitialize(self):
         """

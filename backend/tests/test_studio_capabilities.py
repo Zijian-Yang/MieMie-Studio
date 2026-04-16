@@ -291,6 +291,28 @@ def test_preview_payload_builds_wan27_custom_text_size(client, auth_header):
     assert data["canonical_request"]["normalized_params"]["size"] == "3072*1728"
 
 
+def test_preview_payload_builds_wan27_custom_portrait_size(client, auth_header):
+    resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "wan2.7-image-pro",
+            "task_kind": "text_to_image",
+            "prompt": "生成一张 9:16 竖版海报",
+            "n": 1,
+            "size_mode": "custom",
+            "custom_width": 1080,
+            "custom_height": 1920,
+            "references": [],
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["provider_payload"]["parameters"]["size"] == "1080*1920"
+    assert data["canonical_request"]["normalized_params"]["size"] == "1080*1920"
+
+
 def test_generate_wan27_uses_canonical_custom_size(client, auth_header, monkeypatch):
     project_id = _create_project(client, auth_header)
     _patch_async_create_task(monkeypatch)
@@ -327,6 +349,44 @@ def test_generate_wan27_uses_canonical_custom_size(client, auth_header, monkeypa
     assert task["size"] == "3072*1728"
     assert task["normalized_params"]["size"] == "3072*1728"
     assert task["provider_payload_snapshot"]["parameters"]["size"] == "3072*1728"
+
+
+def test_generate_wan27_uses_canonical_portrait_custom_size(client, auth_header, monkeypatch):
+    project_id = _create_project(client, auth_header)
+    _patch_async_create_task(monkeypatch)
+    create_resp = client.post(
+        "/api/studio",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "wan27 竖版比例",
+            "model": "wan2.7-image-pro",
+            "task_kind": "text_to_image",
+            "prompt": "生成一张 9:16 竖版海报",
+            "n": 1,
+        },
+    )
+    assert create_resp.status_code == 200
+    task_id = create_resp.json()["id"]
+
+    generate_resp = client.post(
+        f"/api/studio/{task_id}/generate",
+        headers=auth_header,
+        json={
+            "task_kind": "text_to_image",
+            "n": 1,
+            "size": None,
+            "size_mode": "custom",
+            "size_preset": None,
+            "custom_width": 1080,
+            "custom_height": 1920,
+        },
+    )
+    assert generate_resp.status_code == 200
+    task = generate_resp.json()["task"]
+    assert task["size"] == "1080*1920"
+    assert task["normalized_params"]["size"] == "1080*1920"
+    assert task["provider_payload_snapshot"]["parameters"]["size"] == "1080*1920"
 
 
 def test_update_studio_task_can_clear_wan27_optional_size_fields(client, auth_header):

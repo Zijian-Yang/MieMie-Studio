@@ -353,6 +353,69 @@ def test_validate_and_run_block_when_dataset_has_slot_gaps(client, auth_header):
     assert run_resp.json()["blocking_issues"][0]["missing_positions"] == [1]
 
 
+def test_run_suite_migrates_dataset_snapshot_images_to_current_oss(client, auth_header, monkeypatch):
+    project_id = _create_project(client, auth_header)
+    dataset_resp = client.post(
+        "/api/image-benchmark/datasets",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "运行前迁移数据集",
+            "task_kind": "image_edit",
+            "items": [
+                {
+                    "name": "样例1",
+                    "prompt": "把图1做成海报",
+                    "image_slots": [
+                        {
+                            "position": 1,
+                            "image": {
+                                "url": "https://dashscope-result-bj.oss-cn-beijing.aliyuncs.com/tmp/ref.png",
+                                "name": "图1",
+                            },
+                        }
+                    ],
+                }
+            ],
+        },
+    )
+    dataset = dataset_resp.json()["dataset"]
+
+    suite_resp = client.post(
+        "/api/image-benchmark/suites",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "迁移快照测评",
+            "dataset_id": dataset["id"],
+            "selected_models": ["qwen-image-2.0-pro"],
+            "baseline_params": {"n": 1},
+        },
+    )
+    suite = suite_resp.json()["suite"]
+
+    _patch_async_create_task(monkeypatch)
+    monkeypatch.setattr(image_benchmark_router.oss_service, "is_enabled", lambda: True)
+
+    async def fake_ensure_image_persisted_async(url, project_id="", strict=False, max_retries=3):
+        return url.replace("https://dashscope-result-bj.oss-cn-beijing.aliyuncs.com/tmp", "https://current-oss.example.com")
+
+    monkeypatch.setattr(
+        image_benchmark_router.oss_service,
+        "ensure_image_persisted_async",
+        fake_ensure_image_persisted_async,
+    )
+
+    run_resp = client.post(f"/api/image-benchmark/suites/{suite['id']}/run", headers=auth_header)
+    assert run_resp.status_code == 200
+    run = run_resp.json()["run"]
+    slot_image = run["dataset_snapshot"]["items"][0]["image_slots"][0]["image"]
+    assert slot_image["url"] == "https://current-oss.example.com/ref.png"
+
+    stored_dataset = client.get(f"/api/image-benchmark/datasets/{dataset['id']}", headers=auth_header).json()["dataset"]
+    assert stored_dataset["items"][0]["image_slots"][0]["image"]["url"] == "https://current-oss.example.com/ref.png"
+
+
 def test_preview_cell_merges_baseline_and_override(client, auth_header):
     project_id = _create_project(client, auth_header)
     resp = client.post(
@@ -543,6 +606,34 @@ def test_preview_cell_wan27_custom_size(client, auth_header):
     assert data["canonical_request"]["normalized_params"]["size"] == "3072*1728"
 
 
+@pytest.mark.parametrize("model_id", ["wan2.7-image-pro", "wan2.7-image"])
+def test_preview_cell_wan27_custom_portrait_size(client, auth_header, model_id):
+    project_id = _create_project(client, auth_header)
+    resp = client.post(
+        "/api/image-benchmark/preview-cell",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "task_kind": "text_to_image",
+            "model_id": model_id,
+            "case_data": {
+                "name": "竖版样例",
+                "prompt": "9:16 竖版封面",
+            },
+            "baseline_params": {
+                "n": 1,
+                "size_mode": "custom",
+                "custom_width": 1080,
+                "custom_height": 1920,
+            },
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["provider_payload"]["parameters"]["size"] == "1080*1920"
+    assert data["canonical_request"]["normalized_params"]["size"] == "1080*1920"
+
+
 def test_public_share_exposes_latest_run_without_auth_and_hides_sensitive_fields(client, auth_header, registered_user):
     _, user = registered_user
     suite, run = _create_suite_with_public_run(client, auth_header, user["id"])
@@ -672,6 +763,72 @@ async def test_execute_benchmark_cell_retries_on_rate_limit(monkeypatch):
     assert result.attempt_count == 4
     assert sleep_calls == [2, 4, 8]
     assert result.output_images[0].url == "https://oss.example.com/output.png"
+
+
+@pytest.mark.asyncio
+async def test_execute_benchmark_cell_rehosts_temporary_output_urls(monkeypatch):
+    from app.models.studio import StudioTaskImage
+
+    async def fake_preview_benchmark_cell(**kwargs):
+        return (
+            {
+                "provider": "wan",
+                "task_kind": kwargs["task_kind"],
+                "input_assets": {},
+                "normalized_params": {"size": "1024*1024"},
+            },
+            {"parameters": {"size": "1024*1024"}},
+            [],
+        )
+
+    async def fake_generate_with_qwen_image_2(*args, **kwargs):
+        return [
+            StudioTaskImage(
+                group_index=0,
+                url="https://dashscope-result-bj.oss-cn-beijing.aliyuncs.com/tmp/output.png",
+                prompt_used="prompt",
+            )
+        ], ["req-1"]
+
+    persisted_urls = []
+
+    async def fake_ensure_image_persisted_async(url, project_id="", strict=False, max_retries=3):
+        persisted_urls.append((url, project_id, strict))
+        return "https://current-oss.example.com/output.png"
+
+    monkeypatch.setattr("app.services.image_benchmark_runtime.preview_benchmark_cell", fake_preview_benchmark_cell)
+    monkeypatch.setattr("app.routers.studio.generate_with_qwen_image_2", fake_generate_with_qwen_image_2)
+    monkeypatch.setattr("app.services.image_benchmark_runtime.oss_service.is_enabled", lambda: True)
+    monkeypatch.setattr(
+        "app.services.image_benchmark_runtime.oss_service.ensure_image_persisted_async",
+        fake_ensure_image_persisted_async,
+    )
+
+    from app.services.image_benchmark_runtime import execute_benchmark_cell
+
+    result = await execute_benchmark_cell(
+        project_id="p1",
+        task_kind="image_edit",
+        model_meta={"id": "qwen-image-2.0-pro", "name": "千问图像 2.0 Pro"},
+        case_data={
+            "id": "case-1",
+            "name": "样例1",
+            "prompt": "把图1做成海报",
+            "negative_prompt": "",
+            "image_slots": [{"position": 1, "image": {"url": "https://oss.example.com/ref.png", "name": "图1"}}],
+        },
+        effective_params={"n": 1},
+    )
+
+    assert result.status == "completed"
+    assert result.output_images[0].url == "https://current-oss.example.com/output.png"
+    assert persisted_urls == [
+        (
+            "https://dashscope-result-bj.oss-cn-beijing.aliyuncs.com/tmp/output.png",
+            "p1",
+            True,
+        )
+    ]
 
 
 @pytest.mark.asyncio
