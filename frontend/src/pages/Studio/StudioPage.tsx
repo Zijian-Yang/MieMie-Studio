@@ -340,7 +340,7 @@ const StudioPage = () => {
   const isWan25CustomSizeModel = activeModelId === 'wan2.5-t2i-preview' || activeModelId === 'wan2.5-i2i-preview'
   const activeSizeUiMode = (availableModels[activeModelId]?.size_ui_mode || (isWan27Model || isWan25CustomSizeModel ? 'preset_plus_custom_with_templates' : 'preset_only')) as ImageSizeUiMode
   const shouldShowReferences = activeTaskKind !== 'text_to_image'
-  const shouldShowGroupCount = !isWan27Model
+  const shouldShowGroupCount = true
   const activeCustomSizeLimits = useMemo(
     () => getImageCustomSizeLimits(activeModelId, activeTaskKind, selectedReferenceItems.length),
     [activeModelId, activeTaskKind, selectedReferenceItems.length]
@@ -467,7 +467,7 @@ const StudioPage = () => {
       prompt: options?.prompt ?? values.prompt,
       negative_prompt: options?.negativePrompt ?? values.negative_prompt,
       n: values.n,
-      group_count: WAN27_MODELS.has(values.model) ? 1 : values.group_count,
+      group_count: values.group_count || 1,
       size: WAN27_MODELS.has(values.model) ? null : (effectiveSize || undefined),
       prompt_extend: values.prompt_extend,
       watermark: values.watermark,
@@ -744,7 +744,7 @@ const StudioPage = () => {
       form.setFieldsValue(resetValues)
       return
     }
-    if (form.getFieldValue('group_count') !== 1) {
+    if (!form.getFieldValue('group_count')) {
       form.setFieldValue('group_count', 1)
     }
     if (!form.getFieldValue('size_mode')) {
@@ -1190,7 +1190,7 @@ const StudioPage = () => {
       if (WAN27_MODELS.has(model)) {
         setWan27SizeModeChoice('custom')
         form.setFieldsValue({
-          group_count: 1,
+          group_count: form.getFieldValue('group_count') || 1,
           size: undefined,
           size_mode: 'custom',
           size_preset: undefined,
@@ -2251,7 +2251,10 @@ const StudioPage = () => {
                       name="group_count" 
                       label={renderFormLabel(activeModelId, 'group_count', '并发组数', {
                         summary: '并发请求数，总图片数 = 生图数量 × 并发组数。',
-                        how_to_choose: ['万相 2.7 已经由模型自身的 n 控制输出，默认不再额外开放并发组数。'],
+                        how_to_choose: [
+                          'Wan2.7 的生图数量会作为厂商请求参数 n；并发组数表示同时提交多少组独立任务。',
+                          '总输出数量 = n × 并发组数；提高并发会增加费用与限流风险。',
+                        ],
                       })}
                       extra={`总计: ${(form.getFieldValue('n') || 1) * (form.getFieldValue('group_count') || 1)} 张`}
                     >

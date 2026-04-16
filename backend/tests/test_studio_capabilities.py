@@ -657,3 +657,65 @@ async def test_wan27_async_create_uses_image_generation_endpoint(monkeypatch):
     assert captured["url"].endswith("/services/aigc/image-generation/generation")
     assert captured["headers"]["X-DashScope-Async"] == "enable"
     assert captured["payload"]["model"] == "wan2.7-image-pro"
+
+
+@pytest.mark.asyncio
+async def test_generate_with_wan27_image_respects_group_count(monkeypatch):
+    from app.models.studio import StudioTask
+    from app.models_registry.base import TaskResult, TaskStatus
+    from app.routers.studio import generate_with_wan27_image
+
+    create_calls = []
+
+    async def fake_create_task(self, **kwargs):
+        call_index = len(create_calls)
+        create_calls.append(kwargs)
+        self.last_request_id = f"submit-{call_index}"
+        return f"task-{call_index}"
+
+    async def fake_get_task_status(self, task_id):
+        return TaskResult(
+            task_id=task_id,
+            status=TaskStatus.SUCCEEDED,
+            result=[f"https://oss.example.com/{task_id}-0.png", f"https://oss.example.com/{task_id}-1.png"],
+            metadata={"request_id": f"poll-{task_id}"},
+        )
+
+    monkeypatch.setattr("app.models_registry.image.wan27_image.Wan27ImageService.create_task", fake_create_task)
+    monkeypatch.setattr("app.models_registry.image.wan27_image.Wan27ImageService.get_task_status", fake_get_task_status)
+    monkeypatch.setattr(studio_router.oss_service, "is_enabled", lambda: False)
+
+    task = StudioTask(
+        project_id="p1",
+        name="wan27 并发组数",
+        model="wan2.7-image-pro",
+        prompt="生成一组竖版海报",
+        n=2,
+        group_count=3,
+    )
+
+    images, task_ids, request_ids, provider_meta = await generate_with_wan27_image(
+        task=task,
+        api_key="sk-test",
+        base_url="",
+        ref_urls=[],
+        size="1080*1920",
+        enable_sequential=False,
+        thinking_mode=True,
+        bbox_list=None,
+        color_palette=[],
+        watermark=False,
+        seed=None,
+    )
+
+    assert len(create_calls) == 3
+    assert all(call["n"] == 2 for call in create_calls)
+    assert all(call["size"] == "1080*1920" for call in create_calls)
+    assert len(images) == 6
+    assert task_ids == ["task-0", "task-1", "task-2"]
+    assert request_ids == [
+        "submit-0", "poll-task-0",
+        "submit-1", "poll-task-1",
+        "submit-2", "poll-task-2",
+    ]
+    assert set(provider_meta.keys()) == {"task-0", "task-1", "task-2"}

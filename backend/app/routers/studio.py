@@ -1685,8 +1685,9 @@ async def generate_with_wan27_image(
     all_meta: Dict[str, Any] = {}
     group_errors: List[str] = []
 
-    for group_index in range(max(1, task.group_count or 1)):
-        images, task_ids, request_ids, meta, error = await generate_single_group(group_index)
+    group_count = max(1, task.group_count or 1)
+    group_tasks = [generate_single_group(group_index) for group_index in range(group_count)]
+    for images, task_ids, request_ids, meta, error in await asyncio.gather(*group_tasks):
         all_images.extend(images)
         all_task_ids.extend(task_ids)
         all_request_ids.extend(request_ids)

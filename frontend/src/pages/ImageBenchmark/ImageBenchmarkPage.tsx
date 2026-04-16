@@ -352,6 +352,31 @@ const Wan27SizeOverrideEditor = ({
     })
   }
 
+  useEffect(() => {
+    if (!qualityGroups.length) return
+    const hasExplicitSizeValue = (
+      value.size_mode !== undefined ||
+      value.size_preset !== undefined ||
+      value.custom_width !== undefined ||
+      value.custom_height !== undefined
+    )
+    if (hasExplicitSizeValue) return
+    const preferredGroup = qualityGroups.find((group) => group.ratio === '1:1') || qualityGroups[0]
+    const preferredOption =
+      preferredGroup?.options.find((item) => item.quality === 'medium') ||
+      preferredGroup?.options[0]
+    if (!preferredGroup || !preferredOption) return
+    setRatioChoice(preferredGroup.ratio)
+    setQualityChoice(preferredOption.quality)
+    onChange({
+      ...value,
+      size_mode: 'custom',
+      size_preset: undefined,
+      custom_width: preferredOption.width,
+      custom_height: preferredOption.height,
+    })
+  }, [onChange, qualityGroups, value])
+
   return (
     <Card
       size="small"
