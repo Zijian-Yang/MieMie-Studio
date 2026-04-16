@@ -408,12 +408,37 @@ const StudioPage = () => {
     return Promise.resolve()
   }, [activeCustomSizeLimits, activeSizeUiMode, form, watchedSizeMode])
 
+  const resolveWan27SizeDraft = useCallback((values: any) => {
+    if (!WAN27_MODELS.has(values.model)) {
+      return {
+        sizeMode: values.size_mode,
+        sizePreset: values.size_preset,
+        customWidth: values.custom_width,
+        customHeight: values.custom_height,
+      }
+    }
+    const inferredSizeMode = values.size_mode || (
+      values.custom_width && values.custom_height
+        ? 'custom'
+        : values.size_preset
+          ? 'preset'
+          : wan27SizeModeChoice
+    )
+    return {
+      sizeMode: inferredSizeMode,
+      sizePreset: inferredSizeMode === 'preset' ? (values.size_preset || '2K') : undefined,
+      customWidth: inferredSizeMode === 'custom' ? values.custom_width : undefined,
+      customHeight: inferredSizeMode === 'custom' ? values.custom_height : undefined,
+    }
+  }, [wan27SizeModeChoice])
+
   const computeEffectiveSize = useCallback((values: any) => {
     if (WAN27_MODELS.has(values.model)) {
-      if (values.size_mode === 'custom' && values.custom_width && values.custom_height) {
-        return `${values.custom_width}*${values.custom_height}`
+      const resolved = resolveWan27SizeDraft(values)
+      if (resolved.sizeMode === 'custom' && resolved.customWidth && resolved.customHeight) {
+        return `${resolved.customWidth}*${resolved.customHeight}`
       }
-      return values.size_preset || '2K'
+      return resolved.sizePreset || '2K'
     }
     if (values.model === 'wan2.5-t2i-preview' || values.model === 'wan2.5-i2i-preview') {
       if (values.size_mode === 'custom' && values.custom_width && values.custom_height) {
@@ -422,7 +447,7 @@ const StudioPage = () => {
       return values.size_preset || values.size || '1024*1024'
     }
     return values.size
-  }, [])
+  }, [resolveWan27SizeDraft])
 
   const buildStudioRequestPayload = useCallback((values: any, options?: { prompt?: string; negativePrompt?: string }) => {
     const references = (values.references || []).map((ref: string) => {
@@ -430,6 +455,7 @@ const StudioPage = () => {
       return { type, id }
     })
     const effectiveSize = computeEffectiveSize(values)
+    const resolvedWan27Size = resolveWan27SizeDraft(values)
     const effectiveBBoxList = WAN27_MODELS.has(values.model)
       ? resolvePreferredBBoxList(values.bbox_list, wan27BBoxList)
       : normalizeBBoxList(values.bbox_list)
@@ -452,23 +478,24 @@ const StudioPage = () => {
       thinking_mode: values.thinking_mode ?? null,
       bbox_list: effectiveBBoxList,
       color_palette: values.color_palette || [],
-      size_mode: values.size_mode,
-      size_preset: values.size_mode === 'preset' ? values.size_preset : undefined,
-      custom_width: values.size_mode === 'custom' ? values.custom_width : undefined,
-      custom_height: values.size_mode === 'custom' ? values.custom_height : undefined,
+      size_mode: resolvedWan27Size.sizeMode,
+      size_preset: resolvedWan27Size.sizePreset,
+      custom_width: resolvedWan27Size.customWidth,
+      custom_height: resolvedWan27Size.customHeight,
       references,
     }
-  }, [computeEffectiveSize, wan27BBoxList])
+  }, [computeEffectiveSize, resolveWan27SizeDraft, wan27BBoxList])
 
   const requestPayloadPreview = useCallback(async () => {
     if (!projectId || !isModalOpen) return
-    const values = form.getFieldsValue()
+    const values = form.getFieldsValue(true)
     let references = (values.references || []).map((ref: string) => {
       const [type, id] = ref.split(':')
       return { type, id }
     })
     let finalPrompt = values.prompt || ''
     let finalNegativePrompt = values.negative_prompt || ''
+    const resolvedWan27Size = resolveWan27SizeDraft(values)
     const effectiveBBoxList = WAN27_MODELS.has(values.model)
       ? resolvePreferredBBoxList(values.bbox_list, wan27BBoxList)
       : normalizeBBoxList(values.bbox_list)
@@ -513,10 +540,10 @@ const StudioPage = () => {
         thinking_mode: values.thinking_mode,
         bbox_list: effectiveBBoxList,
         color_palette: values.color_palette,
-        size_mode: values.size_mode,
-        size_preset: values.size_preset,
-        custom_width: values.custom_width,
-        custom_height: values.custom_height,
+        size_mode: resolvedWan27Size.sizeMode,
+        size_preset: resolvedWan27Size.sizePreset,
+        custom_width: resolvedWan27Size.customWidth,
+        custom_height: resolvedWan27Size.customHeight,
         references,
       })
       if (isMountedRef.current) {
@@ -527,7 +554,7 @@ const StudioPage = () => {
         setPreviewPayload(null)
       }
     }
-  }, [computeEffectiveSize, form, isModalOpen, projectId, selectedStyleId, styles, wan27BBoxList])
+  }, [computeEffectiveSize, form, isModalOpen, projectId, resolveWan27SizeDraft, selectedStyleId, styles, wan27BBoxList])
 
   useEffect(() => {
     isMountedRef.current = true
@@ -854,7 +881,8 @@ const StudioPage = () => {
     if (!projectId) return
     let createdTask: StudioTask | null = null
     try {
-      const values = await form.validateFields()
+      await form.validateFields()
+      const values = form.getFieldsValue(true)
       
       // 解析选中的素材
       let references = (values.references || []).map((ref: string) => {
@@ -1046,7 +1074,7 @@ const StudioPage = () => {
     if (!selectedTask || isCreating || autoSavingRef.current) return
     autoSavingRef.current = true
     try {
-      const values = form.getFieldsValue()
+      const values = form.getFieldsValue(true)
       const updated = await studioApi.update(selectedTask.id, buildStudioRequestPayload(values))
       safeSetState(setTasks, (prev: StudioTask[]) => prev.map(t => t.id === updated.id ? updated : t))
       setSelectedTask(updated)
@@ -1272,7 +1300,7 @@ const StudioPage = () => {
   const generateImages = async () => {
     if (!selectedTask) return
     
-    const values = form.getFieldsValue()
+    const values = form.getFieldsValue(true)
     const isTextToImage = values.task_kind === 'text_to_image'
     const isWan26Image = values.model === 'wan2.6-image'
     const isQwenEditModel = values.model?.startsWith('qwen-image-edit')
