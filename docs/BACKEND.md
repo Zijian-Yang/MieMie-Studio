@@ -468,13 +468,14 @@ response = await asyncio.to_thread(MultiModalConversation.call, api_key=key, **p
 - 图片工作室继续保留 `/api/studio/preview-payload` 作为开发者模式预览入口
 - `wan2.7` 相关校验已在 `studio.py` 中集中处理：
   - `task_kind` 与模型兼容性
-  - `bbox_list` 长度与框数
+  - `interactive_edit` 下的 `bbox_list` 长度与框数
   - `color_palette` 数量和百分比总和
   - `4K` 仅限 `wan2.7-image-pro` 的纯文生图
 - `wan2.7` 输入图预检由 `remote_media_validation.inspect_remote_image()` 负责：
   - 支持 HTTP/HTTPS 和 `data:image/...;base64,...`
   - 下载失败会返回 HTTP 状态、content-type 或超时/协议错误
   - 图片解码失败会返回内容类型和字节数
+  - 平台不再因透明 PNG 直接阻断，是否最终支持以厂商返回结果为准
   - 预检会做短间隔重试，避免一次网络抖动直接把测评单元标为 `unsupported`
 - 视频工作室新增 `video_extension` 任务类型，当前由 `wan2.7-i2v` 承载
 - `WanVideoAdapter` 已加入 `wan2.7-i2v` / `wan2.7-videoedit` 的专用校验与 payload builder：
@@ -486,7 +487,7 @@ response = await asyncio.to_thread(MultiModalConversation.call, api_key=key, **p
 
 - 图片测评由 `routers/image_benchmark.py` 提供 API，由 `services/image_benchmark_runtime.py` 复用图片工作室的模型能力、payload 构造和生成函数。
 - 数据集支持 `schema_version=2.0` 的 `image_slots`，使用 `position` 保留“图1 / 图2 / 图N”的顺序语义；旧版 `input_images` 会在导入时迁移为槽位。
-- 测评任务类型包含 `text_to_image`、`image_edit`、`interactive_edit`。`interactive_edit` 仅由 wan2.7 image 系列承载，复用图片工作室的 `bbox_list` 构参和坐标归一化逻辑。
+- 测评任务类型包含 `text_to_image`、`image_edit`、`interactive_edit`。`interactive_edit` 仅由 wan2.7 image 系列承载，复用图片工作室的 `bbox_list` 构参和坐标归一化逻辑；`image_edit` 会显式剥离遗留 `bbox_list`。
 - `ImageBenchmarkDatasetItem.bbox_list` 与 `image_slots` 一起存储、导出和导入，长度必须与有效输入图数量一致；每张图最多 2 个框，不需要框选的位置必须保留空数组 `[]`。
 - 跨环境导入数据集时可传 `migrate_images_to_oss=true`：
   - 后端会把输入图下载并上传到当前用户 OSS
@@ -500,4 +501,5 @@ response = await asyncio.to_thread(MultiModalConversation.call, api_key=key, **p
   - `task_ids`
   - `request_ids`
 - 自动重试会去重累计每次尝试产生的所有 `task_ids` 和 `request_ids`，便于后续对账和厂商工单排查。
+- 图片工作室失败任务同样会保留 `provider_result_meta`，至少包含 `request_id / error_code / error_message / raw_output`，开发者模式与任务详情都应可见。
 - 手动重试范围包括 `failed` 与 `unsupported`。其中 `unsupported` 主要代表前置校验失败，不一定是模型能力不支持。

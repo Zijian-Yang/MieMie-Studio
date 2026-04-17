@@ -29,6 +29,7 @@ import {
   matchWan27QualityTemplate,
   type ImageQualityLevel,
 } from '../../utils/wan27Size'
+import { getApiErrorMessage } from '../../utils/apiError'
 
 const { TextArea } = Input
 
@@ -239,6 +240,7 @@ const StudioPage = () => {
     provider_payload: Record<string, any>
     validation_warnings: string[]
   } | null>(null)
+  const [previewPayloadError, setPreviewPayloadError] = useState<string | null>(null)
   const [wan27BBoxList, setWan27BBoxList] = useState<number[][][]>([])
   const [wan27SizeModeChoice, setWan27SizeModeChoice] = useState<'custom' | 'preset'>('custom')
   const [wan27RatioChoice, setWan27RatioChoice] = useState<string>('1:1')
@@ -456,9 +458,9 @@ const StudioPage = () => {
     })
     const effectiveSize = computeEffectiveSize(values)
     const resolvedWan27Size = resolveWan27SizeDraft(values)
-    const effectiveBBoxList = WAN27_MODELS.has(values.model)
+    const effectiveBBoxList = WAN27_MODELS.has(values.model) && values.task_kind === 'interactive_edit'
       ? resolvePreferredBBoxList(values.bbox_list, wan27BBoxList)
-      : normalizeBBoxList(values.bbox_list)
+      : undefined
     return {
       name: values.name || '未命名任务',
       description: values.description,
@@ -496,9 +498,9 @@ const StudioPage = () => {
     let finalPrompt = values.prompt || ''
     let finalNegativePrompt = values.negative_prompt || ''
     const resolvedWan27Size = resolveWan27SizeDraft(values)
-    const effectiveBBoxList = WAN27_MODELS.has(values.model)
+    const effectiveBBoxList = WAN27_MODELS.has(values.model) && values.task_kind === 'interactive_edit'
       ? resolvePreferredBBoxList(values.bbox_list, wan27BBoxList)
-      : normalizeBBoxList(values.bbox_list)
+      : undefined
     const styleId = values.style_id || selectedStyleId
     if (styleId) {
       const style = styles.find(s => s.id === styleId)
@@ -548,10 +550,12 @@ const StudioPage = () => {
       })
       if (isMountedRef.current) {
         setPreviewPayload(result)
+        setPreviewPayloadError(null)
       }
-    } catch {
+    } catch (error) {
       if (isMountedRef.current) {
         setPreviewPayload(null)
+        setPreviewPayloadError(getApiErrorMessage(error, '预览请求体失败'))
       }
     }
   }, [computeEffectiveSize, form, isModalOpen, projectId, resolveWan27SizeDraft, selectedStyleId, styles, wan27BBoxList])
@@ -846,6 +850,7 @@ const StudioPage = () => {
     setSelectedTask(null)
     setSelectedImages(new Set())
     setPreviewPayload(null)
+    setPreviewPayloadError(null)
     setWan27BBoxList([])
     setWan27SizeModeChoice('custom')
     form.resetFields()
@@ -1034,6 +1039,7 @@ const StudioPage = () => {
     setSelectedImages(new Set())
     setSelectedStyleId(null)
     setPreviewPayload(null)
+    setPreviewPayloadError(null)
     const restoredBBoxList = resolvePreferredBBoxList(task.bbox_list, task.provider_payload_snapshot?.parameters?.bbox_list)
     const restoredCustomSize = parseCustomSizeString(task.size)
     const restoredSizeMode = task.size_mode || (restoredCustomSize ? 'custom' : (task.size_preset || (task.size && !task.size.includes('*')) ? 'preset' : null))
@@ -1718,6 +1724,15 @@ const StudioPage = () => {
                 {isCreating ? '尚未提交' : `任务 ID: ${selectedTask?.id || '未知'}`}
               </div>
               <div style={{ marginBottom: 8, fontWeight: 500 }}>预览下次请求体参数</div>
+              {previewPayloadError ? (
+                <Alert
+                  type="error"
+                  showIcon
+                  style={{ marginBottom: 12 }}
+                  message="预览请求体失败"
+                  description={previewPayloadError}
+                />
+              ) : null}
               {previewPayload?.validation_warnings?.length ? (
                 <Alert
                   type="warning"
@@ -1900,7 +1915,7 @@ const StudioPage = () => {
           </div>
         }
         open={isModalOpen}
-        onCancel={() => { setIsModalOpen(false); setIsCreating(false); setSelectedStyleId(null); setPreviewPayload(null); }}
+        onCancel={() => { setIsModalOpen(false); setIsCreating(false); setSelectedStyleId(null); setPreviewPayload(null); setPreviewPayloadError(null); }}
         footer={null}
         width={1100}
       >
@@ -2038,6 +2053,23 @@ const StudioPage = () => {
                       <div style={{ color: token.colorError, fontSize: 13, wordBreak: 'break-all' }}>
                         {selectedTask.error_message}
                       </div>
+                      {Object.keys(selectedTask.provider_result_meta || {}).length > 0 && (
+                        <Collapse
+                          size="small"
+                          style={{ marginTop: 8 }}
+                          items={[
+                            {
+                              key: 'provider-result-meta',
+                              label: '厂商错误元信息',
+                              children: (
+                                <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12 }}>
+                                  {JSON.stringify(selectedTask.provider_result_meta || {}, null, 2)}
+                                </pre>
+                              ),
+                            },
+                          ]}
+                        />
+                      )}
                     </div>
                   )}
                   
@@ -3038,7 +3070,7 @@ const StudioPage = () => {
                     >
                       开始生成
                     </Button>
-                    <Button onClick={() => { setIsModalOpen(false); setIsCreating(false); setSelectedStyleId(null); setPreviewPayload(null); }} block>
+                    <Button onClick={() => { setIsModalOpen(false); setIsCreating(false); setSelectedStyleId(null); setPreviewPayload(null); setPreviewPayloadError(null); }} block>
                       取消
                     </Button>
                   </>

@@ -175,7 +175,7 @@ def test_preview_payload_reports_wan27_image_read_error_with_url(client, auth_he
     assert "HTTP 403" in detail
 
 
-def test_preview_payload_rejects_wan27_input_image_with_alpha(client, auth_header, monkeypatch):
+def test_preview_payload_allows_wan27_input_image_with_alpha(client, auth_header, monkeypatch):
     async def mock_inspect_remote_image(_url):
         return {
             "format": "PNG",
@@ -206,8 +206,105 @@ def test_preview_payload_rejects_wan27_input_image_with_alpha(client, auth_heade
             "references": [{"type": "gallery", "id": "g1"}],
         },
     )
-    assert resp.status_code == 400
-    assert "透明通道" in resp.json()["detail"]
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["canonical_request"]["task_kind"] == "image_edit"
+    assert data["provider_payload"]["model"] == "wan2.7-image"
+    assert "bbox_list" not in data["provider_payload"]["parameters"]
+
+
+def test_preview_payload_ignores_bbox_list_for_wan27_image_edit(client, auth_header, monkeypatch):
+    async def mock_inspect_remote_image(_url):
+        return {
+            "format": "PNG",
+            "width": 1024,
+            "height": 1024,
+            "aspect_ratio": 1.0,
+            "file_size": 1024,
+            "has_alpha": False,
+        }
+
+    monkeypatch.setattr(
+        "app.routers.studio._resolve_reference_items",
+        lambda _refs: _mock_reference_items(["https://oss.example.com/ref.png"]),
+    )
+    monkeypatch.setattr("app.routers.studio.inspect_remote_image", mock_inspect_remote_image)
+
+    resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "wan2.7-image",
+            "task_kind": "image_edit",
+            "prompt": "编辑图片",
+            "n": 1,
+            "size_mode": "preset",
+            "size_preset": "2K",
+            "bbox_list": [],
+            "references": [{"type": "gallery", "id": "g1"}],
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["canonical_request"]["task_kind"] == "image_edit"
+    assert "bbox_list" not in data["canonical_request"]["normalized_params"]
+    assert "bbox_list" not in data["provider_payload"]["parameters"]
+
+
+def test_generate_wan27_image_edit_ignores_empty_bbox_list(client, auth_header, monkeypatch):
+    async def mock_inspect_remote_image(_url):
+        return {
+            "format": "PNG",
+            "width": 1024,
+            "height": 1024,
+            "aspect_ratio": 1.0,
+            "file_size": 1024,
+            "has_alpha": False,
+        }
+
+    project_id = _create_project(client, auth_header)
+    _patch_async_create_task(monkeypatch)
+    monkeypatch.setattr(
+        "app.routers.studio._resolve_reference_items",
+        lambda _refs: _mock_reference_items(["https://oss.example.com/ref.png"]),
+    )
+    monkeypatch.setattr("app.routers.studio.inspect_remote_image", mock_inspect_remote_image)
+
+    create_resp = client.post(
+        "/api/studio",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "wan27 图片编辑",
+            "model": "wan2.7-image",
+            "task_kind": "image_edit",
+            "prompt": "编辑图片",
+            "n": 1,
+            "bbox_list": [],
+            "references": [{"type": "gallery", "id": "g1"}],
+        },
+    )
+    assert create_resp.status_code == 200
+    task_id = create_resp.json()["id"]
+
+    generate_resp = client.post(
+        f"/api/studio/{task_id}/generate",
+        headers=auth_header,
+        json={
+            "task_kind": "image_edit",
+            "n": 1,
+            "size_mode": "preset",
+            "size_preset": "2K",
+            "bbox_list": [],
+        },
+    )
+    assert generate_resp.status_code == 200
+    task = generate_resp.json()["task"]
+    assert task["task_kind"] == "image_edit"
+    assert task["bbox_list"] == []
+    assert "bbox_list" not in task["normalized_params"]
+    assert "bbox_list" not in task["provider_payload_snapshot"]["parameters"]
 
 
 def test_preview_payload_normalizes_wan27_bbox_and_warns_thinking_mode(client, auth_header, monkeypatch):
@@ -719,3 +816,53 @@ async def test_generate_with_wan27_image_respects_group_count(monkeypatch):
         "submit-2", "poll-task-2",
     ]
     assert set(provider_meta.keys()) == {"task-0", "task-1", "task-2"}
+
+
+@pytest.mark.asyncio
+async def test_generate_with_wan27_image_preserves_submit_error_meta(monkeypatch):
+    from app.models.studio import StudioTask
+    from app.routers.studio import generate_with_wan27_image
+
+    async def fake_create_task(self, **kwargs):
+        self.last_request_id = "submit-failed-request"
+        self.last_error_code = "InvalidParameter"
+        self.last_error_message = "transparent png rejected by provider"
+        self.last_raw_output = {"task_status": "FAILED", "message": "transparent png rejected by provider"}
+        raise RuntimeError(self.last_error_message)
+
+    monkeypatch.setattr("app.models_registry.image.wan27_image.Wan27ImageService.create_task", fake_create_task)
+    monkeypatch.setattr(studio_router.oss_service, "is_enabled", lambda: False)
+
+    task = StudioTask(
+        project_id="p1",
+        name="wan27 提交失败",
+        model="wan2.7-image",
+        task_kind="image_edit",
+        prompt="编辑透明 PNG",
+        n=1,
+        group_count=1,
+    )
+
+    images, task_ids, request_ids, provider_meta = await generate_with_wan27_image(
+        task=task,
+        api_key="sk-test",
+        base_url="",
+        ref_urls=["https://oss.example.com/transparent.png"],
+        size="2K",
+        enable_sequential=False,
+        thinking_mode=None,
+        bbox_list=None,
+        color_palette=[],
+        watermark=False,
+        seed=None,
+    )
+
+    assert images == []
+    assert task_ids == []
+    assert request_ids == ["submit-failed-request"]
+    assert task._group_errors == ["transparent png rejected by provider"]
+    meta = provider_meta["submit-failed-request"]
+    assert meta["error_code"] == "InvalidParameter"
+    assert meta["error_message"] == "transparent png rejected by provider"
+    assert meta["request_id"] == "submit-failed-request"
+    assert meta["raw_output"]["task_status"] == "FAILED"

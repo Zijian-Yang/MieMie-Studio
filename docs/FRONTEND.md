@@ -703,6 +703,7 @@ const startPolling = useCallback((taskId: string) => {
 ## 开发者模式
 - 新建任务弹窗底部提供“开发者模式”折叠面板
 - 面板展示 canonical 请求体、厂商 payload 预览和验证 warning
+- `preview-payload` 失败时必须直接显示后端错误，不能静默清空
 - 已提交任务详情页底部展示 task ids、request ids、provider_payload_snapshot、provider_result_meta
 
 ## 通知与轮询
@@ -716,6 +717,8 @@ const startPolling = useCallback((taskId: string) => {
   - 交互式编辑 `bbox_list` 可视化编辑器
   - `color_palette` 结构化编辑器
   - 开发者模式 payload 预览
+- `bbox_list` 仅属于 `interactive_edit`；普通 `image_edit` 不发送也不展示该字段
+- 平台不再预拦透明 PNG，是否支持以厂商返回结果为准；失败时要把供应商错误显示给用户和开发者模式
 - 图片工作室的问号帮助统一使用 `HoverInfoPopover`
 - 图片任务完成通知受设置页 `image_task_notifications_enabled` 控制
 - 图片测评新增两个独立页面：
@@ -734,6 +737,7 @@ const startPolling = useCallback((taskId: string) => {
   - Task IDs / Request IDs
   - Canonical Request
   - Provider Payload
+  - Provider Result Meta
 - 测评页的手动重试按钮覆盖 `failed` 和 `unsupported` 单元，文案为“重试失败/未支持任务”
 - 视频工作室已新增 `视频续写` 能力，对应 `wan2.7-i2v`
 - `wan2.7-i2v` 在视频工作室支持：

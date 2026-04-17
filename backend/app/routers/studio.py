@@ -353,7 +353,7 @@ def _infer_task_kind(
     if model_name in WAN27_MODELS:
         if enable_sequential:
             return "sequential_generation"
-        if bbox_list:
+        if _bbox_list_has_boxes(bbox_list):
             return "interactive_edit"
         if ref_urls:
             return "image_edit"
@@ -363,6 +363,17 @@ def _infer_task_kind(
     if model_name in {"qwen-image-2.0-pro", "qwen-image-2.0"}:
         return "image_edit" if ref_urls else "text_to_image"
     return "text_to_image"
+
+
+def _bbox_list_has_boxes(bbox_list: Optional[List[List[List[int]]]]) -> bool:
+    return any(bool(group) for group in (bbox_list or []))
+
+
+def _bbox_list_for_task_kind(
+    task_kind: str,
+    bbox_list: Optional[List[List[List[int]]]],
+) -> Optional[List[List[List[int]]]]:
+    return bbox_list if task_kind == "interactive_edit" else None
 
 
 def _validate_model_task_kind(model_name: str, task_kind: str) -> None:
@@ -599,8 +610,6 @@ async def _inspect_and_validate_wan27_images(ref_urls: List[str]) -> List[Dict[s
 
         if image_format not in WAN27_ALLOWED_IMAGE_FORMATS:
             raise HTTPException(status_code=400, detail=f"第 {index} 张输入图片格式不支持，仅支持 JPEG/JPG/PNG/BMP/WEBP")
-        if metadata.get("has_alpha"):
-            raise HTTPException(status_code=400, detail=f"第 {index} 张输入图片不支持透明通道，请使用不带透明的 PNG/JPG")
         if not (WAN27_MIN_IMAGE_DIM <= width <= WAN27_MAX_IMAGE_DIM and WAN27_MIN_IMAGE_DIM <= height <= WAN27_MAX_IMAGE_DIM):
             raise HTTPException(status_code=400, detail=f"第 {index} 张输入图片宽高需在 {WAN27_MIN_IMAGE_DIM} 到 {WAN27_MAX_IMAGE_DIM} 像素之间")
         if ratio < WAN27_MIN_RATIO or ratio > WAN27_MAX_RATIO:
@@ -753,6 +762,7 @@ def _build_provider_payload(
     warnings: List[str] = []
 
     if model_name in WAN27_MODELS:
+        effective_bbox_list = _bbox_list_for_task_kind(task_kind_resolved, bbox_list)
         final_size = _build_wan27_size(
             model_name=model_name,
             task_kind=task_kind_resolved,
@@ -771,7 +781,7 @@ def _build_provider_payload(
             n=n,
             enable_sequential=enable_sequential,
             thinking_mode=thinking_mode,
-            bbox_list=bbox_list,
+            bbox_list=effective_bbox_list,
             color_palette=color_palette,
         )
         normalized_params.update(
@@ -779,7 +789,6 @@ def _build_provider_payload(
                 "size": final_size,
                 "enable_sequential": enable_sequential,
                 "thinking_mode": thinking_mode,
-                "bbox_list": bbox_list or [],
                 "color_palette": color_palette,
                 "size_mode": size_mode or ("custom" if "*" in final_size else "preset"),
                 "size_preset": size_preset or (final_size if "*" not in final_size else None),
@@ -811,8 +820,8 @@ def _build_provider_payload(
             provider_payload["parameters"]["enable_sequential"] = True
         elif thinking_mode is not None and not ref_urls:
             provider_payload["parameters"]["thinking_mode"] = thinking_mode
-        if bbox_list:
-            provider_payload["parameters"]["bbox_list"] = bbox_list
+        if effective_bbox_list:
+            provider_payload["parameters"]["bbox_list"] = effective_bbox_list
         if color_palette:
             provider_payload["parameters"]["color_palette"] = color_palette
         if seed is not None:
@@ -1029,6 +1038,7 @@ async def create_studio_task(request: TaskCreateRequest):
         bool(request.enable_sequential),
         request.bbox_list,
     )
+    bbox_list = _bbox_list_for_task_kind(task_kind, request.bbox_list)
     color_palette = _serialize_color_palette(request.color_palette)
 
     task = StudioTask(
@@ -1051,7 +1061,7 @@ async def create_studio_task(request: TaskCreateRequest):
         max_images=request.max_images or 5,
         enable_sequential=bool(request.enable_sequential),
         thinking_mode=request.thinking_mode,
-        bbox_list=request.bbox_list or [],
+        bbox_list=bbox_list or [],
         color_palette=color_palette,
         size_mode=request.size_mode,
         size_preset=request.size_preset,
@@ -1068,7 +1078,7 @@ async def create_studio_task(request: TaskCreateRequest):
             "max_images": request.max_images or 5,
             "enable_sequential": bool(request.enable_sequential),
             "thinking_mode": request.thinking_mode,
-            "bbox_list": request.bbox_list or [],
+            **({"bbox_list": bbox_list or []} if task_kind == "interactive_edit" else {}),
             "color_palette": color_palette,
             "size_mode": request.size_mode,
             "size_preset": request.size_preset,
@@ -1130,15 +1140,23 @@ async def preview_payload(request: PreviewPayloadRequest):
     """预览当前草稿对应的 canonical request 与厂商 payload"""
     references = _resolve_reference_items(request.references)
     ref_urls = [ref.url for ref in references if ref.url]
-    bbox_list = request.bbox_list
+    task_kind = _infer_task_kind(
+        request.model,
+        request.task_kind,
+        ref_urls,
+        bool(request.enable_sequential),
+        request.bbox_list,
+    )
+    bbox_list = _bbox_list_for_task_kind(task_kind, request.bbox_list)
     if request.model in WAN27_MODELS and ref_urls:
         image_metadata = await _inspect_and_validate_wan27_images(ref_urls)
-        bbox_list = _normalize_bbox_list(request.bbox_list, image_metadata)
+        if task_kind == "interactive_edit":
+            bbox_list = _normalize_bbox_list(bbox_list, image_metadata)
     canonical, provider_payload, warnings = _build_provider_payload(
         model_name=request.model,
         prompt=request.prompt,
         negative_prompt=request.negative_prompt or "",
-        task_kind=request.task_kind or "",
+        task_kind=task_kind,
         ref_urls=ref_urls,
         n=request.n or 1,
         size=request.size,
@@ -1210,6 +1228,7 @@ async def update_studio_task(task_id: str, request: TaskUpdateRequest):
     task.model_id = task.model
     task.provider = "wan" if task.model in WAN_IMAGE_MODELS else "wan"
     task.task_kind = _infer_task_kind(task.model, task.task_kind, ref_urls, task.enable_sequential, task.bbox_list)
+    task.bbox_list = _bbox_list_for_task_kind(task.task_kind, task.bbox_list) or []
     task.input_assets = {"images": ref_urls}
     task.normalized_params = {
         "size": task.size,
@@ -1220,7 +1239,7 @@ async def update_studio_task(task_id: str, request: TaskUpdateRequest):
         "max_images": task.max_images,
         "enable_sequential": task.enable_sequential,
         "thinking_mode": task.thinking_mode,
-        "bbox_list": task.bbox_list,
+        **({"bbox_list": task.bbox_list} if task.task_kind == "interactive_edit" else {}),
         "color_palette": task.color_palette,
         "size_mode": task.size_mode,
         "size_preset": task.size_preset,
@@ -1311,9 +1330,11 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
     is_text_to_image = model_name in IMAGE_MODELS
     ref_urls = [ref.url for ref in task.references if ref.url]
     normalized_bbox_list = request.bbox_list if request.bbox_list is not None else task.bbox_list
+    normalized_bbox_list = _bbox_list_for_task_kind(task.task_kind, normalized_bbox_list)
     if model_name in WAN27_MODELS and ref_urls:
         image_metadata = await _inspect_and_validate_wan27_images(ref_urls)
-        normalized_bbox_list = _normalize_bbox_list(normalized_bbox_list, image_metadata)
+        if task.task_kind == "interactive_edit":
+            normalized_bbox_list = _normalize_bbox_list(normalized_bbox_list, image_metadata)
 
     # --- 同步验证（在返回前完成）---
     enable_interleave = task.enable_interleave
@@ -1596,23 +1617,62 @@ async def generate_with_wan27_image(
         service = Wan27ImageService(model_info)
         service.configure(api_key, base_url)
 
-        external_task_id = await service.create_task(
-            prompt=task.prompt,
-            images=ref_urls or None,
-            size=size or "2K",
-            n=max(1, task.n),
-            enable_sequential=enable_sequential,
-            thinking_mode=thinking_mode,
-            color_palette=color_palette or None,
-            bbox_list=bbox_list,
-            watermark=watermark,
-            seed=seed,
-        )
+        try:
+            external_task_id = await service.create_task(
+                prompt=task.prompt,
+                images=ref_urls or None,
+                size=size or "2K",
+                n=max(1, task.n),
+                enable_sequential=enable_sequential,
+                thinking_mode=thinking_mode,
+                color_palette=color_palette or None,
+                bbox_list=bbox_list,
+                watermark=watermark,
+                seed=seed,
+            )
+        except Exception as exc:
+            submit_request_id = service.last_request_id
+            error_message = service.last_error_message or str(exc)
+            error_code = service.last_error_code or exc.__class__.__name__
+            meta_key = submit_request_id or f"submit_error_group_{group_index}"
+            meta = {
+                meta_key: {
+                    "provider": "wan",
+                    "key_profile": get_provider_key_profile("wan"),
+                    "submit_request_id": submit_request_id,
+                    "request_id": submit_request_id,
+                    "usage": service.last_usage or {},
+                    "error_code": error_code,
+                    "error_message": error_message,
+                    "raw_output": service.last_raw_output or {},
+                    "stage": "submit",
+                }
+            }
+            return [], [], [rid for rid in [submit_request_id] if rid], meta, error_message
+
         submit_request_id = service.last_request_id
 
         elapsed = 0
         while elapsed < 300:
-            status = await service.get_task_status(external_task_id)
+            try:
+                status = await service.get_task_status(external_task_id)
+            except Exception as exc:
+                error_message = str(exc)
+                meta = {
+                    external_task_id: {
+                        "provider": "wan",
+                        "key_profile": get_provider_key_profile("wan"),
+                        "submit_request_id": submit_request_id,
+                        "request_id": None,
+                        "usage": {},
+                        "error_code": exc.__class__.__name__,
+                        "error_message": error_message,
+                        "raw_output": {},
+                        "stage": "poll",
+                    }
+                }
+                return [], [external_task_id], [rid for rid in [submit_request_id] if rid], meta, error_message
+
             if status.status.value == "succeeded":
                 final_urls: List[str] = []
                 for url in status.result or []:

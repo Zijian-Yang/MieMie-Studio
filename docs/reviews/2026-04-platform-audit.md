@@ -148,6 +148,22 @@
   - 原始镜像只作为参考
   - 平台侧结论必须沉淀到 spec / ADR / playbook
 
+### 5. `wan2.7` 图片编辑链路把遗留 `bbox_list` 误当交互式编辑输入
+
+- **Severity**: P1
+- **Domain**: 图片工作室 / 图片测评 / wan2.7
+- **Evidence**:
+  - `backend/app/routers/studio.py`
+  - `backend/app/services/image_benchmark_runtime.py`
+  - `frontend/src/pages/Studio/StudioPage.tsx`
+- **现象**: 普通 `image_edit` 任务在有输入图时也可能触发 `bbox_list` 长度错误；开发者模式还会吞掉预览错误。
+- **根因**: `wan2.7 + 输入图` 预检路径里无条件执行 `bbox_list` 归一化，且前端普通任务会发送空 `bbox_list`。
+- **影响**: 新建图片编辑任务出现与实际任务类型无关的 `bbox_list` 报错，难以判断是平台错误还是厂商错误。
+- **修复方向**:
+  - `bbox_list` 仅在 `interactive_edit` 下参与校验、归一化与 payload 构造
+  - 图片工作室开发者模式直接显示预览错误
+  - 失败任务与测评结果展示结构化 `provider_result_meta`
+
 ## UI 结论
 
 - 导航层级总体清晰，但“工具域 + 工作流域”在侧栏里密集混排，新人理解成本偏高
@@ -166,6 +182,8 @@
 ### 成功路径
 
 - **图片**：`wan2.6-t2i` 成功提交、轮询完成并转存 OSS
+- **Wan2.7 透明 PNG 图片编辑**：`wan2.7-image` 使用带透明通道 PNG 输入图成功提交、轮询完成并转存 OSS
+- **Wan2.7 透明 PNG 测评单元**：图片测评 `image_edit` 复用同一透明 PNG 输入图，运行完成且保留 `provider_result_meta`
 - **视频**：`wan2.6-t2v` 成功提交、轮询完成并转存 OSS，同时记录 `request_id` 与 `usage`
 - **音频**：`cosyvoice-v3-flash` + `longwan_v3` 成功合成并转存 OSS
 
@@ -177,6 +195,7 @@
 
 - 当前默认配置链路、外网访问、DashScope 调用与 OSS 持久化均可用
 - 真实验证暴露并推动修复了 1 个仅会在“厂商成功后”才显现的返回契约问题
+- 真实验证证明：至少在本次样例中，透明 PNG 不应被平台前置阻断，应交由厂商处理并回传结果或错误
 
 ## 下一步
 

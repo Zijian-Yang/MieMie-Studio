@@ -302,7 +302,7 @@ async def preview_benchmark_cell(
 
     ref_urls = _extract_case_ref_urls(case_data)
     bbox_list = _extract_case_bbox_list(case_data)
-    normalized_bbox_list = bbox_list
+    normalized_bbox_list = bbox_list if task_kind == "interactive_edit" else None
     if task_kind == "text_to_image" and ref_urls:
         raise HTTPException(status_code=400, detail="文生图样例不能包含输入图片")
     if task_kind in {"image_edit", "interactive_edit"} and not ref_urls:
@@ -314,7 +314,7 @@ async def preview_benchmark_cell(
     if model_id in studio_router.WAN27_MODELS and ref_urls:
         image_metadata = await studio_router._inspect_and_validate_wan27_images(ref_urls)
         if task_kind == "interactive_edit":
-            normalized_bbox_list = studio_router._normalize_bbox_list(bbox_list, image_metadata)
+            normalized_bbox_list = studio_router._normalize_bbox_list(normalized_bbox_list, image_metadata)
 
     canonical, provider_payload, warnings = studio_router._build_provider_payload(
         model_name=model_id,
@@ -438,7 +438,11 @@ async def _execute_benchmark_cell_once(
 
     ref_urls = _extract_case_ref_urls(case_data)
     canonical_size = (canonical_request.get("normalized_params") or {}).get("size") or (provider_payload.get("parameters") or {}).get("size")
-    normalized_bbox_list = (canonical_request.get("normalized_params") or {}).get("bbox_list") or []
+    normalized_bbox_list = (
+        (canonical_request.get("normalized_params") or {}).get("bbox_list") or []
+        if (canonical_request.get("task_kind") or task_kind) == "interactive_edit"
+        else []
+    )
     normalized_color_palette = (canonical_request.get("normalized_params") or {}).get("color_palette") or []
     task = StudioTask(
         project_id=project_id,
@@ -463,7 +467,7 @@ async def _execute_benchmark_cell_once(
         max_images=int(effective_params.get("max_images") or 5),
         enable_sequential=False,
         thinking_mode=None,
-        bbox_list=normalized_bbox_list,
+        bbox_list=normalized_bbox_list if task_kind == "interactive_edit" else [],
         color_palette=normalized_color_palette,
         size_mode=effective_params.get("size_mode"),
         size_preset=effective_params.get("size_preset"),

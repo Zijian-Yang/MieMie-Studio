@@ -657,6 +657,7 @@ const BenchmarkModelOverrideCard = ({
                           <JsonPreviewBlock title="Effective Params（上一次）" value={latestRunCell.effective_params || {}} />
                           <JsonPreviewBlock title="Canonical Request（上一次）" value={latestRunCell.canonical_request || {}} />
                           <JsonPreviewBlock title="Provider Payload（上一次）" value={latestRunCell.provider_payload || {}} />
+                          <JsonPreviewBlock title="Provider Result Meta（上一次）" value={latestRunCell.provider_result_meta || {}} />
                         </Space>
                       </Card>
                     )}
@@ -1368,6 +1369,9 @@ const ImageBenchmarkPage = () => {
             </Card>
             <Card size="small" title="Provider Payload">
               <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(detailCell.provider_payload || {}, null, 2)}</pre>
+            </Card>
+            <Card size="small" title="Provider Result Meta">
+              <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(detailCell.provider_result_meta || {}, null, 2)}</pre>
             </Card>
           </Space>
         )}

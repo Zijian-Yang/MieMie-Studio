@@ -544,6 +544,98 @@ def test_preview_cell_filters_benchmark_managed_wan27_params(client, auth_header
     assert "enable_sequential" not in data["provider_payload"]["parameters"]
 
 
+def test_preview_cell_ignores_legacy_bbox_for_wan27_image_edit(client, auth_header, monkeypatch):
+    async def mock_inspect_remote_image(_url):
+        return {
+            "format": "PNG",
+            "width": 320,
+            "height": 240,
+            "aspect_ratio": 4 / 3,
+            "file_size": 1024,
+            "has_alpha": True,
+        }
+
+    monkeypatch.setattr("app.routers.studio.inspect_remote_image", mock_inspect_remote_image)
+
+    project_id = _create_project(client, auth_header)
+    resp = client.post(
+        "/api/image-benchmark/preview-cell",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "task_kind": "image_edit",
+            "model_id": "wan2.7-image-pro",
+            "case_data": {
+                "name": "图片编辑样例",
+                "prompt": "把图1做成海报",
+                "image_slots": [
+                    {"position": 1, "image": {"url": "https://oss.example.com/transparent.png", "name": "图1"}},
+                ],
+                "bbox_list": [[]],
+            },
+            "baseline_params": {"n": 1, "size_preset": "2K", "size_mode": "preset"},
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["canonical_request"]["task_kind"] == "image_edit"
+    assert "bbox_list" not in data["canonical_request"]["normalized_params"]
+    assert "bbox_list" not in data["provider_payload"]["parameters"]
+
+
+@pytest.mark.asyncio
+async def test_execute_cell_ignores_legacy_bbox_for_wan27_image_edit(monkeypatch):
+    from app.models.studio import StudioTaskImage
+    from app.services.image_benchmark_runtime import _execute_benchmark_cell_once
+
+    async def mock_inspect_remote_image(_url):
+        return {
+            "format": "PNG",
+            "width": 320,
+            "height": 240,
+            "aspect_ratio": 4 / 3,
+            "file_size": 1024,
+            "has_alpha": True,
+        }
+
+    captured = {}
+
+    async def fake_generate_with_wan27_image(**kwargs):
+        captured["bbox_list"] = kwargs.get("bbox_list")
+        captured["task_kind"] = kwargs["task"].task_kind
+        return (
+            [StudioTaskImage(url="https://oss.example.com/output.png", prompt_used="prompt")],
+            ["task-1"],
+            ["req-1"],
+            {"task-1": {"request_id": "req-1"}},
+        )
+
+    monkeypatch.setattr("app.routers.studio.inspect_remote_image", mock_inspect_remote_image)
+    monkeypatch.setattr("app.services.image_benchmark_runtime.studio_router.generate_with_wan27_image", fake_generate_with_wan27_image)
+    monkeypatch.setattr("app.services.image_benchmark_runtime.oss_service.is_enabled", lambda: False)
+
+    result = await _execute_benchmark_cell_once(
+        project_id="p1",
+        task_kind="image_edit",
+        model_meta={"id": "wan2.7-image-pro", "name": "万相 2.7 Image Pro"},
+        case_data={
+            "id": "case-1",
+            "name": "图片编辑样例",
+            "prompt": "把图1做成海报",
+            "image_slots": [
+                {"position": 1, "image": {"url": "https://oss.example.com/transparent.png", "name": "图1"}},
+            ],
+            "bbox_list": [[]],
+        },
+        effective_params={"n": 1, "size_mode": "preset", "size_preset": "2K"},
+    )
+
+    assert result.status == "completed"
+    assert captured["task_kind"] == "image_edit"
+    assert captured["bbox_list"] is None
+    assert "bbox_list" not in result.provider_payload["parameters"]
+
+
 def test_preview_cell_applies_wan27_color_palette(client, auth_header):
     project_id = _create_project(client, auth_header)
     color_palette = [
