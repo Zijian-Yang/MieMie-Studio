@@ -52,6 +52,13 @@ frontend/src/
 - 登录页通过 CSS 类名 `theme-light` / `theme-dark` 区分主题
 - Ant Design Card 等组件的颜色由 ConfigProvider 统一控制，不需手动设置
 
+## 当前推荐原则
+
+- 优先消费后端 schema / capabilities，不在页面里复制模型规则
+- 页面超过约 `500` 行时，优先拆出 hooks、表单片段和展示组件
+- 错误提示优先读取统一错误对象中的 `message`，不要依赖 axios 原始 `error.response`
+- 布局级颜色、背景和边框优先走 theme token，不在 `main.tsx` / Layout 里写常量色值
+
 ## 视频工作室新约定
 
 ### 能力优先的交互
@@ -187,7 +194,6 @@ const NewFeaturePage = () => {
             新建
           </Button>
         }
-        style={{ background: '#1a1a1a', borderColor: '#333' }}
       >
         {/* 内容 */}
       </Card>

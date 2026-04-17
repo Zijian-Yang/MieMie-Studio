@@ -196,7 +196,7 @@ class TextToImageService:
         Returns:
             图片 URL（如果启用 OSS，返回 OSS URL）
         """
-        urls = await self.generate_batch(
+        result = await self.generate_batch(
             prompt=prompt,
             negative_prompt=negative_prompt,
             width=width,
@@ -208,7 +208,7 @@ class TextToImageService:
             seed=seed,
             project_id=project_id
         )
-        return urls[0] if urls else ""
+        return result.urls[0] if result.urls else ""
     
     async def generate_batch(
         self,

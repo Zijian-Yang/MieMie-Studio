@@ -36,6 +36,7 @@ const MainLayout = () => {
   const { user, logout } = useAuthStore()
   const { mode, toggleTheme } = useThemeStore()
   const { token } = theme.useToken()
+  const avatarGradient = `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryHover} 100%)`
 
   const handleLogout = async () => {
     try {
@@ -109,7 +110,7 @@ const MainLayout = () => {
   const selectedKey = location.pathname
   const siderWidth = collapsed ? 64 : 220
 
-  const siderBg = mode === 'dark' ? '#141414' : token.colorBgContainer
+  const siderBg = token.colorBgContainer
 
   return (
     <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
@@ -225,7 +226,7 @@ const MainLayout = () => {
                 <Avatar
                   size={collapsed ? 32 : 36}
                   style={{
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    background: avatarGradient,
                     flexShrink: 0,
                   }}
                 >

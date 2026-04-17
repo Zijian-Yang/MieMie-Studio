@@ -17,9 +17,9 @@ function Root() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', mode)
-    document.body.style.background = mode === 'dark' ? '#1a1a1a' : '#f0f2f5'
-    document.body.style.color = mode === 'dark' ? '#e0e0e0' : '#262626'
-  }, [mode])
+    document.body.style.background = themeConfig.token?.colorBgLayout || ''
+    document.body.style.color = themeConfig.token?.colorText || ''
+  }, [mode, themeConfig])
 
   return (
     <ConfigProvider locale={zhCN} theme={themeConfig}>

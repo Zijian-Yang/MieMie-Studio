@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../stores/authStore'
 import { useThemeStore } from '../../stores/themeStore'
 import { authApi } from '../../services/api'
+import { getApiErrorMessage } from '../../utils/apiError'
 import './LoginPage.css'
 
 const { Title, Text } = Typography
@@ -31,8 +32,7 @@ const LoginPage: React.FC = () => {
       }
       navigate('/')
     } catch (error: any) {
-      const errorMsg = error.response?.data?.detail || (isRegister ? '注册失败' : '登录失败')
-      message.error(errorMsg)
+      message.error(getApiErrorMessage(error, isRegister ? '注册失败' : '登录失败'))
     } finally {
       setLoading(false)
     }

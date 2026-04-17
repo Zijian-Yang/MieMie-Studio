@@ -1,11 +1,14 @@
 # 后端开发规范
 
+> 2026-04 更新：`config.py` 现在是**配置与兼容层**，不是复杂工作室模型的唯一真相来源。
+> 图片/视频工作室的主规范优先看 `models_registry/`、`video_capabilities.py`、`video_adapters.py` 与 `docs/STUDIO_MODEL_INTEGRATION_GUIDE.md`。
+
 ## 目录结构
 
 ```
 backend/app/
 ├── main.py              # FastAPI 应用入口
-├── config.py            # 🔧 配置中心（模型定义在此！）
+├── config.py            # 🔧 配置与兼容层（用户配置、默认值、兼容旧路径）
 ├── dependencies.py      # 依赖注入
 ├── logger.py            # 日志配置
 ├── middleware/          # 中间件
@@ -128,46 +131,27 @@ from app.routers import (
 
 ## 添加新模型
 
-### 1. 在 config.py 添加模型配置
+### 工作室模型（图片/视频/音频）
 
-```python
-# config.py
+不要再走“`config.py + router 分支 + 页面硬编码 if/else`”的老路径。
 
-# 新模型配置
-NEW_MODELS = {
-    "model-name": {
-        "name": "显示名称",
-        "description": "模型描述",
-        "max_n": 4,
-        "supports_xxx": True,
-        "common_sizes": [
-            {"width": 1280, "height": 720, "label": "16:9"},
-            # ...
-        ]
-    }
-}
-```
+正确顺序：
 
-### 2. 添加配置类
+1. 阅读 `docs/STUDIO_MODEL_INTEGRATION_GUIDE.md`
+2. 先判断复用现有 `task_kind` 还是新增能力
+3. 先补 schema / capabilities，再补 adapter / service
+4. 先打通 `preview-payload`，再接真实提交
+5. 保证开发者模式可见 canonical request / provider payload / task ids / request ids
+6. 补测试、文档、checklist
 
-```python
-# config.py
+### 模型注册中心中的通用模型
 
-class NewModelConfig(BaseModel):
-    """新模型配置"""
-    model: str = "model-name"
-    param1: bool = True
-    param2: int = 5
-    # ...
-```
+如果是注册中心可表达的模型能力：
 
-### 3. 在 AppConfig 中添加
-
-```python
-class AppConfig(BaseModel):
-    # ...
-    new_model: NewModelConfig = NewModelConfig()
-```
+1. 在 `backend/app/models_registry/{image,video,llm}/` 新增模型定义
+2. 在对应 `__init__.py` 导入并注册
+3. 若需要前端动态表单消费，确保 `/api/models/*` 可返回完整参数信息
+4. 若模型属于工作室能力，仍应以 schema / capabilities 为最终交互入口
 
 ## 视频工作室能力 Schema
 

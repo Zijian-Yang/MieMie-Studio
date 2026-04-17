@@ -12,6 +12,7 @@ import {
 } from '@ant-design/icons'
 import { galleryApi, GalleryImage } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
+import { getApiErrorMessage } from '../../utils/apiError'
 
 const { TextArea } = Input
 const { Dragger } = Upload
@@ -135,7 +136,7 @@ const GalleryPage = () => {
       setFileList([])
       setIsUploadModalOpen(false)
     } catch (error: any) {
-      message.error(error?.response?.data?.detail || '上传失败')
+      message.error(getApiErrorMessage(error, '上传失败'))
     } finally {
       safeSetState(setUploading, false)
     }
@@ -166,7 +167,7 @@ const GalleryPage = () => {
       setUrlInput('')
       setIsUploadModalOpen(false)
     } catch (error: any) {
-      message.error(error?.response?.data?.detail || '导入失败')
+      message.error(getApiErrorMessage(error, '导入失败'))
     } finally {
       safeSetState(setUploading, false)
     }

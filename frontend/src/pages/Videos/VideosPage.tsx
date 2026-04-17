@@ -13,6 +13,7 @@ import {
 } from '@ant-design/icons'
 import { videosApi, framesApi, settingsApi, scriptsApi, videoLibraryApi, Video, Shot, Frame, VideoModelInfo, VideoLibraryItem } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
+import { getApiErrorMessage } from '../../utils/apiError'
 import { useGenerationStore } from '../../stores/generationStore'
 
 const { TextArea } = Input
@@ -399,7 +400,7 @@ const VideosPage = () => {
           })
         } catch (error: any) {
           console.error('导出失败:', error)
-          message.error(error.response?.data?.detail || '视频导出失败')
+          message.error(getApiErrorMessage(error, '视频导出失败'))
         } finally {
           setExporting(false)
         }

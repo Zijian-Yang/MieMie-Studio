@@ -15,6 +15,7 @@ import {
 import type { UploadProps } from 'antd'
 import { scriptsApi, generateScriptStream, projectsApi, settingsApi, ConfigResponse, ProjectLLMConfig, Shot, framesApi, videosApi, Character, charactersApi, scenesApi, propsApi } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
+import { getApiErrorMessage } from '../../utils/apiError'
 import { useScriptStore, ScriptVersion, PromptVersion, Column } from '../../stores/scriptStore'
 import LLMConfigForm from '../../components/LLMConfigForm'
 
@@ -599,7 +600,7 @@ const ScriptPage = () => {
       
       message.success(`成功解析出 ${result.shots?.length || 0} 个分镜，可前往"分镜首帧"页面查看`)
     } catch (error: any) {
-      message.error(error?.response?.data?.detail || '解析分镜失败')
+      message.error(getApiErrorMessage(error, '解析分镜失败'))
     } finally {
       setParsing(false)
     }

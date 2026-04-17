@@ -271,6 +271,8 @@ async def generate_frame(request: FrameGenerateRequest):
             # 确保返回列表
             if isinstance(result, str):
                 urls = [result]
+            elif hasattr(result, "urls"):
+                urls = result.urls
             else:
                 urls = result
         

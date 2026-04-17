@@ -61,6 +61,7 @@ backend/data/users.json
 backend/data/sessions.json
 backend/data/config.json
 backend/data/assets/
+backend/data/*.lock
 
 # Backups
 backups/
@@ -78,12 +79,11 @@ Thumbs.db
 .miemie.conf
 
 # Excluded from GitHub (temporary - for initial release)
-docs/
 CLAUDE.md
 encrypt_secrets.py
 cursor-chat-history/
 cursor-chat-history.zip
 场景控制平台/
 .claude
-AGENTS.md
 .codex
+docs/阿里云模型api文档/

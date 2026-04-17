@@ -268,6 +268,86 @@ class TestAtomicWrite:
         tmp_file = isolated_data_dir / "sessions.tmp"
         assert not tmp_file.exists()
 
+    def test_user_service_concurrent_register_preserves_all_users(self, isolated_data_dir):
+        """Fix-03: 并发注册不会丢失用户记录"""
+        from app.services.user_service import get_user_service
+
+        service = get_user_service()
+        usernames = [f"parallel_user_{i}" for i in range(12)]
+        errors = []
+
+        def register_user(username: str):
+            try:
+                user = service.register(username, "pass1234")
+                assert user is not None
+            except Exception as exc:
+                errors.append(exc)
+
+        threads = [threading.Thread(target=register_user, args=(username,)) for username in usernames]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        assert not errors
+
+        users_file = isolated_data_dir / "users.json"
+        saved = json.loads(users_file.read_text(encoding="utf-8"))
+        saved_usernames = {user["username"] for user in saved.values()}
+        assert saved_usernames == set(usernames)
+
+    def test_user_service_concurrent_login_preserves_all_sessions(self, isolated_data_dir):
+        """Fix-03: 并发登录不会丢失会话记录"""
+        from app.services.user_service import get_user_service
+
+        service = get_user_service()
+        user = service.register("parallel_login_user", "pass1234")
+        assert user is not None
+
+        tokens = []
+        errors = []
+
+        def login_user():
+            try:
+                result = service.login("parallel_login_user", "pass1234")
+                assert result is not None
+                token, _ = result
+                tokens.append(token)
+            except Exception as exc:
+                errors.append(exc)
+
+        threads = [threading.Thread(target=login_user) for _ in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        assert not errors
+        assert len(tokens) == 8
+
+        sessions_file = isolated_data_dir / "sessions.json"
+        saved = json.loads(sessions_file.read_text(encoding="utf-8"))
+        assert len(saved) == 8
+
+
+class TestServiceContracts:
+    """服务返回契约测试"""
+
+    @pytest.mark.asyncio
+    async def test_text_to_image_generate_reads_generation_result(self, monkeypatch):
+        """文生图 generate 应兼容 generate_batch 的 GenerationResult 返回契约"""
+        from app.services.dashscope.text_to_image import TextToImageService, GenerationResult
+
+        service = TextToImageService.__new__(TextToImageService)
+
+        async def fake_generate_batch(**kwargs):
+            return GenerationResult(urls=["https://example.com/generated.png"], task_id="task_1", request_id="req_1")
+
+        monkeypatch.setattr(service, "generate_batch", fake_generate_batch)
+
+        url = await TextToImageService.generate(service, "测试提示词")
+        assert url == "https://example.com/generated.png"
+
 
 # ═══════════════════════════════════════════
 # Group F: 单例线程安全 (Fix-06, Fix-17)
