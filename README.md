@@ -164,7 +164,8 @@ npm run dev -- --host
 ```bash
 ./run.sh install    # 安装/重新安装依赖
 ./run.sh optimize   # 检测服务器并应用推荐配置
-./run.sh update     # 更新项目到最新版本
+./run.sh update     # 更新项目到最新版本（仅拉代码）
+./run.sh update --apply  # 更新并立即应用到当前运行服务
 ./run.sh clean      # 清理缓存/重置依赖
 ```
 
@@ -172,6 +173,8 @@ npm run dev -- --host
 - `./run.sh install` 和生产模式启动前，会自动检测服务器内核、CPU、内存与当前 Swap
 - 脚本会推荐 Gunicorn workers、前端构建内存上限；小内存 Linux 机器会额外建议创建 Swap
 - 用户确认后才会应用，应用后会立即校验是否生效
+- 服务器建议长期使用 `./run.sh start --prod` / `./run.sh restart --prod`
+- TUI 中“更新到最新版本”默认等价于“拉取代码并自动应用到当前运行服务”
 
 ### 端口配置
 
@@ -253,14 +256,17 @@ cd frontend && npm run typecheck
 ### 方式一：使用脚本更新（推荐）
 
 ```bash
-./run.sh update
+./run.sh update --apply
 ```
 
 脚本会自动：
+- 记录更新前的运行模式与 commit
 - 检测本地是否有未提交的更改
 - 暂存本地更改（如有）
 - 拉取最新代码
-- 自动更新依赖（如有变化）
+- 自动比较“更新前 commit → 更新后 commit”并刷新依赖（如有变化）
+- 若服务原本正在运行，则按更新前的实际模式自动重启
+- 通过 `GET /api/health` 校验运行中的 `git_commit / run_mode / serve_frontend`
 - 恢复本地更改
 
 ### 方式二：手动更新

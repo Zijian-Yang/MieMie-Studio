@@ -55,6 +55,9 @@ def _summarize_media_url(url: str) -> str:
 async def _ensure_generated_images_persisted(
     images: List[StudioTaskImage],
     project_id: str,
+    model_id: str = "",
+    request_ids: Optional[List[str]] = None,
+    task_ids: Optional[List[str]] = None,
 ) -> List[str]:
     """在写入任务前统一将生成结果转存到当前 OSS。"""
     if not images or not oss_service.is_enabled():
@@ -88,6 +91,17 @@ async def _ensure_generated_images_persisted(
         except Exception as exc:
             failed_url_cache[original_url] = str(exc)
             image.url = None
+            parsed = urlparse(original_url)
+            logger.warning(
+                "[OSS][studio] persist failed model_id=%s project_id=%s request_ids=%s task_ids=%s original_host=%s oss_enabled=%s reason=%s",
+                model_id or "unknown",
+                project_id or "_global",
+                ",".join(request_ids or []) or "-",
+                ",".join(task_ids or []) or "-",
+                parsed.netloc or "unknown",
+                oss_service.is_enabled(),
+                str(exc),
+            )
             errors.append(str(exc))
 
     return errors
@@ -797,6 +811,8 @@ def _build_provider_payload(
                 "seed": seed,
             }
         )
+        if effective_bbox_list is not None:
+            normalized_params["bbox_list"] = effective_bbox_list
         input_assets = {
             "images": ref_urls,
         }
@@ -1547,7 +1563,13 @@ async def _background_generate(
                 seed=seed,
             )
 
-        persist_errors = await _ensure_generated_images_persisted(images, task.project_id)
+        persist_errors = await _ensure_generated_images_persisted(
+            images,
+            task.project_id,
+            model_id=task.model,
+            request_ids=request_ids,
+            task_ids=task_ids or task.task_ids,
+        )
         if persist_errors:
             existing_errors = getattr(task, "_group_errors", [])
             task._group_errors = existing_errors + persist_errors
@@ -1678,10 +1700,19 @@ async def generate_with_wan27_image(
                 for url in status.result or []:
                     final_url = url
                     if oss_service.is_enabled():
-                        try:
-                            final_url = await oss_service.upload_image_async(url, task.project_id)
-                        except Exception as exc:
-                            logger.warning(f"wan2.7 输出转存 OSS 失败，继续使用原始 URL: {exc}")
+                        final_url = await oss_service.upload_image_async(url, task.project_id)
+                        if final_url == url and oss_service.should_persist_generated_url(url):
+                            parsed = urlparse(url)
+                            logger.warning(
+                                "[OSS][studio] initial persist fallback model_id=%s project_id=%s request_ids=%s task_ids=%s original_host=%s oss_enabled=%s reason=%s",
+                                task.model or "unknown",
+                                task.project_id or "_global",
+                                ",".join([rid for rid in [submit_request_id, (status.metadata or {}).get("request_id")] if rid]) or "-",
+                                external_task_id,
+                                parsed.netloc or "unknown",
+                                oss_service.is_enabled(),
+                                "upload_image_async returned original url",
+                            )
                     final_urls.append(final_url)
 
                 images = [

@@ -18,7 +18,7 @@ MieMie-Studio 提供了交互式控制面板，运行 `./run.sh` 即可打开：
   3)  重启服务        — 先停止再启动，更新代码后需要重启
   4)  查看状态        — 检查服务和环境是否正常
   5)  查看日志        — 查看后端或前端运行日志
-  6)  更新到最新版本  — 从 GitHub 拉取最新代码
+  6)  更新到最新版本  — 拉取最新代码并自动应用到当前运行服务
   7)  自动更新设置    — 开启后每天自动检查并更新
   8)  版本回滚        — 更新后遇到问题？回退到上一个版本
   9)  安装/维护       — 安装依赖、清理缓存、重置环境
@@ -34,7 +34,8 @@ MieMie-Studio 提供了交互式控制面板，运行 `./run.sh` 即可打开：
 ./run.sh stop            # 停止
 ./run.sh restart --prod  # 重启生产模式
 ./run.sh status          # 查看状态
-./run.sh update          # 手动更新
+./run.sh update          # 手动更新（仅拉代码）
+./run.sh update --apply  # 手动更新并立即应用到当前运行服务
 ```
 
 其中：
@@ -49,15 +50,25 @@ MieMie-Studio 提供了交互式控制面板，运行 `./run.sh` 即可打开：
 ### 手动更新
 
 ```bash
-./run.sh update
+./run.sh update --apply
 ```
 
 更新过程自动执行以下步骤：
 1. 备份用户数据（`backend/data/` → `backups/pre_update_日期`）
-2. 检测本地未提交的更改，询问是否暂存（`git stash`）
-3. 从 GitHub 拉取最新代码
-4. 检测 `requirements.txt` 或 `package.json` 是否变化，自动更新依赖
-5. 提示用户重启服务
+2. 记录更新前的运行模式与 commit
+3. 检测本地未提交的更改，询问是否暂存（`git stash`）
+4. 从 GitHub 拉取最新代码
+5. 比较“更新前 commit → 更新后 commit”是否涉及 `requirements.txt`、`frontend/package.json` 或 lockfile，并自动刷新依赖
+6. 如果服务原本正在运行，则按更新前的实际模式自动重启
+7. 通过 `GET /api/health` 校验运行中的进程是否已经切到最新 commit / mode
+
+如果你只是在命令行执行：
+
+```bash
+./run.sh update
+```
+
+则脚本只会拉取代码，不会自动重启服务。
 
 ### 自动更新
 
@@ -74,7 +85,8 @@ MieMie-Studio 提供了交互式控制面板，运行 `./run.sh` 即可打开：
 
 自动更新的额外行为：
 - 本地更改自动暂存（`git stash`）
-- 如果服务正在运行，更新完成后自动重启
+- 如果服务正在运行，更新完成后会按更新前的实际模式自动重启
+- 重启后会读取 `GET /api/health` 校验 `git_commit / run_mode / serve_frontend`
 - 更新日志写入 `logs/update.log`
 
 ### 更新日志查看
@@ -166,6 +178,18 @@ tail -50 backend/logs/api_$(date +%Y%m%d).log
 curl http://localhost:8000/api/health
 ```
 
+健康检查返回示例：
+
+```json
+{
+  "status": "ok",
+  "git_commit": "<运行中进程的 commit>",
+  "run_mode": "prod",
+  "serve_frontend": true,
+  "started_at": "2026-04-19T08:00:00Z"
+}
+```
+
 ### 常见问题及解决方案
 
 #### 问题：页面打不开（白屏）
@@ -176,6 +200,8 @@ curl http://localhost:8000/api/health
 # 重新构建并重启
 ./run.sh restart --prod
 ```
+
+如果 `./run.sh status` 中“前端方式”不是“静态构建（后端统一服务）”，说明服务器没有以生产模式稳定提供前端页面。
 
 #### 问题：登录后提示"登录已过期"
 
@@ -215,6 +241,26 @@ lsof -i :8000
 
 # 如果机器资源较小，先应用推荐配置再启动
 ./run.sh optimize
+```
+
+#### 问题：明明已更新代码，但线上效果像旧版本
+
+优先检查以下三项：
+
+```bash
+./run.sh status
+curl http://127.0.0.1:8000/api/health
+tail -50 logs/update.log
+```
+
+- `./run.sh status` 会显示“默认模式 / 实际模式 / 当前提交 / 前端方式”
+- `GET /api/health` 会返回运行中进程自报的 `git_commit` 与 `run_mode`
+- `logs/update.log` 会记录更新后健康校验是否通过
+
+服务器建议长期运行在 `prod`。如果实际模式显示为 `dev`，请执行：
+
+```bash
+./run.sh restart --prod
 ```
 
 #### 问题：生成任务一直"处理中"

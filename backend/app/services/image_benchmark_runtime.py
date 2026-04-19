@@ -6,9 +6,11 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import asdict
 import json
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import urlparse
 
 from fastapi import HTTPException
 import asyncio
@@ -23,6 +25,7 @@ from app.models.studio import StudioTask, StudioTaskImage
 from app.routers import studio as studio_router
 from app.services.oss import oss_service
 
+logger = logging.getLogger(__name__)
 
 BENCHMARK_TASK_KINDS = {"text_to_image", "image_edit", "interactive_edit"}
 CONFIGURABLE_PARAM_EXCLUDES = {"prompt", "images"}
@@ -367,6 +370,9 @@ def _merge_unique_ids(existing: List[str], incoming: List[str]) -> List[str]:
 async def _ensure_benchmark_images_persisted(
     images: List[StudioTaskImage],
     project_id: str,
+    model_id: str = "",
+    request_ids: Optional[List[str]] = None,
+    task_ids: Optional[List[str]] = None,
 ) -> List[str]:
     """在测评结果写入前，统一将输出图片转存到当前 OSS。"""
     if not images or not oss_service.is_enabled():
@@ -400,6 +406,17 @@ async def _ensure_benchmark_images_persisted(
         except Exception as exc:
             failed_url_cache[original_url] = str(exc)
             image.url = None
+            parsed = urlparse(original_url)
+            logger.warning(
+                "[OSS][image_benchmark] persist failed model_id=%s project_id=%s request_ids=%s task_ids=%s original_host=%s oss_enabled=%s reason=%s",
+                model_id or "unknown",
+                project_id or "_global",
+                ",".join(request_ids or []) or "-",
+                ",".join(task_ids or []) or "-",
+                parsed.netloc or "unknown",
+                oss_service.is_enabled(),
+                str(exc),
+            )
             errors.append(str(exc))
 
     return errors
@@ -438,11 +455,13 @@ async def _execute_benchmark_cell_once(
 
     ref_urls = _extract_case_ref_urls(case_data)
     canonical_size = (canonical_request.get("normalized_params") or {}).get("size") or (provider_payload.get("parameters") or {}).get("size")
+    normalized_params = canonical_request.get("normalized_params") or {}
+    provider_parameters = provider_payload.get("parameters") or {}
     normalized_bbox_list = (
-        (canonical_request.get("normalized_params") or {}).get("bbox_list") or []
-        if (canonical_request.get("task_kind") or task_kind) == "interactive_edit"
-        else []
-    )
+        normalized_params.get("bbox_list")
+        if "bbox_list" in normalized_params
+        else provider_parameters.get("bbox_list")
+    ) if (canonical_request.get("task_kind") or task_kind) == "interactive_edit" else []
     normalized_color_palette = (canonical_request.get("normalized_params") or {}).get("color_palette") or []
     task = StudioTask(
         project_id=project_id,
@@ -581,7 +600,13 @@ async def _execute_benchmark_cell_once(
             provider_result_meta=provider_result_meta,
         )
 
-    persist_errors = await _ensure_benchmark_images_persisted(images, project_id)
+    persist_errors = await _ensure_benchmark_images_persisted(
+        images,
+        project_id,
+        model_id=model_id,
+        request_ids=request_ids,
+        task_ids=task_ids,
+    )
     valid_images = [image for image in images if image.url]
     group_errors = getattr(task, "_group_errors", [])
     if persist_errors:

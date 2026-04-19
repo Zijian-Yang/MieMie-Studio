@@ -181,7 +181,12 @@ class TestMiddleware:
         """基础: 健康检查端点可访问"""
         resp = client.get("/api/health")
         assert resp.status_code == 200
-        assert resp.json() == {"status": "ok"}
+        data = resp.json()
+        assert data["status"] == "ok"
+        assert "git_commit" in data
+        assert data["run_mode"] in {"dev", "prod"}
+        assert isinstance(data["serve_frontend"], bool)
+        assert data["started_at"]
 
     def test_public_paths_no_auth(self, client):
         """Fix-02: 公开路径不需要 token"""

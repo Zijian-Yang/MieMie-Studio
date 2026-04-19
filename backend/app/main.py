@@ -3,6 +3,8 @@ AI 视频生成平台 - FastAPI 后端入口
 """
 
 import os
+import subprocess
+from datetime import datetime, timezone
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -28,6 +30,27 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 
 # 生产模式标志（提前定义，供 CORS 和静态文件使用）
 SERVE_FRONTEND = os.environ.get("MIEMIE_SERVE_FRONTEND", "").lower() in ("true", "1", "yes")
+APP_STARTED_AT = os.environ.get("MIEMIE_RUNTIME_STARTED_AT") or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _resolve_runtime_git_commit() -> str:
+    env_value = os.environ.get("MIEMIE_RUNTIME_GIT_COMMIT")
+    if env_value:
+        return env_value
+
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    try:
+        return subprocess.check_output(
+            ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except Exception:
+        return "unknown"
+
+
+RUNTIME_GIT_COMMIT = _resolve_runtime_git_commit()
+RUNTIME_RUN_MODE = os.environ.get("MIEMIE_RUNTIME_RUN_MODE") or ("prod" if SERVE_FRONTEND else "dev")
 
 # 创建 FastAPI 应用
 app = FastAPI(
@@ -104,7 +127,13 @@ app.include_router(models.router, prefix="/api/models", tags=["模型配置"])
 @app.get("/api/health")
 async def health_check():
     """健康检查"""
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "git_commit": RUNTIME_GIT_COMMIT,
+        "run_mode": RUNTIME_RUN_MODE,
+        "serve_frontend": SERVE_FRONTEND,
+        "started_at": APP_STARTED_AT,
+    }
 
 
 # ──────────────────────────────────────

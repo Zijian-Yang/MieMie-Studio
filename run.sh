@@ -40,8 +40,10 @@ LOG_DIR="$PROJECT_DIR/logs"
 BACKEND_LOG="$LOG_DIR/backend.log"
 FRONTEND_LOG="$LOG_DIR/frontend.log"
 
-# 运行模式：dev (默认) 或 prod
-RUN_MODE="${MIEMIE_MODE:-dev}"
+# 默认运行模式：环境变量优先，其次读取持久化配置，最终默认 prod
+DEFAULT_RUN_MODE="${MIEMIE_DEFAULT_MODE:-prod}"
+# 当前运行模式：环境变量优先，其次使用默认运行模式
+RUN_MODE="${MIEMIE_MODE:-$DEFAULT_RUN_MODE}"
 
 # ======================
 # 工具函数
@@ -302,6 +304,26 @@ check_lsof() {
     ensure_lsof || exit 1
 }
 
+# 确保 curl 已安装（健康检查与更新校验依赖）
+ensure_curl() {
+    if command -v curl &> /dev/null; then
+        return 0
+    fi
+
+    log_warn "curl 未安装，正在自动安装..."
+
+    case "$(detect_pkg_manager)" in
+        apt)      auto_install_package "curl" "curl" ;;
+        yum|dnf)  auto_install_package "curl" "curl" ;;
+        brew)     auto_install_package "curl" "curl" ;;
+        pacman)   auto_install_package "curl" "curl" ;;
+        *)
+            log_error "curl 未安装，请手动安装"
+            return 1
+            ;;
+    esac
+}
+
 # 确保 FFmpeg/FFprobe 已安装（视频尾帧提取、视频拼接、视频编辑依赖）
 ensure_ffmpeg() {
     if command -v ffmpeg &> /dev/null && command -v ffprobe &> /dev/null; then
@@ -488,6 +510,24 @@ install_frontend_deps() {
     log_success "前端依赖安装完成"
 }
 
+refresh_backend_deps() {
+    log_info "刷新后端依赖..."
+    check_ffmpeg
+    create_venv
+    "$VENV_DIR/bin/pip" install -r "$PROJECT_DIR/requirements.txt"
+    log_success "后端依赖已刷新"
+}
+
+refresh_frontend_deps() {
+    log_info "刷新前端依赖..."
+    check_node
+    check_npm
+    cd "$FRONTEND_DIR"
+    npm install
+    cd "$PROJECT_DIR"
+    log_success "前端依赖已刷新"
+}
+
 install_all_deps() {
     maybe_offer_performance_profile "install" "false"
     install_backend_deps
@@ -514,12 +554,24 @@ PERF_PROFILE_APPLIED="false"
 PERF_PROFILE_SIGNATURE=""
 SWAPFILE_PATH="/swapfile.miemie"
 
+normalize_run_mode() {
+    case "$1" in
+        dev|prod)
+            echo "$1"
+            ;;
+        *)
+            echo "prod"
+            ;;
+    esac
+}
+
 # 从配置文件加载持久化设置
 load_config() {
     local env_backend_port="${MIEMIE_BACKEND_PORT:-}"
     local env_frontend_port="${MIEMIE_FRONTEND_PORT:-}"
     local env_workers="$ENV_MIEMIE_WORKERS"
     local env_node_build_memory_mb="$ENV_NODE_BUILD_MEMORY_MB"
+    local env_default_run_mode="${MIEMIE_DEFAULT_MODE:-}"
 
     if [ -f "$MIEMIE_CONF" ]; then
         source "$MIEMIE_CONF"
@@ -530,12 +582,19 @@ load_config() {
     FRONTEND_PORT="${env_frontend_port:-$FRONTEND_PORT}"
     MIEMIE_WORKERS="${env_workers:-$MIEMIE_WORKERS}"
     NODE_BUILD_MEMORY_MB="${env_node_build_memory_mb:-$NODE_BUILD_MEMORY_MB}"
+    DEFAULT_RUN_MODE="$(normalize_run_mode "${env_default_run_mode:-$DEFAULT_RUN_MODE}")"
+    if [ -n "${MIEMIE_MODE:-}" ]; then
+        RUN_MODE="$(normalize_run_mode "$MIEMIE_MODE")"
+    else
+        RUN_MODE="$DEFAULT_RUN_MODE"
+    fi
 }
 
 # 保存设置到配置文件
 save_config() {
     cat > "$MIEMIE_CONF" << EOF
 # MieMie-Studio 运行配置（自动生成，勿手动编辑）
+DEFAULT_RUN_MODE="$DEFAULT_RUN_MODE"
 LISTEN_HOST="$LISTEN_HOST"
 ALLOWED_DOMAINS="$ALLOWED_DOMAINS"
 BACKEND_PORT="$BACKEND_PORT"
@@ -546,6 +605,14 @@ PERF_PROFILE_APPLIED="$PERF_PROFILE_APPLIED"
 PERF_PROFILE_SIGNATURE="$PERF_PROFILE_SIGNATURE"
 SWAPFILE_PATH="$SWAPFILE_PATH"
 EOF
+}
+
+set_default_run_mode() {
+    DEFAULT_RUN_MODE="$(normalize_run_mode "$1")"
+    if [ -z "${MIEMIE_MODE:-}" ]; then
+        RUN_MODE="$DEFAULT_RUN_MODE"
+    fi
+    save_config
 }
 
 # 获取服务器本机 IP（非 127.0.0.1 的第一个 IPv4 地址）
@@ -944,6 +1011,193 @@ maybe_offer_performance_profile() {
 # 初始加载配置
 load_config
 
+get_current_git_commit() {
+    git -C "$PROJECT_DIR" rev-parse HEAD 2>/dev/null || echo "unknown"
+}
+
+get_current_git_short_commit() {
+    git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown"
+}
+
+get_runtime_pid_command() {
+    local pid="$1"
+    ps -p "$pid" -o command= 2>/dev/null | sed 's/^[[:space:]]*//'
+}
+
+detect_pid_run_mode() {
+    local pid="$1"
+    local command_line=""
+
+    if [ -z "$pid" ]; then
+        return 0
+    fi
+
+    command_line="$(get_runtime_pid_command "$pid")"
+
+    if echo "$command_line" | grep -q "gunicorn"; then
+        echo "prod"
+        return 0
+    fi
+
+    if echo "$command_line" | grep -q "uvicorn"; then
+        echo "dev"
+    fi
+}
+
+get_actual_run_mode() {
+    local backend_pid=""
+    local actual_mode=""
+
+    backend_pid=$(get_port_pid "$BACKEND_PORT")
+    actual_mode="$(detect_pid_run_mode "$backend_pid")"
+    if [ -n "$actual_mode" ]; then
+        echo "$actual_mode"
+        return 0
+    fi
+
+    if is_frontend_running || [ -n "$(get_port_pid "$FRONTEND_PORT")" ]; then
+        echo "dev"
+        return 0
+    fi
+}
+
+get_effective_run_mode() {
+    local actual_mode=""
+    actual_mode="$(get_actual_run_mode)"
+    if [ -n "$actual_mode" ]; then
+        echo "$actual_mode"
+    else
+        echo "$DEFAULT_RUN_MODE"
+    fi
+}
+
+get_frontend_service_mode() {
+    local actual_mode=""
+    actual_mode="$(get_actual_run_mode)"
+
+    if [ "$actual_mode" = "prod" ]; then
+        if [ -d "$FRONTEND_DIR/dist" ] && [ -f "$FRONTEND_DIR/dist/index.html" ]; then
+            if [ -n "$(get_port_pid "$BACKEND_PORT")" ]; then
+                echo "静态构建（后端统一服务）"
+            else
+                echo "静态构建已就绪（后端未运行）"
+            fi
+        else
+            echo "生产静态文件缺失"
+        fi
+        return 0
+    fi
+
+    if [ "$actual_mode" = "dev" ]; then
+        if is_frontend_running || [ -n "$(get_port_pid "$FRONTEND_PORT")" ]; then
+            echo "Vite 开发服务器"
+        else
+            echo "开发前端未运行"
+        fi
+        return 0
+    fi
+
+    if [ -d "$FRONTEND_DIR/dist" ] && [ -f "$FRONTEND_DIR/dist/index.html" ]; then
+        echo "静态构建已存在（当前未运行）"
+    else
+        echo "未运行"
+    fi
+}
+
+json_extract_string_field() {
+    local json="$1"
+    local field="$2"
+    echo "$json" | sed -n "s/.*\"${field}\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p" | head -n 1
+}
+
+json_extract_bool_field() {
+    local json="$1"
+    local field="$2"
+    echo "$json" | sed -n "s/.*\"${field}\"[[:space:]]*:[[:space:]]*\\(true\\|false\\).*/\\1/p" | head -n 1
+}
+
+get_runtime_reported_commit() {
+    local health_json=""
+    local runtime_commit=""
+
+    if [ -z "$(get_port_pid "$BACKEND_PORT")" ] || ! command -v curl &> /dev/null; then
+        return 0
+    fi
+
+    health_json="$(curl -fsS --max-time 2 "http://127.0.0.1:${BACKEND_PORT}/api/health" 2>/dev/null || true)"
+    runtime_commit="$(json_extract_string_field "$health_json" "git_commit")"
+    if [ -n "$runtime_commit" ]; then
+        echo "$runtime_commit"
+    fi
+}
+
+get_commit_for_status_display() {
+    local runtime_commit=""
+    runtime_commit="$(get_runtime_reported_commit)"
+    if [ -n "$runtime_commit" ]; then
+        echo "$runtime_commit"
+    else
+        get_current_git_commit
+    fi
+}
+
+get_short_commit_for_status_display() {
+    local commit=""
+    commit="$(get_commit_for_status_display)"
+    if [ -n "$commit" ] && [ "$commit" != "unknown" ]; then
+        echo "${commit:0:8}"
+    else
+        echo "unknown"
+    fi
+}
+
+verify_backend_runtime_applied() {
+    local expected_commit="$1"
+    local expected_mode="$2"
+    local expected_serve_frontend="$3"
+    local attempt=0
+    local max_attempts=15
+    local health_json=""
+    local health_status=""
+    local health_commit=""
+    local health_mode=""
+    local health_serve_frontend=""
+
+    ensure_curl || {
+        log_warn "curl 不可用，跳过更新后健康校验"
+        return 0
+    }
+
+    while [ $attempt -lt $max_attempts ]; do
+        health_json="$(curl -fsS --max-time 5 "http://127.0.0.1:${BACKEND_PORT}/api/health" 2>/dev/null || true)"
+        if [ -n "$health_json" ]; then
+            health_status="$(json_extract_string_field "$health_json" "status")"
+            health_commit="$(json_extract_string_field "$health_json" "git_commit")"
+            health_mode="$(json_extract_string_field "$health_json" "run_mode")"
+            health_serve_frontend="$(json_extract_bool_field "$health_json" "serve_frontend")"
+
+            if [ "$health_status" = "ok" ] &&
+               [ "$health_commit" = "$expected_commit" ] &&
+               [ "$health_mode" = "$expected_mode" ] &&
+               [ "$health_serve_frontend" = "$expected_serve_frontend" ]; then
+                log_success "健康检查通过：当前进程已运行最新代码 ($health_mode @ ${health_commit:0:8})"
+                return 0
+            fi
+        fi
+
+        attempt=$((attempt + 1))
+        sleep 2
+    done
+
+    log_error "更新后健康校验失败：运行中的进程未确认切换到最新代码"
+    if [ -n "$health_json" ]; then
+        echo "  健康检查返回: $health_json"
+    else
+        echo "  健康检查返回: 无响应"
+    fi
+    return 1
+}
+
 # ======================
 # 服务状态检查
 # ======================
@@ -1031,10 +1285,15 @@ start_backend() {
     
     # 创建日志目录
     mkdir -p "$LOG_DIR"
-    
+
     # 清空旧日志（避免混淆）
     > "$BACKEND_LOG"
-    
+
+    local runtime_commit
+    local runtime_started_at
+    runtime_commit="$(get_current_git_commit)"
+    runtime_started_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
     log_info "启动后端服务 (模式: $RUN_MODE)..."
     if [ "$RUN_MODE" = "prod" ]; then
         local worker_count
@@ -1051,6 +1310,9 @@ start_backend() {
             export MIEMIE_SERVE_FRONTEND=true
             export MIEMIE_FRONTEND_PORT=$FRONTEND_PORT
             export MIEMIE_WORKERS=$worker_count
+            export MIEMIE_RUNTIME_GIT_COMMIT='$runtime_commit'
+            export MIEMIE_RUNTIME_RUN_MODE='prod'
+            export MIEMIE_RUNTIME_STARTED_AT='$runtime_started_at'
             gunicorn app.main:app \
                 -w \$MIEMIE_WORKERS \
                 -k uvicorn.workers.UvicornWorker \
@@ -1066,6 +1328,9 @@ start_backend() {
             cd '$BACKEND_DIR'
             source '$VENV_DIR/bin/activate'
             export MIEMIE_FRONTEND_PORT=$FRONTEND_PORT
+            export MIEMIE_RUNTIME_GIT_COMMIT='$runtime_commit'
+            export MIEMIE_RUNTIME_RUN_MODE='dev'
+            export MIEMIE_RUNTIME_STARTED_AT='$runtime_started_at'
             uvicorn app.main:app --reload --host $LISTEN_HOST --port $BACKEND_PORT 2>&1 | tee -a '$BACKEND_LOG'
         "
     fi
@@ -1293,6 +1558,17 @@ stop_all() {
 
 show_status() {
     check_lsof
+    local actual_mode
+    local actual_mode_display
+    local current_commit
+    local frontend_mode
+    local status_mode
+    actual_mode="$(get_actual_run_mode)"
+    actual_mode_display="${actual_mode:-未运行}"
+    status_mode="${actual_mode:-$DEFAULT_RUN_MODE}"
+    current_commit="$(get_short_commit_for_status_display)"
+    frontend_mode="$(get_frontend_service_mode)"
+
     echo ""
     echo -e "  ${BOLD}服务状态${NC}"
     echo -e "  ${DIM}──────────────────────────────────────────────${NC}"
@@ -1306,6 +1582,10 @@ show_status() {
     else
         echo -e "  公网访问    ${RED}○ 已关闭${NC}   仅本机可访问"
     fi
+    echo -e "  默认模式    ${CYAN}${DEFAULT_RUN_MODE}${NC}"
+    echo -e "  实际模式    ${CYAN}${actual_mode_display}${NC}"
+    echo -e "  当前提交    ${CYAN}${current_commit}${NC}"
+    echo -e "  前端方式    ${CYAN}${frontend_mode}${NC}"
     echo -e "  Workers     ${CYAN}${MIEMIE_WORKERS:-自动}${NC}"
     echo -e "  构建内存    ${CYAN}${NODE_BUILD_MEMORY_MB:-自动}MB${NC}"
     
@@ -1320,7 +1600,7 @@ show_status() {
     fi
     
     # 前端状态
-    if [ "$RUN_MODE" = "prod" ]; then
+    if [ "$status_mode" = "prod" ]; then
         if [ -d "$FRONTEND_DIR/dist" ] && [ -f "$FRONTEND_DIR/dist/index.html" ]; then
             echo -e "  前端服务    ${GREEN}● 已构建${NC}   由后端统一服务"
         else
@@ -1427,15 +1707,60 @@ show_logs() {
 # 更新项目
 # ======================
 
+get_git_remote_branch() {
+    if git rev-parse --verify origin/main >/dev/null 2>&1; then
+        echo "main"
+    else
+        echo "master"
+    fi
+}
+
+backend_deps_changed_between_commits() {
+    local previous_commit="$1"
+    local current_commit="$2"
+    git diff --name-only "$previous_commit" "$current_commit" -- requirements.txt 2>/dev/null | grep -q .
+}
+
+frontend_deps_changed_between_commits() {
+    local previous_commit="$1"
+    local current_commit="$2"
+    git diff --name-only "$previous_commit" "$current_commit" -- \
+        frontend/package.json \
+        frontend/package-lock.json \
+        frontend/npm-shrinkwrap.json \
+        frontend/yarn.lock \
+        frontend/pnpm-lock.yaml \
+        backend/package-lock.json \
+        2>/dev/null | grep -q .
+}
+
 update_project() {
     local is_auto=false
+    local should_apply=false
     for arg in "$@"; do
-        if [ "$arg" = "--auto" ]; then
-            is_auto=true
-        fi
+        case "$arg" in
+            --auto)
+                is_auto=true
+                ;;
+            --apply)
+                should_apply=true
+                ;;
+        esac
     done
 
     log_info "检查更新... $(date '+%Y-%m-%d %H:%M:%S')"
+
+    local previous_commit new_commit remote_branch remote_ref
+    local previous_mode created_stash=false stash_label=""
+    local was_running=false should_restart=false expected_serve_frontend="false"
+    previous_commit="$(get_current_git_commit)"
+    previous_mode="$(get_effective_run_mode)"
+    remote_branch="$(get_git_remote_branch)"
+    remote_ref="origin/$remote_branch"
+
+    if is_backend_running || is_frontend_running || [ -n "$(get_port_pid "$BACKEND_PORT")" ] || [ -n "$(get_port_pid "$FRONTEND_PORT")" ]; then
+        was_running=true
+    fi
 
     # 备份用户数据
     mkdir -p "$BACKUP_DIR"
@@ -1453,9 +1778,11 @@ update_project() {
 
     # 检查是否有未提交的更改
     if ! git diff --quiet 2>/dev/null; then
+        stash_label="miemie-update-$(date +%Y%m%d_%H%M%S)"
         if $is_auto; then
             log_info "自动更新：暂存本地更改..."
-            git stash
+            git stash push -u -m "$stash_label"
+            created_stash=true
         else
             log_warn "检测到本地有未提交的更改"
             echo ""
@@ -1468,7 +1795,8 @@ update_project() {
                 return 0
             fi
             log_info "暂存本地更改..."
-            git stash
+            git stash push -u -m "$stash_label"
+            created_stash=true
         fi
     fi
 
@@ -1476,55 +1804,78 @@ update_project() {
     git fetch origin
 
     LOCAL=$(git rev-parse HEAD)
-    REMOTE=$(git rev-parse origin/main 2>/dev/null || git rev-parse origin/master)
+    REMOTE=$(git rev-parse "$remote_ref")
 
     if [ "$LOCAL" = "$REMOTE" ]; then
         log_success "已是最新版本"
-        git stash pop 2>/dev/null || true
+        if $created_stash; then
+            local stash_ref
+            stash_ref=$(git stash list | awk -v label="$stash_label" '$0 ~ label {gsub(":", "", $1); print $1; exit}')
+            if [ -n "$stash_ref" ]; then
+                git stash pop "$stash_ref" 2>/dev/null || true
+            fi
+        fi
         return 0
     fi
 
     log_info "发现新版本，更新内容:"
-    git log --oneline HEAD..origin/main 2>/dev/null || git log --oneline HEAD..origin/master
+    git log --oneline "HEAD..$remote_ref"
     echo ""
 
     log_info "正在更新..."
-    git pull origin main 2>/dev/null || git pull origin master
-
-    if git stash list | grep -q "stash@{0}"; then
-        log_info "恢复本地更改..."
-        git stash pop || {
-            log_warn "自动合并失败，请手动解决冲突"
-            log_info "使用 'git stash pop' 查看暂存的更改"
-        }
-    fi
+    git pull origin "$remote_branch"
+    new_commit="$(get_current_git_commit)"
 
     log_info "检查依赖更新..."
-    if git diff HEAD~1 --name-only | grep -q "requirements.txt"; then
+    if backend_deps_changed_between_commits "$previous_commit" "$new_commit"; then
         log_info "检测到 Python 依赖变化，更新中..."
-        "$VENV_DIR/bin/pip" install -r "$PROJECT_DIR/requirements.txt"
+        refresh_backend_deps
     fi
-    if git diff HEAD~1 --name-only | grep -q "frontend/package.json"; then
+    if frontend_deps_changed_between_commits "$previous_commit" "$new_commit"; then
         log_info "检测到前端依赖变化，更新中..."
-        cd "$FRONTEND_DIR"
-        npm install
-        cd "$PROJECT_DIR"
+        refresh_frontend_deps
+    fi
+
+    if $created_stash; then
+        log_info "恢复本地更改..."
+        local stash_ref
+        stash_ref=$(git stash list | awk -v label="$stash_label" '$0 ~ label {gsub(":", "", $1); print $1; exit}')
+        if [ -n "$stash_ref" ]; then
+            git stash pop "$stash_ref" || {
+                log_warn "自动合并失败，请手动解决冲突"
+                log_info "使用 'git stash list' / 'git stash pop $stash_ref' 查看暂存的更改"
+            }
+        fi
     fi
 
     log_success "更新完成！"
 
-    # 自动模式下自动重启服务
-    if $is_auto; then
-        if is_backend_running || is_frontend_running; then
-            log_info "自动更新：重启服务..."
-            stop_all
-            sleep 2
-            start_all
+    should_restart=false
+    if $is_auto && $was_running; then
+        should_restart=true
+    fi
+    if $should_apply && $was_running; then
+        should_restart=true
+    fi
+
+    if $should_restart; then
+        RUN_MODE="$previous_mode"
+        set_default_run_mode "$previous_mode"
+        if [ "$RUN_MODE" = "prod" ]; then
+            expected_serve_frontend="true"
         fi
+        log_info "正在按更新前的运行模式重启服务并应用更新 ($RUN_MODE)..."
+        stop_all
+        sleep 2
+        start_all
+        verify_backend_runtime_applied "$new_commit" "$RUN_MODE" "$expected_serve_frontend"
+    elif $should_apply; then
+        echo ""
+        log_info "代码已拉取完成，但服务当前未运行；下次启动将默认使用 $DEFAULT_RUN_MODE 模式"
     else
         echo ""
-        log_info "如果服务正在运行，建议重启以应用更新："
-        echo "  ./run.sh restart"
+        log_info "代码已拉取完成；服务当前未自动重启"
+        log_info "如需立即生效，请执行: ./run.sh restart --$previous_mode"
     fi
 }
 
@@ -1964,13 +2315,17 @@ print_header() {
     echo ""
 
     # 状态栏
-    local be_status fe_status
+    local be_status fe_status actual_mode actual_mode_display short_commit status_mode
+    actual_mode="$(get_actual_run_mode)"
+    actual_mode_display="${actual_mode:-未运行}"
+    status_mode="${actual_mode:-$DEFAULT_RUN_MODE}"
+    short_commit="$(get_short_commit_for_status_display)"
     if is_backend_running; then
         be_status="${GREEN}● 运行中${NC}"
     else
         be_status="${RED}● 未运行${NC}"
     fi
-    if [ "$RUN_MODE" = "prod" ]; then
+    if [ "$status_mode" = "prod" ]; then
         if [ -d "$FRONTEND_DIR/dist" ] && [ -f "$FRONTEND_DIR/dist/index.html" ]; then
             fe_status="${GREEN}● 已构建${NC}"
         else
@@ -1983,7 +2338,7 @@ print_header() {
             fe_status="${RED}● 未运行${NC}"
         fi
     fi
-    echo -e "  后端 $be_status    前端 $fe_status    模式: ${YELLOW}$RUN_MODE${NC}"
+    echo -e "  后端 $be_status    前端 $fe_status    默认: ${YELLOW}$DEFAULT_RUN_MODE${NC}    当前: ${YELLOW}$actual_mode_display${NC}    提交: ${CYAN}$short_commit${NC}"
     echo ""
     echo -e "  ${DIM}──────────────────────────────────────────────${NC}"
     echo ""
@@ -2169,7 +2524,7 @@ menu_main() {
         echo -e "  ${GREEN}4${NC})  查看状态        ${DIM}— 检查服务和环境是否正常${NC}"
         echo -e "  ${GREEN}5${NC})  查看日志        ${DIM}— 查看后端或前端运行日志${NC}"
         echo ""
-        echo -e "  ${BLUE}6${NC})  更新到最新版本  ${DIM}— 从 GitHub 拉取作者发布的最新代码${NC}"
+        echo -e "  ${BLUE}6${NC})  更新到最新版本  ${DIM}— 拉取最新代码并自动应用到当前运行服务${NC}"
         echo -e "  ${BLUE}7${NC})  自动更新设置    ${DIM}— 开启后每天自动检查并更新${NC}"
         echo -e "  ${BLUE}8${NC})  版本回滚        ${DIM}— 更新后遇到问题？回退到上一个版本${NC}"
         echo ""
@@ -2195,7 +2550,7 @@ menu_main() {
             5) menu_logs ;;
             6)
                 echo ""
-                update_project
+                update_project --apply
                 wait_key
                 ;;
             7) menu_auto_update ;;
@@ -2225,8 +2580,8 @@ menu_start() {
     print_header
     echo -e "  ${BOLD}选择启动模式:${NC}"
     echo ""
-    echo -e "  ${GREEN}1${NC})  开发模式  ${DIM}— 日常使用推荐，支持代码热更新${NC}"
-    echo -e "  ${GREEN}2${NC})  生产模式  ${DIM}— 部署到服务器时使用，性能更好更稳定${NC}"
+    echo -e "  ${GREEN}1${NC})  开发模式  ${DIM}— 仅本地开发使用，支持代码热更新${NC}"
+    echo -e "  ${GREEN}2${NC})  生产模式  ${DIM}— 服务器推荐/默认模式，性能更好更稳定${NC}"
     echo -e "  ${RED}0${NC})  返回"
     echo ""
     read -p "  请选择 [0-2]: " choice
@@ -2234,12 +2589,14 @@ menu_start() {
     case "$choice" in
         1)
             RUN_MODE="dev"
+            set_default_run_mode "dev"
             echo ""
             start_all
             wait_key "  服务已在后台运行，按回车键返回主菜单..."
             ;;
         2)
             RUN_MODE="prod"
+            set_default_run_mode "prod"
             echo ""
             start_all
             wait_key "  服务已在后台运行，按回车键返回主菜单..."
@@ -2252,8 +2609,8 @@ menu_restart() {
     print_header
     echo -e "  ${BOLD}选择重启模式:${NC}"
     echo ""
-    echo -e "  ${GREEN}1${NC})  开发模式重启"
-    echo -e "  ${GREEN}2${NC})  生产模式重启"
+    echo -e "  ${GREEN}1${NC})  开发模式重启   ${DIM}— 仅本地调试使用${NC}"
+    echo -e "  ${GREEN}2${NC})  生产模式重启   ${DIM}— 服务器推荐/默认模式${NC}"
     echo -e "  ${RED}0${NC})  返回"
     echo ""
     read -p "  请选择 [0-2]: " choice
@@ -2261,6 +2618,7 @@ menu_restart() {
     case "$choice" in
         1)
             RUN_MODE="dev"
+            set_default_run_mode "dev"
             echo ""
             stop_all
             sleep 2
@@ -2269,6 +2627,7 @@ menu_restart() {
             ;;
         2)
             RUN_MODE="prod"
+            set_default_run_mode "prod"
             echo ""
             stop_all
             sleep 2
@@ -2413,7 +2772,7 @@ show_help() {
     echo "  status               查看服务状态"
     echo "  logs [backend|frontend]  查看日志"
     echo "  install              安装所有依赖"
-    echo "  update [--auto]      更新到最新版本"
+    echo "  update [--apply] [--auto]  更新到最新版本"
     echo "  auto-update [enable|disable|status]"
     echo "  rollback             回滚到上一个版本"
     echo "  network [on|off|status]  公网访问开关"

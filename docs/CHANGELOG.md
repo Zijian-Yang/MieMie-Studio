@@ -13,6 +13,9 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 管理脚本运行时可观测性：
+  - `GET /api/health` 新增 `git_commit`、`run_mode`、`serve_frontend`、`started_at`
+  - `./run.sh status` / TUI 状态栏新增默认模式、实际模式、当前运行提交与前端服务方式
 - 图片测评数据集导入增强：
   - `POST /api/image-benchmark/datasets/import` 新增 `migrate_images_to_oss` 参数
   - 跨环境导入时可将输入图下载并重新上传到当前用户 OSS
@@ -56,6 +59,10 @@
 - 自定义端口：支持通过 `./run.sh port backend 9000` / `./run.sh port frontend 3001` 自定义服务端口，持久化到 `.miemie.conf`，也支持环境变量 `MIEMIE_BACKEND_PORT` / `MIEMIE_FRONTEND_PORT` 覆盖
 
 ### 变更 (Changed)
+- 管理脚本：TUI 中“更新到最新版本”改为默认执行“拉取代码并自动应用到当前运行服务”
+- 管理脚本：更新流程会记录更新前实际运行模式，并在重启后校验运行中的 `git_commit / run_mode / serve_frontend`
+- 管理脚本：依赖刷新从比较 `HEAD~1` 改为比较“更新前 commit → 更新后 commit”，避免多提交更新时漏装依赖
+- 管理脚本：默认运行模式持久化到 `.miemie.conf`，服务器场景长期偏向 `prod`
 - 图片测评手动重试范围从仅 `failed` 扩展为 `failed + unsupported`，用于重试因输入图预检暂时失败而标记为 `unsupported` 的单元
 - 视频工作室：参数迁移提示只在用户主动切换模型时提示一次，创建/编辑弹窗初始化和切任务类型时不再重复弹出“已保留兼容参数”通知
 - 视频工作室：设置页支持两把 DashScope Key（测试/生产），并为 `Wan / Kling / Vidu` 分别指定当前走哪把 Key
@@ -72,6 +79,9 @@
 - 管理脚本：`./run.sh status` 新增当前 Workers 与 Node 构建内存显示
 
 ### 修复 (Fixed)
+- `wan2.7` 图片工作室与图片测评在 OSS 转存失败时补充结构化日志，便于区分“代码未生效 / OSS 配置异常 / 服务器下载超时”
+- 图片测评 `interactive_edit` 执行链路补齐 wan2.7 的 `bbox_list` 归一化快照，避免预览正确但真实提交时退化成空数组导致整批 `InvalidParameter`
+- wan2.7 任务轮询失败时改为优先读取 `output.code / output.message`，测评与工作室可直接展示厂商返回的具体错误原因
 - wan2.7 图片输入预检：
   - 支持 `data:image/...;base64,...`
   - 图片下载失败会返回 HTTP 状态、content-type、超时或协议错误

@@ -90,7 +90,7 @@ chmod +x run.sh
 |------|--------|------|
 | `MIEMIE_WORKERS` | 自动推荐 | Gunicorn Worker 数量，优先兼顾稳定性和机器内存 |
 | `NODE_BUILD_MEMORY_MB` | 自动推荐 | 前端生产构建时的 Node 内存上限（MB） |
-| `MIEMIE_MODE` | dev | 运行模式：`dev`（开发）/ `prod`（生产） |
+| `MIEMIE_MODE` | 跟随 `DEFAULT_RUN_MODE` | 临时覆盖当前运行模式：`dev`（开发）/ `prod`（生产） |
 
 设置方式：
 
@@ -103,6 +103,12 @@ export NODE_BUILD_MEMORY_MB=2048
 # 或者用脚本自动检测后持久化到 .miemie.conf
 ./run.sh optimize
 ```
+
+说明：
+
+- `DEFAULT_RUN_MODE` 会持久化到 `.miemie.conf`，服务器推荐长期保持为 `prod`
+- TUI 中选择过一次“生产模式”后，后续 TUI 更新/重启会默认沿用该模式
+- `MIEMIE_MODE` 只覆盖当前命令，不会替代持久化默认值
 
 ### 推荐策略
 
@@ -164,6 +170,16 @@ server {
         expires 30d;
         add_header Cache-Control "public, immutable";
     }
+
+    # API 不缓存，避免轮询/状态接口被 CDN 或代理复用
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        add_header Cache-Control "no-store";
+    }
 }
 ```
 
@@ -176,6 +192,22 @@ your-domain.com {
 ```
 
 Caddy 会自动处理 SSL 证书（通过 Let's Encrypt）。
+
+### Cloudflare 提速建议
+
+推荐链路：
+
+```text
+Cloudflare -> Nginx/Caddy -> 127.0.0.1:8000 -> Gunicorn/UvicornWorker
+```
+
+建议项：
+
+- 源站长期运行 `./run.sh start --prod`，不要把 Vite 开发服务直接暴露到公网
+- Cloudflare 开启 `HTTP/2`、`HTTP/3`、`Brotli`
+- 对 `/_static/*` 启用缓存；对 `/api/*` 保持绕过缓存
+- Nginx/Caddy 仅回源到 `127.0.0.1:8000`
+- 小内存实例先执行 `./run.sh optimize`，降低构建和重启时卡死概率
 
 ---
 
@@ -286,6 +318,20 @@ lsof -i :8000
 ./run.sh restart --prod
 ```
 
+### 更新后确认最新代码已生效
+
+```bash
+./run.sh update --apply
+curl http://127.0.0.1:8000/api/health
+./run.sh status
+```
+
+校验要点：
+
+- `GET /api/health` 中的 `git_commit` 应与当前 `git rev-parse HEAD` 一致
+- `run_mode` 在服务器上应为 `prod`
+- `./run.sh status` 中“前端方式”应显示“静态构建（后端统一服务）”
+
 ### 需要回滚到旧版本
 
 ```bash
@@ -299,12 +345,12 @@ lsof -i :8000
 ### 开发模式 vs 生产模式
 
 ```
-开发模式 (dev):
+开发模式 (dev，建议仅本地开发):
   浏览器 -> Vite(3000) --proxy--> FastAPI(8000)
                                       ↓
                                    Uvicorn (单 worker, 热重载)
 
-生产模式 (prod):
+生产模式 (prod，服务器推荐):
   浏览器 -> [Nginx(443)] -> FastAPI(8000)
                                 ↓
                            Gunicorn (多 worker)
