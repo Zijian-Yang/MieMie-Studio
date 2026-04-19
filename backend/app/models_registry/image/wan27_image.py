@@ -472,9 +472,9 @@ class Wan27ImageService(BaseModelService[List[str]]):
 
         request_id = result.get("request_id")
         usage = result.get("usage") or {}
-        code = result.get("code")
-        message = result.get("message")
         output = result.get("output") or {}
+        code = result.get("code") or output.get("code")
+        message = result.get("message") or output.get("message")
         task_status = output.get("task_status") or "UNKNOWN"
 
         if task_status in {"PENDING", "RUNNING"}:

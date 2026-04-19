@@ -754,6 +754,53 @@ async def test_wan27_async_create_uses_image_generation_endpoint(monkeypatch):
     assert captured["url"].endswith("/services/aigc/image-generation/generation")
     assert captured["headers"]["X-DashScope-Async"] == "enable"
     assert captured["payload"]["model"] == "wan2.7-image-pro"
+    assert captured["payload"]["parameters"]["bbox_list"] == [
+        [[0, 0, 10, 10]],
+        [[5, 5, 20, 20]],
+    ]
+
+
+@pytest.mark.asyncio
+async def test_wan27_get_task_status_reads_failed_output_message(monkeypatch):
+    class MockResponse:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {
+                "request_id": "req-456",
+                "output": {
+                    "task_id": "task-456",
+                    "task_status": "FAILED",
+                    "code": "InvalidParameter",
+                    "message": "bbox_list length (0) must match the number of input images (2).",
+                },
+            }
+
+    class MockAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url, headers=None):
+            return MockResponse()
+
+    monkeypatch.setattr("app.models_registry.image.wan27_image.httpx.AsyncClient", MockAsyncClient)
+
+    service = Wan27ImageService()
+    service.configure("sk-test")
+
+    result = await service.get_task_status("task-456")
+
+    assert result.status.value == "failed"
+    assert result.error_message == "bbox_list length (0) must match the number of input images (2)."
+    assert result.metadata["error_code"] == "InvalidParameter"
+    assert result.metadata["error_message"] == "bbox_list length (0) must match the number of input images (2)."
 
 
 @pytest.mark.asyncio

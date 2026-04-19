@@ -494,6 +494,7 @@ def test_preview_cell_builds_wan27_interactive_edit_payload(client, auth_header,
     assert resp.status_code == 200
     data = resp.json()
     assert data["canonical_request"]["task_kind"] == "interactive_edit"
+    assert data["canonical_request"]["normalized_params"]["bbox_list"] == [[], [[0, 20, 320, 240]]]
     assert data["provider_payload"]["parameters"]["bbox_list"] == [[], [[0, 20, 320, 240]]]
 
 
@@ -634,6 +635,69 @@ async def test_execute_cell_ignores_legacy_bbox_for_wan27_image_edit(monkeypatch
     assert captured["task_kind"] == "image_edit"
     assert captured["bbox_list"] is None
     assert "bbox_list" not in result.provider_payload["parameters"]
+
+
+@pytest.mark.asyncio
+async def test_execute_cell_passes_normalized_bbox_for_wan27_interactive_edit(monkeypatch):
+    from app.models.studio import StudioTaskImage
+    from app.services.image_benchmark_runtime import _execute_benchmark_cell_once
+
+    async def mock_inspect_remote_image(url):
+        if url.endswith("ref1.png"):
+            return {
+                "format": "PNG",
+                "width": 320,
+                "height": 320,
+                "aspect_ratio": 1.0,
+                "file_size": 1024,
+                "has_alpha": False,
+            }
+        return {
+            "format": "PNG",
+            "width": 320,
+            "height": 240,
+            "aspect_ratio": 4 / 3,
+            "file_size": 1024,
+            "has_alpha": False,
+        }
+
+    captured = {}
+
+    async def fake_generate_with_wan27_image(**kwargs):
+        captured["bbox_list"] = kwargs.get("bbox_list")
+        captured["task_kind"] = kwargs["task"].task_kind
+        return (
+            [StudioTaskImage(url="https://oss.example.com/output.png", prompt_used="prompt")],
+            ["task-1"],
+            ["req-1"],
+            {"task-1": {"request_id": "req-1"}},
+        )
+
+    monkeypatch.setattr("app.routers.studio.inspect_remote_image", mock_inspect_remote_image)
+    monkeypatch.setattr("app.services.image_benchmark_runtime.studio_router.generate_with_wan27_image", fake_generate_with_wan27_image)
+    monkeypatch.setattr("app.services.image_benchmark_runtime.oss_service.is_enabled", lambda: False)
+
+    result = await _execute_benchmark_cell_once(
+        project_id="p1",
+        task_kind="interactive_edit",
+        model_meta={"id": "wan2.7-image-pro", "name": "万相 2.7 Image Pro"},
+        case_data={
+            "id": "case-1",
+            "name": "交互式样例",
+            "prompt": "把图1放到图2框选位置",
+            "image_slots": [
+                {"position": 1, "image": {"url": "https://oss.example.com/ref1.png", "name": "图1"}},
+                {"position": 2, "image": {"url": "https://oss.example.com/ref2.png", "name": "图2"}},
+            ],
+            "bbox_list": [[], [[500, 400, -10, 20]]],
+        },
+        effective_params={"n": 1, "size_mode": "preset", "size_preset": "2K"},
+    )
+
+    assert result.status == "completed"
+    assert captured["task_kind"] == "interactive_edit"
+    assert captured["bbox_list"] == [[], [[0, 20, 320, 240]]]
+    assert result.provider_payload["parameters"]["bbox_list"] == [[], [[0, 20, 320, 240]]]
 
 
 def test_preview_cell_applies_wan27_color_palette(client, auth_header):
