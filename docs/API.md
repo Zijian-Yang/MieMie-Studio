@@ -195,7 +195,17 @@ Authorization: Bearer {token}
 | DELETE | `/{id}` | 删除任务 |
 | POST | `/{id}/generate` | 执行生成 |
 | POST | `/{id}/save-to-gallery` | 保存到图库 |
-| GET | `/models` | 获取可用模型 |
+| POST | `/{id}/retry-oss` | 将任务内本地回退图片重新上传到 OSS |
+| POST | `/project/{project_id}/retry-oss` | 将项目内所有本地回退图片重新上传到 OSS |
+| GET | `/models/available` | 获取可用模型 |
+
+#### 图片工作室 OSS 回退
+
+- 生成结果写入任务前会先落本地暂存，再上传当前用户 OSS；成功后删除本地暂存。
+- 若 OSS 连续瞬时失败，任务图片会暂时使用 `/assets/oss_staging/...`，`storage_source=local_fallback`，并在 `warnings` 中返回告警。
+- `GET /api/studio` 与 `GET /api/studio/{id}` 会触发到期本地回退图的后台补偿重传。
+- 本地回退保留 7 天，过期后标记为 `local_expired` 并清理文件。
+- `local_fallback` / `local_expired` 图片不能直接保存到图库；需先调用重传接口恢复为 OSS URL。
 
 ### 图片测评 `/api/image-benchmark`
 
@@ -217,9 +227,46 @@ Authorization: Bearer {token}
 | DELETE | `/suites/{id}` | 删除测评任务及其运行记录 |
 | POST | `/suites/{id}/run` | 启动一次测评运行 |
 | GET | `/runs/{id}` | 获取运行记录与单元结果 |
-| POST | `/runs/{id}/export-md` | 导出 Markdown 测评报告 |
+| POST | `/runs/{id}/export-md` | 导出 Markdown 测评报告（JSON，兼容旧前端） |
+| POST | `/runs/{id}/export-html` | 导出 HTML 测评报告（JSON，兼容旧前端） |
+| POST | `/runs/{id}/export-md-file` | 导出 Markdown 测评报告附件 |
+| POST | `/runs/{id}/export-html-file` | 导出 HTML 测评报告附件 |
 | POST | `/runs/{id}/retry-failures` | 重试状态为 `failed` 或 `unsupported` 的单元 |
 | POST | `/preview-cell` | 预览单个 case × model 的 canonical 请求与厂商 payload |
+
+#### 测评报告导出
+
+`export-md-file` 与 `export-html-file` 是当前前端按钮使用的推荐接口，直接返回附件文件，避免超大 Markdown / HTML 通过 JSON 传输导致浏览器内存占用高或下载不触发。
+
+请求体：
+
+```json
+{
+  "inline_images": true
+}
+```
+
+- `inline_images=true`：完整导出。后端会收集运行快照中的输入图 / 输出图，限流并发下载原图并转成 `data:<mime>;base64,...` 内嵌到单文件中；对超时、网络抖动、`429/5xx` 会自动重试，`403/404/410` 等明显失效 URL 会回退原 URL。
+- `inline_images=false`：快速导出。跳过图片下载，报告中保留原 URL。
+
+附件接口响应头：
+
+| Header | 说明 |
+|---|---|
+| `Content-Disposition` | 附件文件名，格式为 `image_benchmark_{run_id}.md/html` |
+| `X-Embedded-Image-Count` | 成功内嵌的图片数量 |
+| `X-Fallback-Url-Count` | 下载失败后回退为原 URL 的图片数量 |
+
+`export-md` / `export-html` 仍返回 JSON：
+
+```json
+{
+  "filename": "image_benchmark_run-id.md",
+  "content": "# 图片测评报告...",
+  "embedded_image_count": 12,
+  "fallback_url_count": 0
+}
+```
 
 #### 数据集导入
 

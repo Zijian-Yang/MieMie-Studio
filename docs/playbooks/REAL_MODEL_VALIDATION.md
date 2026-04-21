@@ -26,6 +26,7 @@
 - 预览 payload 与真实 payload 一致性
 - 结果是否落 OSS / 本地可追踪
 - OSS 短时异常时，是否回退 `/assets/...` 本地文件并给出前端 warning
+- 修复 OSS 后，任务级/项目级“重传回退图到 OSS”是否能把本地回退恢复为 OSS URL
 
 ### 视频工作室
 

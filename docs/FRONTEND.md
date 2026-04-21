@@ -721,6 +721,12 @@ const startPolling = useCallback((taskId: string) => {
 - 平台不再预拦透明 PNG，是否支持以厂商返回结果为准；失败时要把供应商错误显示给用户和开发者模式
 - 图片工作室的问号帮助统一使用 `HoverInfoPopover`
 - 图片任务完成通知受设置页 `image_task_notifications_enabled` 控制
+- 图片工作室会展示 OSS 本地回退状态：
+  - `StudioTask.warnings` 在任务详情顶部以 warning Alert 展示
+  - `storage_source=local_fallback` 的图片显示“本地回退”标记
+  - `storage_source=local_expired` 的图片显示“回退已过期”标记
+  - 任务详情中有“重传回退图到 OSS”按钮，项目顶部有“重传项目回退图”按钮
+  - 保存到图库前会拦截本地回退/已过期图片，提示用户先重传 OSS
 - 图片测评新增两个独立页面：
   - 数据集页：管理项目级可复用样例，支持图片槽位、交互式编辑 bbox 画框、批量导入 prompt、批量填充图片、拖拽排序和 JSON 导入导出
   - 测评页：基于数据集创建多模型矩阵测评，展示每个 case × model 的状态、输出图和详情
@@ -739,6 +745,11 @@ const startPolling = useCallback((taskId: string) => {
   - Provider Payload
   - Provider Result Meta
 - 测评页的手动重试按钮覆盖 `failed` 和 `unsupported` 单元，文案为“重试失败/未支持任务”
+- 测评页报告导出包含两类入口：
+  - `导出 Markdown` / `导出 HTML`：完整导出，调用附件接口并等待后端内嵌图片
+  - `快速导出`：传 `inline_images=false`，跳过图片内嵌并保留原 URL
+- 前端不要再用 JSON `content` 自行拼大文件下载；应通过 `downloadRunMarkdown` / `downloadRunHtml` 使用 `fetch` 获取 Blob，并从 `Content-Disposition` 解析文件名。
+- 下载触发时需要把 `<a>` 临时挂到 `document.body`，并延迟释放 `URL.createObjectURL()`，避免大文件在部分浏览器中不弹下载。
 - 视频工作室已新增 `视频续写` 能力，对应 `wan2.7-i2v`
 - `wan2.7-i2v` 在视频工作室支持：
   - 图生视频：首帧图，可选驱动音频

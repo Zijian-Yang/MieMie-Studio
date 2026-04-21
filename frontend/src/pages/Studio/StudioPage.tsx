@@ -183,6 +183,10 @@ const getTaskKindLabel = (taskKind?: string) => (
   TASK_KIND_OPTIONS.find(item => item.value === taskKind)?.label || '图像编辑'
 )
 
+const countRetriableLocalFallbackImages = (task?: StudioTask | null) => (
+  task?.images?.filter(image => image.storage_source === 'local_fallback' && !!image.url).length || 0
+)
+
 const StudioPage = () => {
   const { token } = theme.useToken()
   const { projectId } = useParams<{ projectId: string }>()
@@ -235,6 +239,8 @@ const StudioPage = () => {
   const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null)
   const [imageTaskNotificationsEnabled, setImageTaskNotificationsEnabled] = useState(false)
   const [studioModelMeta, setStudioModelMeta] = useState<Record<string, any>>({})
+  const [retryingTaskOSS, setRetryingTaskOSS] = useState(false)
+  const [retryingProjectOSS, setRetryingProjectOSS] = useState(false)
   const [previewPayload, setPreviewPayload] = useState<{
     canonical_request: Record<string, any>
     provider_payload: Record<string, any>
@@ -273,6 +279,16 @@ const StudioPage = () => {
     })
     return result
   }, [registryModels, studioModelMeta])
+
+  const projectFallbackImageCount = useMemo(
+    () => tasks.reduce((sum, task) => sum + countRetriableLocalFallbackImages(task), 0),
+    [tasks]
+  )
+
+  const selectedTaskFallbackImageCount = useMemo(
+    () => countRetriableLocalFallbackImages(selectedTask),
+    [selectedTask]
+  )
   
   const isMountedRef = useRef(true)
 
@@ -1501,6 +1517,12 @@ const StudioPage = () => {
       message.warning('请先选择要保存的图片')
       return
     }
+
+    const selectedTaskImages = selectedTask.images.filter(image => selectedImages.has(image.id))
+    if (selectedTaskImages.some(image => image.storage_source === 'local_fallback' || image.storage_source === 'local_expired')) {
+      message.warning('选中的图片仍处于本地回退/过期状态，请先重传到 OSS 后再保存到图库')
+      return
+    }
     
     try {
       const result = await studioApi.saveToGallery(selectedTask.id, Array.from(selectedImages))
@@ -1517,7 +1539,61 @@ const StudioPage = () => {
       setSelectedImages(new Set())
       message.success(`已保存 ${result.saved_images.length} 张图片到图库`)
     } catch (error) {
-      message.error('保存失败')
+      message.error(getApiErrorMessage(error, '保存失败'))
+    }
+  }
+
+  const retrySelectedTaskOSS = async () => {
+    if (!selectedTask) return
+    if (selectedTaskFallbackImageCount <= 0) {
+      message.warning('当前任务没有可重传到 OSS 的本地回退图片')
+      return
+    }
+
+    setRetryingTaskOSS(true)
+    try {
+      const result = await studioApi.retryTaskOSS(selectedTask.id)
+      safeSetState(setTasks, (prev: StudioTask[]) => prev.map((task: StudioTask) => task.id === result.task.id ? result.task : task))
+      setSelectedTask(result.task)
+
+      const summary = result.summary
+      message.success(
+        `任务重传完成：成功 ${summary.success_count} 张，失败 ${summary.failed_count} 张`
+      )
+      if (result.task.warnings?.length) {
+        message.warning(result.task.warnings.join('；'))
+      }
+    } catch (error) {
+      message.error(getApiErrorMessage(error, '重传 OSS 失败'))
+    } finally {
+      setRetryingTaskOSS(false)
+    }
+  }
+
+  const retryProjectOSS = async () => {
+    if (!projectId) return
+    if (projectFallbackImageCount <= 0) {
+      message.warning('当前项目没有可重传到 OSS 的本地回退图片')
+      return
+    }
+
+    setRetryingProjectOSS(true)
+    try {
+      const result = await studioApi.retryProjectOSS(projectId)
+      safeSetState(setTasks, result.tasks)
+      setSelectedTask(prev => prev ? result.tasks.find(task => task.id === prev.id) || prev : prev)
+
+      const summary = result.summary
+      message.success(
+        `项目重传完成：成功 ${summary.success_count} 张，失败 ${summary.failed_count} 张`
+      )
+      if (summary.paused_count > 0 || summary.expired_count > 0) {
+        message.warning(`其中 ${summary.paused_count} 张已暂停自动重传，${summary.expired_count} 张本地回退文件已过期`)
+      }
+    } catch (error) {
+      message.error(getApiErrorMessage(error, '批量重传 OSS 失败'))
+    } finally {
+      setRetryingProjectOSS(false)
     }
   }
 
@@ -1838,6 +1914,15 @@ const StudioPage = () => {
           </p>
         </div>
         <Space>
+          {projectFallbackImageCount > 0 && (
+            <Button
+              icon={<SyncOutlined />}
+              loading={retryingProjectOSS}
+              onClick={retryProjectOSS}
+            >
+              重传项目回退图 ({projectFallbackImageCount})
+            </Button>
+          )}
           {tasks.length > 0 && (
             <Popconfirm 
               title="确定删除所有任务？" 
@@ -2039,6 +2124,15 @@ const StudioPage = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <h4 style={{ margin: 0 }}>生成结果</h4>
                     <Space>
+                      {selectedTaskFallbackImageCount > 0 && (
+                        <Button
+                          icon={<SyncOutlined />}
+                          loading={retryingTaskOSS}
+                          onClick={retrySelectedTaskOSS}
+                        >
+                          重传回退图到 OSS ({selectedTaskFallbackImageCount})
+                        </Button>
+                      )}
                       {selectedImages.size > 0 && (
                         <Button 
                           type="primary" 
@@ -2160,7 +2254,7 @@ const StudioPage = () => {
                               <div style={{ position: 'absolute', bottom: 8, right: 8, pointerEvents: 'none' }}>
                                 <Tag>第 {idx + 1} 组</Tag>
                               </div>
-                              {(image.storage_source === 'local_fallback' || image.is_selected) && (
+                              {(image.storage_source === 'local_fallback' || image.storage_source === 'local_expired' || image.is_selected) && (
                                 <div
                                   style={{
                                     position: 'absolute',
@@ -2176,10 +2270,18 @@ const StudioPage = () => {
                                   {image.storage_source === 'local_fallback' && (
                                     <Tag color="warning" title={image.storage_warning || undefined}>本地回退</Tag>
                                   )}
+                                  {image.storage_source === 'local_expired' && (
+                                    <Tag color="error" title={image.storage_warning || undefined}>回退已过期</Tag>
+                                  )}
                                   {image.is_selected && <Tag color="green">已保存</Tag>}
                                 </div>
                               )}
                             </div>
+                            {(image.storage_source === 'local_fallback' || image.storage_source === 'local_expired') && (
+                              <div style={{ marginTop: 6, fontSize: 12, color: image.storage_source === 'local_expired' ? token.colorError : token.colorWarningText }}>
+                                {image.storage_warning || (image.storage_source === 'local_expired' ? '本地回退已过期' : '等待重传到 OSS')}
+                              </div>
+                            )}
                             <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginTop: 4 }}>
                               {([
                                 { key: 'star', icon: <StarOutlined />, activeIcon: <StarFilled />, color: token.colorWarning, title: '星标' },

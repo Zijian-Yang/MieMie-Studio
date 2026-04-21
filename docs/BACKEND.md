@@ -466,6 +466,16 @@ response = await asyncio.to_thread(MultiModalConversation.call, api_key=key, **p
 
 - `/api/studio/models/available` 现在优先使用 registry 元数据，避免同名模型被旧配置覆盖
 - 图片工作室继续保留 `/api/studio/preview-payload` 作为开发者模式预览入口
+- 图片工作室生成结果统一走 `OSSService.persist_generated_image_with_fallback_async()`：
+  - 厂商临时 URL 先下载到 `backend/data/assets/oss_staging/...`
+  - 再使用本地文件上传 OSS
+  - OSS 成功后删除本地暂存
+  - 瞬时失败重试耗尽后保留 `/assets/...` 本地回退并写入 `StudioTask.warnings`
+- 本地回退图的补偿重传由 `GET /api/studio` / `GET /api/studio/{id}` 懒触发后台任务，避免多 worker 全局常驻扫描：
+  - `next_retry_at` 到期时调度 `_background_retry_task_local_fallbacks`
+  - 手动接口为 `POST /api/studio/{id}/retry-oss` 与 `POST /api/studio/project/{project_id}/retry-oss`
+  - 本地回退文件 7 天后标记 `local_expired` 并清理
+  - 本地回退图不能保存到图库，必须先重传到 OSS
 - `wan2.7` 相关校验已在 `studio.py` 中集中处理：
   - `task_kind` 与模型兼容性
   - `interactive_edit` 下的 `bbox_list` 长度与框数
@@ -503,3 +513,9 @@ response = await asyncio.to_thread(MultiModalConversation.call, api_key=key, **p
 - 自动重试会去重累计每次尝试产生的所有 `task_ids` 和 `request_ids`，便于后续对账和厂商工单排查。
 - 图片工作室失败任务同样会保留 `provider_result_meta`，至少包含 `request_id / error_code / error_message / raw_output`，开发者模式与任务详情都应可见。
 - 手动重试范围包括 `failed` 与 `unsupported`。其中 `unsupported` 主要代表前置校验失败，不一定是模型能力不支持。
+- 测评报告导出由后端统一渲染：
+  - `export-md-file` / `export-html-file` 返回附件文件，是前端按钮当前使用的推荐接口
+  - `export-md` / `export-html` 返回 JSON，仅用于兼容旧调用或自动化检查
+  - `inline_images=true` 会下载输入图 / 输出图原始字节并转为 `data:` 内嵌；下载采用限流并发和多次重试，明显失效 URL 回退原 URL
+  - `inline_images=false` 是快速导出，跳过图片下载并保留原 URL
+  - 响应头 `X-Embedded-Image-Count` / `X-Fallback-Url-Count` 用于前端提示和排障

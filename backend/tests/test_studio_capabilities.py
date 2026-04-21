@@ -1,4 +1,5 @@
 import pytest
+from datetime import datetime, timedelta
 
 from app.models.studio import ReferenceItem, StudioTaskImage
 from app.routers import studio as studio_router
@@ -743,6 +744,175 @@ async def test_ensure_generated_images_persisted_marks_local_fallback_warning(mo
     assert images[0].url == "/assets/oss_staging/image/project-1/output.png"
     assert images[0].storage_source == "local_fallback"
     assert "回落到本地文件" in (images[0].storage_warning or "")
+
+
+def test_expire_local_fallback_images_marks_image_expired(monkeypatch):
+    from app.models.studio import StudioTask
+
+    task = StudioTask(
+        project_id="p1",
+        name="本地回退过期",
+        model="wan2.7-image-pro",
+        prompt="prompt",
+        status="completed",
+        provider_payload_snapshot={"model": "wan2.7-image-pro"},
+        images=[
+            StudioTaskImage(
+                group_index=0,
+                url="/assets/oss_staging/image/project-1/expired.png",
+                storage_source="local_fallback",
+                storage_warning="等待自动重传",
+                fallback_created_at=datetime.now() - timedelta(days=8),
+            )
+        ],
+    )
+
+    captured = {}
+    monkeypatch.setattr(
+        studio_router.oss_service,
+        "cleanup_local_asset_url",
+        lambda url: captured.setdefault("url", url) or True,
+    )
+
+    changed = studio_router._expire_local_fallback_images(task, datetime.now())
+
+    assert changed is True
+    assert captured["url"] == "/assets/oss_staging/image/project-1/expired.png"
+    assert task.images[0].storage_source == "local_expired"
+    assert task.images[0].url is None
+    assert "自动清理" in (task.images[0].storage_warning or "")
+
+
+def test_get_studio_task_schedules_due_local_fallback_retry(client, auth_header, registered_user, monkeypatch):
+    from app.models.studio import StudioTask
+    from app.services.storage import storage_service, set_current_user
+
+    project_id = _create_project(client, auth_header)
+    _, user = registered_user
+    task = StudioTask(
+        project_id=project_id,
+        name="待自动重传",
+        model="wan2.7-image-pro",
+        prompt="prompt",
+        status="completed",
+        provider_payload_snapshot={"model": "wan2.7-image-pro"},
+        images=[
+            StudioTaskImage(
+                group_index=0,
+                url="/assets/oss_staging/image/project-1/retry.png",
+                storage_source="local_fallback",
+                storage_warning="等待自动重传",
+                next_retry_at=datetime.now() - timedelta(minutes=1),
+                fallback_created_at=datetime.now(),
+            )
+        ],
+    )
+    set_current_user(user["id"])
+    storage_service.save_studio_task(task)
+    set_current_user(None)
+
+    scheduled = {"count": 0}
+
+    def fake_create_task(coro):
+        scheduled["count"] += 1
+        coro.close()
+        return None
+
+    monkeypatch.setattr(studio_router.asyncio, "create_task", fake_create_task)
+
+    resp = client.get(f"/api/studio/{task.id}", headers=auth_header)
+
+    assert resp.status_code == 200
+    assert scheduled["count"] == 1
+
+
+def test_retry_task_oss_fallbacks_endpoint_updates_task(client, auth_header, registered_user, monkeypatch):
+    from app.models.studio import StudioTask
+    from app.services.storage import storage_service, set_current_user
+
+    project_id = _create_project(client, auth_header)
+    _, user = registered_user
+    task = StudioTask(
+        project_id=project_id,
+        name="手动重传",
+        model="wan2.7-image-pro",
+        prompt="prompt",
+        status="completed",
+        provider_payload_snapshot={"model": "wan2.7-image-pro"},
+        images=[
+            StudioTaskImage(
+                group_index=0,
+                url="/assets/oss_staging/image/project-1/manual.png",
+                storage_source="local_fallback",
+                storage_warning="等待手动重传",
+                fallback_created_at=datetime.now(),
+            )
+        ],
+    )
+    set_current_user(user["id"])
+    storage_service.save_studio_task(task)
+    set_current_user(None)
+
+    async def fake_retry(task_obj, *, due_only, reason):
+        task_obj.images[0].url = "https://oss.example.com/final.png"
+        task_obj.images[0].storage_source = "oss"
+        task_obj.images[0].storage_warning = None
+        task_obj.warnings = []
+        storage_service.save_studio_task(task_obj)
+        return {
+            "retried_image_count": 1,
+            "success_count": 1,
+            "failed_count": 0,
+            "paused_count": 0,
+            "expired_count": 0,
+        }
+
+    monkeypatch.setattr(studio_router.oss_service, "is_enabled", lambda: True)
+    monkeypatch.setattr(studio_router, "_retry_task_local_fallback_images", fake_retry)
+
+    resp = client.post(f"/api/studio/{task.id}/retry-oss", headers=auth_header)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["summary"]["success_count"] == 1
+    assert data["task"]["images"][0]["url"] == "https://oss.example.com/final.png"
+    assert data["task"]["images"][0]["storage_source"] == "oss"
+
+
+def test_save_to_gallery_rejects_local_fallback_image(client, auth_header, registered_user):
+    from app.models.studio import StudioTask
+    from app.services.storage import storage_service, set_current_user
+
+    project_id = _create_project(client, auth_header)
+    _, user = registered_user
+    image = StudioTaskImage(
+        group_index=0,
+        url="/assets/oss_staging/image/project-1/local.png",
+        storage_source="local_fallback",
+        storage_warning="等待重传",
+        fallback_created_at=datetime.now(),
+    )
+    task = StudioTask(
+        project_id=project_id,
+        name="保存拦截",
+        model="wan2.7-image-pro",
+        prompt="prompt",
+        status="completed",
+        provider_payload_snapshot={"model": "wan2.7-image-pro"},
+        images=[image],
+    )
+    set_current_user(user["id"])
+    storage_service.save_studio_task(task)
+    set_current_user(None)
+
+    resp = client.post(
+        f"/api/studio/{task.id}/save-to-gallery",
+        headers=auth_header,
+        json={"image_ids": [image.id]},
+    )
+
+    assert resp.status_code == 409
+    assert "本地回退状态" in resp.json()["detail"]
 
 
 @pytest.mark.asyncio

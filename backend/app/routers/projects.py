@@ -8,6 +8,7 @@ from typing import Optional, List, Dict
 from datetime import datetime
 
 from app.models.project import Project, Script, ProjectLLMConfig
+from app.services.oss import oss_service
 from app.services.storage import storage_service
 
 router = APIRouter()
@@ -106,6 +107,9 @@ async def delete_project(project_id: str):
 
     # 删除图片工作室任务
     for task in storage_service.get_studio_tasks_by_project(project_id):
+        for image in task.images:
+            if image.storage_source == "local_fallback" and image.url:
+                oss_service.cleanup_local_asset_url(image.url)
         storage_service.delete_studio_task(task.id)
 
     # 删除音频库

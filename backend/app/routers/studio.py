@@ -17,7 +17,9 @@ import copy
 import logging
 import math
 import re
+import threading
 from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
 from typing import Optional, List, Any, Tuple, Dict
 from urllib.parse import urlparse
 
@@ -36,6 +38,16 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 WAN27_IMAGE_INSPECT_RETRY_DELAYS = (0.5, 1.5)
+STUDIO_OSS_AUTO_RETRY_DELAYS = (
+    timedelta(minutes=5),
+    timedelta(minutes=15),
+    timedelta(hours=1),
+    timedelta(hours=3),
+    timedelta(hours=6),
+)
+STUDIO_LOCAL_FALLBACK_CLEANUP_TTL = timedelta(days=7)
+_studio_retrying_task_ids: set[str] = set()
+_studio_retrying_lock = threading.Lock()
 
 
 def _summarize_media_url(url: str) -> str:
@@ -52,6 +64,245 @@ def _summarize_media_url(url: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}/{short_path}" if short_path else f"{parsed.scheme}://{parsed.netloc}"
 
 
+def _clear_image_storage_retry_state(image: StudioTaskImage) -> None:
+    image.storage_warning = None
+    image.retry_count = 0
+    image.last_retry_error = None
+    image.last_retry_at = None
+    image.next_retry_at = None
+    image.fallback_created_at = None
+
+
+def _mark_image_as_local_fallback(
+    image: StudioTaskImage,
+    warning: str,
+    error: Optional[str],
+    now: datetime,
+) -> None:
+    image.storage_source = "local_fallback"
+    image.storage_warning = warning
+    image.last_retry_error = error
+    image.last_retry_at = None
+    image.retry_count = 0
+    image.next_retry_at = now + STUDIO_OSS_AUTO_RETRY_DELAYS[0]
+    image.fallback_created_at = now
+
+
+def _update_image_retry_failure_state(
+    image: StudioTaskImage,
+    warning: str,
+    error: Optional[str],
+    now: datetime,
+    retryable: bool,
+) -> None:
+    image.storage_source = "local_fallback"
+    image.storage_warning = warning
+    image.last_retry_error = error
+    image.last_retry_at = now
+    image.retry_count = max(0, int(image.retry_count or 0)) + 1
+    image.fallback_created_at = image.fallback_created_at or now
+
+    if retryable and image.retry_count < len(STUDIO_OSS_AUTO_RETRY_DELAYS):
+        image.next_retry_at = now + STUDIO_OSS_AUTO_RETRY_DELAYS[image.retry_count]
+    else:
+        image.next_retry_at = None
+
+
+def _mark_image_as_local_expired(
+    image: StudioTaskImage,
+    warning: str,
+    error: Optional[str],
+    now: datetime,
+) -> None:
+    image.url = None
+    image.storage_source = "local_expired"
+    image.storage_warning = warning
+    image.last_retry_error = error
+    image.last_retry_at = now
+    image.next_retry_at = None
+
+
+def _build_task_storage_warnings(task: StudioTask) -> List[str]:
+    warnings: List[str] = []
+    for image in task.images:
+        if image.storage_source in {"local_fallback", "local_expired"} and image.storage_warning:
+            warnings.append(f"第 {image.group_index + 1} 张图片：{image.storage_warning}")
+    return list(dict.fromkeys(warnings))
+
+
+def _count_retriable_local_fallback_images(task: StudioTask) -> int:
+    return sum(
+        1
+        for image in task.images
+        if image.storage_source == "local_fallback" and bool(image.url)
+    )
+
+
+def _is_local_fallback_retry_due(image: StudioTaskImage, now: datetime) -> bool:
+    if image.storage_source != "local_fallback" or not image.url:
+        return False
+    if image.next_retry_at is None:
+        return False
+    return image.next_retry_at <= now
+
+
+def _expire_local_fallback_images(task: StudioTask, now: Optional[datetime] = None) -> bool:
+    current_time = now or datetime.now()
+    changed = False
+    for image in task.images:
+        if image.storage_source != "local_fallback":
+            continue
+        created_at = image.fallback_created_at
+        if created_at is None:
+            continue
+        if created_at + STUDIO_LOCAL_FALLBACK_CLEANUP_TTL > current_time:
+            continue
+        local_url = image.url or ""
+        if local_url:
+            oss_service.cleanup_local_asset_url(local_url)
+        _mark_image_as_local_expired(
+            image,
+            "本地回退文件已超过 7 天，已自动清理；如仍需使用，请重新生成。",
+            image.last_retry_error or "本地回退文件已过期清理",
+            current_time,
+        )
+        changed = True
+    return changed
+
+
+def _cleanup_task_local_assets(task: StudioTask) -> None:
+    for image in task.images:
+        if image.storage_source == "local_fallback" and image.url:
+            oss_service.cleanup_local_asset_url(image.url)
+
+
+async def _retry_task_local_fallback_images(
+    task: StudioTask,
+    *,
+    due_only: bool,
+    reason: str,
+) -> Dict[str, int]:
+    current_time = datetime.now()
+    summary = {
+        "retried_image_count": 0,
+        "success_count": 0,
+        "failed_count": 0,
+        "paused_count": 0,
+        "expired_count": 0,
+    }
+
+    changed = _expire_local_fallback_images(task, current_time)
+
+    for image in task.images:
+        if image.storage_source != "local_fallback":
+            continue
+        if not image.url:
+            continue
+        if due_only and not _is_local_fallback_retry_due(image, current_time):
+            continue
+
+        summary["retried_image_count"] += 1
+        result = await oss_service.retry_local_fallback_image_to_oss_async(
+            image.url,
+            task.project_id,
+        )
+
+        if result.storage_source == "oss":
+            image.url = result.url
+            image.storage_source = "oss"
+            _clear_image_storage_retry_state(image)
+            summary["success_count"] += 1
+            changed = True
+            logger.info(
+                "[OSS][studio] local fallback upload recovered task_id=%s project_id=%s image_id=%s reason=%s",
+                task.id,
+                task.project_id,
+                image.id,
+                reason,
+            )
+            continue
+
+        if result.storage_source == "local_expired":
+            _mark_image_as_local_expired(
+                image,
+                result.warning or "本地回退文件不存在，无法继续上传到 OSS。",
+                result.error,
+                current_time,
+            )
+            summary["failed_count"] += 1
+            summary["expired_count"] += 1
+            summary["paused_count"] += 1
+            changed = True
+            continue
+
+        _update_image_retry_failure_state(
+            image,
+            result.warning or "重新上传到 OSS 失败，已保留本地回退图片。",
+            result.error,
+            current_time,
+            retryable=result.retryable,
+        )
+        summary["failed_count"] += 1
+        if image.next_retry_at is None:
+            summary["paused_count"] += 1
+        changed = True
+
+    task.warnings = _build_task_storage_warnings(task)
+    if changed:
+        storage_service.save_studio_task(task)
+    return summary
+
+
+async def _background_retry_task_local_fallbacks(
+    task_id: str,
+    user_id: Optional[str],
+    user_config_dir: Optional[str],
+    *,
+    due_only: bool,
+    reason: str,
+) -> None:
+    with _studio_retrying_lock:
+        if task_id in _studio_retrying_task_ids:
+            return
+        _studio_retrying_task_ids.add(task_id)
+
+    try:
+        set_current_user(user_id)
+        set_user_config_dir(user_config_dir)
+        task = storage_service.get_studio_task(task_id)
+        if not task:
+            return
+        await _retry_task_local_fallback_images(task, due_only=due_only, reason=reason)
+    except Exception:
+        logger.exception("[OSS][studio] 背景重传本地回退图片失败 task_id=%s reason=%s", task_id, reason)
+    finally:
+        with _studio_retrying_lock:
+            _studio_retrying_task_ids.discard(task_id)
+
+
+def _schedule_due_local_fallback_retries(
+    tasks: List[StudioTask],
+    user_id: Optional[str],
+    user_config_dir: Optional[str],
+) -> None:
+    current_time = datetime.now()
+    for task in tasks:
+        if not any(_is_local_fallback_retry_due(image, current_time) for image in task.images):
+            continue
+        with _studio_retrying_lock:
+            if task.id in _studio_retrying_task_ids:
+                continue
+        asyncio.create_task(
+            _background_retry_task_local_fallbacks(
+                task.id,
+                user_id,
+                user_config_dir,
+                due_only=True,
+                reason="auto",
+            )
+        )
+
+
 async def _ensure_generated_images_persisted(
     images: List[StudioTaskImage],
     project_id: str,
@@ -66,7 +317,7 @@ async def _ensure_generated_images_persisted(
     migrated_url_cache: Dict[str, Dict[str, Optional[str]]] = {}
     failed_url_cache: Dict[str, str] = {}
     errors: List[str] = []
-    warnings: List[str] = []
+    current_time = datetime.now()
 
     for image in images:
         original_url = image.url
@@ -74,18 +325,27 @@ async def _ensure_generated_images_persisted(
             continue
         if not oss_service.should_persist_generated_url(original_url):
             image.storage_source = "oss" if oss_service.is_current_oss_url(original_url) else "remote"
-            image.storage_warning = None
+            _clear_image_storage_retry_state(image)
             continue
         if original_url in migrated_url_cache:
             cached_result = migrated_url_cache[original_url]
             image.url = cached_result["url"]
             image.storage_source = cached_result["storage_source"] or "remote"
             image.storage_warning = cached_result["warning"]
+            if image.storage_source == "local_fallback":
+                _mark_image_as_local_fallback(
+                    image,
+                    cached_result["warning"] or "图片结果转存 OSS 连续失败，已暂时回退为服务器本地文件。",
+                    None,
+                    current_time,
+                )
+            else:
+                _clear_image_storage_retry_state(image)
             continue
         if original_url in failed_url_cache:
             image.url = None
             image.storage_source = "remote"
-            image.storage_warning = None
+            _clear_image_storage_retry_state(image)
             continue
 
         try:
@@ -102,10 +362,12 @@ async def _ensure_generated_images_persisted(
             image.storage_source = persisted_result.storage_source
             image.storage_warning = persisted_result.warning
             if persisted_result.warning:
-                warning_message = (
-                    f"第 {image.group_index + 1} 张图片 OSS 转存连续失败，已暂时回退为服务器本地文件。"
+                _mark_image_as_local_fallback(
+                    image,
+                    persisted_result.warning,
+                    persisted_result.error,
+                    current_time,
                 )
-                warnings.append(warning_message)
                 parsed = urlparse(original_url)
                 logger.warning(
                     "[OSS][studio] persist fallback model_id=%s project_id=%s request_ids=%s task_ids=%s original_host=%s fallback_url=%s reason=%s",
@@ -117,11 +379,13 @@ async def _ensure_generated_images_persisted(
                     persisted_result.url,
                     persisted_result.error or persisted_result.warning,
                 )
+            else:
+                _clear_image_storage_retry_state(image)
         except Exception as exc:
             failed_url_cache[original_url] = str(exc)
             image.url = None
             image.storage_source = "remote"
-            image.storage_warning = None
+            _clear_image_storage_retry_state(image)
             parsed = urlparse(original_url)
             logger.warning(
                 "[OSS][studio] persist failed model_id=%s project_id=%s request_ids=%s task_ids=%s original_host=%s oss_enabled=%s reason=%s",
@@ -135,8 +399,11 @@ async def _ensure_generated_images_persisted(
             )
             errors.append(str(exc))
 
-    unique_warnings = list(dict.fromkeys(warnings))
-    return {"errors": errors, "warnings": unique_warnings}
+    warning_messages = []
+    for image in images:
+        if image.storage_source == "local_fallback":
+            warning_messages.append(f"第 {image.group_index + 1} 张图片 OSS 转存连续失败，已暂时回退为服务器本地文件。")
+    return {"errors": errors, "warnings": list(dict.fromkeys(warning_messages))}
 
 
 class ReferenceItemInput(BaseModel):
@@ -1071,6 +1338,17 @@ def _build_provider_payload(
 async def list_studio_tasks(project_id: str):
     """获取项目所有图片工作室任务"""
     tasks = storage_service.get_studio_tasks_by_project(project_id)
+    changed_tasks: List[StudioTask] = []
+    for task in tasks:
+        if _expire_local_fallback_images(task):
+            changed_tasks.append(task)
+        next_warnings = _build_task_storage_warnings(task)
+        if task.warnings != next_warnings:
+            task.warnings = next_warnings
+            changed_tasks.append(task)
+    for task in {task.id: task for task in changed_tasks}.values():
+        storage_service.save_studio_task(task)
+    _schedule_due_local_fallback_retries(tasks, get_current_user_id(), get_user_config_dir())
     return {"tasks": tasks}
 
 
@@ -1180,6 +1458,14 @@ async def get_studio_task(task_id: str):
             storage_service.save_studio_task(task)
         except Exception:
             logger.debug("回填图片工作室 payload 快照失败", exc_info=True)
+    changed = _expire_local_fallback_images(task)
+    next_warnings = _build_task_storage_warnings(task)
+    if task.warnings != next_warnings:
+        task.warnings = next_warnings
+        changed = True
+    if changed:
+        storage_service.save_studio_task(task)
+    _schedule_due_local_fallback_retries([task], get_current_user_id(), get_user_config_dir())
     return task
 
 
@@ -1318,6 +1604,49 @@ async def update_image_markers(task_id: str, request: ImageMarkerRequest):
             storage_service.save_studio_task(task)
             return {"success": True, "markers": img.markers}
     raise HTTPException(status_code=404, detail="图片不存在")
+
+
+@router.post("/{task_id}/retry-oss")
+async def retry_task_oss_fallbacks(task_id: str):
+    """手动重传当前任务中的本地回退图片到 OSS。"""
+    if not oss_service.is_enabled():
+        raise HTTPException(status_code=400, detail="OSS 未启用或配置不完整，无法重传")
+
+    task = storage_service.get_studio_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+
+    summary = await _retry_task_local_fallback_images(task, due_only=False, reason="manual_task")
+    latest_task = storage_service.get_studio_task(task_id) or task
+    return {"task": latest_task, "summary": summary}
+
+
+@router.post("/project/{project_id}/retry-oss")
+async def retry_project_oss_fallbacks(project_id: str):
+    """手动重传项目内所有本地回退图片到 OSS。"""
+    if not oss_service.is_enabled():
+        raise HTTPException(status_code=400, detail="OSS 未启用或配置不完整，无法重传")
+
+    tasks = storage_service.get_studio_tasks_by_project(project_id)
+    total_summary = {
+        "retried_task_count": 0,
+        "retried_image_count": 0,
+        "success_count": 0,
+        "failed_count": 0,
+        "paused_count": 0,
+        "expired_count": 0,
+    }
+
+    for task in tasks:
+        if _count_retriable_local_fallback_images(task) <= 0:
+            continue
+        total_summary["retried_task_count"] += 1
+        summary = await _retry_task_local_fallback_images(task, due_only=False, reason="manual_project")
+        for key in ("retried_image_count", "success_count", "failed_count", "paused_count", "expired_count"):
+            total_summary[key] += summary.get(key, 0)
+
+    latest_tasks = storage_service.get_studio_tasks_by_project(project_id)
+    return {"tasks": latest_tasks, "summary": total_summary}
 
 
 @router.post("/{task_id}/generate")
@@ -1604,12 +1933,12 @@ async def _background_generate(
             task_ids=task_ids or task.task_ids,
         )
         persist_errors = persist_report["errors"]
-        task.warnings = persist_report["warnings"]
         if persist_errors:
             existing_errors = getattr(task, "_group_errors", [])
             task._group_errors = existing_errors + persist_errors
 
         task.images = images
+        task.warnings = _build_task_storage_warnings(task)
         task.task_ids = task_ids or task.task_ids or ([task.last_task_id] if task.last_task_id else [])
         task.request_ids = request_ids
         task.provider_payload_snapshot = provider_payload
@@ -2374,6 +2703,11 @@ async def save_task_images_to_gallery(task_id: str, request: SaveToGalleryReques
     saved_images = []
     for image in task.images:
         if image.id in request.image_ids and image.url:
+            if image.storage_source != "oss" and image.storage_source in {"local_fallback", "local_expired"}:
+                raise HTTPException(
+                    status_code=409,
+                    detail="所选图片仍处于本地回退状态，请先重传到 OSS 后再保存到图库",
+                )
             gallery_image = GalleryImage(
                 project_id=task.project_id,
                 name=f"{task.name} - 第{image.group_index + 1}组",
@@ -2400,6 +2734,7 @@ async def delete_studio_task(task_id: str):
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
     
+    _cleanup_task_local_assets(task)
     storage_service.delete_studio_task(task_id)
     return {"message": "任务已删除"}
 
@@ -2409,6 +2744,7 @@ async def delete_all_studio_tasks(project_id: str):
     """删除项目所有任务"""
     tasks = storage_service.get_studio_tasks_by_project(project_id)
     for task in tasks:
+        _cleanup_task_local_assets(task)
         storage_service.delete_studio_task(task.id)
     return {"message": f"已删除 {len(tasks)} 个任务"}
 

@@ -1232,8 +1232,13 @@ export interface StudioTaskImage {
   id: string
   group_index: number
   url?: string
-  storage_source?: 'remote' | 'oss' | 'local_fallback'
+  storage_source?: 'remote' | 'oss' | 'local_fallback' | 'local_expired'
   storage_warning?: string | null
+  retry_count?: number
+  last_retry_error?: string | null
+  last_retry_at?: string | null
+  next_retry_at?: string | null
+  fallback_created_at?: string | null
   prompt_used?: string
   is_selected: boolean
   markers?: string[]  // star, flag, check, cross
@@ -1286,6 +1291,15 @@ export interface StudioTask {
   warnings?: string[]
   created_at: string
   updated_at: string
+}
+
+export interface StudioOSSRetrySummary {
+  retried_task_count?: number
+  retried_image_count: number
+  success_count: number
+  failed_count: number
+  paused_count: number
+  expired_count: number
 }
 
 export const studioApi = {
@@ -1373,6 +1387,8 @@ export const studioApi = {
   saveToGallery: (id: string, imageIds: string[]) => api.post<any, { saved_images: GalleryImage[] }>(`/studio/${id}/save-to-gallery`, { image_ids: imageIds }),
   updateImageMarkers: (taskId: string, imageId: string, markers: string[]) =>
     api.post<any, { success: boolean; markers: string[] }>(`/studio/${taskId}/markers`, { image_id: imageId, markers }),
+  retryTaskOSS: (id: string) => api.post<any, { task: StudioTask; summary: StudioOSSRetrySummary }>(`/studio/${id}/retry-oss`),
+  retryProjectOSS: (projectId: string) => api.post<any, { tasks: StudioTask[]; summary: StudioOSSRetrySummary }>(`/studio/project/${projectId}/retry-oss`),
   delete: (id: string) => api.delete(`/studio/${id}`),
   deleteAll: (projectId: string) => api.delete(`/studio/project/${projectId}/all`),
   // 获取可用模型列表（带详情）

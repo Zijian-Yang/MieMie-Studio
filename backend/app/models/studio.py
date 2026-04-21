@@ -13,8 +13,13 @@ class StudioTaskImage(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     group_index: int = 0  # 组索引
     url: Optional[str] = None  # 图片 URL
-    storage_source: str = "remote"  # remote / oss / local_fallback
+    storage_source: str = "remote"  # remote / oss / local_fallback / local_expired
     storage_warning: Optional[str] = None  # 存储告警信息
+    retry_count: int = 0  # 本地回退后的自动/手动重传次数
+    last_retry_error: Optional[str] = None  # 最近一次重传失败原因
+    last_retry_at: Optional[datetime] = None  # 最近一次重传时间
+    next_retry_at: Optional[datetime] = None  # 下次自动重传时间
+    fallback_created_at: Optional[datetime] = None  # 本地回退文件生成时间
     prompt_used: Optional[str] = None  # 使用的提示词
     is_selected: bool = False  # 是否被选中保存到图库
     markers: List[str] = []  # 用户标记: star, flag, check, cross

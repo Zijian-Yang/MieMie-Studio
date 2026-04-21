@@ -274,6 +274,28 @@ curl -s https://dashscope.aliyuncs.com -o /dev/null -w "%{http_code}"
 grep "工作室" backend/logs/api_$(date +%Y%m%d).log | tail -20
 ```
 
+#### 问题：图片工作室显示“本地回退”
+
+这表示厂商已生成图片，但服务器上传 OSS 时连续失败，平台临时使用 `/assets/oss_staging/...` 展示本地文件。
+
+处理顺序：
+
+```bash
+# 1. 先在设置页测试 OSS 连接，确认 AccessKey、Bucket、Endpoint、Prefix 可写
+
+# 2. 查看最近的 OSS / 图片工作室日志
+grep -E "OSS|studio" backend/logs/api_$(date +%Y%m%d).log | tail -80
+
+# 3. 修复 OSS 配置后，在图片工作室点击：
+#    - 任务详情中的“重传回退图到 OSS”
+#    - 或页面顶部的“重传项目回退图”
+```
+
+- 后端会在 `GET /api/studio` 与 `GET /api/studio/{id}` 时懒触发到期图片的后台补偿重传。
+- 自动重传节奏为 `5m → 15m → 1h → 3h → 6h`。
+- 本地回退文件保留 7 天，过期后会被清理并标记为 `local_expired`。
+- 本地回退图片不能保存到图库，必须先重传到 OSS。
+
 #### 问题：图片测评中 wan2.7 单元显示 `unsupported`
 
 `unsupported` 可能是模型能力不支持，也可能是输入图预检失败。若错误类似“第 1 张输入图片无法读取”，优先排查输入图 URL。
@@ -313,6 +335,45 @@ curl -I -L -s "图片URL" | sed -n '1,8p'
 - 跨环境导入数据集时勾选“导入时转存图片到当前 OSS”。
 - 若只是短暂网络抖动，可在测评详情页点击“重试失败/未支持任务”。
 - 新版本错误会包含 URL 摘要、HTTP 状态或解码原因；旧运行记录不会自动补全错误详情，需要重试或重新运行。
+
+#### 问题：图片测评报告导出很慢或不弹下载
+
+图片测评完整导出会把 run 快照中的输入图和输出图下载为原图字节，再转成 `data:` 写入 Markdown / HTML。图片很多或单张图很大时，完整导出可能需要数分钟。
+
+```bash
+# 1. 查看导出是否仍在运行
+grep "图片测评导出" backend/logs/api_$(date +%Y%m%d).log | tail -20
+
+# 2. 查看当前 run 包含多少唯一图片 URL
+RUN_ID="..."
+python - <<'PY'
+import json, pathlib, os
+run_id = os.environ.get("RUN_ID")
+path = next(pathlib.Path("backend/data/users").rglob(f"image_benchmark_runs/{run_id}.json"))
+data = json.loads(path.read_text())
+urls = []
+for item in (data.get("dataset_snapshot") or {}).get("items") or []:
+    urls.extend((slot.get("image") or {}).get("url") for slot in item.get("image_slots") or [])
+for cell in data.get("cell_results") or []:
+    urls.extend(image.get("url") for image in cell.get("output_images") or [])
+urls = [url for url in urls if url]
+print("total_urls=", len(urls), "unique_urls=", len(set(urls)))
+PY
+
+# 3. 抽样测试单张 OSS 图大小与速度
+curl -I -L -s "图片URL" | sed -n '1,12p'
+curl -L -s -o /tmp/miemie_probe_image -w "time=%{time_total}s bytes=%{size_download} speed=%{speed_download}Bps\n" "图片URL"
+```
+
+判断标准：
+- 日志出现“开始内嵌图片”但还没有“完成内嵌图片”：后端仍在下载原图，不是前端卡死。
+- `embedded=N fallback=0` 且请求 `200 OK`：后端已完成，若浏览器未弹下载，应确认前端已使用 `export-md-file` / `export-html-file` 附件接口。
+- 上百张大 PNG/JPG 会产生很大的单文件，浏览器保存也会耗时。
+
+处理建议：
+- 只是临时查看或快速交付报告时，点击“快速导出”，它会保留原 URL，不下载原图。
+- 需要长期归档时再用完整导出；若 OSS URL 已失效，报告会保留原 URL 并在完成提示里显示回退数量。
+- 如果完整导出期间频繁改后端代码，`uvicorn --reload` 可能等待长连接关闭，导致页面 API 暂时无响应；优先等待导出完成，或停止导出请求后再重启后端。
 
 #### 问题：内存不足 / 服务频繁重启
 

@@ -16,7 +16,7 @@
 ## 非目标
 
 - 不修改图库、角色/场景/道具页的历史图片数据迁移策略。
-- 不在本次改动中引入后台补偿队列或离线清理任务。
+- 不引入跨用户全局常驻后台线程，避免多 worker 下重复扫描和重复上传。
 
 ## 方案
 
@@ -40,15 +40,35 @@
 - 若失败属于明显不可恢复问题（如 `HTTP 403/404`、鉴权失败、Bucket 不存在），直接判定为失败并清理本地暂存，不保留本地回退。
 - 若失败属于持续性但可能恢复的问题（如超时、网络抖动、服务端异常），在重试耗尽后保留本地暂存文件，并把图片 URL 回退为 `/assets/...`。
 
-### 4. 前端告警
+### 4. 后台补偿重传
+
+- `StudioTaskImage` 记录 `retry_count`、`last_retry_error`、`last_retry_at`、`next_retry_at`、`fallback_created_at`。
+- 前端轮询或打开任务详情时，`GET /api/studio` 与 `GET /api/studio/{id}` 会检查到期的 `local_fallback` 图片，并通过 `asyncio.create_task()` 触发一次后台补偿重传。
+- 补偿重传直接读取本地回退文件上传 OSS，不再依赖厂商临时 URL。
+- 自动重传节奏为 `5m → 15m → 1h → 3h → 6h`；重试耗尽或遇到鉴权/Bucket 等不可恢复错误后暂停自动重试，保留手动重传入口。
+
+### 5. 手动重传
+
+- `POST /api/studio/{id}/retry-oss`：重传单个任务内所有本地回退图片。
+- `POST /api/studio/project/{project_id}/retry-oss`：重传当前项目内所有本地回退图片。
+- 前端提供任务级按钮“重传回退图到 OSS”和项目级按钮“重传项目回退图”。
+
+### 6. 过期清理
+
+- 本地回退文件保留 7 天。
+- `GET /api/studio` 与 `GET /api/studio/{id}` 会清理超过 TTL 的本地回退文件，并把图片标记为 `local_expired`。
+- 删除单个图片工作室任务、删除项目所有图片工作室任务、删除项目时，会同步删除该任务引用的本地回退文件。
+- `local_fallback` 图片不允许保存到图库；必须先重传到 OSS，避免图库长期引用临时本地文件。
+
+### 7. 前端告警
 
 - `StudioTask` 新增 `warnings` 字段，承载非阻塞告警。
-- `StudioTaskImage` 新增 `storage_source` / `storage_warning`，用于区分 `oss`、`local_fallback`、`remote`。
+- `StudioTaskImage` 新增 `storage_source` / `storage_warning`，用于区分 `oss`、`local_fallback`、`local_expired`、`remote`。
 - 图片工作室任务完成且包含本地回退时：
   - 轮询完成时弹出 warning 提示
   - 浏览器通知正文包含“含警告”
   - 结果详情顶部显示 warning Alert
-  - 单张图片打上“本地回退”标记
+  - 单张图片打上“本地回退”或“回退已过期”标记
 
 ## 验收标准
 
@@ -56,6 +76,10 @@
 - 当厂商返回临时 URL 且 OSS 上传成功时，最终保存的是当前用户 OSS URL，本地暂存文件被删除。
 - 当厂商返回临时 URL 且上传出现连续瞬时失败时，最终保存的是 `/assets/...` 本地 URL，并返回 warning。
 - 当 OSS 明显不可用或无权限时，不保留本地回退文件，任务返回明确失败信息。
+- `GET /api/studio` / `GET /api/studio/{id}` 能触发到期本地回退图的后台补偿重传。
+- 手动重传接口成功后，图片 URL 替换为 OSS URL，本地暂存文件被删除。
+- 超过 TTL 的本地回退文件会被清理，图片标记为 `local_expired`。
+- 本地回退图片不能直接保存到图库。
 - 前端能在任务完成时对本地回退结果给出可见警告。
 
 ## 验证
@@ -65,9 +89,13 @@
   - 重试耗尽后回退本地 URL
   - 非可恢复 OSS 失败不会保留本地暂存
   - 图片工作室结果会写入 `warnings` 与 `storage_source`
+  - 手动重传接口能把本地回退图恢复为 OSS URL
+  - 到期本地回退文件会标记为 `local_expired`
+  - 本地回退图片保存到图库会被拒绝
 - 手工验证：
   - 真实模型生成一组图片
   - 模拟 OSS 短时失败时能看到本地回退与 warning
+  - 修复 OSS 配置后点击“重传回退图到 OSS”可恢复
 
 ## 文档更新
 

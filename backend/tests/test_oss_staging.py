@@ -227,3 +227,48 @@ async def test_persist_generated_image_with_fallback_cleans_staging_on_non_retry
         )
 
     assert not staged_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_retry_local_fallback_image_to_oss_async_cleans_file_after_success(tmp_path, monkeypatch):
+    service = OSSService()
+    assets_dir = tmp_path / "assets"
+    staged_path = assets_dir / "oss_staging" / "image" / "project-1" / "staged.png"
+    staged_path.parent.mkdir(parents=True, exist_ok=True)
+    staged_path.write_bytes(b"image-bytes")
+
+    monkeypatch.setattr(service, "_assets_dir", lambda: assets_dir)
+    monkeypatch.setattr(service, "is_enabled", lambda: True)
+    monkeypatch.setattr(
+        service,
+        "_upload_staged_file_sync",
+        lambda _staged_file, _file_type="image", _project_id="": (True, "https://bucket.oss-cn-beijing.aliyuncs.com/aistudio/image/project-1/final.png"),
+    )
+
+    result = await service.retry_local_fallback_image_to_oss_async(
+        "/assets/oss_staging/image/project-1/staged.png",
+        "project-1",
+    )
+
+    assert result.storage_source == "oss"
+    assert result.url.endswith("/final.png")
+    assert not staged_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_retry_local_fallback_image_to_oss_async_marks_missing_file_expired(tmp_path, monkeypatch):
+    service = OSSService()
+    assets_dir = tmp_path / "assets"
+    assets_dir.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(service, "_assets_dir", lambda: assets_dir)
+    monkeypatch.setattr(service, "is_enabled", lambda: True)
+
+    result = await service.retry_local_fallback_image_to_oss_async(
+        "/assets/oss_staging/image/project-1/missing.png",
+        "project-1",
+    )
+
+    assert result.storage_source == "local_expired"
+    assert result.retryable is False
+    assert "不存在" in (result.error or "")

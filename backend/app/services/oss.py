@@ -47,6 +47,7 @@ class PersistedAssetResult:
     storage_source: str
     warning: Optional[str] = None
     error: Optional[str] = None
+    retryable: bool = True
 
 
 class OSSService:
@@ -205,6 +206,51 @@ class OSSService:
             except OSError:
                 break
             current = current.parent
+
+    def _resolve_local_asset_url_to_path(self, local_url: str) -> Optional[Path]:
+        """将 /assets/... URL 解析为本地文件路径，仅允许 assets 目录内文件。"""
+        if not local_url:
+            return None
+
+        normalized = local_url.strip()
+        if normalized.startswith("http://") or normalized.startswith("https://"):
+            parsed = urlparse(normalized)
+            normalized = parsed.path
+        if not normalized.startswith("/assets/"):
+            return None
+
+        relative_text = normalized[len("/assets/") :].strip("/")
+        if not relative_text:
+            return None
+
+        assets_dir = self._assets_dir().resolve()
+        candidate = (assets_dir / Path(relative_text)).resolve()
+        try:
+            candidate.relative_to(assets_dir)
+        except ValueError:
+            return None
+        return candidate
+
+    def is_local_staging_asset_url(self, local_url: str) -> bool:
+        """判断 URL 是否指向当前服务管理的本地暂存资源。"""
+        resolved = self._resolve_local_asset_url_to_path(local_url)
+        if resolved is None:
+            return False
+        assets_dir = self._assets_dir().resolve()
+        staging_dir = (assets_dir / "oss_staging").resolve()
+        try:
+            resolved.relative_to(staging_dir)
+        except ValueError:
+            return False
+        return True
+
+    def cleanup_local_asset_url(self, local_url: str) -> bool:
+        """删除本地暂存资源 URL 对应文件。"""
+        file_path = self._resolve_local_asset_url_to_path(local_url)
+        if file_path is None or not file_path.exists():
+            return False
+        self._cleanup_staged_file(file_path)
+        return True
 
     def _download_url_to_staging_sync(
         self,
@@ -647,6 +693,10 @@ class OSSService:
         )
         return any(marker in normalized for marker in non_retryable_markers)
 
+    def is_non_retryable_upload_failure(self, error_message: str) -> bool:
+        """对外暴露：判断失败是否应暂停自动重试。"""
+        return self._is_non_retryable_upload_failure(error_message)
+
     async def persist_generated_image_with_fallback_async(
         self,
         url: str,
@@ -712,6 +762,85 @@ class OSSService:
         except Exception:
             self._cleanup_staged_file(staged_file.path)
             raise
+
+    async def retry_local_fallback_image_to_oss_async(
+        self,
+        local_url: str,
+        project_id: str = "",
+        max_retries: int = 3,
+    ) -> PersistedAssetResult:
+        """基于本地回退文件重新上传到 OSS；失败时保留本地文件。"""
+        if not local_url:
+            return PersistedAssetResult(
+                url="",
+                storage_source="local_expired",
+                warning="本地回退文件缺失，无法重新上传到 OSS，请重新生成图片。",
+                error="本地回退文件缺失",
+                retryable=False,
+            )
+
+        if not self.is_enabled():
+            return PersistedAssetResult(
+                url=local_url,
+                storage_source="local_fallback",
+                warning="OSS 当前不可用，已保留本地回退图片。",
+                error="OSS 未启用",
+                retryable=False,
+            )
+
+        file_path = self._resolve_local_asset_url_to_path(local_url)
+        if file_path is None or not file_path.exists():
+            return PersistedAssetResult(
+                url="",
+                storage_source="local_expired",
+                warning="本地回退文件不存在或已被清理，无法继续上传到 OSS，请重新生成图片。",
+                error="本地回退文件不存在",
+                retryable=False,
+            )
+
+        staged_file = _StagedFile(
+            path=file_path,
+            local_url=local_url,
+            extension=file_path.suffix.lstrip(".") or "png",
+        )
+
+        attempts = max(1, max_retries)
+        last_error = ""
+        loop = asyncio.get_event_loop()
+
+        for attempt in range(attempts):
+            success, result = await loop.run_in_executor(
+                _oss_executor,
+                self._upload_staged_file_sync,
+                staged_file,
+                "image",
+                project_id,
+            )
+            if success:
+                self._cleanup_staged_file(file_path)
+                return PersistedAssetResult(url=result, storage_source="oss")
+
+            last_error = result
+            non_retryable = self._is_non_retryable_upload_failure(last_error)
+            if non_retryable:
+                return PersistedAssetResult(
+                    url=local_url,
+                    storage_source="local_fallback",
+                    warning=f"重新上传到 OSS 失败，请检查 OSS 配置后再手动重试：{last_error}",
+                    error=last_error,
+                    retryable=False,
+                )
+
+            if attempt < attempts - 1:
+                await asyncio.sleep(min(2 ** attempt, 8))
+
+        return PersistedAssetResult(
+            url=local_url,
+            storage_source="local_fallback",
+            warning=f"重新上传到 OSS 连续失败，暂时保留本地回退图片：{last_error or '未知错误'}",
+            error=last_error or None,
+            retryable=True,
+        )
 
     async def _ensure_remote_url_persisted_async(
         self,
