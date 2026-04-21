@@ -41,6 +41,14 @@ class _StagedFile:
     extension: str
 
 
+@dataclass
+class PersistedAssetResult:
+    url: str
+    storage_source: str
+    warning: Optional[str] = None
+    error: Optional[str] = None
+
+
 class OSSService:
     """OSS 存储服务
     
@@ -304,6 +312,38 @@ class OSSService:
             except Exception as e:
                 logger.error(f"[OSS] 上传异常 ({file_type}): {e}")
                 return False, f"上传失败: {str(e)}，本地暂存: {staged_file.local_url}"
+
+    def _upload_staged_file_sync(
+        self,
+        staged_file: _StagedFile,
+        file_type: str = "image",
+        project_id: str = "",
+    ) -> Tuple[bool, str]:
+        """将已落盘的暂存文件上传到 OSS，不负责清理本地文件。"""
+        if not self.is_enabled():
+            return False, "OSS 未启用"
+
+        with self._lock:
+            success, bucket = self._init_client()
+            if not success or bucket is None:
+                return False, "OSS 初始化失败"
+
+            try:
+                object_key = self._generate_object_key(file_type, staged_file.extension, project_id)
+                with open(staged_file.path, "rb") as file:
+                    result = bucket.put_object(object_key, file)
+
+                if result.status == 200:
+                    config = self._get_config()
+                    oss_url = f"https://{config.bucket_name}.{config.endpoint_host}/{object_key}"
+                    logger.info(f"[OSS] 上传成功 ({file_type}): {oss_url}")
+                    return True, oss_url
+
+                logger.error(f"[OSS] 上传失败: HTTP {result.status}")
+                return False, f"上传失败: HTTP {result.status}"
+            except Exception as exc:
+                logger.error(f"[OSS] 上传异常 ({file_type}): {exc}")
+                return False, f"上传失败: {str(exc)}"
     
     def upload_from_url(
         self, 
@@ -587,6 +627,91 @@ class OSSService:
     def should_persist_remote_url(self, url: str) -> bool:
         """兼容旧调用：等价于 should_rehost_remote_url。"""
         return self.should_rehost_remote_url(url)
+
+    def _is_non_retryable_upload_failure(self, error_message: str) -> bool:
+        normalized = (error_message or "").lower()
+        non_retryable_markers = (
+            "oss 初始化失败",
+            "oss 未启用",
+            "accessdenied",
+            "invalidaccesskeyid",
+            "signaturedoesnotmatch",
+            "nosuchbucket",
+            "bucket 不存在",
+            "访问被拒绝",
+            "配置不完整",
+            "http 400",
+            "http 401",
+            "http 403",
+            "http 404",
+        )
+        return any(marker in normalized for marker in non_retryable_markers)
+
+    async def persist_generated_image_with_fallback_async(
+        self,
+        url: str,
+        project_id: str = "",
+        max_retries: int = 5,
+    ) -> PersistedAssetResult:
+        """图片结果统一落盘后上传 OSS；持续失败时回落到本地暂存 URL。"""
+        if not url:
+            return PersistedAssetResult(url="", storage_source="remote")
+
+        if not self.should_persist_generated_url(url):
+            storage_source = "oss" if self.is_current_oss_url(url) else "remote"
+            return PersistedAssetResult(url=url, storage_source=storage_source)
+
+        if not self.is_enabled():
+            return PersistedAssetResult(url=url, storage_source="remote")
+
+        loop = asyncio.get_event_loop()
+        staged_success, staged_result = await loop.run_in_executor(
+            _oss_executor,
+            self._download_url_to_staging_sync,
+            url,
+            "image",
+            "png",
+            project_id,
+        )
+        if not staged_success:
+            raise RuntimeError(f"图片结果写入本地暂存失败: {staged_result}")
+
+        staged_file = staged_result
+        assert isinstance(staged_file, _StagedFile)
+
+        last_error = ""
+        attempts = max(1, max_retries)
+
+        try:
+            for attempt in range(attempts):
+                success, result = await loop.run_in_executor(
+                    _oss_executor,
+                    self._upload_staged_file_sync,
+                    staged_file,
+                    "image",
+                    project_id,
+                )
+                if success:
+                    self._cleanup_staged_file(staged_file.path)
+                    return PersistedAssetResult(url=result, storage_source="oss")
+
+                last_error = result
+                if self._is_non_retryable_upload_failure(last_error):
+                    raise RuntimeError(f"图片结果转存 OSS 失败: {last_error}")
+
+                if attempt < attempts - 1:
+                    await asyncio.sleep(min(2 ** attempt, 8))
+
+            warning = f"图片结果转存 OSS 连续失败，已暂时回落到本地文件，请稍后重试或检查 OSS 配置：{last_error or '未知错误'}"
+            return PersistedAssetResult(
+                url=staged_file.local_url,
+                storage_source="local_fallback",
+                warning=warning,
+                error=last_error or None,
+            )
+        except Exception:
+            self._cleanup_staged_file(staged_file.path)
+            raise
 
     async def _ensure_remote_url_persisted_async(
         self,

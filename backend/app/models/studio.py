@@ -13,6 +13,8 @@ class StudioTaskImage(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     group_index: int = 0  # 组索引
     url: Optional[str] = None  # 图片 URL
+    storage_source: str = "remote"  # remote / oss / local_fallback
+    storage_warning: Optional[str] = None  # 存储告警信息
     prompt_used: Optional[str] = None  # 使用的提示词
     is_selected: bool = False  # 是否被选中保存到图库
     markers: List[str] = []  # 用户标记: star, flag, check, cross
@@ -76,7 +78,8 @@ class StudioTask(BaseModel):
     # 状态
     status: str = "pending"  # pending, generating, completed, failed
     error_message: Optional[str] = None
-    
+    warnings: List[str] = []  # 非阻塞告警，如 OSS 转存失败后回落本地
+
     # API 追踪ID
     last_task_id: Optional[str] = None  # DashScope 任务ID（兼容旧数据）
     last_request_id: Optional[str] = None  # DashScope 请求ID（兼容旧数据）

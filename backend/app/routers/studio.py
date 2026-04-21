@@ -58,39 +58,70 @@ async def _ensure_generated_images_persisted(
     model_id: str = "",
     request_ids: Optional[List[str]] = None,
     task_ids: Optional[List[str]] = None,
-) -> List[str]:
+) -> Dict[str, List[str]]:
     """在写入任务前统一将生成结果转存到当前 OSS。"""
-    if not images or not oss_service.is_enabled():
-        return []
+    if not images:
+        return {"errors": [], "warnings": []}
 
-    migrated_url_cache: Dict[str, str] = {}
+    migrated_url_cache: Dict[str, Dict[str, Optional[str]]] = {}
     failed_url_cache: Dict[str, str] = {}
     errors: List[str] = []
+    warnings: List[str] = []
 
     for image in images:
         original_url = image.url
         if not original_url:
             continue
         if not oss_service.should_persist_generated_url(original_url):
+            image.storage_source = "oss" if oss_service.is_current_oss_url(original_url) else "remote"
+            image.storage_warning = None
             continue
         if original_url in migrated_url_cache:
-            image.url = migrated_url_cache[original_url]
+            cached_result = migrated_url_cache[original_url]
+            image.url = cached_result["url"]
+            image.storage_source = cached_result["storage_source"] or "remote"
+            image.storage_warning = cached_result["warning"]
             continue
         if original_url in failed_url_cache:
             image.url = None
+            image.storage_source = "remote"
+            image.storage_warning = None
             continue
 
         try:
-            persisted_url = await oss_service.ensure_image_persisted_async(
+            persisted_result = await oss_service.persist_generated_image_with_fallback_async(
                 original_url,
                 project_id,
-                strict=True,
             )
-            migrated_url_cache[original_url] = persisted_url
-            image.url = persisted_url
+            migrated_url_cache[original_url] = {
+                "url": persisted_result.url,
+                "storage_source": persisted_result.storage_source,
+                "warning": persisted_result.warning,
+            }
+            image.url = persisted_result.url
+            image.storage_source = persisted_result.storage_source
+            image.storage_warning = persisted_result.warning
+            if persisted_result.warning:
+                warning_message = (
+                    f"第 {image.group_index + 1} 张图片 OSS 转存连续失败，已暂时回退为服务器本地文件。"
+                )
+                warnings.append(warning_message)
+                parsed = urlparse(original_url)
+                logger.warning(
+                    "[OSS][studio] persist fallback model_id=%s project_id=%s request_ids=%s task_ids=%s original_host=%s fallback_url=%s reason=%s",
+                    model_id or "unknown",
+                    project_id or "_global",
+                    ",".join(request_ids or []) or "-",
+                    ",".join(task_ids or []) or "-",
+                    parsed.netloc or "unknown",
+                    persisted_result.url,
+                    persisted_result.error or persisted_result.warning,
+                )
         except Exception as exc:
             failed_url_cache[original_url] = str(exc)
             image.url = None
+            image.storage_source = "remote"
+            image.storage_warning = None
             parsed = urlparse(original_url)
             logger.warning(
                 "[OSS][studio] persist failed model_id=%s project_id=%s request_ids=%s task_ids=%s original_host=%s oss_enabled=%s reason=%s",
@@ -104,7 +135,8 @@ async def _ensure_generated_images_persisted(
             )
             errors.append(str(exc))
 
-    return errors
+    unique_warnings = list(dict.fromkeys(warnings))
+    return {"errors": errors, "warnings": unique_warnings}
 
 
 class ReferenceItemInput(BaseModel):
@@ -1408,6 +1440,7 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
     task.status = "generating"
     task.images = []
     task.error_message = "；".join(validation_warnings) if validation_warnings else None
+    task.warnings = []
     storage_service.save_studio_task(task)
 
     # 捕获用户上下文（后台任务需要）
@@ -1563,13 +1596,15 @@ async def _background_generate(
                 seed=seed,
             )
 
-        persist_errors = await _ensure_generated_images_persisted(
+        persist_report = await _ensure_generated_images_persisted(
             images,
             task.project_id,
             model_id=task.model,
             request_ids=request_ids,
             task_ids=task_ids or task.task_ids,
         )
+        persist_errors = persist_report["errors"]
+        task.warnings = persist_report["warnings"]
         if persist_errors:
             existing_errors = getattr(task, "_group_errors", [])
             task._group_errors = existing_errors + persist_errors
@@ -1609,6 +1644,7 @@ async def _background_generate(
         logger.error(f"后台生成失败 [{task.id}]: {e}", exc_info=True)
         task.status = "failed"
         task.error_message = str(e)
+        task.warnings = []
     finally:
         storage_service.save_studio_task(task)
 

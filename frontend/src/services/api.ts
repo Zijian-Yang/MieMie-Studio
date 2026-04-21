@@ -1232,6 +1232,8 @@ export interface StudioTaskImage {
   id: string
   group_index: number
   url?: string
+  storage_source?: 'remote' | 'oss' | 'local_fallback'
+  storage_warning?: string | null
   prompt_used?: string
   is_selected: boolean
   markers?: string[]  // star, flag, check, cross
@@ -1281,6 +1283,7 @@ export interface StudioTask {
   images: StudioTaskImage[]
   status: 'pending' | 'generating' | 'completed' | 'failed'
   error_message?: string
+  warnings?: string[]
   created_at: string
   updated_at: string
 }
@@ -1585,6 +1588,65 @@ export interface ImageBenchmarkPublicShareResponse {
   run: ImageBenchmarkPublicRun
 }
 
+export interface ImageBenchmarkExportResponse {
+  filename: string
+  content: string
+  embedded_image_count: number
+  fallback_url_count: number
+}
+
+export interface ImageBenchmarkExportFileResponse {
+  filename: string
+  blob: Blob
+  embedded_image_count: number
+  fallback_url_count: number
+}
+
+const getFilenameFromContentDisposition = (value: string | null, fallback: string) => {
+  if (!value) return fallback
+  const utf8Match = value.match(/filename\*=UTF-8''([^;]+)/i)
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1])
+    } catch {
+      return utf8Match[1]
+    }
+  }
+  const asciiMatch = value.match(/filename="?([^";]+)"?/i)
+  return asciiMatch?.[1] || fallback
+}
+
+const downloadImageBenchmarkExportFile = async (
+  id: string,
+  format: 'md' | 'html',
+  data?: { inline_images?: boolean },
+): Promise<ImageBenchmarkExportFileResponse> => {
+  const endpoint = format === 'md' ? 'export-md-file' : 'export-html-file'
+  const response = await fetch(`/api/image-benchmark/runs/${id}/${endpoint}`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data ?? {}),
+  })
+  if (response.status === 401) {
+    localStorage.removeItem('auth-storage')
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login'
+    }
+    throw new Error('未登录或登录已过期，请重新登录')
+  }
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null)
+    throw new Error(payload?.detail || `导出失败: HTTP ${response.status}`)
+  }
+  const fallbackFilename = `image_benchmark_${id}.${format}`
+  return {
+    filename: getFilenameFromContentDisposition(response.headers.get('content-disposition'), fallbackFilename),
+    blob: await response.blob(),
+    embedded_image_count: Number(response.headers.get('x-embedded-image-count') || 0),
+    fallback_url_count: Number(response.headers.get('x-fallback-url-count') || 0),
+  }
+}
+
 export const imageBenchmarkApi = {
   getCapabilities: () => api.get<any, ImageBenchmarkCapabilitiesResponse>('/image-benchmark/capabilities'),
   listDatasets: (projectId: string) => api.get<any, { datasets: ImageBenchmarkDataset[] }>('/image-benchmark/datasets', { params: { project_id: projectId } }),
@@ -1659,7 +1721,10 @@ export const imageBenchmarkApi = {
   runSuite: (id: string) => api.post<any, { run: ImageBenchmarkRun; suite: ImageBenchmarkSuite }>(`/image-benchmark/suites/${id}/run`),
   getRun: (id: string) => api.get<any, { run: ImageBenchmarkRun }>(`/image-benchmark/runs/${id}`),
   retryFailedRun: (id: string) => api.post<any, { run: ImageBenchmarkRun; suite: ImageBenchmarkSuite }>(`/image-benchmark/runs/${id}/retry-failures`),
-  exportRunMarkdown: (id: string) => api.post<any, { filename: string; content: string }>(`/image-benchmark/runs/${id}/export-md`),
+  exportRunMarkdown: (id: string, data?: { inline_images?: boolean }) => api.post<any, ImageBenchmarkExportResponse>(`/image-benchmark/runs/${id}/export-md`, data ?? {}),
+  exportRunHtml: (id: string, data?: { inline_images?: boolean }) => api.post<any, ImageBenchmarkExportResponse>(`/image-benchmark/runs/${id}/export-html`, data ?? {}),
+  downloadRunMarkdown: (id: string, data?: { inline_images?: boolean }) => downloadImageBenchmarkExportFile(id, 'md', data),
+  downloadRunHtml: (id: string, data?: { inline_images?: boolean }) => downloadImageBenchmarkExportFile(id, 'html', data),
   previewCell: (data: {
     project_id: string
     task_kind: ImageBenchmarkTaskKind

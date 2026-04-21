@@ -13,6 +13,12 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 图片测评导出支持内嵌图片资源：
+  - `导出 Markdown` 与 `导出 HTML` 统一改为后端生成
+  - 导出时会把输入图 / 输出图下载并转成 `data:` 内嵌到单文件中
+  - 导出页新增“快速导出”，可跳过内嵌、直接保留原 URL
+  - 新增 `export-md-file / export-html-file` 附件接口，前端直接下载文件而非传超大 JSON
+  - 响应新增 `embedded_image_count` 与 `fallback_url_count`
 - 管理脚本运行时可观测性：
   - `GET /api/health` 新增 `git_commit`、`run_mode`、`serve_frontend`、`started_at`
   - `./run.sh status` / TUI 状态栏新增默认模式、实际模式、当前运行提交与前端服务方式
@@ -59,6 +65,10 @@
 - 自定义端口：支持通过 `./run.sh port backend 9000` / `./run.sh port frontend 3001` 自定义服务端口，持久化到 `.miemie.conf`，也支持环境变量 `MIEMIE_BACKEND_PORT` / `MIEMIE_FRONTEND_PORT` 覆盖
 
 ### 变更 (Changed)
+- 图片测评导出体验升级：
+  - 导出按钮增加 loading 态，避免大报告导出时误判为无响应
+  - 图片内嵌下载改为并发执行，并对超时/网络抖动/5xx/429 做多次重试
+  - 对 403/404/410 等明显失效 URL 快速回退，减少整体卡顿
 - 管理脚本：TUI 中“更新到最新版本”改为默认执行“拉取代码并自动应用到当前运行服务”
 - 管理脚本：更新流程会记录更新前实际运行模式，并在重启后校验运行中的 `git_commit / run_mode / serve_frontend`
 - 管理脚本：依赖刷新从比较 `HEAD~1` 改为比较“更新前 commit → 更新后 commit”，避免多提交更新时漏装依赖
@@ -79,6 +89,11 @@
 - 管理脚本：`./run.sh status` 新增当前 Workers 与 Node 构建内存显示
 
 ### 修复 (Fixed)
+- 图片工作室生成结果统一改为“先落本地暂存，再上传 OSS”：
+  - 对 DashScope 临时图片链接补齐统一持久化入口，避免临时 URL 直接写入最终任务结果
+  - OSS 上传增加多次自动重试；成功后立即删除本地暂存文件
+  - 重试耗尽时，对可恢复故障临时回退 `/assets/...` 本地图片，并在前端返回 warning / 本地回退标记
+  - 对 `HTTP 403/404`、Bucket/鉴权异常等不可恢复错误不保留本地回退，避免本地存储被滥用
 - `wan2.7` 图片工作室与图片测评在 OSS 转存失败时补充结构化日志，便于区分“代码未生效 / OSS 配置异常 / 服务器下载超时”
 - 图片测评 `interactive_edit` 执行链路补齐 wan2.7 的 `bbox_list` 归一化快照，避免预览正确但真实提交时退化成空数组导致整批 `InvalidParameter`
 - wan2.7 任务轮询失败时改为优先读取 `output.code / output.message`，测评与工作室可直接展示厂商返回的具体错误原因

@@ -1,9 +1,10 @@
 import pytest
 
-from app.models.studio import ReferenceItem
+from app.models.studio import ReferenceItem, StudioTaskImage
 from app.routers import studio as studio_router
 from app.models_registry.image.wan27_image import Wan27ImageService
 from app.routers.studio import get_image_size_templates
+from app.services.oss import PersistedAssetResult
 
 
 def _create_project(client, auth_header):
@@ -701,6 +702,47 @@ async def test_generate_with_qwen_image2_allows_missing_size(monkeypatch):
     assert images[0].url == "https://oss.example.com/output.png"
     assert request_ids == ["req-123"]
     assert captured["size"] is None
+
+
+@pytest.mark.asyncio
+async def test_ensure_generated_images_persisted_marks_local_fallback_warning(monkeypatch):
+    images = [
+        StudioTaskImage(
+            group_index=0,
+            url="https://dashscope-result-bj.oss-cn-beijing.aliyuncs.com/tmp/output.png",
+            prompt_used="prompt",
+        )
+    ]
+
+    async def fake_persist(_url, _project_id="", max_retries=5):
+        return PersistedAssetResult(
+            url="/assets/oss_staging/image/project-1/output.png",
+            storage_source="local_fallback",
+            warning="图片结果转存 OSS 连续失败，已暂时回落到本地文件",
+            error="上传失败: timeout",
+        )
+
+    monkeypatch.setattr(studio_router.oss_service, "should_persist_generated_url", lambda _url: True)
+    monkeypatch.setattr(studio_router.oss_service, "is_current_oss_url", lambda _url: False)
+    monkeypatch.setattr(
+        studio_router.oss_service,
+        "persist_generated_image_with_fallback_async",
+        fake_persist,
+    )
+
+    report = await studio_router._ensure_generated_images_persisted(
+        images,
+        "project-1",
+        model_id="wan2.7-image-pro",
+        request_ids=["req-1"],
+        task_ids=["task-1"],
+    )
+
+    assert report["errors"] == []
+    assert report["warnings"] == ["第 1 张图片 OSS 转存连续失败，已暂时回退为服务器本地文件。"]
+    assert images[0].url == "/assets/oss_staging/image/project-1/output.png"
+    assert images[0].storage_source == "local_fallback"
+    assert "回落到本地文件" in (images[0].storage_warning or "")
 
 
 @pytest.mark.asyncio

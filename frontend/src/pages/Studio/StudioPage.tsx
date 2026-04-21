@@ -575,9 +575,17 @@ const StudioPage = () => {
     const dedupeKey = `${task.id}:${task.status}`
     if (notifiedResultsRef.current.has(dedupeKey)) return
     notifiedResultsRef.current.add(dedupeKey)
-    const title = task.status === 'completed' ? '图片任务已完成' : '图片任务失败'
+    const warningCount = task.warnings?.length || 0
+    const hasWarnings = warningCount > 0
+    const title = task.status === 'completed'
+      ? (hasWarnings ? '图片任务已完成（含警告）' : '图片任务已完成')
+      : '图片任务失败'
     const body = task.status === 'completed'
-      ? `${task.name || '未命名任务'} 已生成完成`
+      ? (
+        hasWarnings
+          ? `${task.name || '未命名任务'} 已生成完成，但有 ${warningCount} 条存储警告`
+          : `${task.name || '未命名任务'} 已生成完成`
+      )
       : `${task.name || '未命名任务'} 失败：${task.error_message || '未知错误'}`
     try {
       const notification = new Notification(title, { body, tag: dedupeKey })
@@ -610,6 +618,9 @@ const StudioPage = () => {
               message.warning(updatedTask.error_message)
             } else {
               message.success(`图片生成完成（${validCount} 张）`)
+            }
+            if (updatedTask.warnings?.length) {
+              message.warning(updatedTask.warnings.join('；'))
             }
           } else {
             message.error(`生成失败: ${updatedTask.error_message || '未知错误'}`)
@@ -1888,8 +1899,9 @@ const StudioPage = () => {
                   <div style={{ position: 'absolute', top: 8, left: 8 }}>
                     {getStatusTag(task.status)}
                   </div>
-                  <div style={{ position: 'absolute', top: 8, right: 8 }}>
+                  <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
                     <Tag>{task.references.length} 个素材</Tag>
+                    {task.warnings?.length ? <Tag color="warning">有告警</Tag> : null}
                   </div>
                 </div>
                 <div className="asset-card-info">
@@ -2038,6 +2050,16 @@ const StudioPage = () => {
                       )}
                     </Space>
                   </div>
+
+                  {selectedTask.warnings?.length ? (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message="结果包含存储告警"
+                      description={selectedTask.warnings.join('；')}
+                      style={{ marginBottom: 12 }}
+                    />
+                  ) : null}
                   
                   {selectedTask.status === 'failed' && selectedTask.error_message && (
                     <div style={{
@@ -2138,9 +2160,23 @@ const StudioPage = () => {
                               <div style={{ position: 'absolute', bottom: 8, right: 8, pointerEvents: 'none' }}>
                                 <Tag>第 {idx + 1} 组</Tag>
                               </div>
-                              {image.is_selected && (
-                                <div style={{ position: 'absolute', top: 8, right: 8, pointerEvents: 'none' }}>
-                                  <Tag color="green">已保存</Tag>
+                              {(image.storage_source === 'local_fallback' || image.is_selected) && (
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    top: 8,
+                                    right: 8,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: 4,
+                                    alignItems: 'flex-end',
+                                    pointerEvents: 'none',
+                                  }}
+                                >
+                                  {image.storage_source === 'local_fallback' && (
+                                    <Tag color="warning" title={image.storage_warning || undefined}>本地回退</Tag>
+                                  )}
+                                  {image.is_selected && <Tag color="green">已保存</Tag>}
                                 </div>
                               )}
                             </div>

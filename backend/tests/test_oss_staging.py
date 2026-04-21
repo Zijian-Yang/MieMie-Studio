@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import pytest
+
 from app.config import OSSConfig
 from app.services.oss import OSSService, _StagedFile
 
@@ -107,3 +109,121 @@ def test_upload_from_url_keeps_staging_when_oss_upload_fails(tmp_path, monkeypat
     assert success is False
     assert "本地暂存: /assets/oss_staging/image/project-1/staged.png" in result
     assert staged_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_persist_generated_image_with_fallback_cleans_staging_after_retry_success(tmp_path, monkeypatch):
+    service = OSSService()
+    staged_path = tmp_path / "staged.png"
+    staged_path.write_bytes(b"image-bytes")
+
+    monkeypatch.setattr(service, "is_enabled", lambda: True)
+    monkeypatch.setattr(service, "should_persist_generated_url", lambda _url: True)
+    monkeypatch.setattr(
+        service,
+        "_download_url_to_staging_sync",
+        lambda *_args, **_kwargs: (
+            True,
+            _StagedFile(
+                path=staged_path,
+                local_url="/assets/oss_staging/image/project-1/staged.png",
+                extension="png",
+            ),
+        ),
+    )
+
+    attempts = {"count": 0}
+
+    def fake_upload(_staged_file, _file_type="image", _project_id=""):
+        attempts["count"] += 1
+        if attempts["count"] < 3:
+            return False, "上传失败: timeout"
+        return True, "https://bucket.oss-cn-beijing.aliyuncs.com/aistudio/image/project-1/final.png"
+
+    monkeypatch.setattr(service, "_upload_staged_file_sync", fake_upload)
+
+    result = await service.persist_generated_image_with_fallback_async(
+        "https://dashscope-result.example.com/tmp/a.png",
+        "project-1",
+        max_retries=3,
+    )
+
+    assert result.storage_source == "oss"
+    assert result.url.endswith("/final.png")
+    assert result.warning is None
+    assert attempts["count"] == 3
+    assert not staged_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_persist_generated_image_with_fallback_returns_local_url_after_retry_exhaustion(tmp_path, monkeypatch):
+    service = OSSService()
+    staged_path = tmp_path / "staged.png"
+    staged_path.write_bytes(b"image-bytes")
+
+    monkeypatch.setattr(service, "is_enabled", lambda: True)
+    monkeypatch.setattr(service, "should_persist_generated_url", lambda _url: True)
+    monkeypatch.setattr(
+        service,
+        "_download_url_to_staging_sync",
+        lambda *_args, **_kwargs: (
+            True,
+            _StagedFile(
+                path=staged_path,
+                local_url="/assets/oss_staging/image/project-1/staged.png",
+                extension="png",
+            ),
+        ),
+    )
+    monkeypatch.setattr(
+        service,
+        "_upload_staged_file_sync",
+        lambda _staged_file, _file_type="image", _project_id="": (False, "上传失败: timeout"),
+    )
+
+    result = await service.persist_generated_image_with_fallback_async(
+        "https://dashscope-result.example.com/tmp/a.png",
+        "project-1",
+        max_retries=3,
+    )
+
+    assert result.storage_source == "local_fallback"
+    assert result.url == "/assets/oss_staging/image/project-1/staged.png"
+    assert "暂时回落到本地文件" in (result.warning or "")
+    assert staged_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_persist_generated_image_with_fallback_cleans_staging_on_non_retryable_failure(tmp_path, monkeypatch):
+    service = OSSService()
+    staged_path = tmp_path / "staged.png"
+    staged_path.write_bytes(b"image-bytes")
+
+    monkeypatch.setattr(service, "is_enabled", lambda: True)
+    monkeypatch.setattr(service, "should_persist_generated_url", lambda _url: True)
+    monkeypatch.setattr(
+        service,
+        "_download_url_to_staging_sync",
+        lambda *_args, **_kwargs: (
+            True,
+            _StagedFile(
+                path=staged_path,
+                local_url="/assets/oss_staging/image/project-1/staged.png",
+                extension="png",
+            ),
+        ),
+    )
+    monkeypatch.setattr(
+        service,
+        "_upload_staged_file_sync",
+        lambda _staged_file, _file_type="image", _project_id="": (False, "上传失败: HTTP 403"),
+    )
+
+    with pytest.raises(RuntimeError, match="HTTP 403"):
+        await service.persist_generated_image_with_fallback_async(
+            "https://dashscope-result.example.com/tmp/a.png",
+            "project-1",
+            max_retries=2,
+        )
+
+    assert not staged_path.exists()
