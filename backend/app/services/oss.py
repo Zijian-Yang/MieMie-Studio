@@ -13,6 +13,7 @@ import hashlib
 import httpx
 import threading
 import asyncio
+from contextvars import copy_context
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -433,10 +434,12 @@ class OSSService:
             (success, url_or_error): 成功时返回 OSS URL，失败时返回错误信息
         """
         loop = asyncio.get_event_loop()
+        context = copy_context()
         return await loop.run_in_executor(
             _oss_executor,
+            context.run,
             self._upload_from_url_sync,
-            url, file_type, extension, project_id
+            url, file_type, extension, project_id,
         )
     
     def _upload_from_bytes_sync(
@@ -538,8 +541,10 @@ class OSSService:
         异步版：直接上传字节数据到指定OSS路径
         """
         loop = asyncio.get_event_loop()
+        context = copy_context()
         return await loop.run_in_executor(
             _oss_executor,
+            context.run,
             self._upload_bytes_sync,
             data,
             object_path,
@@ -715,8 +720,10 @@ class OSSService:
             return PersistedAssetResult(url=url, storage_source="remote")
 
         loop = asyncio.get_event_loop()
+        context = copy_context()
         staged_success, staged_result = await loop.run_in_executor(
             _oss_executor,
+            context.run,
             self._download_url_to_staging_sync,
             url,
             "image",
@@ -736,6 +743,7 @@ class OSSService:
             for attempt in range(attempts):
                 success, result = await loop.run_in_executor(
                     _oss_executor,
+                    context.run,
                     self._upload_staged_file_sync,
                     staged_file,
                     "image",
@@ -807,10 +815,12 @@ class OSSService:
         attempts = max(1, max_retries)
         last_error = ""
         loop = asyncio.get_event_loop()
+        context = copy_context()
 
         for attempt in range(attempts):
             success, result = await loop.run_in_executor(
                 _oss_executor,
+                context.run,
                 self._upload_staged_file_sync,
                 staged_file,
                 "image",

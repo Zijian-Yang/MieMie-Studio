@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from contextvars import ContextVar
 
 import pytest
 
@@ -272,3 +273,59 @@ async def test_retry_local_fallback_image_to_oss_async_marks_missing_file_expire
     assert result.storage_source == "local_expired"
     assert result.retryable is False
     assert "不存在" in (result.error or "")
+
+
+@pytest.mark.asyncio
+async def test_upload_from_url_async_preserves_contextvars_into_executor(monkeypatch):
+    service = OSSService()
+    marker = ContextVar("marker_upload", default="missing")
+    marker.set("present")
+    seen = {}
+
+    def fake_upload_from_url_sync(*_args, **_kwargs):
+        seen["value"] = marker.get()
+        return True, "https://example.com/final.png"
+
+    monkeypatch.setattr(service, "_upload_from_url_sync", fake_upload_from_url_sync)
+
+    success, result = await service.upload_from_url_async("https://example.com/source.png")
+
+    assert success is True
+    assert result == "https://example.com/final.png"
+    assert seen["value"] == "present"
+
+
+@pytest.mark.asyncio
+async def test_persist_generated_image_with_fallback_preserves_contextvars_into_executor(tmp_path, monkeypatch):
+    service = OSSService()
+    marker = ContextVar("marker_persist", default="missing")
+    marker.set("present")
+    staged_path = tmp_path / "staged.png"
+    staged_path.write_bytes(b"image-bytes")
+    seen = {}
+
+    monkeypatch.setattr(service, "should_persist_generated_url", lambda _url: True)
+    monkeypatch.setattr(service, "is_enabled", lambda: True)
+
+    def fake_download(*_args, **_kwargs):
+        return True, _StagedFile(
+            path=staged_path,
+            local_url="/assets/oss_staging/image/project-1/staged.png",
+            extension="png",
+        )
+
+    def fake_upload(_staged_file, _file_type="image", _project_id=""):
+        seen["value"] = marker.get()
+        return True, "https://example.com/final.png"
+
+    monkeypatch.setattr(service, "_download_url_to_staging_sync", fake_download)
+    monkeypatch.setattr(service, "_upload_staged_file_sync", fake_upload)
+
+    result = await service.persist_generated_image_with_fallback_async(
+        "https://dashscope.example.com/tmp/a.png",
+        "project-1",
+    )
+
+    assert result.storage_source == "oss"
+    assert result.url == "https://example.com/final.png"
+    assert seen["value"] == "present"
