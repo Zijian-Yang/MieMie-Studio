@@ -56,6 +56,8 @@ backend/logs/
 *.sqlite3
 
 # User data and sensitive config
+backend/data/*
+!backend/data/config.example.json
 backend/data/users/
 backend/data/users.json
 backend/data/sessions.json
@@ -86,4 +88,3 @@ cursor-chat-history.zip
 场景控制平台/
 .claude
 .codex
-docs/阿里云模型api文档/
