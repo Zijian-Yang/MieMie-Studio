@@ -12,9 +12,10 @@ import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, model_validator
 
 from app.config import get_user_config_dir, set_user_config_dir
@@ -32,6 +33,7 @@ from app.services.image_benchmark_runtime import (
     get_image_benchmark_capabilities,
     merge_effective_params,
     preview_benchmark_cell,
+    render_html_report,
     render_markdown_report,
 )
 from app.services.oss import oss_service
@@ -138,6 +140,30 @@ class PreviewCellRequest(BaseModel):
     case_data: DatasetItemInput
     baseline_params: Dict[str, Any] = {}
     override_params: Dict[str, Any] = {}
+
+
+class RunExportRequest(BaseModel):
+    inline_images: bool = True
+
+
+def _report_download_response(
+    *,
+    filename: str,
+    content: str,
+    media_type: str,
+    embedded_image_count: int,
+    fallback_url_count: int,
+) -> Response:
+    ascii_filename = filename.encode("ascii", "ignore").decode("ascii") or "image_benchmark_report"
+    return Response(
+        content=content.encode("utf-8"),
+        media_type=f"{media_type}; charset=utf-8",
+        headers={
+            "Content-Disposition": f"attachment; filename=\"{ascii_filename}\"; filename*=UTF-8''{quote(filename)}",
+            "X-Embedded-Image-Count": str(embedded_image_count),
+            "X-Fallback-Url-Count": str(fallback_url_count),
+        },
+    )
 
 
 def _ensure_project_exists(project_id: str) -> None:
@@ -1034,15 +1060,77 @@ async def get_run(run_id: str):
 
 
 @router.post("/runs/{run_id}/export-md")
-async def export_run_markdown(run_id: str):
+async def export_run_markdown(run_id: str, data: Optional[RunExportRequest] = None):
     run = storage_service.get_image_benchmark_run(run_id)
     if not run:
         raise HTTPException(status_code=404, detail="运行记录不存在")
-    content = render_markdown_report(run.model_dump())
+    rendered = await render_markdown_report(
+        run.model_dump(),
+        inline_images=data.inline_images if data else True,
+    )
     return {
         "filename": f"image_benchmark_{run.id}.md",
-        "content": content,
+        "content": rendered.content,
+        "embedded_image_count": rendered.embedded_image_count,
+        "fallback_url_count": rendered.fallback_url_count,
     }
+
+
+@router.post("/runs/{run_id}/export-md-file")
+async def export_run_markdown_file(run_id: str, data: Optional[RunExportRequest] = None):
+    run = storage_service.get_image_benchmark_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="运行记录不存在")
+    rendered = await render_markdown_report(
+        run.model_dump(),
+        inline_images=data.inline_images if data else True,
+    )
+    return _report_download_response(
+        filename=f"image_benchmark_{run.id}.md",
+        content=rendered.content,
+        media_type="text/markdown",
+        embedded_image_count=rendered.embedded_image_count,
+        fallback_url_count=rendered.fallback_url_count,
+    )
+
+
+@router.post("/runs/{run_id}/export-html")
+async def export_run_html(run_id: str, data: Optional[RunExportRequest] = None):
+    run = storage_service.get_image_benchmark_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="运行记录不存在")
+    suite = storage_service.get_image_benchmark_suite(run.suite_id)
+    rendered = await render_html_report(
+        run.model_dump(),
+        suite.model_dump() if suite else None,
+        inline_images=data.inline_images if data else True,
+    )
+    return {
+        "filename": f"image_benchmark_{run.id}.html",
+        "content": rendered.content,
+        "embedded_image_count": rendered.embedded_image_count,
+        "fallback_url_count": rendered.fallback_url_count,
+    }
+
+
+@router.post("/runs/{run_id}/export-html-file")
+async def export_run_html_file(run_id: str, data: Optional[RunExportRequest] = None):
+    run = storage_service.get_image_benchmark_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="运行记录不存在")
+    suite = storage_service.get_image_benchmark_suite(run.suite_id)
+    rendered = await render_html_report(
+        run.model_dump(),
+        suite.model_dump() if suite else None,
+        inline_images=data.inline_images if data else True,
+    )
+    return _report_download_response(
+        filename=f"image_benchmark_{run.id}.html",
+        content=rendered.content,
+        media_type="text/html",
+        embedded_image_count=rendered.embedded_image_count,
+        fallback_url_count=rendered.fallback_url_count,
+    )
 
 
 @router.post("/runs/{run_id}/retry-failures")

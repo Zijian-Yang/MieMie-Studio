@@ -38,6 +38,7 @@ import {
   ImageBenchmarkCapabilitiesResponse,
   ImageBenchmarkCellResult,
   ImageBenchmarkDataset,
+  ImageBenchmarkExportResponse,
   ImageBenchmarkDatasetIssue,
   ImageBenchmarkRun,
   ImageBenchmarkSuite,
@@ -58,24 +59,39 @@ const cloneSuite = (suite: ImageBenchmarkSuite | null) => (
   suite ? JSON.parse(JSON.stringify(suite)) as ImageBenchmarkSuite : null
 )
 
-const downloadTextFile = (filename: string, content: string, mimeType: string) => {
-  const blob = new Blob([content], { type: mimeType })
+const downloadBlobFile = (filename: string, blob: Blob) => {
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = url
   anchor.download = filename
+  anchor.style.display = 'none'
+  document.body.appendChild(anchor)
   anchor.click()
-  URL.revokeObjectURL(url)
+  window.setTimeout(() => {
+    URL.revokeObjectURL(url)
+    anchor.remove()
+  }, 30000)
 }
 
-const escapeHtml = (value: unknown) => (
-  String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-)
+const showExportMessage = (
+  label: string,
+  result: Pick<ImageBenchmarkExportResponse, 'embedded_image_count' | 'fallback_url_count'>,
+  inlineImages: boolean
+) => {
+  if (!inlineImages) {
+    message.success(`${label} 已快速导出，保留原图 URL`)
+    return
+  }
+  if (result.fallback_url_count > 0) {
+    message.warning(`${label} 已导出，已内嵌 ${result.embedded_image_count} 张图片，${result.fallback_url_count} 张仍保留原 URL`)
+    return
+  }
+  if (result.embedded_image_count > 0) {
+    message.success(`${label} 已导出，已内嵌 ${result.embedded_image_count} 张图片`)
+    return
+  }
+  message.success(`${label} 已导出`)
+}
 
 const statusColorMap: Record<string, string> = {
   pending: 'default',
@@ -117,77 +133,6 @@ const getTaskKindLabel = (taskKind?: string) => {
 const getManualRetryCount = (run: ImageBenchmarkRun | null) => (
   run ? (run.stats.failure_count || 0) + (run.stats.unsupported_count || 0) : 0
 )
-
-const buildRunHtmlReport = (run: ImageBenchmarkRun, suite?: ImageBenchmarkSuite | null) => {
-  const datasetItems = [...((run.dataset_snapshot?.items || []) as Record<string, any>[])]
-    .sort((left, right) => (left.sort_order || 0) - (right.sort_order || 0))
-  const resultMap = new Map<string, ImageBenchmarkCellResult>()
-  ;(run.cell_results || []).forEach((cell) => {
-    resultMap.set(`${cell.case_id}__${cell.model_id}`, cell)
-  })
-  const modelSnapshots = run.model_snapshots || []
-  const headers = ['样例', 'Prompt', '输入图', ...modelSnapshots.map((model) => model.name || model.id)]
-  const rows = datasetItems.map((item) => {
-    const inputImages = getCaseImages(item)
-      .map((image: any) => image.url ? `<img src="${escapeHtml(image.url)}" alt="${escapeHtml(image.name || '输入图')}" />` : '')
-      .join('')
-    const modelCells = modelSnapshots.map((model) => {
-      const cell = resultMap.get(`${item.id}__${model.id}`)
-      if (!cell) return '<span class="muted">未运行</span>'
-      const images = (cell.output_images || [])
-        .map((image) => image.url ? `<img src="${escapeHtml(image.url)}" alt="输出图" />` : '')
-        .join('')
-      const error = cell.error_message ? `<div class="error">${escapeHtml(cell.error_message)}</div>` : ''
-      return `<div class="status">${escapeHtml(cell.status)}</div><div class="images">${images}</div>${error}`
-    })
-    return [
-      escapeHtml(item.name || '未命名样例'),
-      `<div class="prompt">${escapeHtml(item.prompt || '')}</div>`,
-      `<div class="images">${inputImages}</div>`,
-      ...modelCells,
-    ]
-  })
-  const tableHead = headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')
-  const tableRows = rows.map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join('')}</tr>`).join('\n')
-  return `<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${escapeHtml(suite?.name || '图片测评报告')}</title>
-  <style>
-    body { margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1f1f1f; background: #f5f5f5; }
-    h1 { margin: 0 0 8px; font-size: 28px; }
-    .meta { display: flex; flex-wrap: wrap; gap: 16px; margin: 16px 0 24px; color: #666; }
-    table { width: 100%; border-collapse: collapse; background: #fff; }
-    th, td { border: 1px solid #ddd; padding: 12px; vertical-align: top; min-width: 180px; }
-    th { background: #fafafa; position: sticky; top: 0; z-index: 1; }
-    .prompt { white-space: pre-wrap; max-width: 360px; }
-    .images { display: flex; flex-wrap: wrap; gap: 10px; }
-    img { max-width: 240px; max-height: 240px; object-fit: contain; border-radius: 6px; background: #eee; }
-    .status { display: inline-block; margin-bottom: 8px; padding: 2px 8px; border-radius: 6px; background: #eef4ff; color: #1d4ed8; font-size: 12px; }
-    .error { margin-top: 8px; color: #c00; white-space: pre-wrap; }
-    .muted { color: #999; }
-  </style>
-</head>
-<body>
-  <h1>${escapeHtml(suite?.name || '图片测评报告')}</h1>
-  <div>${escapeHtml(suite?.description || '')}</div>
-  <div class="meta">
-    <span>Run ID: ${escapeHtml(run.id)}</span>
-    <span>状态: ${escapeHtml(run.status)}</span>
-    <span>样例数: ${escapeHtml(run.stats.case_count || 0)}</span>
-    <span>模型数: ${escapeHtml(run.stats.model_count || 0)}</span>
-    <span>成功单元: ${escapeHtml(run.stats.success_count || 0)}</span>
-    <span>失败单元: ${escapeHtml(run.stats.failure_count || 0)}</span>
-  </div>
-  <table>
-    <thead><tr>${tableHead}</tr></thead>
-    <tbody>${tableRows}</tbody>
-  </table>
-</body>
-</html>`
-}
 
 const buildWan27SizeParam = (taskKind: string, modelId: string, originalParam?: ModelParameterDef): ModelParameterDef => ({
   ...(originalParam || {
@@ -683,6 +628,7 @@ const ImageBenchmarkPage = () => {
   const [draftSuite, setDraftSuite] = useState<ImageBenchmarkSuite | null>(null)
   const [currentRun, setCurrentRun] = useState<ImageBenchmarkRun | null>(null)
   const [loading, setLoading] = useState(true)
+  const [exportingFormat, setExportingFormat] = useState<'markdown' | 'html' | null>(null)
 
   const [suiteModalOpen, setSuiteModalOpen] = useState(false)
   const [suiteFormValues, setSuiteFormValues] = useState({ name: '', description: '', dataset_id: '' })
@@ -881,25 +827,38 @@ const ImageBenchmarkPage = () => {
     }
   }
 
-  const handleExportMarkdown = async () => {
+  const handleExport = async (format: 'markdown' | 'html', inlineImages: boolean) => {
     if (!currentRun) return
+    const label = format === 'markdown' ? 'Markdown 报告' : 'HTML 报告'
+    const hide = message.loading(
+      inlineImages
+        ? `${label} 导出中，正在下载并内嵌图片...`
+        : `${label} 快速导出中...`,
+      0
+    )
+    setExportingFormat(format)
     try {
-      const result = await imageBenchmarkApi.exportRunMarkdown(currentRun.id)
-      downloadTextFile(result.filename, result.content, 'text/markdown;charset=utf-8')
-      message.success('Markdown 报告已导出')
+      const result = format === 'markdown'
+        ? await imageBenchmarkApi.downloadRunMarkdown(currentRun.id, { inline_images: inlineImages })
+        : await imageBenchmarkApi.downloadRunHtml(currentRun.id, { inline_images: inlineImages })
+      if (!result.filename || result.blob.size <= 0) {
+        throw new Error('导出文件为空，请重试')
+      }
+      downloadBlobFile(result.filename, result.blob)
+      showExportMessage(label, result, inlineImages)
     } catch (error) {
       if (error instanceof Error) {
         message.error(error.message)
       }
+    } finally {
+      hide()
+      setExportingFormat(null)
     }
   }
 
-  const handleExportHtml = () => {
-    if (!currentRun) return
-    const html = buildRunHtmlReport(currentRun, selectedSuite)
-    downloadTextFile(`image_benchmark_${currentRun.id}.html`, html, 'text/html;charset=utf-8')
-    message.success('HTML 报告已导出')
-  }
+  const handleExportMarkdown = async (inlineImages = true) => handleExport('markdown', inlineImages)
+
+  const handleExportHtml = async (inlineImages = true) => handleExport('html', inlineImages)
 
   const openShareUrl = (shareUrl: string) => {
     const absoluteUrl = `${window.location.origin}${shareUrl}`
@@ -1216,14 +1175,42 @@ const ImageBenchmarkPage = () => {
                     </Button>
                   )}
                   {currentRun && (
-                    <Button icon={<DownloadOutlined />} onClick={handleExportMarkdown}>
-                      导出 Markdown
-                    </Button>
+                    <Space.Compact>
+                      <Button
+                        icon={<DownloadOutlined />}
+                        onClick={() => handleExportMarkdown(true)}
+                        loading={exportingFormat === 'markdown'}
+                        disabled={Boolean(exportingFormat) && exportingFormat !== 'markdown'}
+                      >
+                        导出 Markdown
+                      </Button>
+                      <Button
+                        onClick={() => handleExportMarkdown(false)}
+                        loading={exportingFormat === 'markdown'}
+                        disabled={Boolean(exportingFormat) && exportingFormat !== 'markdown'}
+                      >
+                        快速导出
+                      </Button>
+                    </Space.Compact>
                   )}
                   {currentRun && (
-                    <Button icon={<FileTextOutlined />} onClick={handleExportHtml}>
-                      导出 HTML
-                    </Button>
+                    <Space.Compact>
+                      <Button
+                        icon={<FileTextOutlined />}
+                        onClick={() => handleExportHtml(true)}
+                        loading={exportingFormat === 'html'}
+                        disabled={Boolean(exportingFormat) && exportingFormat !== 'html'}
+                      >
+                        导出 HTML
+                      </Button>
+                      <Button
+                        onClick={() => handleExportHtml(false)}
+                        loading={exportingFormat === 'html'}
+                        disabled={Boolean(exportingFormat) && exportingFormat !== 'html'}
+                      >
+                        快速导出
+                      </Button>
+                    </Space.Compact>
                   )}
                   {draftSuite.share_enabled && draftSuite.share_token ? (
                     <>

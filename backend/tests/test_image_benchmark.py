@@ -2,6 +2,7 @@ import pytest
 
 from app.models.image_benchmark import ImageBenchmarkCellResult, ImageBenchmarkOutputImage, ImageBenchmarkRun
 from app.routers import image_benchmark as image_benchmark_router
+from app.services import image_benchmark_runtime
 from app.services.storage import set_current_user, storage_service
 
 
@@ -1121,11 +1122,116 @@ async def test_run_snapshot_is_frozen_and_markdown_export(client, auth_header, r
     assert saved_run["dataset_snapshot"]["items"][0]["prompt"] == "把角色做成海报"
     assert saved_run["cell_results"][0]["canonical_request"]["prompt"] == "把角色做成海报"
 
+    async def fake_download_image_as_data_url(url, client=None):
+        if url.endswith("/ref.png"):
+            return "data:image/png;base64,cmVm"
+        return "data:image/png;base64,b3V0"
+
+    monkeypatch.setattr(
+        "app.services.image_benchmark_runtime._download_image_as_data_url",
+        fake_download_image_as_data_url,
+    )
+
     export_resp = client.post(f"/api/image-benchmark/runs/{run['id']}/export-md", headers=auth_header)
     assert export_resp.status_code == 200
-    markdown = export_resp.json()["content"]
+    export_payload = export_resp.json()
+    markdown = export_payload["content"]
     assert "# 图片测评报告" in markdown
-    assert "https://oss.example.com/output.png" in markdown
+    assert export_payload["embedded_image_count"] == 2
+    assert export_payload["fallback_url_count"] == 0
+    assert '<img src="data:image/png;base64,cmVm"' in markdown
+    assert '<img src="data:image/png;base64,b3V0"' in markdown
+
+    html_resp = client.post(f"/api/image-benchmark/runs/{run['id']}/export-html", headers=auth_header)
+    assert html_resp.status_code == 200
+    html_payload = html_resp.json()
+    assert html_payload["embedded_image_count"] == 2
+    assert html_payload["fallback_url_count"] == 0
+    assert html_payload["filename"].endswith(".html")
+    assert "data:image/png;base64,cmVm" in html_payload["content"]
+    assert "data:image/png;base64,b3V0" in html_payload["content"]
+    assert "https://oss.example.com/ref.png" not in html_payload["content"]
+    assert "https://oss.example.com/output.png" not in html_payload["content"]
+
+    attempts = {"count": 0}
+
+    async def fake_sleep(_seconds):
+        return None
+
+    async def flaky_download_image_as_data_url(url, client=None):
+        attempts["count"] += 1
+        if attempts["count"] <= 2:
+            raise image_benchmark_runtime.ImageBenchmarkExportAssetError("下载超时", retryable=True)
+        if url.endswith("/ref.png"):
+            return "data:image/png;base64,cmVm"
+        return "data:image/png;base64,b3V0"
+
+    monkeypatch.setattr(
+        "app.services.image_benchmark_runtime._download_image_as_data_url",
+        flaky_download_image_as_data_url,
+    )
+    monkeypatch.setattr("app.services.image_benchmark_runtime.asyncio.sleep", fake_sleep)
+
+    retry_export_resp = client.post(f"/api/image-benchmark/runs/{run['id']}/export-md", headers=auth_header)
+    assert retry_export_resp.status_code == 200
+    retry_export_payload = retry_export_resp.json()
+    assert retry_export_payload["embedded_image_count"] == 2
+    assert retry_export_payload["fallback_url_count"] == 0
+    assert attempts["count"] >= 4
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("快速导出不应尝试下载图片")
+
+    monkeypatch.setattr(
+        "app.services.image_benchmark_runtime._download_image_as_data_url",
+        fail_if_called,
+    )
+
+    quick_md_resp = client.post(
+        f"/api/image-benchmark/runs/{run['id']}/export-md",
+        headers=auth_header,
+        json={"inline_images": False},
+    )
+    assert quick_md_resp.status_code == 200
+    quick_md_payload = quick_md_resp.json()
+    assert quick_md_payload["embedded_image_count"] == 0
+    assert quick_md_payload["fallback_url_count"] == 0
+    assert "https://oss.example.com/ref.png" in quick_md_payload["content"]
+    assert "https://oss.example.com/output.png" in quick_md_payload["content"]
+
+    quick_html_resp = client.post(
+        f"/api/image-benchmark/runs/{run['id']}/export-html",
+        headers=auth_header,
+        json={"inline_images": False},
+    )
+    assert quick_html_resp.status_code == 200
+    quick_html_payload = quick_html_resp.json()
+    assert quick_html_payload["embedded_image_count"] == 0
+    assert quick_html_payload["fallback_url_count"] == 0
+    assert "https://oss.example.com/ref.png" in quick_html_payload["content"]
+    assert "https://oss.example.com/output.png" in quick_html_payload["content"]
+
+    quick_md_file_resp = client.post(
+        f"/api/image-benchmark/runs/{run['id']}/export-md-file",
+        headers=auth_header,
+        json={"inline_images": False},
+    )
+    assert quick_md_file_resp.status_code == 200
+    assert quick_md_file_resp.headers["content-disposition"].startswith("attachment;")
+    assert quick_md_file_resp.headers["x-embedded-image-count"] == "0"
+    assert quick_md_file_resp.headers["x-fallback-url-count"] == "0"
+    assert quick_md_file_resp.content.startswith("# 图片测评报告".encode("utf-8"))
+
+    quick_html_file_resp = client.post(
+        f"/api/image-benchmark/runs/{run['id']}/export-html-file",
+        headers=auth_header,
+        json={"inline_images": False},
+    )
+    assert quick_html_file_resp.status_code == 200
+    assert quick_html_file_resp.headers["content-disposition"].startswith("attachment;")
+    assert quick_html_file_resp.headers["x-embedded-image-count"] == "0"
+    assert quick_html_file_resp.headers["x-fallback-url-count"] == "0"
+    assert b"<!doctype html>" in quick_html_file_resp.content
 
 
 @pytest.mark.asyncio

@@ -6,12 +6,16 @@
 
 from __future__ import annotations
 
+import base64
 import logging
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
+from html import escape as html_escape
 import json
+import mimetypes
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
+import httpx
 from fastapi import HTTPException
 import asyncio
 
@@ -41,6 +45,32 @@ RETRYABLE_RATE_LIMIT_PATTERNS = [
     "too many requests",
     "429",
 ]
+EXPORT_INLINE_IMAGE_RETRY_DELAYS_SECONDS = [1, 2, 4, 8]
+EXPORT_INLINE_IMAGE_MAX_CONCURRENCY = 8
+EXPORT_INLINE_IMAGE_TERMINAL_STATUS_CODES = {400, 401, 403, 404, 405, 410}
+EXPORT_INLINE_IMAGE_RETRYABLE_STATUS_CODES = {408, 425, 429, 500, 502, 503, 504}
+
+
+@dataclass
+class ImageBenchmarkReportExport:
+    content: str
+    embedded_image_count: int = 0
+    fallback_url_count: int = 0
+
+
+class ImageBenchmarkExportAssetError(ValueError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        retryable: bool = False,
+        terminal: bool = False,
+        status_code: Optional[int] = None,
+    ):
+        super().__init__(message)
+        self.retryable = retryable
+        self.terminal = terminal
+        self.status_code = status_code
 
 
 def _build_auto_retry_delays() -> List[int]:
@@ -106,13 +136,229 @@ def export_dataset_payload(dataset: ImageBenchmarkDataset) -> Dict[str, Any]:
     }
 
 
-def render_markdown_report(run: Dict[str, Any]) -> str:
+def _markdown_cell(value: Any) -> str:
+    text = "" if value is None else str(value)
+    return text.replace("|", "\\|").replace("\n", "<br/>")
+
+
+def _html_text(value: Any) -> str:
+    return html_escape("" if value is None else str(value), quote=True)
+
+
+def _render_markdown_image_tag(url: str, width: int) -> str:
+    return f'<img src="{_html_text(url)}" width="{width}" />'
+
+
+def _render_html_image_tag(url: str, alt: str) -> str:
+    return f'<img src="{_html_text(url)}" alt="{_html_text(alt)}" />'
+
+
+def _guess_image_mime_type(url: str, content_type: str) -> str:
+    normalized_content_type = (content_type or "").split(";", 1)[0].strip().lower()
+    if normalized_content_type.startswith("image/"):
+        return normalized_content_type
+    guessed, _ = mimetypes.guess_type(urlparse(url).path)
+    if guessed and guessed.startswith("image/"):
+        return guessed
+    return "image/png"
+
+
+def _is_retryable_export_status(status_code: int) -> bool:
+    return status_code in EXPORT_INLINE_IMAGE_RETRYABLE_STATUS_CODES or status_code >= 500
+
+
+async def _download_image_bytes(
+    url: str,
+    client: Optional[httpx.AsyncClient] = None,
+) -> Tuple[bytes, str]:
+    normalized_url = (url or "").strip()
+    if not normalized_url:
+        raise ImageBenchmarkExportAssetError("图片 URL 为空", terminal=True)
+
+    parsed = urlparse(normalized_url)
+    if parsed.scheme not in {"http", "https"}:
+        raise ImageBenchmarkExportAssetError(
+            f"不支持的图片 URL 协议: {parsed.scheme or '空'}",
+            terminal=True,
+        )
+
+    request_client = client
+    close_client = False
+    if request_client is None:
+        request_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(30.0, read=180.0),
+            follow_redirects=True,
+        )
+        close_client = True
+
+    try:
+        response = await request_client.get(normalized_url)
+        response.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        status_code = exc.response.status_code
+        content_type = exc.response.headers.get("content-type", "")
+        raise ImageBenchmarkExportAssetError(
+            f"HTTP {status_code}，content-type={content_type or '-'}",
+            retryable=_is_retryable_export_status(status_code),
+            terminal=status_code in EXPORT_INLINE_IMAGE_TERMINAL_STATUS_CODES,
+            status_code=status_code,
+        ) from exc
+    except httpx.TimeoutException as exc:
+        raise ImageBenchmarkExportAssetError("下载超时", retryable=True) from exc
+    except httpx.RequestError as exc:
+        raise ImageBenchmarkExportAssetError(
+            f"下载失败: {exc.__class__.__name__}: {exc}",
+            retryable=True,
+        ) from exc
+    finally:
+        if close_client and request_client is not None:
+            await request_client.aclose()
+
+    return response.content, response.headers.get("content-type", "")
+
+
+async def _download_image_as_data_url(
+    url: str,
+    client: Optional[httpx.AsyncClient] = None,
+) -> str:
+    normalized_url = (url or "").strip()
+    if normalized_url.startswith("data:"):
+        return normalized_url
+
+    content, content_type = await _download_image_bytes(normalized_url, client=client)
+    mime_type = _guess_image_mime_type(normalized_url, content_type)
+    payload = base64.b64encode(content).decode("ascii")
+    return f"data:{mime_type};base64,{payload}"
+
+
+async def _download_image_as_data_url_with_retries(
+    url: str,
+    client: httpx.AsyncClient,
+    semaphore: asyncio.Semaphore,
+) -> str:
+    max_attempts = len(EXPORT_INLINE_IMAGE_RETRY_DELAYS_SECONDS) + 1
+    last_error: Optional[Exception] = None
+
+    for attempt_index in range(max_attempts):
+        try:
+            async with semaphore:
+                return await _download_image_as_data_url(url, client=client)
+        except ImageBenchmarkExportAssetError as exc:
+            last_error = exc
+            if exc.terminal or not exc.retryable or attempt_index >= max_attempts - 1:
+                raise
+            logger.warning(
+                "图片测评导出图片下载失败，准备重试: url=%s attempt=%s/%s error=%s",
+                url,
+                attempt_index + 1,
+                max_attempts,
+                exc,
+            )
+        except ValueError as exc:
+            last_error = exc
+            raise
+
+        await asyncio.sleep(EXPORT_INLINE_IMAGE_RETRY_DELAYS_SECONDS[attempt_index])
+
+    if last_error:
+        raise last_error
+    raise ImageBenchmarkExportAssetError("图片下载失败", retryable=False)
+
+
+def _collect_report_image_urls(run: Dict[str, Any]) -> List[str]:
+    urls: List[str] = []
+    dataset_items = (run.get("dataset_snapshot") or {}).get("items") or []
+    for item in dataset_items:
+        urls.extend(
+            (image.get("url") or "").strip()
+            for image in _extract_case_input_images(item)
+            if image.get("url")
+        )
+    for cell in run.get("cell_results") or []:
+        urls.extend(
+            (image.get("url") or "").strip()
+            for image in cell.get("output_images") or []
+            if image.get("url")
+        )
+
+    unique_urls: List[str] = []
+    seen: set[str] = set()
+    for url in urls:
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        unique_urls.append(url)
+    return unique_urls
+
+
+async def _build_inline_image_map(run: Dict[str, Any]) -> Tuple[Dict[str, str], int, int]:
+    image_urls = _collect_report_image_urls(run)
+    if not image_urls:
+        return {}, 0, 0
+
+    logger.info(
+        "图片测评导出开始内嵌图片: run_id=%s image_count=%s concurrency=%s",
+        run.get("id"),
+        len(image_urls),
+        EXPORT_INLINE_IMAGE_MAX_CONCURRENCY,
+    )
+    semaphore = asyncio.Semaphore(EXPORT_INLINE_IMAGE_MAX_CONCURRENCY)
+
+    async def resolve_image(url: str, client: httpx.AsyncClient) -> Tuple[str, str, Optional[Exception]]:
+        try:
+            resolved = await _download_image_as_data_url_with_retries(url, client=client, semaphore=semaphore)
+            return url, resolved, None
+        except Exception as exc:
+            return url, url, exc
+
+    async with httpx.AsyncClient(
+        timeout=httpx.Timeout(30.0, read=180.0),
+        follow_redirects=True,
+    ) as client:
+        resolved_items = await asyncio.gather(*(resolve_image(url, client) for url in image_urls))
+
+    asset_map: Dict[str, str] = {}
+    fallback_url_count = 0
+    for original_url, resolved_url, error in resolved_items:
+        asset_map[original_url] = resolved_url
+        if error is not None:
+            fallback_url_count += 1
+            logger.warning("图片测评导出内嵌图片失败: url=%s error=%s", original_url, error)
+
+    embedded_image_count = sum(
+        1
+        for original_url, resolved_url in asset_map.items()
+        if resolved_url.startswith("data:") and not original_url.startswith("data:")
+    )
+    logger.info(
+        "图片测评导出完成内嵌图片: run_id=%s embedded=%s fallback=%s",
+        run.get("id"),
+        embedded_image_count,
+        fallback_url_count,
+    )
+    return asset_map, embedded_image_count, fallback_url_count
+
+
+def _resolve_report_image_url(url: Optional[str], asset_map: Dict[str, str]) -> str:
+    normalized_url = (url or "").strip()
+    if not normalized_url:
+        return ""
+    return asset_map.get(normalized_url, normalized_url)
+
+
+async def render_markdown_report(
+    run: Dict[str, Any],
+    inline_images: bool = False,
+) -> ImageBenchmarkReportExport:
     """渲染 Markdown 报告"""
 
     dataset_items = (run.get("dataset_snapshot") or {}).get("items") or []
     model_snapshots = run.get("model_snapshots") or []
     cell_results = run.get("cell_results") or []
     model_ids = [model["id"] for model in model_snapshots]
+    asset_map, embedded_image_count, fallback_url_count = (
+        await _build_inline_image_map(run) if inline_images else ({}, 0, 0)
+    )
 
     result_map = {
         (cell.get("case_id"), cell.get("model_id")): cell
@@ -141,20 +387,20 @@ def render_markdown_report(run: Dict[str, Any]) -> str:
     for item in dataset_items:
         input_images = _extract_case_input_images(item)
         input_html = "<br/>".join(
-            f'<img src="{image.get("url")}" width="96" />'
+            _render_markdown_image_tag(_resolve_report_image_url(image.get("url"), asset_map), 96)
             for image in input_images
             if image.get("url")
         )
         row_cells = [
-            str(item.get("name") or ""),
-            str(item.get("prompt") or "").replace("\n", "<br/>"),
+            _markdown_cell(item.get("name")),
+            _markdown_cell(item.get("prompt")),
             input_html,
         ]
         for model_id in model_ids:
             cell = result_map.get((item.get("id"), model_id), {})
             output_images = cell.get("output_images") or []
             image_html = "<br/>".join(
-                f'<img src="{image.get("url")}" width="128" />'
+                _render_markdown_image_tag(_resolve_report_image_url(image.get("url"), asset_map), 128)
                 for image in output_images
                 if image.get("url")
             )
@@ -175,20 +421,20 @@ def render_markdown_report(run: Dict[str, Any]) -> str:
     )
     for cell in cell_results:
         case_snapshot = next((item for item in dataset_items if item.get("id") == cell.get("case_id")), {})
-        input_urls = "<br/>".join(image.get("url", "") for image in _extract_case_input_images(case_snapshot))
-        output_urls = "<br/>".join(image.get("url", "") for image in cell.get("output_images") or [])
+        input_urls = "<br/>".join(_markdown_cell(image.get("url", "")) for image in _extract_case_input_images(case_snapshot))
+        output_urls = "<br/>".join(_markdown_cell(image.get("url", "")) for image in cell.get("output_images") or [])
         lines.append(
             "| "
             + " | ".join(
                 [
-                    str(cell.get("case_name") or ""),
-                    str(cell.get("model_name") or cell.get("model_id") or ""),
-                    str(cell.get("status") or ""),
-                    input_urls.replace("|", "\\|"),
-                    output_urls.replace("|", "\\|"),
+                    _markdown_cell(cell.get("case_name")),
+                    _markdown_cell(cell.get("model_name") or cell.get("model_id")),
+                    _markdown_cell(cell.get("status")),
+                    input_urls,
+                    output_urls,
                     json.dumps(cell.get("effective_params") or {}, ensure_ascii=False).replace("|", "\\|"),
-                    ", ".join(cell.get("request_ids") or []),
-                    str(cell.get("error_message") or "").replace("|", "\\|"),
+                    _markdown_cell(", ".join(cell.get("request_ids") or [])),
+                    _markdown_cell(cell.get("error_message")),
                 ]
             )
             + " |"
@@ -208,7 +454,122 @@ def render_markdown_report(run: Dict[str, Any]) -> str:
         lines.append(json.dumps(cell.get("provider_payload") or {}, ensure_ascii=False, indent=2))
         lines.append("```")
         lines.append("")
-    return "\n".join(lines)
+    return ImageBenchmarkReportExport(
+        content="\n".join(lines),
+        embedded_image_count=embedded_image_count,
+        fallback_url_count=fallback_url_count,
+    )
+
+
+async def render_html_report(
+    run: Dict[str, Any],
+    suite: Optional[Dict[str, Any]] = None,
+    inline_images: bool = False,
+) -> ImageBenchmarkReportExport:
+    """渲染 HTML 报告"""
+
+    dataset_items = sorted(
+        (run.get("dataset_snapshot") or {}).get("items") or [],
+        key=lambda item: item.get("sort_order", 0),
+    )
+    model_snapshots = run.get("model_snapshots") or []
+    result_map = {
+        (cell.get("case_id"), cell.get("model_id")): cell
+        for cell in run.get("cell_results") or []
+    }
+    asset_map, embedded_image_count, fallback_url_count = (
+        await _build_inline_image_map(run) if inline_images else ({}, 0, 0)
+    )
+
+    headers = ["样例", "Prompt", "输入图"] + [model.get("name") or model.get("id") for model in model_snapshots]
+    table_head = "".join(f"<th>{_html_text(header)}</th>" for header in headers)
+
+    rows: List[str] = []
+    for item in dataset_items:
+        input_images_html = "".join(
+            _render_html_image_tag(
+                _resolve_report_image_url(image.get("url"), asset_map),
+                image.get("name") or "输入图",
+            )
+            for image in _extract_case_input_images(item)
+            if image.get("url")
+        )
+
+        model_cells: List[str] = []
+        for model in model_snapshots:
+            cell = result_map.get((item.get("id"), model.get("id")), {})
+            images_html = "".join(
+                _render_html_image_tag(
+                    _resolve_report_image_url(image.get("url"), asset_map),
+                    image.get("prompt_used") or "输出图",
+                )
+                for image in cell.get("output_images") or []
+                if image.get("url")
+            )
+            error_html = (
+                f'<div class="error">{_html_text(cell.get("error_message"))}</div>'
+                if cell.get("error_message")
+                else ""
+            )
+            if not images_html and not error_html:
+                images_html = '<span class="muted">未运行</span>'
+            model_cells.append(
+                f'<div class="status">{_html_text(cell.get("status") or "pending")}</div>'
+                f'<div class="images">{images_html}</div>'
+                f"{error_html}"
+            )
+
+        row = [
+            _html_text(item.get("name") or "未命名样例"),
+            f'<div class="prompt">{_html_text(item.get("prompt"))}</div>',
+            f'<div class="images">{input_images_html}</div>',
+            *model_cells,
+        ]
+        rows.append(f"<tr>{''.join(f'<td>{cell_html}</td>' for cell_html in row)}</tr>")
+
+    content = f"""<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{_html_text((suite or {}).get("name") or "图片测评报告")}</title>
+  <style>
+    body {{ margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1f1f1f; background: #f5f5f5; }}
+    h1 {{ margin: 0 0 8px; font-size: 28px; }}
+    .meta {{ display: flex; flex-wrap: wrap; gap: 16px; margin: 16px 0 24px; color: #666; }}
+    table {{ width: 100%; border-collapse: collapse; background: #fff; }}
+    th, td {{ border: 1px solid #ddd; padding: 12px; vertical-align: top; min-width: 180px; }}
+    th {{ background: #fafafa; position: sticky; top: 0; z-index: 1; }}
+    .prompt {{ white-space: pre-wrap; max-width: 360px; }}
+    .images {{ display: flex; flex-wrap: wrap; gap: 10px; }}
+    img {{ max-width: 240px; max-height: 240px; object-fit: contain; border-radius: 6px; background: #eee; }}
+    .status {{ display: inline-block; margin-bottom: 8px; padding: 2px 8px; border-radius: 6px; background: #eef4ff; color: #1d4ed8; font-size: 12px; }}
+    .error {{ margin-top: 8px; color: #c00; white-space: pre-wrap; }}
+    .muted {{ color: #999; }}
+  </style>
+</head>
+<body>
+  <h1>{_html_text((suite or {}).get("name") or "图片测评报告")}</h1>
+  <div>{_html_text((suite or {}).get("description") or "")}</div>
+  <div class="meta">
+    <span>Run ID: {_html_text(run.get("id"))}</span>
+    <span>状态: {_html_text(run.get("status"))}</span>
+    <span>样例数: {_html_text((run.get("stats") or {}).get("case_count", 0))}</span>
+    <span>模型数: {_html_text((run.get("stats") or {}).get("model_count", 0))}</span>
+    <span>成功单元: {_html_text((run.get("stats") or {}).get("success_count", 0))}</span>
+    <span>失败单元: {_html_text((run.get("stats") or {}).get("failure_count", 0))}</span>
+  </div>
+  <table>
+    <thead><tr>{table_head}</tr></thead>
+    <tbody>{"".join(rows)}</tbody>
+  </table>
+</body>
+</html>"""
+    return ImageBenchmarkReportExport(
+        content=content,
+        embedded_image_count=embedded_image_count,
+        fallback_url_count=fallback_url_count,
+    )
 
 
 def _configurable_parameters_for_model(model_meta: Dict[str, Any], task_kind: Optional[str] = None) -> List[Dict[str, Any]]:
