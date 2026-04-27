@@ -48,6 +48,21 @@ STUDIO_OSS_AUTO_RETRY_DELAYS = (
 STUDIO_LOCAL_FALLBACK_CLEANUP_TTL = timedelta(days=7)
 _studio_retrying_task_ids: set[str] = set()
 _studio_retrying_lock = threading.Lock()
+_studio_generating_task_ids: set[str] = set()
+_studio_generating_lock = threading.Lock()
+
+
+def _try_acquire_generation_slot(task_id: str) -> bool:
+    with _studio_generating_lock:
+        if task_id in _studio_generating_task_ids:
+            return False
+        _studio_generating_task_ids.add(task_id)
+        return True
+
+
+def _release_generation_slot(task_id: str) -> None:
+    with _studio_generating_lock:
+        _studio_generating_task_ids.discard(task_id)
 
 
 def _summarize_media_url(url: str) -> str:
@@ -1660,181 +1675,142 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
     task = storage_service.get_studio_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
+    if task.status == "generating":
+        return {"task": task}
+    if not _try_acquire_generation_slot(task_id):
+        latest_task = storage_service.get_studio_task(task_id) or task
+        return {"task": latest_task}
 
-    provided_fields = request.model_fields_set
+    try:
+        provided_fields = request.model_fields_set
 
-    # 更新任务参数
-    if "prompt" in provided_fields and request.prompt is not None:
-        task.prompt = request.prompt
-    if "negative_prompt" in provided_fields:
-        task.negative_prompt = request.negative_prompt
-    if "n" in provided_fields and request.n is not None:
-        task.n = request.n
-    if "group_count" in provided_fields and request.group_count is not None:
-        task.group_count = request.group_count
-    if "task_kind" in provided_fields and request.task_kind is not None:
-        task.task_kind = request.task_kind
-    if "size" in provided_fields:
-        task.size = request.size
-    if "prompt_extend" in provided_fields and request.prompt_extend is not None:
-        task.prompt_extend = request.prompt_extend
-    if "watermark" in provided_fields and request.watermark is not None:
-        task.watermark = request.watermark
-    if "seed" in provided_fields:
-        task.seed = request.seed
-    if "enable_interleave" in provided_fields and request.enable_interleave is not None:
-        task.enable_interleave = request.enable_interleave
-    if "max_images" in provided_fields and request.max_images is not None:
-        task.max_images = request.max_images
-    if "enable_sequential" in provided_fields and request.enable_sequential is not None:
-        task.enable_sequential = request.enable_sequential
-    if "thinking_mode" in provided_fields:
-        task.thinking_mode = request.thinking_mode
-    if "bbox_list" in provided_fields:
-        task.bbox_list = request.bbox_list or []
-    if "color_palette" in provided_fields:
-        task.color_palette = _serialize_color_palette(request.color_palette) if request.color_palette is not None else []
-    if "size_mode" in provided_fields:
-        task.size_mode = request.size_mode
-    if "size_preset" in provided_fields:
-        task.size_preset = request.size_preset
-    if "custom_width" in provided_fields:
-        task.custom_width = request.custom_width
-    if "custom_height" in provided_fields:
-        task.custom_height = request.custom_height
+        # 更新任务参数
+        if "prompt" in provided_fields and request.prompt is not None:
+            task.prompt = request.prompt
+        if "negative_prompt" in provided_fields:
+            task.negative_prompt = request.negative_prompt
+        if "n" in provided_fields and request.n is not None:
+            task.n = request.n
+        if "group_count" in provided_fields and request.group_count is not None:
+            task.group_count = request.group_count
+        if "task_kind" in provided_fields and request.task_kind is not None:
+            task.task_kind = request.task_kind
+        if "size" in provided_fields:
+            task.size = request.size
+        if "prompt_extend" in provided_fields and request.prompt_extend is not None:
+            task.prompt_extend = request.prompt_extend
+        if "watermark" in provided_fields and request.watermark is not None:
+            task.watermark = request.watermark
+        if "seed" in provided_fields:
+            task.seed = request.seed
+        if "enable_interleave" in provided_fields and request.enable_interleave is not None:
+            task.enable_interleave = request.enable_interleave
+        if "max_images" in provided_fields and request.max_images is not None:
+            task.max_images = request.max_images
+        if "enable_sequential" in provided_fields and request.enable_sequential is not None:
+            task.enable_sequential = request.enable_sequential
+        if "thinking_mode" in provided_fields:
+            task.thinking_mode = request.thinking_mode
+        if "bbox_list" in provided_fields:
+            task.bbox_list = request.bbox_list or []
+        if "color_palette" in provided_fields:
+            task.color_palette = _serialize_color_palette(request.color_palette) if request.color_palette is not None else []
+        if "size_mode" in provided_fields:
+            task.size_mode = request.size_mode
+        if "size_preset" in provided_fields:
+            task.size_preset = request.size_preset
+        if "custom_width" in provided_fields:
+            task.custom_width = request.custom_width
+        if "custom_height" in provided_fields:
+            task.custom_height = request.custom_height
 
-    model_name = task.model or "wan2.5-i2i-preview"
-    is_text_to_image = model_name in IMAGE_MODELS
-    ref_urls = [ref.url for ref in task.references if ref.url]
-    normalized_bbox_list = request.bbox_list if request.bbox_list is not None else task.bbox_list
-    normalized_bbox_list = _bbox_list_for_task_kind(task.task_kind, normalized_bbox_list)
-    if model_name in WAN27_MODELS and ref_urls:
-        image_metadata = await _inspect_and_validate_wan27_images(ref_urls)
-        if task.task_kind == "interactive_edit":
-            normalized_bbox_list = _normalize_bbox_list(normalized_bbox_list, image_metadata)
+        model_name = task.model or "wan2.5-i2i-preview"
+        is_text_to_image = model_name in IMAGE_MODELS
+        ref_urls = [ref.url for ref in task.references if ref.url]
+        normalized_bbox_list = request.bbox_list if request.bbox_list is not None else task.bbox_list
+        normalized_bbox_list = _bbox_list_for_task_kind(task.task_kind, normalized_bbox_list)
 
-    # --- 同步验证（在返回前完成）---
-    enable_interleave = task.enable_interleave
-    if model_name == "wan2.6-image" and not enable_interleave and not ref_urls:
-        raise HTTPException(
-            status_code=400,
-            detail="wan2.6-image 在非图文混合模式下需要参考图，请添加参考素材或开启图文混合模式"
+        # --- 同步验证（在返回前完成）---
+        enable_interleave = task.enable_interleave
+        if model_name == "wan2.6-image" and not enable_interleave and not ref_urls:
+            raise HTTPException(
+                status_code=400,
+                detail="wan2.6-image 在非图文混合模式下需要参考图，请添加参考素材或开启图文混合模式"
+            )
+        if not is_text_to_image and model_name not in (
+            "wan2.6-image", "qwen-image-max", "qwen-image-plus",
+            "qwen-image-edit-plus", "qwen-image-edit-max",
+            "qwen-image-2.0-pro", "qwen-image-2.0",
+            "wan2.7-image-pro", "wan2.7-image",
+        ) and not ref_urls:
+            raise HTTPException(status_code=400, detail="该模型需要参考素材图片")
+
+        color_palette = task.color_palette or []
+        canonical, provider_payload, validation_warnings = _build_provider_payload(
+            model_name=model_name,
+            prompt=task.prompt,
+            negative_prompt=task.negative_prompt or "",
+            task_kind=task.task_kind,
+            ref_urls=ref_urls,
+            n=task.n,
+            size=task.size,
+            prompt_extend=task.prompt_extend,
+            watermark=task.watermark,
+            seed=task.seed,
+            enable_interleave=task.enable_interleave,
+            max_images=task.max_images,
+            enable_sequential=task.enable_sequential,
+            thinking_mode=task.thinking_mode,
+            bbox_list=normalized_bbox_list,
+            color_palette=color_palette,
+            size_mode=task.size_mode,
+            size_preset=task.size_preset,
+            custom_width=task.custom_width,
+            custom_height=task.custom_height,
         )
-    if not is_text_to_image and model_name not in (
-        "wan2.6-image", "qwen-image-max", "qwen-image-plus",
-        "qwen-image-edit-plus", "qwen-image-edit-max",
-        "qwen-image-2.0-pro", "qwen-image-2.0",
-        "wan2.7-image-pro", "wan2.7-image",
-    ) and not ref_urls:
-        raise HTTPException(status_code=400, detail="该模型需要参考素材图片")
+        canonical.project_id = task.project_id
+        canonical_size = (canonical.normalized_params or {}).get("size") or (provider_payload.get("parameters") or {}).get("size") or task.size
+        task.size = canonical_size
+        task.task_kind = canonical.task_kind
+        task.provider = canonical.provider
+        task.model_id = canonical.model_id
+        task.input_assets = canonical.input_assets
+        task.normalized_params = canonical.normalized_params
+        task.bbox_list = normalized_bbox_list or []
+        task.provider_payload_snapshot = provider_payload
+        task.provider_result_meta = {}
+        task.task_ids = []
+        task.request_ids = []
 
-    color_palette = task.color_palette or []
-    canonical, provider_payload, validation_warnings = _build_provider_payload(
-        model_name=model_name,
-        prompt=task.prompt,
-        negative_prompt=task.negative_prompt or "",
-        task_kind=task.task_kind,
-        ref_urls=ref_urls,
-        n=task.n,
-        size=task.size,
-        prompt_extend=task.prompt_extend,
-        watermark=task.watermark,
-        seed=task.seed,
-        enable_interleave=task.enable_interleave,
-        max_images=task.max_images,
-        enable_sequential=task.enable_sequential,
-        thinking_mode=task.thinking_mode,
-        bbox_list=normalized_bbox_list,
-        color_palette=color_palette,
-        size_mode=task.size_mode,
-        size_preset=task.size_preset,
-        custom_width=task.custom_width,
-        custom_height=task.custom_height,
-    )
-    canonical.project_id = task.project_id
-    canonical_size = (canonical.normalized_params or {}).get("size") or (provider_payload.get("parameters") or {}).get("size") or task.size
-    task.size = canonical_size
-    task.task_kind = canonical.task_kind
-    task.provider = canonical.provider
-    task.model_id = canonical.model_id
-    task.input_assets = canonical.input_assets
-    task.normalized_params = canonical.normalized_params
-    task.bbox_list = normalized_bbox_list or []
-    task.provider_payload_snapshot = provider_payload
-    task.provider_result_meta = {}
-    task.task_ids = []
-    task.request_ids = []
+        # 设置生成状态
+        task.status = "generating"
+        task.images = []
+        task.error_message = "；".join(validation_warnings) if validation_warnings else None
+        task.warnings = []
+        storage_service.save_studio_task(task)
 
-    # 设置生成状态
-    task.status = "generating"
-    task.images = []
-    task.error_message = "；".join(validation_warnings) if validation_warnings else None
-    task.warnings = []
-    storage_service.save_studio_task(task)
+        # 捕获用户上下文（后台任务需要）
+        user_id = get_current_user_id()
+        user_config_dir = get_user_config_dir()
+        size = canonical_size
 
-    # 捕获用户上下文（后台任务需要）
-    user_id = get_current_user_id()
-    user_config_dir = get_user_config_dir()
-    config = get_config()
+        # 后台执行生成，立即返回
+        asyncio.create_task(_background_generate(
+            task_id=task.id,
+            user_id=user_id,
+            user_config_dir=user_config_dir,
+        ))
 
-    size = canonical_size
-    prompt_extend = task.prompt_extend
-    watermark = task.watermark
-    seed = task.seed
-    max_images = task.max_images
-
-    # 后台执行生成，立即返回
-    asyncio.create_task(_background_generate(
-        task=task,
-        model_name=model_name,
-        is_text_to_image=is_text_to_image,
-        ref_urls=ref_urls,
-        config=config,
-        user_id=user_id,
-        user_config_dir=user_config_dir,
-        size=size,
-        prompt_extend=prompt_extend,
-        watermark=watermark,
-        seed=seed,
-        enable_interleave=enable_interleave,
-        max_images=max_images,
-        enable_sequential=task.enable_sequential,
-        thinking_mode=task.thinking_mode,
-        bbox_list=normalized_bbox_list,
-        color_palette=task.color_palette,
-        size_mode=task.size_mode,
-        size_preset=task.size_preset,
-        custom_width=task.custom_width,
-        custom_height=task.custom_height,
-        provider_payload=provider_payload,
-    ))
-
-    return {"task": task}
+        return {"task": task}
+    except Exception:
+        _release_generation_slot(task_id)
+        raise
 
 
 async def _background_generate(
-    task: StudioTask,
-    model_name: str,
-    is_text_to_image: bool,
-    ref_urls: List[str],
-    config,
+    task_id: str,
     user_id: Optional[str],
     user_config_dir: Optional[str],
-    size: Optional[str],
-    prompt_extend: bool,
-    watermark: bool,
-    seed: Optional[int],
-    enable_interleave: bool,
-    max_images: int,
-    enable_sequential: bool,
-    thinking_mode: Optional[bool],
-    bbox_list: Optional[List[List[List[int]]]],
-    color_palette: List[Dict[str, str]],
-    size_mode: Optional[str],
-    size_preset: Optional[str],
-    custom_width: Optional[int],
-    custom_height: Optional[int],
-    provider_payload: Dict[str, Any],
 ):
     """后台生成任务——由 asyncio.create_task 调度，不阻塞请求。"""
     # 恢复用户上下文，使 storage_service / get_config 使用正确的用户目录
@@ -1842,10 +1818,77 @@ async def _background_generate(
     set_user_config_dir(user_config_dir)
 
     try:
+        from app.config import IMAGE_MODELS
+
+        task = storage_service.get_studio_task(task_id)
+        if not task:
+            logger.warning("后台生成任务已不存在，跳过 task_id=%s", task_id)
+            return
+
+        model_name = task.model or "wan2.5-i2i-preview"
+        is_text_to_image = model_name in IMAGE_MODELS
+        ref_urls = [ref.url for ref in task.references if ref.url]
+        normalized_bbox_list = _bbox_list_for_task_kind(task.task_kind, task.bbox_list)
+        if model_name in WAN27_MODELS and ref_urls:
+            image_metadata = await _inspect_and_validate_wan27_images(ref_urls)
+            if task.task_kind == "interactive_edit":
+                normalized_bbox_list = _normalize_bbox_list(normalized_bbox_list, image_metadata)
+
+        canonical, provider_payload, validation_warnings = _build_provider_payload(
+            model_name=model_name,
+            prompt=task.prompt,
+            negative_prompt=task.negative_prompt or "",
+            task_kind=task.task_kind,
+            ref_urls=ref_urls,
+            n=task.n,
+            size=task.size,
+            prompt_extend=task.prompt_extend,
+            watermark=task.watermark,
+            seed=task.seed,
+            enable_interleave=task.enable_interleave,
+            max_images=task.max_images,
+            enable_sequential=task.enable_sequential,
+            thinking_mode=task.thinking_mode,
+            bbox_list=normalized_bbox_list,
+            color_palette=task.color_palette or [],
+            size_mode=task.size_mode,
+            size_preset=task.size_preset,
+            custom_width=task.custom_width,
+            custom_height=task.custom_height,
+        )
+        canonical.project_id = task.project_id
+        canonical_size = (
+            (canonical.normalized_params or {}).get("size")
+            or (provider_payload.get("parameters") or {}).get("size")
+            or task.size
+        )
+        task.size = canonical_size
+        task.task_kind = canonical.task_kind
+        task.provider = canonical.provider
+        task.model_id = canonical.model_id
+        task.input_assets = canonical.input_assets
+        task.normalized_params = canonical.normalized_params
+        task.bbox_list = normalized_bbox_list or []
+        task.provider_payload_snapshot = provider_payload
+        task.provider_result_meta = {}
+        task.error_message = "；".join(validation_warnings) if validation_warnings else None
+        storage_service.save_studio_task(task)
+
         request_ids: List[str] = []
         task_ids: List[str] = []
         provider_meta: Dict[str, Any] = {}
         provider_api_key = get_provider_api_key("wan")
+        config = get_config()
+        size = canonical_size
+        prompt_extend = task.prompt_extend
+        watermark = task.watermark
+        seed = task.seed
+        enable_interleave = task.enable_interleave
+        max_images = task.max_images
+        enable_sequential = task.enable_sequential
+        thinking_mode = task.thinking_mode
+        color_palette = task.color_palette or []
+        bbox_list = normalized_bbox_list
 
         if model_name in WAN27_MODELS:
             images, task_ids, request_ids, provider_meta = await generate_with_wan27_image(
@@ -1976,6 +2019,7 @@ async def _background_generate(
         task.warnings = []
     finally:
         storage_service.save_studio_task(task)
+        _release_generation_slot(task_id)
 
 
 async def generate_with_wan27_image(

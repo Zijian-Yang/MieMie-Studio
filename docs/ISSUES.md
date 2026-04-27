@@ -5,6 +5,38 @@
 
 ## 🔴 待修复 Bug
 
+### 4. 线上图片工作室切页慢加载与生成按钮无响应
+
+**状态**: 🟡 本地已修复，待线上验证 (2026-04-22)
+
+**问题**: 生产站 `https://studio.miemie.co/` 使用 `guest` 测试账号进入图片工作室时，切换页面会出现全页转圈；任务详情中点击“开始生成”后经常没有即时反馈，仍停留在“待生成”状态。
+
+**证据**:
+- Edge DevTools Console 显示 `/api/studio/preview-payload` 多次返回 `520/524`
+- `/api/studio/{task_id}/generate` 返回过 `520`
+- `/api/studio/{task_id}` 返回过 `522`
+- 生产站首页与 `/api/health` 正常，问题集中在工作室业务接口
+
+**初步原因**: `/preview-payload` 与 `/generate` 在请求返回前会同步读取并校验 wan2.7 参考图；线上下载/解析远程图片较慢时，Cloudflare 或源站超时导致前端长时间无反馈。
+
+**建议方案**:
+1. `/preview-payload` 默认不做完整远程图片下载，改为缓存、短超时或开发者模式手动探测
+2. `/generate` 真正做到先写入 `generating` 并立即返回，慢校验与供应商调用进入后台任务
+3. 前端 payload 预览请求增加取消/去重，只保留最后一次有效请求
+4. 生成按钮增加“提交中”即时反馈与 Cloudflare 错误提示
+5. 核对 2026-04-22 03:00 UTC 左右的源站和 Cloudflare 日志
+
+**本地修复进展**:
+- 已实现：开发者模式未展开时不再自动请求 `/api/studio/preview-payload`
+- 已实现：预览请求增加取消/去重，避免旧请求覆盖新状态
+- 已实现：`/api/studio/{task_id}/generate` 不再在返回前同步探测 wan2.7 远程参考图
+- 已验证：`backend/tests/test_studio_capabilities.py` 33 项通过，前端 `npm run typecheck` 通过
+
+**调查记录**: [线上工作室卡顿与生成无响应调查记录](./reviews/2026-04-22-online-studio-investigation.md)
+**修复规格**: [图片工作室生产环境卡顿治理](./specs/2026-04-studio-prod-latency-hardening.md)
+
+---
+
 ### 1. ~~OSS 测试连接误报权限错误~~
 
 **状态**: ✅ 已修复 (2024-12-24)
@@ -185,6 +217,7 @@ for file_path in self.dir.glob("*.json"):
 
 | 日期 | 更新内容 |
 |------|----------|
+| 2026-04-22 | 新增线上图片工作室切页慢加载与生成按钮无响应问题 |
 | 2026-03-28 | 标记 print→logger 和单元测试为已修复 |
 | 2026-02-05 | 新增 CSS 变量统一问题（已修复） |
 | 2025-12-30 | 创建文档，记录初始问题 |

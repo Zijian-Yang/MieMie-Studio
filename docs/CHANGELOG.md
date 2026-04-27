@@ -104,6 +104,12 @@
 ### 修复 (Fixed)
 - 视频工作室：修复 capability 中 `max_reference_videos=0` 被前端默认值覆盖的问题，HappyHorse 参考生视频不再显示参考视频选择控件。
 - 视频工作室：厂商在提交阶段直接失败且未返回 `task_id` 时，现在会把 `request_id`、错误码、错误信息和原始响应保存到 `provider_result_meta.submit_error`，开发者模式可直接查看。
+- 图片工作室生产环境卡顿治理：
+  - 开发者模式未展开时不再自动请求 `/api/studio/preview-payload`
+  - payload 预览请求增加取消/去重，减少无效并发
+  - `POST /api/studio/{task_id}/generate` 改为先返回 `generating`，再在后台执行 wan2.7 远程参考图探测与最终 payload 构建
+  - 任务弹窗“开始生成/重新生成”按钮增加“提交中”即时反馈
+  - 同一任务重复点击生成时，前端同步防重入，后端也会对重复 `generate` 请求执行 no-op 去重
 - 图片工作室生成结果统一改为“先落本地暂存，再上传 OSS”：
   - 对 DashScope 临时图片链接补齐统一持久化入口，避免临时 URL 直接写入最终任务结果
   - OSS 上传增加多次自动重试；成功后立即删除本地暂存文件

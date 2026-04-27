@@ -309,6 +309,114 @@ def test_generate_wan27_image_edit_ignores_empty_bbox_list(client, auth_header, 
     assert "bbox_list" not in task["provider_payload_snapshot"]["parameters"]
 
 
+def test_generate_wan27_with_references_does_not_inspect_remote_images_before_return(client, auth_header, monkeypatch):
+    project_id = _create_project(client, auth_header)
+    scheduled = {"called": False}
+
+    def fake_create_task(coro):
+        scheduled["called"] = True
+        coro.close()
+        return None
+
+    monkeypatch.setattr(studio_router.asyncio, "create_task", fake_create_task)
+    monkeypatch.setattr(
+        "app.routers.studio._resolve_reference_items",
+        lambda _refs: _mock_reference_items(["https://oss.example.com/ref.png"]),
+    )
+
+    async def fail_if_called(_url):
+        raise AssertionError("inspect_remote_image should not run before /generate returns")
+
+    monkeypatch.setattr("app.routers.studio.inspect_remote_image", fail_if_called)
+
+    create_resp = client.post(
+        "/api/studio",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "wan27 同步探测回归",
+            "model": "wan2.7-image",
+            "task_kind": "image_edit",
+            "prompt": "编辑图片",
+            "n": 1,
+            "references": [{"type": "gallery", "id": "g1"}],
+        },
+    )
+    assert create_resp.status_code == 200
+    task_id = create_resp.json()["id"]
+
+    generate_resp = client.post(
+        f"/api/studio/{task_id}/generate",
+        headers=auth_header,
+        json={
+            "task_kind": "image_edit",
+            "n": 1,
+            "size_mode": "preset",
+            "size_preset": "2K",
+        },
+    )
+
+    assert generate_resp.status_code == 200
+    task = generate_resp.json()["task"]
+    assert scheduled["called"] is True
+    assert task["status"] == "generating"
+
+
+def test_generate_returns_existing_task_when_same_task_is_already_generating(client, auth_header, monkeypatch):
+    project_id = _create_project(client, auth_header)
+    scheduled = {"count": 0}
+
+    def fake_create_task(coro):
+        scheduled["count"] += 1
+        coro.close()
+        return None
+
+    monkeypatch.setattr(studio_router.asyncio, "create_task", fake_create_task)
+
+    create_resp = client.post(
+        "/api/studio",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "重复提交保护",
+            "model": "wan2.7-image-pro",
+            "task_kind": "text_to_image",
+            "prompt": "生成海报",
+            "n": 1,
+        },
+    )
+    assert create_resp.status_code == 200
+    task_id = create_resp.json()["id"]
+
+    first_resp = client.post(
+        f"/api/studio/{task_id}/generate",
+        headers=auth_header,
+        json={
+            "task_kind": "text_to_image",
+            "n": 1,
+            "size_mode": "preset",
+            "size_preset": "2K",
+        },
+    )
+    assert first_resp.status_code == 200
+    assert first_resp.json()["task"]["status"] == "generating"
+    assert scheduled["count"] == 1
+
+    second_resp = client.post(
+        f"/api/studio/{task_id}/generate",
+        headers=auth_header,
+        json={
+            "task_kind": "text_to_image",
+            "n": 1,
+            "size_mode": "preset",
+            "size_preset": "2K",
+        },
+    )
+    assert second_resp.status_code == 200
+    assert second_resp.json()["task"]["status"] == "generating"
+    assert scheduled["count"] == 1
+
+
 def test_preview_payload_normalizes_wan27_bbox_and_warns_thinking_mode(client, auth_header, monkeypatch):
     async def mock_inspect_remote_image(_url):
         return {

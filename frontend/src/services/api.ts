@@ -1381,11 +1381,11 @@ export const studioApi = {
     custom_width?: number
     custom_height?: number
     references?: Array<{ type: string, id: string }>
-  }) => api.post<any, {
+  }, options?: { signal?: AbortSignal }) => api.post<any, {
     canonical_request: Record<string, any>
     provider_payload: Record<string, any>
     validation_warnings: string[]
-  }>('/studio/preview-payload', data),
+  }>('/studio/preview-payload', data, { signal: options?.signal }),
   saveToGallery: (id: string, imageIds: string[]) => api.post<any, { saved_images: GalleryImage[] }>(`/studio/${id}/save-to-gallery`, { image_ids: imageIds }),
   updateImageMarkers: (taskId: string, imageId: string, markers: string[]) =>
     api.post<any, { success: boolean; markers: string[] }>(`/studio/${taskId}/markers`, { image_id: imageId, markers }),

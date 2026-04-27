@@ -72,6 +72,9 @@
 | [HappyHorse 视频工作室接入 Spec](./specs/2026-04-happyhorse-video-studio-integration.md) | HappyHorse 文生/图生/参考生/视频编辑接入约束与验收标准 |
 | [审计报告](./reviews/2026-04-platform-audit.md) | 全平台批判性审计 |
 | [整改 Backlog](./reviews/2026-04-remediation-backlog.md) | 分阶段治理路线 |
+| [线上工作室卡顿调查](./reviews/2026-04-22-online-studio-investigation.md) | 2026-04-22 生产站 Edge 复现与接口超时证据 |
+| [图片工作室卡顿治理 Spec](./specs/2026-04-studio-prod-latency-hardening.md) | 图片工作室预览降噪与生成接口异步化 |
+| [代理执行计划](./superpowers/plans/) | 排查/实现计划落盘目录 |
 
 ## 运行与验证
 

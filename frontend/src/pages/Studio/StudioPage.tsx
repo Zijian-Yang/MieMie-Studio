@@ -225,6 +225,9 @@ const StudioPage = () => {
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const autoSavingRef = useRef(false)
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const previewAbortRef = useRef<AbortController | null>(null)
+  const previewRequestSeqRef = useRef(0)
+  const submittingTaskRef = useRef(false)
 
   // 轮询基础设施（参照 VideoStudioPage）
   const pollingRef = useRef<Set<string>>(new Set())
@@ -247,6 +250,8 @@ const StudioPage = () => {
     validation_warnings: string[]
   } | null>(null)
   const [previewPayloadError, setPreviewPayloadError] = useState<string | null>(null)
+  const [isDeveloperModeExpanded, setIsDeveloperModeExpanded] = useState(false)
+  const [submittingTask, setSubmittingTask] = useState(false)
   const [wan27BBoxList, setWan27BBoxList] = useState<number[][][]>([])
   const [wan27SizeModeChoice, setWan27SizeModeChoice] = useState<'custom' | 'preset'>('custom')
   const [wan27RatioChoice, setWan27RatioChoice] = useState<string>('1:1')
@@ -296,6 +301,41 @@ const StudioPage = () => {
     if (isMountedRef.current) {
       setter(value)
     }
+  }, [])
+
+  const cancelPreviewRequest = useCallback(() => {
+    if (previewAbortRef.current) {
+      previewAbortRef.current.abort()
+      previewAbortRef.current = null
+    }
+  }, [])
+
+  const resetPreviewPanel = useCallback(() => {
+    cancelPreviewRequest()
+    setPreviewPayload(null)
+    setPreviewPayloadError(null)
+    setIsDeveloperModeExpanded(false)
+  }, [cancelPreviewRequest])
+
+  const closeTaskModal = useCallback(() => {
+    setIsModalOpen(false)
+    setIsCreating(false)
+    setSelectedStyleId(null)
+    submittingTaskRef.current = false
+    setSubmittingTask(false)
+    resetPreviewPanel()
+  }, [resetPreviewPanel])
+
+  const tryBeginSubmittingTask = useCallback(() => {
+    if (submittingTaskRef.current) return false
+    submittingTaskRef.current = true
+    setSubmittingTask(true)
+    return true
+  }, [])
+
+  const finishSubmittingTask = useCallback(() => {
+    submittingTaskRef.current = false
+    setSubmittingTask(false)
   }, [])
 
   const getModelTaskKinds = useCallback((modelId?: string): ImageTaskKind[] => {
@@ -505,7 +545,11 @@ const StudioPage = () => {
   }, [computeEffectiveSize, resolveWan27SizeDraft, wan27BBoxList])
 
   const requestPayloadPreview = useCallback(async () => {
-    if (!projectId || !isModalOpen) return
+    if (!projectId || !isModalOpen || !isDeveloperModeExpanded) return
+    cancelPreviewRequest()
+    const controller = new AbortController()
+    previewAbortRef.current = controller
+    const requestSeq = ++previewRequestSeqRef.current
     const values = form.getFieldsValue(true)
     let references = (values.references || []).map((ref: string) => {
       const [type, id] = ref.split(':')
@@ -563,26 +607,41 @@ const StudioPage = () => {
         custom_width: resolvedWan27Size.customWidth,
         custom_height: resolvedWan27Size.customHeight,
         references,
-      })
-      if (isMountedRef.current) {
+      }, { signal: controller.signal })
+      if (
+        isMountedRef.current &&
+        !controller.signal.aborted &&
+        requestSeq === previewRequestSeqRef.current
+      ) {
         setPreviewPayload(result)
         setPreviewPayloadError(null)
       }
     } catch (error) {
-      if (isMountedRef.current) {
+      if (controller.signal.aborted) {
+        return
+      }
+      if (isMountedRef.current && requestSeq === previewRequestSeqRef.current) {
         setPreviewPayload(null)
         setPreviewPayloadError(getApiErrorMessage(error, '预览请求体失败'))
       }
+    } finally {
+      if (previewAbortRef.current === controller) {
+        previewAbortRef.current = null
+      }
     }
-  }, [computeEffectiveSize, form, isModalOpen, projectId, resolveWan27SizeDraft, selectedStyleId, styles, wan27BBoxList])
+  }, [cancelPreviewRequest, computeEffectiveSize, form, isDeveloperModeExpanded, isModalOpen, projectId, resolveWan27SizeDraft, selectedStyleId, styles, wan27BBoxList])
 
   useEffect(() => {
     isMountedRef.current = true
     return () => {
       isMountedRef.current = false
       pollingRef.current.clear()
+      cancelPreviewRequest()
+      if (previewTimerRef.current) {
+        clearTimeout(previewTimerRef.current)
+      }
     }
-  }, [])
+  }, [cancelPreviewRequest])
 
   const maybeNotifyTaskFinished = useCallback((task: StudioTask) => {
     if (!imageTaskNotificationsEnabled) return
@@ -695,7 +754,13 @@ const StudioPage = () => {
   }, [projectId, fetchProject, safeSetState, startPolling])
 
   useEffect(() => {
-    if (!isModalOpen) return
+    if (!isModalOpen || !isDeveloperModeExpanded) {
+      if (previewTimerRef.current) {
+        clearTimeout(previewTimerRef.current)
+      }
+      cancelPreviewRequest()
+      return
+    }
     if (previewTimerRef.current) {
       clearTimeout(previewTimerRef.current)
     }
@@ -708,6 +773,8 @@ const StudioPage = () => {
       }
     }
   }, [
+    cancelPreviewRequest,
+    isDeveloperModeExpanded,
     isModalOpen,
     requestPayloadPreview,
     watchedModel,
@@ -906,11 +973,15 @@ const StudioPage = () => {
       style_id: null,
     })
     setSelectedStyleId(null)
+    resetPreviewPanel()
+    submittingTaskRef.current = false
+    setSubmittingTask(false)
     setIsModalOpen(true)
   }
 
   const createAndGenerate = async () => {
     if (!projectId) return
+    if (!tryBeginSubmittingTask()) return
     let createdTask: StudioTask | null = null
     try {
       await form.validateFields()
@@ -1057,6 +1128,8 @@ const StudioPage = () => {
           setSelectedTask(updatedTask)
         } catch {}
       }
+    } finally {
+      finishSubmittingTask()
     }
   }
 
@@ -1065,8 +1138,9 @@ const StudioPage = () => {
     setSelectedTask(task)
     setSelectedImages(new Set())
     setSelectedStyleId(null)
-    setPreviewPayload(null)
-    setPreviewPayloadError(null)
+    resetPreviewPanel()
+    submittingTaskRef.current = false
+    setSubmittingTask(false)
     const restoredBBoxList = resolvePreferredBBoxList(task.bbox_list, task.provider_payload_snapshot?.parameters?.bbox_list)
     const restoredCustomSize = parseCustomSizeString(task.size)
     const restoredSizeMode = task.size_mode || (restoredCustomSize ? 'custom' : (task.size_preset || (task.size && !task.size.includes('*')) ? 'preset' : null))
@@ -1332,6 +1406,7 @@ const StudioPage = () => {
 
   const generateImages = async () => {
     if (!selectedTask) return
+    if (!tryBeginSubmittingTask()) return
     
     const values = form.getFieldsValue(true)
     const isTextToImage = values.task_kind === 'text_to_image'
@@ -1476,6 +1551,8 @@ const StudioPage = () => {
         safeSetState(setTasks, (prev: StudioTask[]) => prev.map(t => t.id === updatedTask.id ? updatedTask : t))
         setSelectedTask(updatedTask)
       } catch {}
+    } finally {
+      finishSubmittingTask()
     }
   }
 
@@ -1800,6 +1877,14 @@ const StudioPage = () => {
   const renderDeveloperMode = () => (
     <Collapse
       style={{ marginTop: 16 }}
+      onChange={(keys) => {
+        const keyList = Array.isArray(keys) ? keys : [keys]
+        const expanded = keyList.includes('developer-mode')
+        setIsDeveloperModeExpanded(expanded)
+        if (!expanded) {
+          cancelPreviewRequest()
+        }
+      }}
       items={[
         {
           key: 'developer-mode',
@@ -2012,7 +2097,7 @@ const StudioPage = () => {
           </div>
         }
         open={isModalOpen}
-        onCancel={() => { setIsModalOpen(false); setIsCreating(false); setSelectedStyleId(null); setPreviewPayload(null); setPreviewPayloadError(null); }}
+        onCancel={closeTaskModal}
         footer={null}
         width={1100}
       >
@@ -3204,11 +3289,13 @@ const StudioPage = () => {
                       type="primary" 
                       icon={<ThunderboltOutlined />} 
                       onClick={createAndGenerate}
+                      loading={submittingTask}
+                      disabled={submittingTask}
                       block
                     >
-                      开始生成
+                      {submittingTask ? '提交中...' : '开始生成'}
                     </Button>
-                    <Button onClick={() => { setIsModalOpen(false); setIsCreating(false); setSelectedStyleId(null); setPreviewPayload(null); setPreviewPayloadError(null); }} block>
+                    <Button onClick={closeTaskModal} block>
                       取消
                     </Button>
                   </>
@@ -3218,11 +3305,11 @@ const StudioPage = () => {
                       type="primary" 
                       icon={<ThunderboltOutlined />} 
                       onClick={generateImages}
-                      loading={selectedTask.status === 'generating'}
-                      disabled={selectedTask.status === 'generating'}
+                      loading={submittingTask || selectedTask.status === 'generating'}
+                      disabled={submittingTask || selectedTask.status === 'generating'}
                       block
                     >
-                      {selectedTask.status === 'generating' ? '生成中...' : (selectedTask.images.length > 0 ? '重新生成' : '开始生成')}
+                      {submittingTask ? '提交中...' : (selectedTask.status === 'generating' ? '生成中...' : (selectedTask.images.length > 0 ? '重新生成' : '开始生成'))}
                     </Button>
                     <Popconfirm
                       title="确定删除此任务？"
