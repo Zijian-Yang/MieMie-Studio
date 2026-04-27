@@ -48,6 +48,25 @@ def test_settings_support_dual_api_keys_and_provider_profiles(client, auth_heade
     assert data["production_api_key_masked"]
 
 
+def test_settings_supports_independent_volcengine_api_key(client, auth_header):
+    resp = client.put(
+        "/api/settings",
+        headers=auth_header,
+        json={
+            "test_api_key": "dashscope-test-key",
+            "production_api_key": "dashscope-prod-key",
+            "volcengine_api_key": "volc-ak-12345678",
+        },
+    )
+    assert resp.status_code == 200
+
+    settings = client.get("/api/settings", headers=auth_header)
+    assert settings.status_code == 200
+    data = settings.json()
+    assert data["is_volcengine_api_key_set"] is True
+    assert data["volcengine_api_key_masked"] == "volc********5678"
+
+
 def test_settings_persists_happyhorse_test_profile_after_refresh(client, auth_header):
     resp = client.put(
         "/api/settings",
@@ -97,6 +116,21 @@ def test_get_provider_api_key_respects_profiles(registered_user):
     assert get_provider_api_key("happyhorse") == "prod-key"
     assert get_provider_api_key("kling") == "prod-key"
     assert get_provider_api_key("vidu") == "test-key"
+
+
+def test_get_provider_api_key_returns_independent_volcengine_key(registered_user):
+    _, user = registered_user
+    user_dir = get_user_service().get_user_data_path(user["id"])
+    set_user_config_dir(str(user_dir))
+    config_manager.update(
+        production_api_key="dashscope-prod-key",
+        test_api_key="dashscope-test-key",
+        volcengine_api_key="volc-ak-independent",
+        wan_key_profile="test",
+    )
+
+    assert get_provider_api_key("wan") == "dashscope-test-key"
+    assert get_provider_api_key("volcengine") == "volc-ak-independent"
 
 
 def test_provider_profile_override_supports_happyhorse_independently(registered_user):

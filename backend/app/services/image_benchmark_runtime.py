@@ -705,6 +705,8 @@ async def preview_benchmark_cell(
         size_preset=effective_params.get("size_preset"),
         custom_width=effective_params.get("custom_width"),
         custom_height=effective_params.get("custom_height"),
+        output_format=effective_params.get("output_format"),
+        web_search=bool(effective_params.get("web_search") or False),
     )
     canonical.project_id = project_id
     return asdict(canonical), provider_payload, warnings
@@ -853,6 +855,8 @@ async def _execute_benchmark_cell_once(
         size_preset=effective_params.get("size_preset"),
         custom_width=effective_params.get("custom_width"),
         custom_height=effective_params.get("custom_height"),
+        output_format=effective_params.get("output_format"),
+        web_search=bool(effective_params.get("web_search") or False),
         references=[],
         input_assets=canonical_request.get("input_assets") or {},
         normalized_params=canonical_request.get("normalized_params") or {},
@@ -861,13 +865,24 @@ async def _execute_benchmark_cell_once(
     )
 
     config = get_config()
-    provider_api_key = get_provider_api_key("wan")
+    provider_api_key = get_provider_api_key(canonical_request.get("provider") or "wan")
     request_ids: List[str] = []
     task_ids: List[str] = []
     provider_result_meta: Dict[str, Any] = {}
 
     try:
-        if model_id in studio_router.WAN27_MODELS:
+        if model_id in studio_router.SEEDREAM_MODELS:
+            images, request_ids, provider_result_meta = await studio_router.generate_with_seedream_image(
+                task=task,
+                api_key=provider_api_key,
+                ref_urls=ref_urls,
+                size=task.size,
+                output_format=task.output_format,
+                web_search=task.web_search,
+                prompt_extend=task.prompt_extend,
+                watermark=task.watermark,
+            )
+        elif model_id in studio_router.WAN27_MODELS:
             images, task_ids, request_ids, provider_result_meta = await studio_router.generate_with_wan27_image(
                 task=task,
                 api_key=provider_api_key,

@@ -74,6 +74,7 @@
 | [整改 Backlog](./reviews/2026-04-remediation-backlog.md) | 分阶段治理路线 |
 | [线上工作室卡顿调查](./reviews/2026-04-22-online-studio-investigation.md) | 2026-04-22 生产站 Edge 复现与接口超时证据 |
 | [图片工作室卡顿治理 Spec](./specs/2026-04-studio-prod-latency-hardening.md) | 图片工作室预览降噪与生成接口异步化 |
+| [Seedream 图片工作室接入 Spec](./specs/2026-04-seedream-image-studio-integration.md) | 火山引擎 Seedream 5.0 lite / 4.5 接入约束与验收标准 |
 | [代理执行计划](./superpowers/plans/) | 排查/实现计划落盘目录 |
 
 ## 运行与验证
@@ -102,4 +103,4 @@ cd frontend && npm run build
 - 如果旧文档与新 spec 冲突，以 spec / ADR 为准，并尽快修正文档入口
 - 不要把聊天上下文当规范；规范必须落盘
 
-*最后更新：2026-04-27*
+*最后更新：2026-04-28*

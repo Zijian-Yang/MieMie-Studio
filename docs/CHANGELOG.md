@@ -73,6 +73,14 @@
   - `happyhorse-1.0-r2v` 映射到现有 `reference_to_video`，仅支持 1-9 张参考图
   - `happyhorse-1.0-video-edit` 映射到现有 `video_edit_global`，支持 1 个输入视频与 0-5 张参考图
   - 4 个 HappyHorse 模型继续通过 `provider=happyhorse` 复用 DashScope 异步提交、轮询、OSS 与开发者模式链路
+- 图片工作室：接入火山引擎 Seedream 图片模型
+  - 新增 `doubao-seedream-5.0-lite` 与 `doubao-seedream-4.5`，`provider=volcengine`
+  - 支持文生图、1-14 张参考图编辑、0-14 张参考图组图生成
+  - 5.0 lite 支持 `output_format=jpeg/png` 与 `web_search`
+  - 开发者模式展示 Seedream canonical request、厂商 payload、request id、usage、tools、单图错误和 raw response
+- 设置页：新增独立“火山引擎 Ark API Key”模块
+  - `volcengine_api_key` 独立保存，不复用 DashScope 测试/生产 Key 池
+  - 设置接口返回 `volcengine_api_key_masked` 与 `is_volcengine_api_key_set`
 
 ### 变更 (Changed)
 - 设置页：Key 路由新增 HappyHorse 独立选择项，并确认 Wan / HappyHorse / Kling / Vidu 均按各自 profile 实际取用测试或生产 Key。

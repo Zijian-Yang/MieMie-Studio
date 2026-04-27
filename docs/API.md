@@ -95,6 +95,13 @@ Authorization: Bearer {token}
 | DELETE | `/api-key` | 删除 API Key |
 | POST | `/oss/test` | 测试 OSS 连接 |
 
+`GET /api/settings` 会返回火山引擎 Ark Key 的脱敏状态：
+
+- `volcengine_api_key_masked`
+- `is_volcengine_api_key_set`
+
+`PUT /api/settings` 可写入 `volcengine_api_key`。这把 Key 仅供 `provider=volcengine` 的 Seedream 图片模型使用，不参与 DashScope 测试/生产 Key 路由。
+
 ### 项目 `/api/projects`
 
 | 方法 | 路径 | 说明 |
@@ -198,6 +205,17 @@ Authorization: Bearer {token}
 | POST | `/{id}/retry-oss` | 将任务内本地回退图片重新上传到 OSS |
 | POST | `/project/{project_id}/retry-oss` | 将项目内所有本地回退图片重新上传到 OSS |
 | GET | `/models/available` | 获取可用模型 |
+| POST | `/preview-payload` | 预览 canonical 请求与厂商 payload |
+
+#### Seedream / Volcengine
+
+- `doubao-seedream-5.0-lite` 与 `doubao-seedream-4.5` 使用 `provider=volcengine`。
+- 文生图：`task_kind=text_to_image`，不允许参考图，厂商 payload 使用 `sequential_image_generation=disabled`。
+- 图像编辑：`task_kind=image_edit`，需要 1-14 张参考图，厂商 payload 使用 `sequential_image_generation=disabled`。
+- 组图生成：`task_kind=sequential_generation`，允许 0-14 张参考图，厂商 payload 使用 `sequential_image_generation=auto`，并将 `n` 映射为 `sequential_image_generation_options.max_images`；`参考图数量 + n <= 15`。
+- 通用参数：`size`、`watermark`、`prompt_extend`。`prompt_extend=true` 时下发 `optimize_prompt_options.mode=standard`。
+- 5.0 lite 专属参数：`output_format=jpeg/png`、`web_search=true` 时下发 `tools=[{"type":"web_search"}]`。
+- 固定下发 `response_format=url`、`stream=false`，结果继续走图片工作室后台生成、轮询和 OSS 持久化。
 
 #### 图片工作室 OSS 回退
 

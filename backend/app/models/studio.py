@@ -71,6 +71,10 @@ class StudioTask(BaseModel):
     size_preset: Optional[str] = None  # 1K / 2K / 4K
     custom_width: Optional[int] = None
     custom_height: Optional[int] = None
+
+    # 火山引擎 Seedream 专用参数
+    output_format: Optional[str] = None  # jpeg / png（仅 5.0 lite）
+    web_search: bool = False  # 联网搜索（仅 5.0 lite）
     
     # 参考素材
     references: List[ReferenceItem] = []  # 参考素材列表

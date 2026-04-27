@@ -172,6 +172,8 @@ class StudioTask(BaseModel):
 
     # 生成配置
     model: str                   # 模型
+    provider: Optional[str] = None # dashscope | volcengine | ...
+    task_kind: str = "image_edit" # text_to_image | image_edit | interactive_edit | sequential_generation
     prompt: str = ""
     negative_prompt: str = ""
     n: int = 4                   # 每次生成数量
@@ -185,6 +187,20 @@ class StudioTask(BaseModel):
     enable_interleave: bool = False  # 图文混合模式
     max_images: int = 5              # 图文混合最大图数
 
+    # wan2.7 特有参数
+    enable_sequential: bool = False  # 组图模式
+    thinking_mode: Optional[bool] = None
+    bbox_list: List[List[List[int]]] = []
+    color_palette: List[ColorPaletteItem] = []
+    size_mode: Optional[str] = None  # preset | custom
+    size_preset: Optional[str] = None
+    custom_width: Optional[int] = None
+    custom_height: Optional[int] = None
+
+    # 火山引擎 Seedream 特有参数
+    output_format: Optional[str] = None # jpeg | png，仅 5.0 lite
+    web_search: bool = False            # 联网搜索，仅 5.0 lite
+
     # 参考图/素材
     references: List[TaskReference] = []
 
@@ -193,6 +209,8 @@ class StudioTask(BaseModel):
     status: str = "pending"      # pending | generating | completed | failed
     error_message: Optional[str] = None
     request_ids: List[str] = []  # 所有并发组的 request_id
+    provider_payload_snapshot: Optional[Dict[str, Any]] = None
+    provider_result_meta: Dict[str, Any] = {}
 
     created_at: datetime
     updated_at: datetime

@@ -356,6 +356,8 @@ export interface ConfigResponse {
   is_test_api_key_set: boolean
   production_api_key_masked: string
   is_production_api_key_set: boolean
+  volcengine_api_key_masked: string
+  is_volcengine_api_key_set: boolean
   wan_key_profile: 'test' | 'production'
   happyhorse_key_profile: 'test' | 'production'
   kling_key_profile: 'test' | 'production'
@@ -387,6 +389,7 @@ export interface ConfigUpdateRequest {
   api_key?: string
   test_api_key?: string
   production_api_key?: string
+  volcengine_api_key?: string
   wan_key_profile?: 'test' | 'production'
   happyhorse_key_profile?: 'test' | 'production'
   kling_key_profile?: 'test' | 'production'
@@ -1277,6 +1280,8 @@ export interface StudioTask {
   size_preset?: string | null
   custom_width?: number | null
   custom_height?: number | null
+  output_format?: 'jpeg' | 'png' | null
+  web_search?: boolean
   // 追踪ID
   last_task_id?: string
   last_request_id?: string
@@ -1331,6 +1336,8 @@ export const studioApi = {
     size_preset?: string
     custom_width?: number
     custom_height?: number
+    output_format?: 'jpeg' | 'png' | null
+    web_search?: boolean
     references?: Array<{ type: string, id: string }>
   }) => api.post<any, StudioTask>('/studio', data),
   update: (id: string, data: Partial<StudioTask>) => api.put<any, StudioTask>(`/studio/${id}`, data),
@@ -1357,6 +1364,8 @@ export const studioApi = {
     size_preset?: string
     custom_width?: number
     custom_height?: number
+    output_format?: 'jpeg' | 'png' | null
+    web_search?: boolean
   }) => api.post<any, { task: StudioTask }>(`/studio/${id}/generate`, data || {}),
   previewPayload: (data: {
     project_id: string
@@ -1380,6 +1389,8 @@ export const studioApi = {
     size_preset?: string
     custom_width?: number
     custom_height?: number
+    output_format?: 'jpeg' | 'png' | null
+    web_search?: boolean
     references?: Array<{ type: string, id: string }>
   }, options?: { signal?: AbortSignal }) => api.post<any, {
     canonical_request: Record<string, any>
@@ -1398,6 +1409,7 @@ export const studioApi = {
     models: Record<string, {
       id: string
       name: string
+      provider?: string
       description?: string
       supported_task_kinds?: Array<'text_to_image' | 'image_edit' | 'interactive_edit' | 'sequential_generation'>
       size_ui_mode?: 'preset_only' | 'preset_plus_custom_with_templates'

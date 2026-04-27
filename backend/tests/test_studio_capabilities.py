@@ -53,6 +53,28 @@ def test_get_available_image_models_preserves_registry_metadata(client, auth_hea
     assert data["qwen-image-edit-plus"]["size_ui_mode"] == "preset_only"
 
 
+def test_get_available_image_models_includes_seedream_models(client, auth_header):
+    resp = client.get("/api/studio/models/available", headers=auth_header)
+    assert resp.status_code == 200
+    data = resp.json()["models"]
+
+    assert "doubao-seedream-5.0-lite" in data
+    assert "doubao-seedream-4.5" in data
+    assert data["doubao-seedream-5.0-lite"]["provider"] == "volcengine"
+    assert data["doubao-seedream-5.0-lite"]["supported_task_kinds"] == [
+        "text_to_image",
+        "image_edit",
+        "sequential_generation",
+    ]
+    assert data["doubao-seedream-4.5"]["supported_task_kinds"] == [
+        "text_to_image",
+        "image_edit",
+        "sequential_generation",
+    ]
+    seedream_params = {param["name"] for param in data["doubao-seedream-5.0-lite"]["parameters"]}
+    assert {"size", "n", "prompt_extend", "watermark", "output_format", "web_search"}.issubset(seedream_params)
+
+
 def test_wan27_size_templates_are_legal_for_pure_text_mode():
     templates = get_image_size_templates(
         model_name="wan2.7-image-pro",
@@ -108,6 +130,92 @@ def test_preview_payload_builds_wan27_sequential_payload(client, auth_header):
     assert data["canonical_request"]["task_kind"] == "sequential_generation"
     assert data["provider_payload"]["parameters"]["enable_sequential"] is True
     assert data["provider_payload"]["parameters"]["size"] == "2K"
+
+
+def test_preview_payload_builds_seedream_lite_sequential_payload(client, auth_header):
+    resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "doubao-seedream-5.0-lite",
+            "task_kind": "sequential_generation",
+            "prompt": "同一只橘猫的四格漫画组图",
+            "n": 4,
+            "group_count": 1,
+            "size": "2K",
+            "prompt_extend": True,
+            "watermark": False,
+            "output_format": "png",
+            "web_search": True,
+            "references": [],
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["canonical_request"]["provider"] == "volcengine"
+    assert data["canonical_request"]["task_kind"] == "sequential_generation"
+    payload = data["provider_payload"]
+    assert payload["model"] == "doubao-seedream-5-0-260128"
+    assert payload["prompt"] == "同一只橘猫的四格漫画组图"
+    assert payload["size"] == "2K"
+    assert payload["sequential_image_generation"] == "auto"
+    assert payload["sequential_image_generation_options"]["max_images"] == 4
+    assert payload["optimize_prompt_options"]["mode"] == "standard"
+    assert payload["output_format"] == "png"
+    assert payload["tools"] == [{"type": "web_search"}]
+    assert payload["response_format"] == "url"
+    assert payload["stream"] is False
+
+
+def test_preview_payload_rejects_seedream_45_output_format(client, auth_header):
+    resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "doubao-seedream-4.5",
+            "task_kind": "text_to_image",
+            "prompt": "一张海报",
+            "n": 1,
+            "size": "2K",
+            "output_format": "png",
+            "references": [],
+        },
+    )
+    assert resp.status_code == 400
+    assert "output_format" in resp.json()["detail"]
+
+
+def test_preview_payload_rejects_seedream_too_many_reference_and_output_images(client, auth_header, monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.studio._resolve_reference_items",
+        lambda _refs: _mock_reference_items([f"https://oss.example.com/ref-{index}.png" for index in range(14)]),
+    )
+    resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "doubao-seedream-5.0-lite",
+            "task_kind": "sequential_generation",
+            "prompt": "根据参考图生成组图",
+            "n": 2,
+            "size": "2K",
+            "references": [{"type": "gallery", "id": f"g{index}"} for index in range(14)],
+        },
+    )
+    assert resp.status_code == 400
+    assert "参考图数量 + 最终生成图片数量" in resp.json()["detail"]
+
+
+def test_oss_temporary_url_detection_includes_volcengine_tos_signature():
+    url = (
+        "https://ark-content-generation-cn-beijing.tos-cn-beijing.volces.com/output.png"
+        "?X-Tos-Algorithm=TOS4-HMAC-SHA256&X-Tos-Signature=abc"
+    )
+
+    assert studio_router.oss_service.is_probably_temporary_url(url) is True
 
 
 def test_preview_payload_rejects_wan27_4k_when_input_images_present(client, auth_header, monkeypatch):
@@ -811,6 +919,77 @@ async def test_generate_with_qwen_image2_allows_missing_size(monkeypatch):
     assert images[0].url == "https://oss.example.com/output.png"
     assert request_ids == ["req-123"]
     assert captured["size"] is None
+
+
+@pytest.mark.asyncio
+async def test_seedream_service_normalizes_success_and_item_errors(monkeypatch):
+    from app.models_registry.image.seedream import (
+        SEEDREAM_5_LITE_MODEL_INFO,
+        SeedreamImageService,
+    )
+
+    captured = {}
+
+    class MockResponse:
+        status_code = 200
+        headers = {"x-tt-logid": "log-123"}
+
+        @staticmethod
+        def json():
+            return {
+                "model": "doubao-seedream-5-0-260128",
+                "created": 1770000000,
+                "data": [
+                    {"url": "https://volc.example.com/a.jpeg", "size": "2048x2048"},
+                    {"error": {"code": "ContentRisk", "message": "审核不通过"}},
+                ],
+                "usage": {"generated_images": 1, "output_tokens": 16384, "total_tokens": 16384},
+            }
+
+    class MockAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, headers=None, json=None):
+            captured["url"] = url
+            captured["headers"] = headers or {}
+            captured["payload"] = json or {}
+            return MockResponse()
+
+    monkeypatch.setattr("app.models_registry.image.seedream.httpx.AsyncClient", MockAsyncClient)
+
+    service = SeedreamImageService(SEEDREAM_5_LITE_MODEL_INFO)
+    service.configure("volc-key")
+
+    urls, request_id, meta = await service.generate(
+        prompt="一张海报",
+        images=[],
+        size="2K",
+        n=2,
+        task_kind="sequential_generation",
+        prompt_extend=True,
+        watermark=False,
+        output_format="png",
+        web_search=True,
+    )
+
+    assert urls == ["https://volc.example.com/a.jpeg"]
+    assert request_id == "log-123"
+    assert captured["url"] == "https://ark.cn-beijing.volces.com/api/v3/images/generations"
+    assert captured["headers"]["Authorization"] == "Bearer volc-key"
+    assert captured["payload"]["model"] == "doubao-seedream-5-0-260128"
+    assert captured["payload"]["sequential_image_generation"] == "auto"
+    assert captured["payload"]["sequential_image_generation_options"]["max_images"] == 2
+    assert captured["payload"]["output_format"] == "png"
+    assert meta["usage"]["generated_images"] == 1
+    assert meta["item_errors"][0]["code"] == "ContentRisk"
+    assert meta["raw_response"]["data"][1]["error"]["message"] == "审核不通过"
 
 
 @pytest.mark.asyncio

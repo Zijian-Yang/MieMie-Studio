@@ -7,6 +7,7 @@
 - wan2.5-t2i-preview: 万相2.5 文生图
 - wan2.5-i2i-preview: 万相2.5 图生图（风格迁移）
 - qwen-image-edit-plus: 通义千问图像编辑（单图编辑/多图融合）
+- doubao-seedream-5.0-lite / doubao-seedream-4.5: 火山引擎图片生成
 
 API 文档：
 - 万相2.6: https://help.aliyun.com/zh/model-studio/wan-image-generation-api-reference
@@ -33,6 +34,9 @@ from . import qwen_image_2
 # 万相 2.7（文生图 / 图像编辑 / 交互式编辑 / 组图生成）
 from . import wan27_image
 
+# 火山引擎 Seedream（文生图 / 图像编辑 / 组图生成）
+from . import seedream
+
 # 导出
 from .wan26_t2i import WAN26_T2I_MODEL_INFO, Wan26T2IService
 from .wan26_image import WAN26_IMAGE_MODEL_INFO, Wan26ImageService
@@ -42,6 +46,7 @@ from .qwen_image import QWEN_IMAGE_MAX_MODEL_INFO, QWEN_IMAGE_PLUS_MODEL_INFO, Q
 from .qwen_image_edit import QWEN_IMAGE_EDIT_PLUS_MODEL_INFO, QwenImageEditService
 from .qwen_image_2 import QWEN_IMAGE_2_PRO_MODEL_INFO, QWEN_IMAGE_2_MODEL_INFO, QwenImage2Service
 from .wan27_image import WAN27_PRO_MODEL_INFO, WAN27_MODEL_INFO, Wan27ImageService
+from .seedream import SEEDREAM_5_LITE_MODEL_INFO, SEEDREAM_45_MODEL_INFO, SeedreamImageService
 
 __all__ = [
     # 万相2.6
@@ -66,4 +71,7 @@ __all__ = [
     "WAN27_PRO_MODEL_INFO",
     "WAN27_MODEL_INFO",
     "Wan27ImageService",
+    "SEEDREAM_5_LITE_MODEL_INFO",
+    "SEEDREAM_45_MODEL_INFO",
+    "SeedreamImageService",
 ]

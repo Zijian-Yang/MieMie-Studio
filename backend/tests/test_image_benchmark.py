@@ -134,6 +134,19 @@ def test_dataset_create_export_and_import_with_new_schema(client, auth_header):
     assert imported["items"][0]["prompt"] == "电影感海报"
 
 
+@pytest.mark.asyncio
+async def test_image_benchmark_capabilities_include_seedream_without_sequential(auth_header):
+    capabilities = await image_benchmark_runtime.get_image_benchmark_capabilities()
+
+    assert "doubao-seedream-5.0-lite" in capabilities["models"]
+    assert "doubao-seedream-4.5" in capabilities["models"]
+    assert capabilities["models"]["doubao-seedream-5.0-lite"]["supported_task_kinds"] == [
+        "text_to_image",
+        "image_edit",
+    ]
+    assert "sequential_generation" not in capabilities["models"]["doubao-seedream-4.5"]["supported_task_kinds"]
+
+
 def test_dataset_import_migrates_legacy_input_images_schema(client, auth_header):
     project_id = _create_project(client, auth_header)
     resp = client.post(

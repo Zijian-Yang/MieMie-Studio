@@ -846,6 +846,7 @@ class AppConfig(BaseModel):
     dashscope_api_key: str = ""
     test_api_key: str = ""
     production_api_key: str = ""
+    volcengine_api_key: str = ""
     wan_key_profile: str = "production"
     happyhorse_key_profile: str = "production"
     kling_key_profile: str = "production"
@@ -958,6 +959,8 @@ def get_provider_key_profile(
 def get_provider_api_key(provider: str, override_profile: Optional[str] = None) -> str:
     """获取指定 provider 当前应使用的 API Key"""
     config = get_config()
+    if provider == "volcengine":
+        return config.volcengine_api_key
     profile = get_provider_key_profile(provider, override_profile=override_profile, config=config)
     if profile == "test":
         return config.test_api_key

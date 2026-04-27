@@ -107,6 +107,7 @@ class ConfigUpdateRequest(BaseModel):
     api_key: Optional[str] = None
     test_api_key: Optional[str] = None
     production_api_key: Optional[str] = None
+    volcengine_api_key: Optional[str] = None
     wan_key_profile: Optional[str] = None
     happyhorse_key_profile: Optional[str] = None
     kling_key_profile: Optional[str] = None
@@ -142,6 +143,8 @@ class ConfigResponse(BaseModel):
     is_test_api_key_set: bool
     production_api_key_masked: str
     is_production_api_key_set: bool
+    volcengine_api_key_masked: str
+    is_volcengine_api_key_set: bool
     wan_key_profile: str
     happyhorse_key_profile: str
     kling_key_profile: str
@@ -227,6 +230,8 @@ async def get_settings():
         is_test_api_key_set=bool(config.test_api_key),
         production_api_key_masked=mask_api_key(production_api_key),
         is_production_api_key_set=bool(production_api_key),
+        volcengine_api_key_masked=mask_api_key(config.volcengine_api_key),
+        is_volcengine_api_key_set=bool(config.volcengine_api_key),
         wan_key_profile=normalize_key_profile(config.wan_key_profile),
         happyhorse_key_profile=normalize_key_profile(getattr(config, "happyhorse_key_profile", "production")),
         kling_key_profile=normalize_key_profile(config.kling_key_profile),
@@ -270,6 +275,9 @@ async def update_settings(request: ConfigUpdateRequest):
     if request.production_api_key is not None:
         update_data["production_api_key"] = request.production_api_key
         update_data["dashscope_api_key"] = request.production_api_key
+
+    if request.volcengine_api_key is not None:
+        update_data["volcengine_api_key"] = request.volcengine_api_key
 
     if request.wan_key_profile is not None:
         update_data["wan_key_profile"] = normalize_key_profile(request.wan_key_profile)

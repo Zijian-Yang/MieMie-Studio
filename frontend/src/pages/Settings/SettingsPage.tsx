@@ -97,6 +97,32 @@ const SettingsPage = () => {
     }
   }
 
+  const handleSaveVolcengineKey = async () => {
+    const values = form.getFieldsValue()
+    if (!values.volcengine_api_key) {
+      message.warning('请输入火山引擎 Ark API Key')
+      return
+    }
+
+    setSaving(true)
+    try {
+      await settingsApi.updateSettings({
+        volcengine_api_key: values.volcengine_api_key,
+      })
+      message.success('火山引擎 Ark API Key 已保存')
+      form.setFieldValue('volcengine_api_key', '')
+      fetchSettings()
+    } catch (error) {
+      if (error instanceof Error) {
+        message.error(error.message)
+      } else {
+        message.error('保存失败')
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const handleSaveSettings = async () => {
     setSaving(true)
     try {
@@ -105,6 +131,7 @@ const SettingsPage = () => {
       await settingsApi.updateSettings({
         test_api_key: values.test_api_key || undefined,
         production_api_key: values.production_api_key || undefined,
+        volcengine_api_key: values.volcengine_api_key || undefined,
         wan_key_profile: values.wan_key_profile,
         happyhorse_key_profile: values.happyhorse_key_profile,
         kling_key_profile: values.kling_key_profile,
@@ -134,6 +161,7 @@ const SettingsPage = () => {
       message.success('设置已保存')
       form.setFieldValue('test_api_key', '')
       form.setFieldValue('production_api_key', '')
+      form.setFieldValue('volcengine_api_key', '')
       fetchSettings()
     } catch (error) {
       if (error instanceof Error) {
@@ -399,6 +427,50 @@ const SettingsPage = () => {
             loading={saving}
           >
             保存 Key 与路由
+          </Button>
+        </Form>
+      </Card>
+
+      <Card
+        title="火山引擎 Ark API Key"
+        style={{ marginBottom: 24 }}
+      >
+        <Alert
+          message={
+            config?.is_volcengine_api_key_set ? (
+              <span>
+                <CheckCircleOutlined style={{ color: token.colorSuccess, marginRight: 8 }} />
+                火山引擎 Ark API Key 已设置：{config.volcengine_api_key_masked}
+              </span>
+            ) : (
+              <span>
+                <CloseCircleOutlined style={{ color: token.colorError, marginRight: 8 }} />
+                火山引擎 Ark API Key 尚未设置
+              </span>
+            )
+          }
+          description="Seedream 图片模型使用这把 Key；它独立于上方 DashScope 测试/生产 Key。"
+          type={config?.is_volcengine_api_key_set ? 'success' : 'warning'}
+          style={{ marginBottom: 16 }}
+        />
+        <Form form={form} layout="vertical">
+          <Form.Item
+            name="volcengine_api_key"
+            label="火山引擎 Ark API Key"
+            extra="留空表示不修改；可在火山引擎 Ark 控制台创建长效 API Key。"
+          >
+            <Input.Password
+              placeholder="输入新的火山引擎 Ark API Key"
+              iconRender={(visible) => (visible ? <EyeOutlined /> : <EyeInvisibleOutlined />)}
+            />
+          </Form.Item>
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            onClick={handleSaveVolcengineKey}
+            loading={saving}
+          >
+            保存火山 Key
           </Button>
         </Form>
       </Card>

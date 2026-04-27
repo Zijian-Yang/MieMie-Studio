@@ -45,12 +45,15 @@ const formatSizeLabel = (size: string | { width: number; height: number; label?:
   
   let width: number, height: number
   if (typeof size === 'string') {
-    const parts = size.split('*')
+    const parts = size.includes('*') ? size.split('*') : size.split('x')
     width = parseInt(parts[0], 10)
     height = parseInt(parts[1], 10)
   } else {
     width = size.width
     height = size.height
+  }
+  if (!Number.isFinite(width) || !Number.isFinite(height)) {
+    return typeof size === 'string' ? size : (size.label || '')
   }
   
   const sizeStr = `${width}×${height}`
@@ -90,6 +93,9 @@ const TASK_KIND_OPTIONS: Array<{ value: ImageTaskKind; label: string; help: stri
 ]
 
 const WAN27_MODELS = new Set(['wan2.7-image-pro', 'wan2.7-image'])
+const SEEDREAM_5_LITE_MODEL_ID = 'doubao-seedream-5.0-lite'
+const SEEDREAM_45_MODEL_ID = 'doubao-seedream-4.5'
+const SEEDREAM_MODELS = new Set([SEEDREAM_5_LITE_MODEL_ID, SEEDREAM_45_MODEL_ID])
 const WAN27_MAX_CUSTOM_DIMENSION = 12000
 const WAN25_T2I_MIN_TOTAL_PIXELS = 768 * 768
 const WAN25_T2I_MAX_TOTAL_PIXELS = 1440 * 1440
@@ -127,6 +133,14 @@ const mergeHelpContent = (...helps: Array<HelpContent | string | null | undefine
 
 const getWan27DefaultN = (taskKind: ImageTaskKind) => (
   taskKind === 'sequential_generation' ? 12 : 4
+)
+
+const getSeedreamDefaultN = (taskKind: ImageTaskKind) => (
+  taskKind === 'sequential_generation' ? 4 : 1
+)
+
+const getSeedreamMaxN = (taskKind: ImageTaskKind, referenceCount: number) => (
+  taskKind === 'sequential_generation' ? Math.max(1, 15 - referenceCount) : 1
 )
 
 const getImageCustomSizeLimits = (
@@ -217,6 +231,8 @@ const StudioPage = () => {
   const watchedWatermark = Form.useWatch('watermark', form)
   const watchedSeed = Form.useWatch('seed', form)
   const watchedMaxImages = Form.useWatch('max_images', form)
+  const watchedOutputFormat = Form.useWatch('output_format', form)
+  const watchedWebSearch = Form.useWatch('web_search', form)
   const watchedStyleId = Form.useWatch('style_id', form)
   const watchedBBoxList = Form.useWatch('bbox_list', form) || []
   const watchedColorPalette = Form.useWatch('color_palette', form) || []
@@ -345,6 +361,9 @@ const StudioPage = () => {
     if (WAN27_MODELS.has(modelId)) {
       return ['text_to_image', 'image_edit', 'interactive_edit', 'sequential_generation']
     }
+    if (SEEDREAM_MODELS.has(modelId)) {
+      return ['text_to_image', 'image_edit', 'sequential_generation']
+    }
     if (modelId === 'wan2.6-image' || modelId === 'qwen-image-2.0-pro' || modelId === 'qwen-image-2.0') {
       return ['text_to_image', 'image_edit']
     }
@@ -395,6 +414,8 @@ const StudioPage = () => {
   const activeModelId = (watchedModel || selectedTask?.model || '') as string
   const activeTaskKind = (watchedTaskKind || selectedTask?.task_kind || 'text_to_image') as ImageTaskKind
   const isWan27Model = WAN27_MODELS.has(activeModelId)
+  const isSeedreamModel = SEEDREAM_MODELS.has(activeModelId)
+  const isSeedreamLiteModel = activeModelId === SEEDREAM_5_LITE_MODEL_ID
   const isWan25CustomSizeModel = activeModelId === 'wan2.5-t2i-preview' || activeModelId === 'wan2.5-i2i-preview'
   const activeSizeUiMode = (availableModels[activeModelId]?.size_ui_mode || (isWan27Model || isWan25CustomSizeModel ? 'preset_plus_custom_with_templates' : 'preset_only')) as ImageSizeUiMode
   const shouldShowReferences = activeTaskKind !== 'text_to_image'
@@ -436,6 +457,21 @@ const StudioPage = () => {
     }
     return form.getFieldValue('size_preset') || '2K'
   }, [effectiveWan27EntryMode, form, isWan27Model, watchedCustomHeight, watchedCustomWidth, watchedSizeMode, watchedSizePreset])
+  const seedreamSizeOptions = useMemo(() => {
+    if (!isSeedreamModel) return []
+    const optionMap = new Map<string, string>()
+    const sizeParam = getParamMeta(activeModelId, 'size') as any
+    ;(sizeParam?.constraint?.options || []).forEach((option: any) => {
+      if (option?.value) optionMap.set(option.value, option.label || option.value)
+    })
+    ;(availableModels[activeModelId]?.common_sizes || []).forEach((size: any) => {
+      const value = size.value || (typeof size === 'string' ? size : `${size.width}x${size.height}`)
+      if (value && !optionMap.has(value)) {
+        optionMap.set(value, size.label || formatSizeLabel(value))
+      }
+    })
+    return Array.from(optionMap.entries()).map(([value, label]) => ({ value, label }))
+  }, [activeModelId, availableModels, getParamMeta, isSeedreamModel])
   const hasPreviousTaskRequest = useMemo(() => {
     if (!selectedTask) return false
     return (
@@ -540,9 +576,46 @@ const StudioPage = () => {
       size_preset: resolvedWan27Size.sizePreset,
       custom_width: resolvedWan27Size.customWidth,
       custom_height: resolvedWan27Size.customHeight,
+      output_format: values.model === SEEDREAM_5_LITE_MODEL_ID ? (values.output_format || 'jpeg') : null,
+      web_search: values.model === SEEDREAM_5_LITE_MODEL_ID ? !!values.web_search : false,
       references,
     }
   }, [computeEffectiveSize, resolveWan27SizeDraft, wan27BBoxList])
+
+  const validateSeedreamValues = useCallback((values: any, refCount: number) => {
+    if (!SEEDREAM_MODELS.has(values.model)) return true
+    const taskKind = (values.task_kind || 'text_to_image') as ImageTaskKind
+    const n = Number(values.n || 1)
+    if (refCount > 14) {
+      message.warning('Seedream 最多支持 14 张参考图')
+      return false
+    }
+    if (taskKind === 'text_to_image' && refCount > 0) {
+      message.warning('Seedream 文生图不支持参考图，请移除输入图片或图片风格')
+      return false
+    }
+    if (taskKind === 'image_edit' && refCount === 0) {
+      message.warning('Seedream 图像编辑需要 1-14 张参考图')
+      return false
+    }
+    if (taskKind === 'sequential_generation' && refCount + n > 15) {
+      message.warning('Seedream 组图要求参考图数量 + 最大组图数不超过 15')
+      return false
+    }
+    if (taskKind !== 'sequential_generation' && n !== 1) {
+      message.warning('Seedream 非组图模式一次只生成 1 张，请用并发组数控制总量')
+      return false
+    }
+    if (values.model === SEEDREAM_45_MODEL_ID && values.output_format) {
+      message.warning('Seedream 4.5 不支持输出格式参数')
+      return false
+    }
+    if (values.model === SEEDREAM_45_MODEL_ID && values.web_search) {
+      message.warning('Seedream 4.5 不支持联网搜索')
+      return false
+    }
+    return true
+  }, [])
 
   const requestPayloadPreview = useCallback(async () => {
     if (!projectId || !isModalOpen || !isDeveloperModeExpanded) return
@@ -606,6 +679,8 @@ const StudioPage = () => {
         size_preset: resolvedWan27Size.sizePreset,
         custom_width: resolvedWan27Size.customWidth,
         custom_height: resolvedWan27Size.customHeight,
+        output_format: values.model === SEEDREAM_5_LITE_MODEL_ID ? (values.output_format || 'jpeg') : null,
+        web_search: values.model === SEEDREAM_5_LITE_MODEL_ID ? !!values.web_search : false,
         references,
       }, { signal: controller.signal })
       if (
@@ -789,6 +864,8 @@ const StudioPage = () => {
     watchedEnableInterleave,
     watchedMaxImages,
     watchedEnableSequential,
+    watchedOutputFormat,
+    watchedWebSearch,
     watchedSizeMode,
     watchedSizePreset,
     watchedCustomWidth,
@@ -893,6 +970,33 @@ const StudioPage = () => {
   }, [activeSizeUiMode, activeTaskKind, form, isModalOpen, isWan27Model, selectedReferenceItems.length, wan27BBoxList.length, wan27PreferredEntryMode, wan27QualityGroups])
 
   useEffect(() => {
+    if (!isModalOpen || !isSeedreamModel) return
+    const maxN = getSeedreamMaxN(activeTaskKind, selectedReferenceItems.length)
+    const currentN = Number(form.getFieldValue('n') || 0)
+    const nextN = activeTaskKind === 'sequential_generation'
+      ? (!currentN || currentN > maxN ? Math.min(getSeedreamDefaultN(activeTaskKind), maxN) : currentN)
+      : 1
+    form.setFieldsValue({
+      n: nextN,
+      size: form.getFieldValue('size') || '2048x2048',
+      prompt_extend: form.getFieldValue('prompt_extend') !== false,
+      watermark: !!form.getFieldValue('watermark'),
+      enable_interleave: false,
+      max_images: undefined,
+      enable_sequential: activeTaskKind === 'sequential_generation',
+      thinking_mode: null,
+      bbox_list: [],
+      color_palette: [],
+      size_mode: null,
+      size_preset: null,
+      custom_width: null,
+      custom_height: null,
+      output_format: activeModelId === SEEDREAM_5_LITE_MODEL_ID ? (form.getFieldValue('output_format') || 'jpeg') : null,
+      web_search: activeModelId === SEEDREAM_5_LITE_MODEL_ID ? !!form.getFieldValue('web_search') : false,
+    })
+  }, [activeModelId, activeTaskKind, form, isModalOpen, isSeedreamModel, selectedReferenceItems.length])
+
+  useEffect(() => {
     if (!isModalOpen || !isWan27Model || activeTaskKind !== 'interactive_edit') return
     const currentBoxes = wan27BBoxList
     const targetLength = selectedReferenceItems.length
@@ -969,6 +1073,8 @@ const StudioPage = () => {
       size_preset: undefined,
       custom_width: undefined,
       custom_height: undefined,
+      output_format: null,
+      web_search: false,
       references: [],
       style_id: null,
     })
@@ -1028,6 +1134,7 @@ const StudioPage = () => {
       const isQwenEditModel = values.model?.startsWith('qwen-image-edit')
       const isQwenImage2 = values.model === 'qwen-image-2.0-pro' || values.model === 'qwen-image-2.0'
       const isWan27 = WAN27_MODELS.has(values.model)
+      const isSeedream = SEEDREAM_MODELS.has(values.model)
       const refCount = references.length
       const effectiveBBoxList = isWan27
         ? resolvePreferredBBoxList(values.bbox_list, wan27BBoxList)
@@ -1037,7 +1144,10 @@ const StudioPage = () => {
         message.warning('qwen-image-edit 系列模型需要 1-3 张参考图作为输入')
         return
       }
-      const needsReferences = !isTextToImage && !isWan26Image && !isQwenEditModel && !isQwenImage2
+      if (isSeedream && !validateSeedreamValues(values, refCount)) {
+        return
+      }
+      const needsReferences = !isTextToImage && !isWan26Image && !isQwenEditModel && !isQwenImage2 && !isSeedream
       if (needsReferences && refCount === 0) {
         message.warning('请先添加参考素材')
         return
@@ -1079,7 +1189,7 @@ const StudioPage = () => {
         negative_prompt: finalNegativePrompt,
       }
       
-      if (isTextToImage && !isWan27) {
+      if (isTextToImage && !isWan27 && !isSeedream) {
         generateParams.prompt_extend = values.prompt_extend !== false
         generateParams.watermark = values.watermark || false
         if (values.seed) generateParams.seed = values.seed
@@ -1171,6 +1281,8 @@ const StudioPage = () => {
       size_preset: task.size_preset || (task.size && !task.size.includes('*') ? task.size : undefined),
       custom_width: task.custom_width || restoredCustomSize?.width || undefined,
       custom_height: task.custom_height || restoredCustomSize?.height || undefined,
+      output_format: task.output_format || (task.model === SEEDREAM_5_LITE_MODEL_ID ? 'jpeg' : null),
+      web_search: task.web_search || false,
       // 还原参考素材选择（编辑时显示）
       references: task.references?.map(ref => `${ref.type}:${ref.id}`) || [],
     })
@@ -1283,6 +1395,13 @@ const StudioPage = () => {
           form.setFieldValue('n', getWan27DefaultN(nextKind))
         }
       }
+      if (SEEDREAM_MODELS.has(currentModel)) {
+        const refCount = (form.getFieldValue('references') || []).length
+        form.setFieldsValue({
+          n: Math.min(getSeedreamDefaultN(nextKind), getSeedreamMaxN(nextKind, refCount)),
+          enable_sequential: nextKind === 'sequential_generation',
+        })
+      }
       if (!compatibleModels.some(model => model.id === currentModel)) {
         const preferredModel = compatibleModels.find(model => model.id === DEFAULT_MODEL_BY_TASK_KIND[nextKind]) || compatibleModels[0]
         if (preferredModel) {
@@ -1305,6 +1424,28 @@ const StudioPage = () => {
           custom_height: form.getFieldValue('custom_height'),
           n: getWan27DefaultN(activeTaskKind),
           watermark: false,
+        })
+      } else if (SEEDREAM_MODELS.has(model)) {
+        const currentTaskKind = (form.getFieldValue('task_kind') || 'text_to_image') as ImageTaskKind
+        const refCount = (form.getFieldValue('references') || []).length
+        form.setFieldsValue({
+          n: Math.min(getSeedreamDefaultN(currentTaskKind), getSeedreamMaxN(currentTaskKind, refCount)),
+          group_count: form.getFieldValue('group_count') || 1,
+          size: '2048x2048',
+          size_mode: undefined,
+          size_preset: undefined,
+          custom_width: undefined,
+          custom_height: undefined,
+          prompt_extend: true,
+          watermark: false,
+          enable_interleave: false,
+          max_images: undefined,
+          enable_sequential: currentTaskKind === 'sequential_generation',
+          thinking_mode: null,
+          bbox_list: [],
+          color_palette: [],
+          output_format: model === SEEDREAM_5_LITE_MODEL_ID ? 'jpeg' : null,
+          web_search: false,
         })
       } else if (model === 'qwen-image-max' || model === 'qwen-image-plus') {
         form.setFieldsValue({ n: 1, size: '1664*928', watermark: false })
@@ -1370,6 +1511,13 @@ const StudioPage = () => {
       if (activeTaskKind === 'interactive_edit' && WAN27_MODELS.has(form.getFieldValue('model'))) {
         syncWan27BBoxList(Array.from({ length: refs.length }, (_, index) => currentBoxes[index] || []))
       } else {
+        if (SEEDREAM_MODELS.has(form.getFieldValue('model')) && activeTaskKind === 'sequential_generation') {
+          const maxN = getSeedreamMaxN(activeTaskKind, refs.length)
+          const currentN = Number(form.getFieldValue('n') || 1)
+          if (currentN > maxN) {
+            form.setFieldValue('n', maxN)
+          }
+        }
         queueStudioAutoSave()
       }
     }
@@ -1414,6 +1562,7 @@ const StudioPage = () => {
     const isQwenEditModel = values.model?.startsWith('qwen-image-edit')
     const isQwenImage2 = values.model === 'qwen-image-2.0-pro' || values.model === 'qwen-image-2.0'
     const isWan27 = WAN27_MODELS.has(values.model)
+    const isSeedream = SEEDREAM_MODELS.has(values.model)
     const effectiveBBoxList = isWan27
       ? resolvePreferredBBoxList(values.bbox_list, wan27BBoxList)
       : normalizeBBoxList(values.bbox_list)
@@ -1425,10 +1574,16 @@ const StudioPage = () => {
     })
     const refCount = formReferences.length
     
+    if (isSeedream && !validateSeedreamValues(values, refCount)) {
+      finishSubmittingTask()
+      return
+    }
+
     // 图生图模型需要参考素材（wan2.6-image、qwen-edit、qwen-image-2.0 有各自的验证）
-    const needsReferences = !isTextToImage && !isWan26Image && !isQwenEditModel && !isQwenImage2
+    const needsReferences = !isTextToImage && !isWan26Image && !isQwenEditModel && !isQwenImage2 && !isSeedream
     if (needsReferences && refCount === 0) {
       message.warning('请先添加参考素材')
+      finishSubmittingTask()
       return
     }
     
@@ -1439,16 +1594,19 @@ const StudioPage = () => {
         // 图文混合模式：最多1张参考图
         if (refCount > 1) {
           message.warning('图文混合模式下最多只能添加1张参考图')
+          finishSubmittingTask()
           return
         }
       } else {
         // 参考图模式：必须有1-4张参考图
         if (refCount === 0) {
           message.warning('参考图模式下必须选择至少1张参考图，或开启图文混合模式')
+          finishSubmittingTask()
           return
         }
         if (refCount > 4) {
           message.warning('参考图模式下最多只能添加4张参考图')
+          finishSubmittingTask()
           return
         }
       }
@@ -1458,10 +1616,12 @@ const StudioPage = () => {
     if (isQwenEditModel) {
       if (refCount === 0) {
         message.warning('qwen-image-edit 系列模型需要 1-3 张参考图作为输入')
+        finishSubmittingTask()
         return
       }
       if (refCount > 3) {
         message.warning('qwen-image-edit 系列最多支持3张输入图片')
+        finishSubmittingTask()
         return
       }
     }
@@ -1469,15 +1629,18 @@ const StudioPage = () => {
     // 验证 qwen-image-2.0 系列参考图数量
     if (isQwenImage2 && refCount > 3) {
       message.warning('千问图像 2.0 最多支持3张输入图片')
+      finishSubmittingTask()
       return
     }
     if (isWan27 && values.task_kind === 'interactive_edit') {
       if (refCount === 0) {
         message.warning('交互式编辑至少需要 1 张输入图片')
+        finishSubmittingTask()
         return
       }
       if (!effectiveBBoxList || effectiveBBoxList.length !== refCount) {
         message.warning('请为交互式编辑中的每张输入图准备对应的框选区域')
+        finishSubmittingTask()
         return
       }
     }
@@ -1503,7 +1666,7 @@ const StudioPage = () => {
     try {
       const generateParams: any = buildStudioRequestPayload(values)
       
-      if (isTextToImage && !isWan27) {
+      if (isTextToImage && !isWan27 && !isSeedream) {
         generateParams.prompt_extend = values.prompt_extend !== false
         generateParams.watermark = values.watermark || false
         if (values.seed) generateParams.seed = values.seed
@@ -2476,6 +2639,11 @@ const StudioPage = () => {
                     extra={(() => {
                       const model = activeModelId
                       if (WAN27_MODELS.has(model)) return activeTaskKind === 'sequential_generation' ? '组图模式下为最大组图数，范围 1-12，默认 12' : '普通模式下范围 1-4，默认 4'
+                      if (SEEDREAM_MODELS.has(model)) {
+                        return activeTaskKind === 'sequential_generation'
+                          ? `组图模式下为最大组图数；参考图 + 最大组图数不能超过 15，当前最多 ${getSeedreamMaxN(activeTaskKind, selectedReferenceItems.length)} 张`
+                          : '非组图模式固定 1 张；需要更多结果时提高并发组数'
+                      }
                       if (model?.startsWith('qwen-image-edit')) return '最多6张'
                       if (model === 'qwen-image-2.0-pro' || model === 'qwen-image-2.0') return '最多6张'
                       if (model === 'qwen-image-max' || model === 'qwen-image-plus') return '固定1张，用并发组数控制总量'
@@ -2488,6 +2656,7 @@ const StudioPage = () => {
                       max={(() => {
                         const model = activeModelId
                         if (WAN27_MODELS.has(model)) return activeTaskKind === 'sequential_generation' ? 12 : 4
+                        if (SEEDREAM_MODELS.has(model)) return getSeedreamMaxN(activeTaskKind, selectedReferenceItems.length)
                         if (model === 'qwen-image-max' || model === 'qwen-image-plus') return 1
                         if (model?.startsWith('qwen-image-edit')) return 6
                         if (model === 'qwen-image-2.0-pro' || model === 'qwen-image-2.0') return 6
@@ -2496,7 +2665,7 @@ const StudioPage = () => {
                       })()}
                       disabled={(() => {
                         const model = activeModelId
-                        return model === 'qwen-image-max' || model === 'qwen-image-plus'
+                        return model === 'qwen-image-max' || model === 'qwen-image-plus' || (SEEDREAM_MODELS.has(model) && activeTaskKind !== 'sequential_generation')
                       })()}
                       style={{ width: '100%' }} 
                     />
@@ -2527,12 +2696,13 @@ const StudioPage = () => {
                     if (m?.startsWith('qwen-image-edit')) return '多图时用"图1"、"图2"、"图3"指代不同图片'
                     if (m === 'qwen-image-2.0-pro' || m === 'qwen-image-2.0') return '无参考图为文生图；有参考图为编辑模式，多图用"图1""图2"指代'
                     if (WAN27_MODELS.has(m)) return 'wan2.7 多图时按图1、图2…理解输入顺序；组图生成时建议明确写出每张图的场景。'
+                    if (SEEDREAM_MODELS.has(m)) return 'Seedream 多图时按图1、图2…理解输入顺序；组图生成时建议描述连续画面与主体一致性。'
                     return ''
                   })()
                 }>
                   <TextArea rows={4} />
                 </Form.Item>
-                {!isWan27Model && (
+                {!isWan27Model && !isSeedreamModel && (
                 <Form.Item name="negative_prompt" label={renderFormLabel(activeModelId, 'negative_prompt', '负向提示词')}>
                   <TextArea rows={2} />
                 </Form.Item>
@@ -2708,6 +2878,85 @@ const StudioPage = () => {
                   </div>
                 )}
 
+                {/* Seedream 模型参数 */}
+                {isSeedreamModel && (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ marginBottom: 8, color: token.colorTextSecondary, fontSize: 12 }}>
+                      Seedream 图像生成参数
+                    </div>
+                    <div style={{ marginBottom: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout }}>
+                      <div style={{ marginBottom: 8, color: token.colorTextSecondary }}>
+                        当前能力：{getTaskKindLabel(activeTaskKind)}
+                      </div>
+                      <div style={{ color: token.colorTextTertiary, fontSize: 12 }}>
+                        {activeTaskKind === 'text_to_image' && '文生图模式不发送参考图，适合纯提示词生成。'}
+                        {activeTaskKind === 'image_edit' && '图像编辑模式需要 1-14 张参考图，可用图1、图2等在提示词中指定素材。'}
+                        {activeTaskKind === 'sequential_generation' && '组图模式可带 0-14 张参考图，n 表示最大组图数，且参考图数量 + n 不能超过 15。'}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                      <Form.Item
+                        name="size"
+                        label={renderFormLabel(activeModelId, 'size', '输出尺寸')}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Select
+                          placeholder="2048×2048"
+                          options={seedreamSizeOptions.length ? seedreamSizeOptions : [
+                            { value: '2048x2048', label: '2K 1:1 正方形 2048×2048' },
+                            { value: '2K', label: '2K（模型自动判断比例）' },
+                            { value: '4K', label: '4K（模型自动判断比例）' },
+                          ]}
+                        />
+                      </Form.Item>
+                      <Form.Item
+                        name="watermark"
+                        label={renderFormLabel(activeModelId, 'watermark', '水印')}
+                        valuePropName="checked"
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Switch checkedChildren="开" unCheckedChildren="关" />
+                      </Form.Item>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: isSeedreamLiteModel ? '1fr 1fr 1fr' : '1fr', gap: 12 }}>
+                      <Form.Item
+                        name="prompt_extend"
+                        label={renderFormLabel(activeModelId, 'prompt_extend', '提示词优化')}
+                        valuePropName="checked"
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Switch checkedChildren="开" unCheckedChildren="关" />
+                      </Form.Item>
+                      {isSeedreamLiteModel && (
+                        <>
+                          <Form.Item
+                            name="output_format"
+                            label={renderFormLabel(activeModelId, 'output_format', '输出格式')}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <Select
+                              options={[
+                                { value: 'jpeg', label: 'JPEG' },
+                                { value: 'png', label: 'PNG' },
+                              ]}
+                            />
+                          </Form.Item>
+                          <Form.Item
+                            name="web_search"
+                            label={renderFormLabel(activeModelId, 'web_search', '联网搜索')}
+                            valuePropName="checked"
+                            style={{ marginBottom: 0 }}
+                          >
+                            <Switch checkedChildren="开" unCheckedChildren="关" />
+                          </Form.Item>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* wan2.5 文生图参数 */}
                 {(watchedModel || selectedTask?.model) === 'wan2.5-t2i-preview' && (
                   <div style={{ marginBottom: 16 }}>
@@ -2816,7 +3065,8 @@ const StudioPage = () => {
                   (watchedModel || selectedTask?.model) !== 'wan2.5-t2i-preview' &&
                   (watchedModel || selectedTask?.model) !== 'qwen-image-2.0-pro' &&
                   (watchedModel || selectedTask?.model) !== 'qwen-image-2.0' &&
-                  !isWan27Model && (
+                  !isWan27Model &&
+                  !isSeedreamModel && (
                   <div style={{ 
                     marginBottom: 16
                   }}>

@@ -458,6 +458,8 @@ class TaskCreateRequest(BaseModel):
     size_preset: Optional[str] = None
     custom_width: Optional[int] = None
     custom_height: Optional[int] = None
+    output_format: Optional[str] = None
+    web_search: Optional[bool] = False
     references: List[ReferenceItemInput] = []
 
 
@@ -489,6 +491,8 @@ class TaskUpdateRequest(BaseModel):
     size_preset: Optional[str] = None
     custom_width: Optional[int] = None
     custom_height: Optional[int] = None
+    output_format: Optional[str] = None
+    web_search: Optional[bool] = None
 
 
 class TaskGenerateRequest(BaseModel):
@@ -515,6 +519,8 @@ class TaskGenerateRequest(BaseModel):
     size_preset: Optional[str] = None
     custom_width: Optional[int] = None
     custom_height: Optional[int] = None
+    output_format: Optional[str] = None
+    web_search: Optional[bool] = False
 
 
 class PreviewPayloadRequest(TaskGenerateRequest):
@@ -567,6 +573,7 @@ def get_reference_url(ref_type: str, ref_id: str) -> tuple[str, str]:
 
 
 WAN27_MODELS = {"wan2.7-image-pro", "wan2.7-image"}
+SEEDREAM_MODELS = {"doubao-seedream-5.0-lite", "doubao-seedream-4.5"}
 WAN_IMAGE_MODELS = {"wan2.6-t2i", "wan2.6-image", "wan2.5-t2i-preview", "wan2.5-i2i-preview", *WAN27_MODELS}
 QWEN_IMAGE_MODELS = {
     "qwen-image-max",
@@ -576,6 +583,7 @@ QWEN_IMAGE_MODELS = {
     "qwen-image-2.0-pro",
     "qwen-image-2.0",
 }
+VOLCENGINE_IMAGE_MODELS = {*SEEDREAM_MODELS}
 
 IMAGE_TEMPLATE_RATIOS: List[Tuple[str, str, float]] = [
     ("1:1", "方图", 1.0),
@@ -621,6 +629,8 @@ IMAGE_TASK_KIND_SUPPORT: Dict[str, List[str]] = {
     "qwen-image-edit-max": ["image_edit"],
     "qwen-image-2.0-pro": ["text_to_image", "image_edit"],
     "qwen-image-2.0": ["text_to_image", "image_edit"],
+    "doubao-seedream-5.0-lite": ["text_to_image", "image_edit", "sequential_generation"],
+    "doubao-seedream-4.5": ["text_to_image", "image_edit", "sequential_generation"],
 }
 
 
@@ -628,6 +638,12 @@ def _get_image_size_ui_mode(model_id: str) -> str:
     if model_id in {"wan2.7-image-pro", "wan2.7-image", "wan2.5-t2i-preview", "wan2.5-i2i-preview"}:
         return "preset_plus_custom_with_templates"
     return "preset_only"
+
+
+def _get_image_model_provider(model_name: str) -> str:
+    if model_name in VOLCENGINE_IMAGE_MODELS:
+        return "volcengine"
+    return "wan"
 
 
 @dataclass
@@ -678,6 +694,12 @@ def _infer_task_kind(
 ) -> str:
     if task_kind:
         return task_kind
+    if model_name in SEEDREAM_MODELS:
+        if enable_sequential:
+            return "sequential_generation"
+        if ref_urls:
+            return "image_edit"
+        return "text_to_image"
     if model_name in WAN27_MODELS:
         if enable_sequential:
             return "sequential_generation"
@@ -799,6 +821,60 @@ def _validate_custom_size(
             detail=f"{error_prefix}总像素必须在 {min_pixels} 到 {max_pixels} 之间",
         )
     return width, height
+
+
+def _normalize_seedream_size(size_value: Optional[str]) -> str:
+    value = (size_value or "2048x2048").strip()
+    if "*" in value:
+        value = value.replace("*", "x")
+    return value
+
+
+def _validate_seedream_request(
+    *,
+    model_name: str,
+    task_kind: str,
+    ref_urls: List[str],
+    size_value: str,
+    n: int,
+    output_format: Optional[str],
+    web_search: bool,
+) -> None:
+    if len(ref_urls) > 14:
+        raise HTTPException(status_code=400, detail="Seedream 最多支持 14 张参考图片")
+    if task_kind == "text_to_image" and ref_urls:
+        raise HTTPException(status_code=400, detail="Seedream 文生图模式不支持输入图片")
+    if task_kind == "image_edit" and not ref_urls:
+        raise HTTPException(status_code=400, detail="Seedream 图像编辑模式至少需要 1 张输入图片")
+    if task_kind == "sequential_generation" and len(ref_urls) + max(1, int(n or 1)) > 15:
+        raise HTTPException(status_code=400, detail="Seedream 组图模式要求参考图数量 + 最终生成图片数量不超过 15")
+    if task_kind != "sequential_generation" and max(1, int(n or 1)) != 1:
+        raise HTTPException(status_code=400, detail="Seedream 非组图模式一次只生成 1 张图片，请用并发组数控制总量")
+    if output_format and model_name != "doubao-seedream-5.0-lite":
+        raise HTTPException(status_code=400, detail="output_format 仅 doubao-seedream-5.0-lite 支持")
+    if output_format and output_format not in {"jpeg", "png"}:
+        raise HTTPException(status_code=400, detail="Seedream output_format 仅支持 jpeg / png")
+    if web_search and model_name != "doubao-seedream-5.0-lite":
+        raise HTTPException(status_code=400, detail="web_search 仅 doubao-seedream-5.0-lite 支持")
+
+    allowed_presets = {"2K", "4K"} | ({"3K"} if model_name == "doubao-seedream-5.0-lite" else set())
+    if size_value in allowed_presets:
+        return
+    if size_value in {"1K", "3K", "4K"} and size_value not in allowed_presets:
+        raise HTTPException(status_code=400, detail=f"{model_name} 不支持尺寸档位 {size_value}")
+
+    try:
+        width_text, height_text = size_value.split("x", 1)
+        width = int(width_text)
+        height = int(height_text)
+    except (ValueError, AttributeError) as exc:
+        raise HTTPException(status_code=400, detail="Seedream 尺寸必须是 2K/3K/4K 或 宽x高") from exc
+    ratio = width / height if height else 0
+    if ratio < 1 / 16 or ratio > 16:
+        raise HTTPException(status_code=400, detail="Seedream 自定义尺寸宽高比必须在 1:16 到 16:1 之间")
+    pixels = width * height
+    if pixels < 2560 * 1440 or pixels > 4096 * 4096:
+        raise HTTPException(status_code=400, detail="Seedream 自定义尺寸总像素必须在 2560×1440 到 4096×4096 之间")
 
 
 def get_image_size_templates(
@@ -1079,8 +1155,10 @@ def _build_provider_payload(
     size_preset: Optional[str],
     custom_width: Optional[int],
     custom_height: Optional[int],
+    output_format: Optional[str] = None,
+    web_search: bool = False,
 ) -> Tuple[NormalizedStudioRequest, Dict[str, Any], List[str]]:
-    provider = "wan" if model_name in WAN_IMAGE_MODELS else "wan"
+    provider = _get_image_model_provider(model_name)
     task_kind_resolved = _infer_task_kind(model_name, task_kind, ref_urls, enable_sequential, bbox_list)
     _validate_model_task_kind(model_name, task_kind_resolved)
     normalized_params: Dict[str, Any] = {
@@ -1089,7 +1167,52 @@ def _build_provider_payload(
     }
     warnings: List[str] = []
 
-    if model_name in WAN27_MODELS:
+    if model_name in SEEDREAM_MODELS:
+        final_size = _normalize_seedream_size(size)
+        final_n = max(1, int(n or 1))
+        normalized_output_format = output_format or ("jpeg" if model_name == "doubao-seedream-5.0-lite" else None)
+        _validate_seedream_request(
+            model_name=model_name,
+            task_kind=task_kind_resolved,
+            ref_urls=ref_urls,
+            size_value=final_size,
+            n=final_n,
+            output_format=normalized_output_format,
+            web_search=bool(web_search),
+        )
+        normalized_params.update(
+            {
+                "size": final_size,
+                "prompt_extend": prompt_extend,
+                "sequential_image_generation": "auto" if task_kind_resolved == "sequential_generation" else "disabled",
+                "max_images": final_n if task_kind_resolved == "sequential_generation" else None,
+                "output_format": normalized_output_format,
+                "web_search": bool(web_search),
+            }
+        )
+        input_assets = {"images": ref_urls}
+        provider_payload = {
+            "model": "doubao-seedream-5-0-260128"
+            if model_name == "doubao-seedream-5.0-lite"
+            else "doubao-seedream-4-5-251128",
+            "prompt": prompt,
+            "size": final_size,
+            "sequential_image_generation": "auto" if task_kind_resolved == "sequential_generation" else "disabled",
+            "response_format": "url",
+            "stream": False,
+            "watermark": watermark,
+        }
+        if ref_urls:
+            provider_payload["image"] = ref_urls[0] if len(ref_urls) == 1 else ref_urls
+        if task_kind_resolved == "sequential_generation":
+            provider_payload["sequential_image_generation_options"] = {"max_images": final_n}
+        if prompt_extend:
+            provider_payload["optimize_prompt_options"] = {"mode": "standard"}
+        if normalized_output_format and model_name == "doubao-seedream-5.0-lite":
+            provider_payload["output_format"] = normalized_output_format
+        if web_search and model_name == "doubao-seedream-5.0-lite":
+            provider_payload["tools"] = [{"type": "web_search"}]
+    elif model_name in WAN27_MODELS:
         effective_bbox_list = _bbox_list_for_task_kind(task_kind_resolved, bbox_list)
         final_size = _build_wan27_size(
             model_name=model_name,
@@ -1388,7 +1511,7 @@ async def create_studio_task(request: TaskCreateRequest):
         description=request.description,
         model=request.model,
         model_id=request.model,
-        provider="wan" if request.model in WAN_IMAGE_MODELS else "wan",
+        provider=_get_image_model_provider(request.model),
         task_kind=task_kind,
         prompt=request.prompt,
         negative_prompt=request.negative_prompt,
@@ -1408,6 +1531,8 @@ async def create_studio_task(request: TaskCreateRequest):
         size_preset=request.size_preset,
         custom_width=request.custom_width,
         custom_height=request.custom_height,
+        output_format=request.output_format,
+        web_search=bool(request.web_search),
         references=references,
         input_assets={"images": ref_urls},
         normalized_params={
@@ -1425,6 +1550,8 @@ async def create_studio_task(request: TaskCreateRequest):
             "size_preset": request.size_preset,
             "custom_width": request.custom_width,
             "custom_height": request.custom_height,
+            "output_format": request.output_format,
+            "web_search": bool(request.web_search),
         },
         status="pending"
     )
@@ -1462,6 +1589,8 @@ async def get_studio_task(task_id: str):
                 size_preset=task.size_preset,
                 custom_width=task.custom_width,
                 custom_height=task.custom_height,
+                output_format=task.output_format,
+                web_search=task.web_search,
             )
             canonical.project_id = task.project_id
             task.provider_payload_snapshot = provider_payload
@@ -1522,6 +1651,8 @@ async def preview_payload(request: PreviewPayloadRequest):
         size_preset=request.size_preset,
         custom_width=request.custom_width,
         custom_height=request.custom_height,
+        output_format=request.output_format,
+        web_search=bool(request.web_search),
     )
     canonical.project_id = request.project_id
     return {
@@ -1548,6 +1679,7 @@ async def update_studio_task(task_id: str, request: TaskUpdateRequest):
         "size_preset",
         "custom_width",
         "custom_height",
+        "output_format",
     }
     
     # 如果更新了参考素材，需要重新获取URL
@@ -1575,7 +1707,7 @@ async def update_studio_task(task_id: str, request: TaskUpdateRequest):
 
     ref_urls = [ref.url for ref in task.references if ref.url]
     task.model_id = task.model
-    task.provider = "wan" if task.model in WAN_IMAGE_MODELS else "wan"
+    task.provider = _get_image_model_provider(task.model)
     task.task_kind = _infer_task_kind(task.model, task.task_kind, ref_urls, task.enable_sequential, task.bbox_list)
     task.bbox_list = _bbox_list_for_task_kind(task.task_kind, task.bbox_list) or []
     task.input_assets = {"images": ref_urls}
@@ -1594,6 +1726,8 @@ async def update_studio_task(task_id: str, request: TaskUpdateRequest):
         "size_preset": task.size_preset,
         "custom_width": task.custom_width,
         "custom_height": task.custom_height,
+        "output_format": task.output_format,
+        "web_search": task.web_search,
     }
 
     storage_service.save_studio_task(task)
@@ -1723,6 +1857,10 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
             task.custom_width = request.custom_width
         if "custom_height" in provided_fields:
             task.custom_height = request.custom_height
+        if "output_format" in provided_fields:
+            task.output_format = request.output_format
+        if "web_search" in provided_fields and request.web_search is not None:
+            task.web_search = bool(request.web_search)
 
         model_name = task.model or "wan2.5-i2i-preview"
         is_text_to_image = model_name in IMAGE_MODELS
@@ -1742,6 +1880,7 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
             "qwen-image-edit-plus", "qwen-image-edit-max",
             "qwen-image-2.0-pro", "qwen-image-2.0",
             "wan2.7-image-pro", "wan2.7-image",
+            "doubao-seedream-5.0-lite", "doubao-seedream-4.5",
         ) and not ref_urls:
             raise HTTPException(status_code=400, detail="该模型需要参考素材图片")
 
@@ -1767,6 +1906,8 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
             size_preset=task.size_preset,
             custom_width=task.custom_width,
             custom_height=task.custom_height,
+            output_format=task.output_format,
+            web_search=task.web_search,
         )
         canonical.project_id = task.project_id
         canonical_size = (canonical.normalized_params or {}).get("size") or (provider_payload.get("parameters") or {}).get("size") or task.size
@@ -1855,6 +1996,8 @@ async def _background_generate(
             size_preset=task.size_preset,
             custom_width=task.custom_width,
             custom_height=task.custom_height,
+            output_format=task.output_format,
+            web_search=task.web_search,
         )
         canonical.project_id = task.project_id
         canonical_size = (
@@ -1877,7 +2020,7 @@ async def _background_generate(
         request_ids: List[str] = []
         task_ids: List[str] = []
         provider_meta: Dict[str, Any] = {}
-        provider_api_key = get_provider_api_key("wan")
+        provider_api_key = get_provider_api_key(canonical.provider)
         config = get_config()
         size = canonical_size
         prompt_extend = task.prompt_extend
@@ -1889,8 +2032,21 @@ async def _background_generate(
         thinking_mode = task.thinking_mode
         color_palette = task.color_palette or []
         bbox_list = normalized_bbox_list
+        output_format = task.output_format
+        web_search = task.web_search
 
-        if model_name in WAN27_MODELS:
+        if model_name in SEEDREAM_MODELS:
+            images, request_ids, provider_meta = await generate_with_seedream_image(
+                task=task,
+                api_key=provider_api_key,
+                ref_urls=ref_urls,
+                size=size,
+                output_format=output_format,
+                web_search=web_search,
+                prompt_extend=prompt_extend,
+                watermark=watermark,
+            )
+        elif model_name in WAN27_MODELS:
             images, task_ids, request_ids, provider_meta = await generate_with_wan27_image(
                 task=task,
                 api_key=provider_api_key,
@@ -2199,6 +2355,147 @@ async def generate_with_wan27_image(
         task._group_errors = group_errors
 
     return all_images, all_task_ids, all_request_ids, all_meta
+
+
+async def generate_with_seedream_image(
+    task: StudioTask,
+    api_key: str,
+    ref_urls: List[str],
+    size: Optional[str],
+    output_format: Optional[str],
+    web_search: bool,
+    prompt_extend: bool,
+    watermark: bool,
+) -> Tuple[List[StudioTaskImage], List[str], Dict[str, Any]]:
+    """使用火山引擎 Seedream 图片模型生成。"""
+    from app.models_registry.image.seedream import (
+        SEEDREAM_45_MODEL_INFO,
+        SEEDREAM_5_LITE_MODEL_INFO,
+        SeedreamImageService,
+    )
+
+    model_info = (
+        SEEDREAM_5_LITE_MODEL_INFO
+        if task.model == "doubao-seedream-5.0-lite"
+        else SEEDREAM_45_MODEL_INFO
+    )
+    expected_count = max(1, int(task.n or 1)) if task.task_kind == "sequential_generation" else 1
+
+    async def generate_single_group(group_index: int):
+        service = SeedreamImageService(model_info)
+        service.configure(api_key)
+        try:
+            urls, request_id, meta = await service.generate(
+                prompt=task.prompt,
+                images=ref_urls,
+                size=size or "2048x2048",
+                n=expected_count,
+                task_kind=task.task_kind,
+                prompt_extend=prompt_extend,
+                watermark=watermark,
+                output_format=output_format,
+                web_search=web_search,
+            )
+        except Exception as exc:
+            error_message = str(exc)
+            meta_key = f"submit_error_group_{group_index}"
+            meta = {
+                meta_key: {
+                    "provider": "volcengine",
+                    "key_profile": "volcengine_api_key",
+                    "request_id": None,
+                    "usage": {},
+                    "tools": [],
+                    "item_errors": [],
+                    "error_code": exc.__class__.__name__,
+                    "error_message": error_message,
+                    "raw_response": {},
+                    "stage": "submit",
+                }
+            }
+            placeholders = [
+                StudioTaskImage(
+                    group_index=group_index * expected_count + idx,
+                    url=None,
+                    prompt_used=task.prompt,
+                )
+                for idx in range(expected_count)
+            ]
+            return placeholders, [], meta, error_message
+
+        images: List[StudioTaskImage] = []
+        group_errors: List[str] = []
+        data_items = (meta.get("raw_response") or {}).get("data") or []
+        if data_items:
+            for idx, item in enumerate(data_items):
+                item_error = item.get("error") or {}
+                images.append(
+                    StudioTaskImage(
+                        group_index=group_index * expected_count + idx,
+                        url=item.get("url"),
+                        prompt_used=task.prompt,
+                    )
+                )
+                if item_error:
+                    group_errors.append(
+                        item_error.get("message")
+                        or item_error.get("code")
+                        or "Seedream 单图生成失败"
+                    )
+        else:
+            images.extend(
+                StudioTaskImage(
+                    group_index=group_index * expected_count + idx,
+                    url=url,
+                    prompt_used=task.prompt,
+                )
+                for idx, url in enumerate(urls)
+            )
+
+        if not images:
+            images = [
+                StudioTaskImage(
+                    group_index=group_index * expected_count,
+                    url=None,
+                    prompt_used=task.prompt,
+                )
+            ]
+            group_errors.append("Seedream 未返回有效图片")
+
+        meta_key = request_id or f"group_{group_index}"
+        provider_meta = {
+            meta_key: {
+                "provider": "volcengine",
+                "key_profile": "volcengine_api_key",
+                "request_id": request_id,
+                "usage": meta.get("usage") or {},
+                "tools": meta.get("tools") or [],
+                "item_errors": meta.get("item_errors") or [],
+                "error_code": None,
+                "error_message": "; ".join(dict.fromkeys(group_errors)) if group_errors else None,
+                "raw_response": meta.get("raw_response") or {},
+            }
+        }
+        return images, [request_id] if request_id else [], provider_meta, provider_meta[meta_key]["error_message"]
+
+    all_images: List[StudioTaskImage] = []
+    all_request_ids: List[str] = []
+    all_meta: Dict[str, Any] = {}
+    group_errors: List[str] = []
+
+    group_count = max(1, int(task.group_count or 1))
+    results = await asyncio.gather(*(generate_single_group(group_index) for group_index in range(group_count)))
+    for images, request_ids, meta, error in results:
+        all_images.extend(images)
+        all_request_ids.extend(request_ids)
+        all_meta.update(meta)
+        if error:
+            group_errors.append(error)
+
+    if group_errors:
+        task._group_errors = group_errors
+    all_images.sort(key=lambda image: image.group_index)
+    return all_images, all_request_ids, all_meta
 
 
 async def generate_with_text_to_image(
@@ -2812,6 +3109,7 @@ async def get_available_models():
         result[model.id] = {
             "id": model.id,
             "name": model.name,
+            "provider": model.provider,
             "description": model.description,
             "model_type": "image_to_image",
             "capabilities": model.capabilities.model_dump() if model.capabilities else {},
@@ -2827,6 +3125,7 @@ async def get_available_models():
         result[model.id] = {
             "id": model.id,
             "name": model.name,
+            "provider": model.provider,
             "description": model.description,
             "model_type": "text_to_image",
             "capabilities": model.capabilities.model_dump() if model.capabilities else {},
@@ -2849,6 +3148,7 @@ async def get_available_models():
         result[model_id] = {
             "id": model_id,
             "name": model_info.get("name", model_id),
+            "provider": _get_image_model_provider(model_id),
             "description": model_info.get("description", ""),
             "model_type": model_type,
             "capabilities": {

@@ -668,6 +668,7 @@ class OSSService:
             "signature=",
             "x-oss-",
             "x-amz-",
+            "x-tos-",
         )
         return any(marker in query for marker in temporary_markers)
 
