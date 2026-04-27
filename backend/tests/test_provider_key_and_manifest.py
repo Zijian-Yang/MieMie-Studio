@@ -7,9 +7,11 @@ from app.config import (
     config_manager,
     get_provider_api_key,
     get_provider_key_profile,
+    set_provider_key_profile_override,
     set_user_config_dir,
 )
 from app.services.user_service import get_user_service
+from app.services.video_adapters import DashScopeGenericVideoService
 from app.services.video_model_testing import generate_model_test_manifest
 
 
@@ -26,6 +28,7 @@ def test_settings_support_dual_api_keys_and_provider_profiles(client, auth_heade
             "test_api_key": "test-key-12345678",
             "production_api_key": "prod-key-87654321",
             "wan_key_profile": "test",
+            "happyhorse_key_profile": "production",
             "kling_key_profile": "production",
             "vidu_key_profile": "test",
         },
@@ -38,10 +41,38 @@ def test_settings_support_dual_api_keys_and_provider_profiles(client, auth_heade
     assert data["is_test_api_key_set"] is True
     assert data["is_production_api_key_set"] is True
     assert data["wan_key_profile"] == "test"
+    assert data["happyhorse_key_profile"] == "production"
     assert data["kling_key_profile"] == "production"
     assert data["vidu_key_profile"] == "test"
     assert data["api_key_masked"]
     assert data["production_api_key_masked"]
+
+
+def test_settings_persists_happyhorse_test_profile_after_refresh(client, auth_header):
+    resp = client.put(
+        "/api/settings",
+        headers=auth_header,
+        json={
+            "test_api_key": "test-key-12345678",
+            "production_api_key": "prod-key-87654321",
+            "wan_key_profile": "production",
+            "happyhorse_key_profile": "test",
+            "kling_key_profile": "test",
+            "vidu_key_profile": "production",
+        },
+    )
+    assert resp.status_code == 200
+
+    first_read = client.get("/api/settings", headers=auth_header)
+    second_read = client.get("/api/settings", headers=auth_header)
+
+    assert first_read.status_code == 200
+    assert second_read.status_code == 200
+    assert first_read.json()["happyhorse_key_profile"] == "test"
+    assert second_read.json()["happyhorse_key_profile"] == "test"
+    assert second_read.json()["wan_key_profile"] == "production"
+    assert second_read.json()["kling_key_profile"] == "test"
+    assert second_read.json()["vidu_key_profile"] == "production"
 
 
 def test_get_provider_api_key_respects_profiles(registered_user):
@@ -53,16 +84,57 @@ def test_get_provider_api_key_respects_profiles(registered_user):
         production_api_key="prod-key",
         test_api_key="test-key",
         wan_key_profile="test",
+        happyhorse_key_profile="production",
         kling_key_profile="production",
         vidu_key_profile="test",
     )
 
     assert get_provider_key_profile("wan") == "test"
+    assert get_provider_key_profile("happyhorse") == "production"
     assert get_provider_key_profile("kling") == "production"
     assert get_provider_key_profile("vidu") == "test"
     assert get_provider_api_key("wan") == "test-key"
+    assert get_provider_api_key("happyhorse") == "prod-key"
     assert get_provider_api_key("kling") == "prod-key"
     assert get_provider_api_key("vidu") == "test-key"
+
+
+def test_provider_profile_override_supports_happyhorse_independently(registered_user):
+    _, user = registered_user
+    user_dir = get_user_service().get_user_data_path(user["id"])
+    set_user_config_dir(str(user_dir))
+    config_manager.update(
+        production_api_key="prod-key",
+        test_api_key="test-key",
+        wan_key_profile="production",
+        happyhorse_key_profile="production",
+    )
+
+    set_provider_key_profile_override({"wan": "test", "happyhorse": "production"})
+    try:
+        assert get_provider_key_profile("wan") == "test"
+        assert get_provider_key_profile("happyhorse") == "production"
+        assert get_provider_api_key("wan") == "test-key"
+        assert get_provider_api_key("happyhorse") == "prod-key"
+    finally:
+        set_provider_key_profile_override(None)
+
+
+def test_happyhorse_generic_service_uses_its_configured_key_profile(registered_user):
+    _, user = registered_user
+    user_dir = get_user_service().get_user_data_path(user["id"])
+    set_user_config_dir(str(user_dir))
+    config_manager.update(
+        production_api_key="prod-key",
+        test_api_key="test-key",
+        wan_key_profile="test",
+        happyhorse_key_profile="production",
+    )
+
+    service = DashScopeGenericVideoService("happyhorse")
+
+    assert service.key_profile == "production"
+    assert service.api_key == "prod-key"
 
 
 @pytest.mark.asyncio

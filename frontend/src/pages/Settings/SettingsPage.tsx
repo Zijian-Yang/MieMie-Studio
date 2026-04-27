@@ -37,6 +37,7 @@ const SettingsPage = () => {
       form.setFieldsValue({
         api_region: data.api_region,
         wan_key_profile: data.wan_key_profile,
+        happyhorse_key_profile: data.happyhorse_key_profile,
         kling_key_profile: data.kling_key_profile,
         vidu_key_profile: data.vidu_key_profile,
         video_task_notifications_enabled: data.video_task_notifications_enabled,
@@ -67,6 +68,7 @@ const SettingsPage = () => {
     const values = form.getFieldsValue()
     const payload: Record<string, any> = {
       wan_key_profile: values.wan_key_profile,
+      happyhorse_key_profile: values.happyhorse_key_profile,
       kling_key_profile: values.kling_key_profile,
       vidu_key_profile: values.vidu_key_profile,
     }
@@ -104,6 +106,7 @@ const SettingsPage = () => {
         test_api_key: values.test_api_key || undefined,
         production_api_key: values.production_api_key || undefined,
         wan_key_profile: values.wan_key_profile,
+        happyhorse_key_profile: values.happyhorse_key_profile,
         kling_key_profile: values.kling_key_profile,
         vidu_key_profile: values.vidu_key_profile,
         video_task_notifications_enabled: values.video_task_notifications_enabled,
@@ -332,7 +335,7 @@ const SettingsPage = () => {
           </Row>
 
           <Row gutter={16}>
-            <Col span={8}>
+            <Col span={6}>
               <Form.Item
                 name="wan_key_profile"
                 label="万相走哪个 Key"
@@ -346,7 +349,21 @@ const SettingsPage = () => {
                 />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col span={6}>
+              <Form.Item
+                name="happyhorse_key_profile"
+                label="HappyHorse 走哪个 Key"
+                initialValue="production"
+              >
+                <Select
+                  options={[
+                    { label: '测试账号 Key', value: 'test' },
+                    { label: '生产账号 Key', value: 'production' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
               <Form.Item
                 name="kling_key_profile"
                 label="Kling 走哪个 Key"
@@ -360,7 +377,7 @@ const SettingsPage = () => {
                 />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col span={6}>
               <Form.Item
                 name="vidu_key_profile"
                 label="Vidu 走哪个 Key"

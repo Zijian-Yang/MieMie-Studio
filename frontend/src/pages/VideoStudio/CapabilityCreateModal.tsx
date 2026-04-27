@@ -39,6 +39,7 @@ import {
 import DynamicModelForm from '../../components/ModelConfig/DynamicModelForm'
 import HoverInfoPopover from '../../components/Help/HoverInfoPopover'
 import MaskEditor, { type MaskEditorHandle, type MaskEditorTool } from './MaskEditor'
+import { resolveReferenceCollectionLimits } from './capabilityLimits'
 
 const { Text, Paragraph } = Typography
 const { TextArea } = Input
@@ -193,6 +194,14 @@ function buildStructuredReferenceMedia(
       url: item.url,
       reference_voice: item.reference_voice,
     }))
+}
+
+function getProviderTagColor(provider: string) {
+  if (provider === 'wan') return 'blue'
+  if (provider === 'happyhorse') return 'cyan'
+  if (provider === 'kling') return 'purple'
+  if (provider === 'vidu') return 'green'
+  return 'default'
 }
 
 const CapabilityCreateModal = ({
@@ -1049,8 +1058,7 @@ const CapabilityCreateModal = ({
       return null
     }
 
-    const maxReferenceImages = currentProfile?.ui_hints?.max_reference_images || (taskKind === 'video_edit_global' ? 4 : 1)
-    const maxReferenceVideos = currentProfile?.ui_hints?.max_reference_videos || (taskKind === 'reference_to_video' ? 5 : 0)
+    const { maxReferenceImages, maxReferenceVideos, maxReferenceTotal } = resolveReferenceCollectionLimits(taskKind, currentProfile)
 
     if (isWan27ReferenceModel) {
       const selectedReferenceUrls = new Set(referenceMediaItems.map((item) => item.url))
@@ -1066,11 +1074,11 @@ const CapabilityCreateModal = ({
                 value={undefined}
                 onChange={(value) => {
                   const currentImageCount = referenceMediaItems.filter((item) => item.type === 'reference_image').length
-                  if (!value || currentImageCount >= maxReferenceImages || referenceMediaItems.length >= (currentProfile?.ui_hints?.max_reference_total || 5)) return
+                  if (!value || currentImageCount >= maxReferenceImages || referenceMediaItems.length >= maxReferenceTotal) return
                   addReferenceMediaItem('reference_image', value)
                 }}
                 placeholder="从图库添加参考图"
-                disabled={referenceMediaItems.filter((item) => item.type === 'reference_image').length >= maxReferenceImages || referenceMediaItems.length >= (currentProfile?.ui_hints?.max_reference_total || 5)}
+                disabled={referenceMediaItems.filter((item) => item.type === 'reference_image').length >= maxReferenceImages || referenceMediaItems.length >= maxReferenceTotal}
                 optionLabelProp="label"
               >
                 {galleryImages.filter((item) => !selectedReferenceUrls.has(item.url)).map((image) => (
@@ -1094,11 +1102,11 @@ const CapabilityCreateModal = ({
                 value={undefined}
                 onChange={(value) => {
                   const currentVideoCount = referenceMediaItems.filter((item) => item.type === 'reference_video').length
-                  if (!value || currentVideoCount >= maxReferenceVideos || referenceMediaItems.length >= (currentProfile?.ui_hints?.max_reference_total || 5)) return
+                  if (!value || currentVideoCount >= maxReferenceVideos || referenceMediaItems.length >= maxReferenceTotal) return
                   addReferenceMediaItem('reference_video', value)
                 }}
                 placeholder="从视频库添加参考视频"
-                disabled={referenceMediaItems.filter((item) => item.type === 'reference_video').length >= maxReferenceVideos || referenceMediaItems.length >= (currentProfile?.ui_hints?.max_reference_total || 5)}
+                disabled={referenceMediaItems.filter((item) => item.type === 'reference_video').length >= maxReferenceVideos || referenceMediaItems.length >= maxReferenceTotal}
               >
                 {videoLibraryItems.filter((item) => !selectedReferenceUrls.has(item.url)).map((video) => (
                   <Select.Option key={video.id} value={video.url}>
@@ -1380,7 +1388,7 @@ const CapabilityCreateModal = ({
                   })}
                 </Select>
                 <div style={{ marginTop: 8, fontSize: 12 }}>
-                  <Tag color={currentProvider === 'wan' ? 'blue' : currentProvider === 'kling' ? 'purple' : 'green'}>
+                  <Tag color={getProviderTagColor(currentProvider)}>
                     {currentProvider.toUpperCase()}
                   </Tag>
                 </div>

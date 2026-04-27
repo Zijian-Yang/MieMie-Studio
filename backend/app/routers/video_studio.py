@@ -35,6 +35,7 @@ from app.services.dashscope.digital_human import DigitalHumanService
 from app.services.dashscope.vace_video_edit import VaceVideoEditService
 from app.services.video_adapters import (
     NormalizedVideoTaskRequest,
+    VideoProviderError,
     VideoSubmitResult,
     get_video_adapter,
     infer_provider,
@@ -343,6 +344,35 @@ def _hydrate_task_developer_metadata(task: VideoStudioTask) -> bool:
         if request_ids:
             task.request_ids = request_ids
             changed = True
+
+    if (
+        task.status == "failed"
+        and not task.task_ids
+        and task.error_message
+        and "submit_error" not in (task.provider_result_meta or {})
+    ):
+        error_code = "SubmitFailed"
+        error_message = task.error_message
+        if " - " in task.error_message:
+            error_code, error_message = task.error_message.split(" - ", 1)
+        task.provider_result_meta = {
+            **(task.provider_result_meta or {}),
+            "submit_error": {
+                "phase": "submit",
+                "provider": task.provider,
+                "key_profile": task.key_profile,
+                "request_id": (task.request_ids or [None])[0],
+                "submitted_at": task.updated_at.isoformat() if hasattr(task.updated_at, "isoformat") else None,
+                "error_code": error_code,
+                "error_message": error_message,
+                "raw_response": {
+                    "code": error_code,
+                    "message": error_message,
+                },
+                "source": "task_error_message_backfill",
+            },
+        }
+        changed = True
 
     return changed
 
@@ -1332,6 +1362,21 @@ async def _background_create_video_tasks(
         logger.error(f"[视频工作室] 任务 {task.id} 提交失败: {e}")
         task.status = "failed"
         task.error_message = str(e)
+        if isinstance(e, VideoProviderError):
+            task.request_ids = [e.request_id] if e.request_id else []
+            task.provider_payload_snapshot = e.provider_payload
+            task.key_profile = e.key_profile or request.key_profile
+            task.provider_result_meta = {
+                "submit_error": {
+                    "provider": e.provider or request.provider,
+                    "key_profile": e.key_profile or request.key_profile,
+                    "request_id": e.request_id,
+                    "submitted_at": datetime.now().isoformat(),
+                    "error_code": e.code,
+                    "error_message": e.message,
+                    "raw_response": e.raw_response,
+                }
+            }
         task.updated_at = datetime.now()
         storage_service.save_video_studio_task(task)
 

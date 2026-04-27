@@ -64,7 +64,20 @@
 - `./run.sh test` 命令：一键运行后端测试，交互菜单也新增测试入口
 - 自定义端口：支持通过 `./run.sh port backend 9000` / `./run.sh port frontend 3001` 自定义服务端口，持久化到 `.miemie.conf`，也支持环境变量 `MIEMIE_BACKEND_PORT` / `MIEMIE_FRONTEND_PORT` 覆盖
 
+- 视频工作室：接入 HappyHorse 1.0 文生/图生视频
+  - 新增 `happyhorse-1.0-t2v`（文生视频）与 `happyhorse-1.0-i2v`（图生视频）两个可选模型
+  - 采用独立 `provider=happyhorse`，设置页可单独选择 HappyHorse 使用测试 Key 或生产 Key
+  - capability schema 新增 HappyHorse 结构化帮助、参数约束与开发者模式 payload 支持
+- 视频工作室：按新版官方文档扩展 HappyHorse 系列
+  - 新增 `happyhorse-1.0-r2v`（参考生视频）与 `happyhorse-1.0-video-edit`（视频编辑）两个可选模型
+  - `happyhorse-1.0-r2v` 映射到现有 `reference_to_video`，仅支持 1-9 张参考图
+  - `happyhorse-1.0-video-edit` 映射到现有 `video_edit_global`，支持 1 个输入视频与 0-5 张参考图
+  - 4 个 HappyHorse 模型继续通过 `provider=happyhorse` 复用 DashScope 异步提交、轮询、OSS 与开发者模式链路
+
 ### 变更 (Changed)
+- 设置页：Key 路由新增 HappyHorse 独立选择项，并确认 Wan / HappyHorse / Kling / Vidu 均按各自 profile 实际取用测试或生产 Key。
+- 视频工作室：更新 HappyHorse 文生/图生视频参数口径，图片格式与媒体限制以新版官方文档和平台 spec 为准。
+- 视频工作室：HappyHorse 文生/图生 capability 明确暴露语义化 smoke/full `verification_profiles`，不再只依赖通用默认档位。
 - 图片测评导出体验升级：
   - 导出按钮增加 loading 态，避免大报告导出时误判为无响应
   - 图片内嵌下载改为并发执行，并对超时/网络抖动/5xx/429 做多次重试
@@ -89,6 +102,8 @@
 - 管理脚本：`./run.sh status` 新增当前 Workers 与 Node 构建内存显示
 
 ### 修复 (Fixed)
+- 视频工作室：修复 capability 中 `max_reference_videos=0` 被前端默认值覆盖的问题，HappyHorse 参考生视频不再显示参考视频选择控件。
+- 视频工作室：厂商在提交阶段直接失败且未返回 `task_id` 时，现在会把 `request_id`、错误码、错误信息和原始响应保存到 `provider_result_meta.submit_error`，开发者模式可直接查看。
 - 图片工作室生成结果统一改为“先落本地暂存，再上传 OSS”：
   - 对 DashScope 临时图片链接补齐统一持久化入口，避免临时 URL 直接写入最终任务结果
   - OSS 上传增加多次自动重试；成功后立即删除本地暂存文件

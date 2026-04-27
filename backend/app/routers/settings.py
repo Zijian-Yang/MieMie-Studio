@@ -108,6 +108,7 @@ class ConfigUpdateRequest(BaseModel):
     test_api_key: Optional[str] = None
     production_api_key: Optional[str] = None
     wan_key_profile: Optional[str] = None
+    happyhorse_key_profile: Optional[str] = None
     kling_key_profile: Optional[str] = None
     vidu_key_profile: Optional[str] = None
     video_task_notifications_enabled: Optional[bool] = None
@@ -142,6 +143,7 @@ class ConfigResponse(BaseModel):
     production_api_key_masked: str
     is_production_api_key_set: bool
     wan_key_profile: str
+    happyhorse_key_profile: str
     kling_key_profile: str
     vidu_key_profile: str
     video_task_notifications_enabled: bool
@@ -226,6 +228,7 @@ async def get_settings():
         production_api_key_masked=mask_api_key(production_api_key),
         is_production_api_key_set=bool(production_api_key),
         wan_key_profile=normalize_key_profile(config.wan_key_profile),
+        happyhorse_key_profile=normalize_key_profile(getattr(config, "happyhorse_key_profile", "production")),
         kling_key_profile=normalize_key_profile(config.kling_key_profile),
         vidu_key_profile=normalize_key_profile(config.vidu_key_profile),
         video_task_notifications_enabled=bool(getattr(config, "video_task_notifications_enabled", False)),
@@ -270,6 +273,9 @@ async def update_settings(request: ConfigUpdateRequest):
 
     if request.wan_key_profile is not None:
         update_data["wan_key_profile"] = normalize_key_profile(request.wan_key_profile)
+
+    if request.happyhorse_key_profile is not None:
+        update_data["happyhorse_key_profile"] = normalize_key_profile(request.happyhorse_key_profile)
 
     if request.kling_key_profile is not None:
         update_data["kling_key_profile"] = normalize_key_profile(request.kling_key_profile)

@@ -847,6 +847,7 @@ class AppConfig(BaseModel):
     test_api_key: str = ""
     production_api_key: str = ""
     wan_key_profile: str = "production"
+    happyhorse_key_profile: str = "production"
     kling_key_profile: str = "production"
     vidu_key_profile: str = "production"
     video_task_notifications_enabled: bool = False
@@ -923,7 +924,7 @@ def set_provider_key_profile_override(overrides: Optional[dict[str, str]]):
     normalized = {
         key: normalize_key_profile(value)
         for key, value in overrides.items()
-        if key in {"wan", "kling", "vidu"}
+        if key in {"wan", "happyhorse", "kling", "vidu"}
     }
     _provider_key_profile_override.set(normalized or None)
 
@@ -938,12 +939,15 @@ def get_provider_key_profile(
         return normalize_key_profile(override_profile)
 
     context_override = _provider_key_profile_override.get()
-    if context_override and provider in context_override:
-        return normalize_key_profile(context_override[provider])
+    if context_override:
+        if provider in context_override:
+            return normalize_key_profile(context_override[provider])
 
     resolved = config or get_config()
     if provider == "wan":
         return normalize_key_profile(getattr(resolved, "wan_key_profile", "production"))
+    if provider == "happyhorse":
+        return normalize_key_profile(getattr(resolved, "happyhorse_key_profile", "production"))
     if provider == "kling":
         return normalize_key_profile(getattr(resolved, "kling_key_profile", "production"))
     if provider == "vidu":

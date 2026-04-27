@@ -5,8 +5,10 @@ from app.routers import video_studio as video_studio_router
 from app.services.video_adapters import (
     KlingVideoAdapter,
     NormalizedVideoTaskRequest,
+    VideoProviderError,
     WanVideoAdapter,
     ViduVideoAdapter,
+    get_video_adapter,
     infer_provider,
 )
 from app.services.video_capabilities import get_video_capabilities
@@ -696,6 +698,117 @@ def test_update_task_round_trips_reference_media(client, auth_header, registered
     ]
 
 
+@pytest.mark.asyncio
+async def test_background_submit_failure_keeps_raw_provider_error(registered_user, monkeypatch):
+    _, user = registered_user
+    set_current_user(user["id"])
+    task = VideoStudioTask(
+        project_id="p1",
+        name="HH 提交失败任务",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="happyhorse",
+        model_id="happyhorse-1.0-t2v",
+        model="happyhorse-1.0-t2v",
+        prompt="一只机械马在霓虹街道中奔跑",
+        normalized_params={
+            "resolution": "1080P",
+            "ratio": "16:9",
+            "duration": 5,
+            "watermark": False,
+        },
+        input_assets={},
+        status="processing",
+    )
+    normalized = NormalizedVideoTaskRequest(
+        project_id="p1",
+        task_kind="text_to_video",
+        provider="happyhorse",
+        model_id="happyhorse-1.0-t2v",
+        key_profile="test",
+        prompt=task.prompt,
+        normalized_params=task.normalized_params,
+    )
+    provider_payload = {
+        "model": "happyhorse-1.0-t2v",
+        "input": {"prompt": task.prompt},
+        "parameters": {"resolution": "1080P", "ratio": "16:9", "duration": 5, "watermark": False},
+    }
+
+    class FakeAdapter:
+        async def submit(self, request, seed_offset=0):
+            raise VideoProviderError(
+                code="Model.AccessDenied",
+                message="Model access denied.",
+                request_id="req-denied-1",
+                raw_response={
+                    "request_id": "req-denied-1",
+                    "code": "Model.AccessDenied",
+                    "message": "Model access denied.",
+                    "details": {"model": "happyhorse-1.0-t2v"},
+                },
+                provider="happyhorse",
+                key_profile="test",
+                provider_payload=provider_payload,
+            )
+
+    monkeypatch.setattr(video_studio_router, "get_video_adapter", lambda provider: FakeAdapter())
+
+    await video_studio_router._background_create_video_tasks(task, normalized, user["id"], None)
+
+    saved = storage_service.get_video_studio_task(task.id)
+    assert saved.status == "failed"
+    assert saved.error_message == "Model.AccessDenied - Model access denied."
+    assert saved.request_ids == ["req-denied-1"]
+    assert saved.provider_payload_snapshot == provider_payload
+    submit_meta = saved.provider_result_meta["submit_error"]
+    assert submit_meta["provider"] == "happyhorse"
+    assert submit_meta["key_profile"] == "test"
+    assert submit_meta["request_id"] == "req-denied-1"
+    assert submit_meta["error_code"] == "Model.AccessDenied"
+    assert submit_meta["raw_response"]["details"]["model"] == "happyhorse-1.0-t2v"
+
+
+def test_get_failed_submit_task_backfills_developer_error_meta(client, auth_header, registered_user):
+    project_id = _create_project(client, auth_header)
+    _, user = registered_user
+    set_current_user(user["id"])
+    task = VideoStudioTask(
+        project_id=project_id,
+        name="HH 提交失败旧任务",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="happyhorse",
+        model_id="happyhorse-1.0-t2v",
+        model="happyhorse-1.0-t2v",
+        prompt="一只机械马在霓虹街道中奔跑",
+        normalized_params={
+            "resolution": "1080P",
+            "ratio": "16:9",
+            "duration": 5,
+            "watermark": False,
+        },
+        input_assets={},
+        status="failed",
+        error_message="Model.AccessDenied - Model access denied.",
+    )
+    storage_service.save_video_studio_task(task)
+
+    resp = client.get(f"/api/video-studio/{task.id}", headers=auth_header)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["provider_payload_snapshot"]["model"] == "happyhorse-1.0-t2v"
+    submit_meta = data["provider_result_meta"]["submit_error"]
+    assert submit_meta["phase"] == "submit"
+    assert submit_meta["error_code"] == "Model.AccessDenied"
+    assert submit_meta["error_message"] == "Model access denied."
+    assert submit_meta["raw_response"] == {
+        "code": "Model.AccessDenied",
+        "message": "Model access denied.",
+    }
+
+
 def test_get_task_backfills_provider_payload_snapshot(client, auth_header, registered_user):
     project_id = _create_project(client, auth_header)
     _, user = registered_user
@@ -896,4 +1009,576 @@ async def test_vidu_q2_reference_does_not_allow_auto_duration():
 def test_infer_provider_supports_all_current_video_providers():
     assert infer_provider("kling/kling-v3-video-generation", "text_to_video") == "kling"
     assert infer_provider("vidu/viduq3-turbo_text2video", "text_to_video") == "vidu"
+    assert infer_provider("happyhorse-1.0-t2v", "text_to_video") == "happyhorse"
+    assert infer_provider("happyhorse-1.0-i2v", "image_to_video") == "happyhorse"
+    assert infer_provider("happyhorse-1.0-r2v", "reference_to_video") == "happyhorse"
+    assert infer_provider("happyhorse-1.0-video-edit", "video_edit_global") == "happyhorse"
     assert infer_provider("wanx2.1-vace-plus", "video_edit_local") == "wan"
+
+
+
+def test_happyhorse_models_are_exposed_without_changing_defaults(client, auth_header):
+    resp = client.get("/api/video-studio/capabilities", headers=auth_header)
+    assert resp.status_code == 200
+
+    data = resp.json()
+    models = data["models"]
+    assert "happyhorse-1.0-t2v" in models
+    assert "happyhorse-1.0-i2v" in models
+    assert "happyhorse-1.0-r2v" in models
+    assert "happyhorse-1.0-video-edit" in models
+
+    task_kind_defaults = {item["id"]: item["default_model_id"] for item in data["task_kinds"]}
+    assert task_kind_defaults["text_to_video"] == "wan2.7-t2v"
+    assert task_kind_defaults["image_to_video"] == "wan2.6-i2v-flash"
+    assert task_kind_defaults["reference_to_video"] == "wan2.7-r2v"
+
+
+def test_happyhorse_capability_schema_matches_supported_surface():
+    capabilities = get_video_capabilities()
+    models = capabilities["models"]
+
+    t2v_model = models["happyhorse-1.0-t2v"]
+    assert t2v_model["provider"] == "happyhorse"
+    assert t2v_model["supported_task_kinds"] == ["text_to_video"]
+    t2v_profile = t2v_model["task_profiles"]["text_to_video"]
+    assert t2v_profile["input_roles"] == []
+    t2v_params = {item["name"] for item in t2v_profile["parameters"]}
+    assert t2v_params == {"resolution", "ratio", "duration", "watermark", "seed"}
+    assert t2v_profile["ui_hints"]["prompt_help"]["summary"]
+    assert t2v_profile["verification_profiles"] == {
+        "smoke": ["basic_prompt"],
+        "full": ["basic_prompt", "portrait_ratio", "seeded_generation"],
+    }
+
+    i2v_model = models["happyhorse-1.0-i2v"]
+    assert i2v_model["provider"] == "happyhorse"
+    assert i2v_model["supported_task_kinds"] == ["image_to_video"]
+    i2v_profile = i2v_model["task_profiles"]["image_to_video"]
+    assert i2v_profile["input_roles"] == ["first_frame"]
+    i2v_params = {item["name"] for item in i2v_profile["parameters"]}
+    assert i2v_params == {"resolution", "duration", "watermark", "seed"}
+    assert i2v_profile["ui_hints"]["asset_help"]["first_frame"]["limits"]
+    assert i2v_profile["verification_profiles"] == {
+        "smoke": ["single_first_frame"],
+        "full": ["single_first_frame", "optional_prompt", "seeded_generation"],
+    }
+
+    r2v_model = models["happyhorse-1.0-r2v"]
+    assert r2v_model["provider"] == "happyhorse"
+    assert r2v_model["supported_task_kinds"] == ["reference_to_video"]
+    r2v_profile = r2v_model["task_profiles"]["reference_to_video"]
+    assert r2v_profile["input_roles"] == ["reference_image"]
+    r2v_params = {item["name"] for item in r2v_profile["parameters"]}
+    assert r2v_params == {"resolution", "ratio", "duration", "watermark", "seed"}
+    assert r2v_profile["ui_hints"]["max_reference_images"] == 9
+    assert r2v_profile["ui_hints"]["max_reference_videos"] == 0
+    assert "character1" in r2v_profile["ui_hints"]["prompt_help"]["notes"][0]
+
+    video_edit_model = models["happyhorse-1.0-video-edit"]
+    assert video_edit_model["provider"] == "happyhorse"
+    assert video_edit_model["supported_task_kinds"] == ["video_edit_global"]
+    video_edit_profile = video_edit_model["task_profiles"]["video_edit_global"]
+    assert video_edit_profile["input_roles"] == ["base_video", "reference_image"]
+    video_edit_params = {item["name"] for item in video_edit_profile["parameters"]}
+    assert video_edit_params == {"resolution", "watermark", "audio_setting", "seed"}
+    assert video_edit_profile["ui_hints"]["max_reference_images"] == 5
+    assert video_edit_profile["ui_hints"]["max_reference_videos"] == 0
+
+
+def test_happyhorse_t2v_builds_provider_payload():
+    adapter = get_video_adapter("happyhorse")
+    payload = adapter.build_provider_payload(
+        NormalizedVideoTaskRequest(
+            project_id="p1",
+            task_kind="text_to_video",
+            provider="happyhorse",
+            model_id="happyhorse-1.0-t2v",
+            prompt="一只机械马在霓虹街道中奔跑",
+            negative_prompt="不要噪点",
+            normalized_params={
+                "resolution": "1080P",
+                "ratio": "9:16",
+                "duration": 8,
+                "watermark": False,
+                "seed": 123,
+                "prompt_extend": True,
+            },
+        )
+    )
+
+    assert payload == {
+        "model": "happyhorse-1.0-t2v",
+        "input": {"prompt": "一只机械马在霓虹街道中奔跑"},
+        "parameters": {
+            "resolution": "1080P",
+            "ratio": "9:16",
+            "duration": 8,
+            "watermark": False,
+            "seed": 123,
+        },
+    }
+
+
+def test_happyhorse_i2v_builds_first_frame_media_payload():
+    adapter = get_video_adapter("happyhorse")
+    payload = adapter.build_provider_payload(
+        NormalizedVideoTaskRequest(
+            project_id="p1",
+            task_kind="image_to_video",
+            provider="happyhorse",
+            model_id="happyhorse-1.0-i2v",
+            prompt="让画面慢慢动起来",
+            input_assets={"first_frame": ["https://oss.example.com/first-frame.png"]},
+            normalized_params={
+                "resolution": "720P",
+                "duration": 5,
+                "watermark": False,
+                "seed": 7,
+                "ratio": "16:9",
+            },
+        )
+    )
+
+    assert payload == {
+        "model": "happyhorse-1.0-i2v",
+        "input": {
+            "prompt": "让画面慢慢动起来",
+            "media": [{"type": "first_frame", "url": "https://oss.example.com/first-frame.png"}],
+        },
+        "parameters": {
+            "resolution": "720P",
+            "duration": 5,
+            "watermark": False,
+            "seed": 7,
+        },
+    }
+
+
+def test_happyhorse_r2v_builds_reference_image_media_payload():
+    adapter = get_video_adapter("happyhorse")
+    payload = adapter.build_provider_payload(
+        NormalizedVideoTaskRequest(
+            project_id="p1",
+            task_kind="reference_to_video",
+            provider="happyhorse",
+            model_id="happyhorse-1.0-r2v",
+            prompt="character1 骑着 character2 在草地上奔跑",
+            input_assets={
+                "reference_media": [
+                    {"type": "reference_image", "url": "https://oss.example.com/rider.png"},
+                    {"type": "reference_image", "url": "https://oss.example.com/horse.webp"},
+                ],
+                "reference_videos": ["https://oss.example.com/ignored.mp4"],
+            },
+            normalized_params={
+                "resolution": "720P",
+                "ratio": "16:9",
+                "duration": 5,
+                "watermark": False,
+                "seed": 9,
+                "prompt_extend": True,
+            },
+        )
+    )
+
+    assert payload == {
+        "model": "happyhorse-1.0-r2v",
+        "input": {
+            "prompt": "character1 骑着 character2 在草地上奔跑",
+            "media": [
+                {"type": "reference_image", "url": "https://oss.example.com/rider.png"},
+                {"type": "reference_image", "url": "https://oss.example.com/horse.webp"},
+            ],
+        },
+        "parameters": {
+            "resolution": "720P",
+            "ratio": "16:9",
+            "duration": 5,
+            "watermark": False,
+            "seed": 9,
+        },
+    }
+
+
+def test_happyhorse_video_edit_builds_video_and_reference_image_payload():
+    adapter = get_video_adapter("happyhorse")
+    payload = adapter.build_provider_payload(
+        NormalizedVideoTaskRequest(
+            project_id="p1",
+            task_kind="video_edit_global",
+            provider="happyhorse",
+            model_id="happyhorse-1.0-video-edit",
+            prompt="让视频中的角色穿上参考图里的条纹毛衣",
+            negative_prompt="不要闪烁",
+            input_assets={
+                "base_video": ["https://oss.example.com/base.mp4"],
+                "source_video": ["https://oss.example.com/source-ignored.mp4"],
+                "reference_images": [
+                    "https://oss.example.com/clothes.webp",
+                    "https://oss.example.com/pattern.png",
+                ],
+            },
+            normalized_params={
+                "resolution": "720P",
+                "duration": 12,
+                "ratio": "16:9",
+                "watermark": False,
+                "audio_setting": "origin",
+                "seed": 42,
+                "prompt_extend": True,
+            },
+        )
+    )
+
+    assert payload == {
+        "model": "happyhorse-1.0-video-edit",
+        "input": {
+            "prompt": "让视频中的角色穿上参考图里的条纹毛衣",
+            "media": [
+                {"type": "video", "url": "https://oss.example.com/base.mp4"},
+                {"type": "reference_image", "url": "https://oss.example.com/clothes.webp"},
+                {"type": "reference_image", "url": "https://oss.example.com/pattern.png"},
+            ],
+        },
+        "parameters": {
+            "resolution": "720P",
+            "watermark": False,
+            "audio_setting": "origin",
+            "seed": 42,
+        },
+    }
+
+
+@pytest.mark.asyncio
+async def test_happyhorse_t2v_validate_rejects_blank_prompt():
+    adapter = get_video_adapter("happyhorse")
+
+    with pytest.raises(ValueError, match="提示词不能为空"):
+        await adapter.validate(
+            NormalizedVideoTaskRequest(
+                project_id="p1",
+                task_kind="text_to_video",
+                provider="happyhorse",
+                model_id="happyhorse-1.0-t2v",
+                prompt="   ",
+                normalized_params={
+                    "resolution": "1080P",
+                    "ratio": "16:9",
+                    "duration": 5,
+                    "watermark": False,
+                },
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_happyhorse_i2v_validate_rejects_multiple_first_frames():
+    adapter = get_video_adapter("happyhorse")
+
+    with pytest.raises(ValueError, match="仅支持1张首帧图"):
+        await adapter.validate(
+            NormalizedVideoTaskRequest(
+                project_id="p1",
+                task_kind="image_to_video",
+                provider="happyhorse",
+                model_id="happyhorse-1.0-i2v",
+                prompt="让画面动起来",
+                input_assets={
+                    "first_frame": [
+                        "https://oss.example.com/first-1.png",
+                        "https://oss.example.com/first-2.png",
+                    ]
+                },
+                normalized_params={
+                    "resolution": "720P",
+                    "duration": 5,
+                    "watermark": False,
+                },
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_happyhorse_i2v_validate_rejects_invalid_image_metadata(monkeypatch):
+    adapter = get_video_adapter("happyhorse")
+
+    async def fake_inspect_remote_image(url: str):
+        return {
+            "format": "GIF",
+            "file_size": 1024,
+            "width": 512,
+            "height": 512,
+            "aspect_ratio": 1.0,
+            "has_alpha": False,
+        }
+
+    monkeypatch.setattr("app.services.video_adapters.inspect_remote_image", fake_inspect_remote_image)
+
+    with pytest.raises(ValueError, match="格式仅支持"):
+        await adapter.validate(
+            NormalizedVideoTaskRequest(
+                project_id="p1",
+                task_kind="image_to_video",
+                provider="happyhorse",
+                model_id="happyhorse-1.0-i2v",
+                prompt="让画面动起来",
+                input_assets={"first_frame": ["https://oss.example.com/first.png"]},
+                normalized_params={
+                    "resolution": "720P",
+                    "duration": 5,
+                    "watermark": False,
+                },
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_happyhorse_r2v_validate_rejects_reference_video():
+    adapter = get_video_adapter("happyhorse")
+
+    with pytest.raises(ValueError, match="仅支持参考图"):
+        await adapter.validate(
+            NormalizedVideoTaskRequest(
+                project_id="p1",
+                task_kind="reference_to_video",
+                provider="happyhorse",
+                model_id="happyhorse-1.0-r2v",
+                prompt="character1 在森林里奔跑",
+                input_assets={
+                    "reference_media": [
+                        {"type": "reference_video", "url": "https://oss.example.com/ref.mp4"},
+                    ],
+                },
+                normalized_params={
+                    "resolution": "720P",
+                    "ratio": "16:9",
+                    "duration": 5,
+                    "watermark": False,
+                },
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_happyhorse_r2v_validate_rejects_too_many_reference_images():
+    adapter = get_video_adapter("happyhorse")
+
+    with pytest.raises(ValueError, match="1到9张参考图"):
+        await adapter.validate(
+            NormalizedVideoTaskRequest(
+                project_id="p1",
+                task_kind="reference_to_video",
+                provider="happyhorse",
+                model_id="happyhorse-1.0-r2v",
+                prompt="character1 到 character10 排队走过镜头",
+                input_assets={
+                    "reference_images": [
+                        f"https://oss.example.com/ref-{index}.png"
+                        for index in range(10)
+                    ],
+                },
+                normalized_params={
+                    "resolution": "720P",
+                    "ratio": "16:9",
+                    "duration": 5,
+                    "watermark": False,
+                },
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_happyhorse_video_edit_validate_rejects_invalid_video_metadata(monkeypatch):
+    adapter = get_video_adapter("happyhorse")
+
+    async def fake_validate_video(url: str, label: str):
+        raise ValueError("待编辑视频帧率必须大于8FPS")
+
+    monkeypatch.setattr("app.services.video_adapters._validate_happyhorse_video_edit_video", fake_validate_video)
+
+    with pytest.raises(ValueError, match="帧率必须大于8FPS"):
+        await adapter.validate(
+            NormalizedVideoTaskRequest(
+                project_id="p1",
+                task_kind="video_edit_global",
+                provider="happyhorse",
+                model_id="happyhorse-1.0-video-edit",
+                prompt="让视频变成水彩风格",
+                input_assets={"base_video": ["https://oss.example.com/base.mp4"]},
+                normalized_params={
+                    "resolution": "720P",
+                    "watermark": False,
+                    "audio_setting": "auto",
+                },
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_happyhorse_video_edit_validate_rejects_too_many_reference_images():
+    adapter = get_video_adapter("happyhorse")
+
+    with pytest.raises(ValueError, match="最多支持5张参考图"):
+        await adapter.validate(
+            NormalizedVideoTaskRequest(
+                project_id="p1",
+                task_kind="video_edit_global",
+                provider="happyhorse",
+                model_id="happyhorse-1.0-video-edit",
+                prompt="让角色穿上参考图里的衣服",
+                input_assets={
+                    "base_video": ["https://oss.example.com/base.mp4"],
+                    "reference_images": [
+                        f"https://oss.example.com/ref-{index}.png"
+                        for index in range(6)
+                    ],
+                },
+                normalized_params={
+                    "resolution": "720P",
+                    "watermark": False,
+                    "audio_setting": "auto",
+                },
+            )
+        )
+
+
+def test_preview_payload_returns_happyhorse_provider_payload(client, auth_header):
+    project_id = _create_project(client, auth_header)
+
+    resp = client.post(
+        "/api/video-studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "task_kind": "text_to_video",
+            "provider": "happyhorse",
+            "model_id": "happyhorse-1.0-t2v",
+            "model": "happyhorse-1.0-t2v",
+            "prompt": "一只机械马在霓虹街道中奔跑",
+            "normalized_params": {
+                "resolution": "1080P",
+                "ratio": "9:16",
+                "duration": 8,
+                "watermark": False,
+                "seed": 123,
+            },
+        },
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["provider_payload"] == {
+        "model": "happyhorse-1.0-t2v",
+        "input": {"prompt": "一只机械马在霓虹街道中奔跑"},
+        "parameters": {
+            "resolution": "1080P",
+            "ratio": "9:16",
+            "duration": 8,
+            "watermark": False,
+            "seed": 123,
+        },
+    }
+
+
+def test_preview_payload_returns_happyhorse_r2v_provider_payload(client, auth_header, monkeypatch):
+    project_id = _create_project(client, auth_header)
+
+    async def fake_validate_reference_image(url: str, label: str):
+        return {"width": 1024, "height": 768, "format": "PNG", "file_size": 1024, "aspect_ratio": 4 / 3}
+
+    monkeypatch.setattr("app.services.video_adapters._validate_happyhorse_reference_image", fake_validate_reference_image)
+
+    resp = client.post(
+        "/api/video-studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "task_kind": "reference_to_video",
+            "provider": "happyhorse",
+            "model_id": "happyhorse-1.0-r2v",
+            "model": "happyhorse-1.0-r2v",
+            "prompt": "character1 举起 character2",
+            "input_assets": {
+                "reference_media": [
+                    {"type": "reference_image", "url": "https://oss.example.com/person.png"},
+                    {"type": "reference_image", "url": "https://oss.example.com/prop.webp"},
+                ],
+            },
+            "normalized_params": {
+                "resolution": "720P",
+                "ratio": "4:3",
+                "duration": 6,
+                "watermark": False,
+            },
+        },
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["validation_warnings"] == []
+    assert data["provider_payload"]["model"] == "happyhorse-1.0-r2v"
+    assert data["provider_payload"]["input"]["media"] == [
+        {"type": "reference_image", "url": "https://oss.example.com/person.png"},
+        {"type": "reference_image", "url": "https://oss.example.com/prop.webp"},
+    ]
+    assert "prompt_extend" not in data["provider_payload"]["parameters"]
+
+
+def test_preview_payload_returns_happyhorse_video_edit_provider_payload(client, auth_header, monkeypatch):
+    project_id = _create_project(client, auth_header)
+
+    async def fake_validate_video(url: str, label: str):
+        return {"duration": 8.0, "width": 1280, "height": 720, "fps": 24.0, "format": "mp4", "file_size": 1024, "aspect_ratio": 16 / 9}
+
+    async def fake_validate_image(url: str, label: str):
+        return {"width": 1024, "height": 768, "format": "PNG", "file_size": 1024, "aspect_ratio": 4 / 3}
+
+    monkeypatch.setattr("app.services.video_adapters._validate_happyhorse_video_edit_video", fake_validate_video)
+    monkeypatch.setattr("app.services.video_adapters._validate_happyhorse_video_edit_reference_image", fake_validate_image)
+
+    resp = client.post(
+        "/api/video-studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "task_kind": "video_edit_global",
+            "provider": "happyhorse",
+            "model_id": "happyhorse-1.0-video-edit",
+            "model": "happyhorse-1.0-video-edit",
+            "prompt": "让视频中的角色穿上参考图里的条纹毛衣",
+            "negative_prompt": "不要闪烁",
+            "input_assets": {
+                "base_video": ["https://oss.example.com/base.mp4"],
+                "reference_images": ["https://oss.example.com/clothes.webp"],
+            },
+            "normalized_params": {
+                "resolution": "720P",
+                "duration": 12,
+                "ratio": "16:9",
+                "watermark": False,
+                "audio_setting": "origin",
+                "seed": 42,
+            },
+        },
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["validation_warnings"] == []
+    assert data["provider_payload"] == {
+        "model": "happyhorse-1.0-video-edit",
+        "input": {
+            "prompt": "让视频中的角色穿上参考图里的条纹毛衣",
+            "media": [
+                {"type": "video", "url": "https://oss.example.com/base.mp4"},
+                {"type": "reference_image", "url": "https://oss.example.com/clothes.webp"},
+            ],
+        },
+        "parameters": {
+            "resolution": "720P",
+            "watermark": False,
+            "audio_setting": "origin",
+            "seed": 42,
+        },
+    }

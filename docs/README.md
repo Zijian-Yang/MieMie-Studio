@@ -28,6 +28,7 @@
 | `docs/checklists/` | 评审、模型接入、发布前、文档更新门禁 | 是 |
 | `docs/playbooks/` | 真实模型验证、供应商文档治理等操作手册 | 是 |
 | `docs/reviews/` | 审计报告、整改 backlog、阶段性结论 | 是 |
+| `docs/superpowers/plans/` | 代理执行计划、阶段性 TODO 与完成追踪 | 是 |
 | `docs/阿里云模型api文档/` | 厂商原始镜像/摘录 | 否，原始参考，不是平台规范 |
 
 ## 当前结论
@@ -68,6 +69,7 @@
 | [UI 设计规范](./UI_GUIDELINES.md) | 主题 token、组件视觉约束 |
 | [开发经验指南](./DEVELOPMENT_GUIDE.md) | 现有经验沉淀与补丁历史 |
 | [工作室模型接入范式指南](./STUDIO_MODEL_INTEGRATION_GUIDE.md) | 模型接入总方法论 |
+| [HappyHorse 视频工作室接入 Spec](./specs/2026-04-happyhorse-video-studio-integration.md) | HappyHorse 文生/图生/参考生/视频编辑接入约束与验收标准 |
 | [审计报告](./reviews/2026-04-platform-audit.md) | 全平台批判性审计 |
 | [整改 Backlog](./reviews/2026-04-remediation-backlog.md) | 分阶段治理路线 |
 
@@ -97,4 +99,4 @@ cd frontend && npm run build
 - 如果旧文档与新 spec 冲突，以 spec / ADR 为准，并尽快修正文档入口
 - 不要把聊天上下文当规范；规范必须落盘
 
-*最后更新：2026-04-16*
+*最后更新：2026-04-27*

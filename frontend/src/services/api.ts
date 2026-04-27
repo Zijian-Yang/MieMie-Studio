@@ -357,6 +357,7 @@ export interface ConfigResponse {
   production_api_key_masked: string
   is_production_api_key_set: boolean
   wan_key_profile: 'test' | 'production'
+  happyhorse_key_profile: 'test' | 'production'
   kling_key_profile: 'test' | 'production'
   vidu_key_profile: 'test' | 'production'
   video_task_notifications_enabled: boolean
@@ -387,6 +388,7 @@ export interface ConfigUpdateRequest {
   test_api_key?: string
   production_api_key?: string
   wan_key_profile?: 'test' | 'production'
+  happyhorse_key_profile?: 'test' | 'production'
   kling_key_profile?: 'test' | 'production'
   vidu_key_profile?: 'test' | 'production'
   video_task_notifications_enabled?: boolean

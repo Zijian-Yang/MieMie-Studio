@@ -69,6 +69,21 @@ KLING_IMAGE_FORMATS = {"JPEG", "JPG", "PNG"}
 KLING_VIDEO_FORMATS = {"mp4", "mov"}
 VIDU_IMAGE_FORMATS = {"JPEG", "JPG", "PNG", "WEBP"}
 VIDU_VIDEO_FORMATS = {"mp4", "avi", "mov"}
+HAPPYHORSE_RESOLUTIONS = {"720P", "1080P"}
+HAPPYHORSE_RATIOS = {"16:9", "9:16", "1:1", "4:3", "3:4"}
+HAPPYHORSE_DURATIONS = set(range(3, 16))
+HAPPYHORSE_IMAGE_FORMATS = {"JPEG", "JPG", "PNG", "WEBP"}
+HAPPYHORSE_MIN_IMAGE_SIDE = 300
+HAPPYHORSE_MIN_REFERENCE_SHORT_SIDE = 400
+HAPPYHORSE_MAX_IMAGE_BYTES = 10 * 1024 * 1024
+HAPPYHORSE_MIN_ASPECT_RATIO = 1 / 2.5
+HAPPYHORSE_MAX_ASPECT_RATIO = 2.5
+HAPPYHORSE_VIDEO_EDIT_VIDEO_FORMATS = {"mp4", "mov"}
+HAPPYHORSE_VIDEO_EDIT_AUDIO_SETTINGS = {"auto", "origin"}
+HAPPYHORSE_VIDEO_EDIT_MAX_VIDEO_BYTES = 100 * 1024 * 1024
+HAPPYHORSE_VIDEO_EDIT_MAX_LONG_SIDE = 2160
+HAPPYHORSE_VIDEO_EDIT_MIN_SHORT_SIDE = 320
+HAPPYHORSE_VIDEO_EDIT_MIN_FPS = 8.0
 
 
 def _parse_element_ids(raw_value: Any) -> List[int]:
@@ -220,6 +235,68 @@ async def _validate_wan27_reference_voice(url: str, label: str) -> Dict[str, Any
     return metadata
 
 
+def _normalize_happyhorse_prompt(prompt: str, *, required: bool) -> str:
+    normalized = (prompt or "").strip()
+    if not normalized:
+        if required:
+            raise ValueError("提示词不能为空")
+        return ""
+    if len(normalized) > 2500:
+        raise ValueError("提示词长度不能超过2500字符")
+    return normalized
+
+
+async def _validate_happyhorse_image(url: str, label: str) -> Dict[str, Any]:
+    metadata = await inspect_remote_image(url)
+    if metadata["format"] not in HAPPYHORSE_IMAGE_FORMATS:
+        raise ValueError(f"{label}格式仅支持 JPEG/JPG/PNG/WEBP")
+    if metadata["file_size"] > HAPPYHORSE_MAX_IMAGE_BYTES:
+        raise ValueError(f"{label}大小不能超过10MB")
+    if metadata["width"] < HAPPYHORSE_MIN_IMAGE_SIDE or metadata["height"] < HAPPYHORSE_MIN_IMAGE_SIDE:
+        raise ValueError(f"{label}宽高不能小于300像素")
+    aspect_ratio = metadata.get("aspect_ratio") or (metadata["width"] / metadata["height"])
+    if not (HAPPYHORSE_MIN_ASPECT_RATIO <= aspect_ratio <= HAPPYHORSE_MAX_ASPECT_RATIO):
+        raise ValueError(f"{label}宽高比需在1:2.5到2.5:1之间")
+    return metadata
+
+
+async def _validate_happyhorse_reference_image(url: str, label: str) -> Dict[str, Any]:
+    metadata = await inspect_remote_image(url)
+    if metadata["format"] not in HAPPYHORSE_IMAGE_FORMATS:
+        raise ValueError(f"{label}格式仅支持 JPEG/JPG/PNG/WEBP")
+    if metadata["file_size"] > HAPPYHORSE_MAX_IMAGE_BYTES:
+        raise ValueError(f"{label}大小不能超过10MB")
+    if min(metadata["width"], metadata["height"]) < HAPPYHORSE_MIN_REFERENCE_SHORT_SIDE:
+        raise ValueError(f"{label}短边不能小于400像素")
+    return metadata
+
+
+async def _validate_happyhorse_video_edit_reference_image(url: str, label: str) -> Dict[str, Any]:
+    return await _validate_happyhorse_image(url, label)
+
+
+async def _validate_happyhorse_video_edit_video(url: str, label: str) -> Dict[str, Any]:
+    metadata = await inspect_remote_video(url)
+    if metadata["format"] not in HAPPYHORSE_VIDEO_EDIT_VIDEO_FORMATS:
+        raise ValueError(f"{label}格式仅支持 MP4/MOV")
+    if metadata["file_size"] > HAPPYHORSE_VIDEO_EDIT_MAX_VIDEO_BYTES:
+        raise ValueError(f"{label}大小不能超过100MB")
+    if not (3.0 <= float(metadata["duration"]) <= 60.0):
+        raise ValueError(f"{label}时长需在3到60秒之间")
+    width = int(metadata["width"])
+    height = int(metadata["height"])
+    if max(width, height) > HAPPYHORSE_VIDEO_EDIT_MAX_LONG_SIDE:
+        raise ValueError(f"{label}长边不能超过2160像素")
+    if min(width, height) < HAPPYHORSE_VIDEO_EDIT_MIN_SHORT_SIDE:
+        raise ValueError(f"{label}短边不能小于320像素")
+    aspect_ratio = metadata.get("aspect_ratio") or (width / height)
+    if not (HAPPYHORSE_MIN_ASPECT_RATIO <= aspect_ratio <= HAPPYHORSE_MAX_ASPECT_RATIO):
+        raise ValueError(f"{label}宽高比需在1:2.5到2.5:1之间")
+    if float(metadata.get("fps") or 0) <= HAPPYHORSE_VIDEO_EDIT_MIN_FPS:
+        raise ValueError(f"{label}帧率必须大于8FPS")
+    return metadata
+
+
 @dataclass
 class NormalizedVideoTaskRequest:
     project_id: str
@@ -240,6 +317,30 @@ class VideoSubmitResult:
     request_id: Optional[str] = None
     provider_payload: Optional[Dict[str, Any]] = None
     key_profile: Optional[str] = None
+
+
+class VideoProviderError(ValueError):
+    """保留厂商提交阶段错误的结构化上下文。"""
+
+    def __init__(
+        self,
+        *,
+        code: str,
+        message: str,
+        request_id: Optional[str] = None,
+        raw_response: Optional[Dict[str, Any]] = None,
+        provider: Optional[str] = None,
+        key_profile: Optional[str] = None,
+        provider_payload: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__(f"{code} - {message}")
+        self.code = code
+        self.message = message
+        self.request_id = request_id
+        self.raw_response = raw_response or {}
+        self.provider = provider
+        self.key_profile = key_profile
+        self.provider_payload = provider_payload
 
 
 @dataclass
@@ -280,7 +381,15 @@ class DashScopeGenericVideoService:
         if response.status_code != 200:
             code = result.get("code", "Unknown")
             message = result.get("message", "未知错误")
-            raise ValueError(f"{code} - {message}")
+            raise VideoProviderError(
+                code=code,
+                message=message,
+                request_id=result.get("request_id"),
+                raw_response=result,
+                provider=self.provider,
+                key_profile=self.key_profile,
+                provider_payload=request_body,
+            )
 
         output = result.get("output", {})
         task_id = output.get("task_id")
@@ -1033,6 +1142,204 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
         return base_payload
 
 
+class HappyHorseVideoAdapter(BaseVideoProviderAdapter):
+    provider = "happyhorse"
+
+    @staticmethod
+    def _service(request: NormalizedVideoTaskRequest) -> DashScopeGenericVideoService:
+        return DashScopeGenericVideoService("happyhorse", request.key_profile)
+
+    @staticmethod
+    def _reference_image_urls(request: NormalizedVideoTaskRequest) -> List[str]:
+        assets = request.input_assets
+        reference_media = list(assets.get("reference_media") or [])
+        if reference_media:
+            urls: List[str] = []
+            for item in reference_media:
+                if item.get("type") != "reference_image":
+                    raise ValueError("HappyHorse 参考生视频仅支持参考图，不支持参考视频")
+                if item.get("reference_voice"):
+                    raise ValueError("HappyHorse 参考生视频不支持参考音频")
+                if not item.get("url"):
+                    raise ValueError("HappyHorse 参考生视频参考图缺少URL")
+                urls.append(item["url"])
+            return urls
+        if assets.get("reference_videos"):
+            raise ValueError("HappyHorse 参考生视频仅支持参考图，不支持参考视频")
+        return list(assets.get("reference_images") or [])
+
+    @staticmethod
+    def _video_edit_base_video_url(request: NormalizedVideoTaskRequest) -> Optional[str]:
+        assets = request.input_assets
+        base_videos = list(assets.get("base_video") or [])
+        source_videos = list(assets.get("source_video") or [])
+        videos = base_videos or source_videos
+        if len(videos) > 1:
+            raise ValueError("HappyHorse 视频编辑必须且仅能提供1个待编辑视频")
+        return videos[0] if videos else None
+
+    @staticmethod
+    def _video_edit_reference_image_urls(request: NormalizedVideoTaskRequest) -> List[str]:
+        assets = request.input_assets
+        reference_media = list(assets.get("reference_media") or [])
+        if reference_media:
+            urls: List[str] = []
+            for item in reference_media:
+                if item.get("type") != "reference_image":
+                    raise ValueError("HappyHorse 视频编辑参考素材仅支持参考图")
+                if item.get("reference_voice"):
+                    raise ValueError("HappyHorse 视频编辑不支持参考音频")
+                if not item.get("url"):
+                    raise ValueError("HappyHorse 视频编辑参考图缺少URL")
+                urls.append(item["url"])
+            return urls
+        if assets.get("reference_videos"):
+            raise ValueError("HappyHorse 视频编辑参考素材仅支持参考图")
+        return list(assets.get("reference_images") or [])
+
+    async def validate(self, request: NormalizedVideoTaskRequest) -> None:
+        params = request.normalized_params
+        assets = request.input_assets
+        duration = int(params.get("duration") or 5)
+
+        if params.get("seed") is not None and not (0 <= int(params["seed"]) <= SEED_MAX):
+            raise ValueError("随机种子必须在 0 到 2147483647 之间")
+
+        if request.task_kind == "text_to_video":
+            _normalize_happyhorse_prompt(request.prompt, required=True)
+            if params.get("resolution") not in HAPPYHORSE_RESOLUTIONS:
+                raise ValueError("HappyHorse 文生视频分辨率仅支持 720P / 1080P")
+            if params.get("ratio") not in HAPPYHORSE_RATIOS:
+                raise ValueError("HappyHorse 文生视频画面比例仅支持 16:9 / 9:16 / 1:1 / 4:3 / 3:4")
+            if duration not in HAPPYHORSE_DURATIONS:
+                raise ValueError("HappyHorse 文生视频时长仅支持 3 到 15 秒")
+            return
+
+        if request.task_kind == "image_to_video":
+            _normalize_happyhorse_prompt(request.prompt, required=False)
+            first_frames = list(assets.get("first_frame") or [])
+            if len(first_frames) != 1:
+                raise ValueError("HappyHorse 图生视频仅支持1张首帧图")
+            if params.get("resolution") not in HAPPYHORSE_RESOLUTIONS:
+                raise ValueError("HappyHorse 图生视频分辨率仅支持 720P / 1080P")
+            if duration not in HAPPYHORSE_DURATIONS:
+                raise ValueError("HappyHorse 图生视频时长仅支持 3 到 15 秒")
+            await _validate_happyhorse_image(first_frames[0], "首帧图")
+            return
+
+        if request.task_kind == "reference_to_video":
+            _normalize_happyhorse_prompt(request.prompt, required=True)
+            reference_images = self._reference_image_urls(request)
+            if not (1 <= len(reference_images) <= 9):
+                raise ValueError("HappyHorse 参考生视频需要1到9张参考图")
+            if params.get("resolution") not in HAPPYHORSE_RESOLUTIONS:
+                raise ValueError("HappyHorse 参考生视频分辨率仅支持 720P / 1080P")
+            if params.get("ratio") not in HAPPYHORSE_RATIOS:
+                raise ValueError("HappyHorse 参考生视频画面比例仅支持 16:9 / 9:16 / 1:1 / 4:3 / 3:4")
+            if duration not in HAPPYHORSE_DURATIONS:
+                raise ValueError("HappyHorse 参考生视频时长仅支持 3 到 15 秒")
+            for index, image_url in enumerate(reference_images, start=1):
+                await _validate_happyhorse_reference_image(image_url, f"参考图{index}")
+            return
+
+        if request.task_kind == "video_edit_global":
+            _normalize_happyhorse_prompt(request.prompt, required=True)
+            base_video = self._video_edit_base_video_url(request)
+            if not base_video:
+                raise ValueError("HappyHorse 视频编辑必须且仅能提供1个待编辑视频")
+            reference_images = self._video_edit_reference_image_urls(request)
+            if len(reference_images) > 5:
+                raise ValueError("HappyHorse 视频编辑最多支持5张参考图")
+            if params.get("resolution") not in HAPPYHORSE_RESOLUTIONS:
+                raise ValueError("HappyHorse 视频编辑分辨率仅支持 720P / 1080P")
+            if params.get("audio_setting") is not None and params.get("audio_setting") not in HAPPYHORSE_VIDEO_EDIT_AUDIO_SETTINGS:
+                raise ValueError("HappyHorse 视频编辑声音设置仅支持 auto / origin")
+            await _validate_happyhorse_video_edit_video(base_video, "待编辑视频")
+            for index, image_url in enumerate(reference_images, start=1):
+                await _validate_happyhorse_video_edit_reference_image(image_url, f"参考图{index}")
+            return
+
+        raise ValueError(f"HappyHorse 暂不支持任务类型: {request.task_kind}")
+
+    async def submit(self, request: NormalizedVideoTaskRequest, seed_offset: int = 0) -> VideoSubmitResult:
+        service = self._service(request)
+        return await service.create_task(self.build_provider_payload(request, seed_offset))
+
+    async def fetch(self, request: NormalizedVideoTaskRequest, task_id: str) -> VideoStatusResult:
+        service = self._service(request)
+        return await service.get_task_status(task_id, request.project_id)
+
+    def build_provider_payload(self, request: NormalizedVideoTaskRequest, seed_offset: int = 0) -> Dict[str, Any]:
+        params = dict(request.normalized_params)
+        if params.get("seed") is not None:
+            params["seed"] = int(params["seed"]) + seed_offset
+
+        if request.task_kind == "text_to_video":
+            payload = {
+                "model": request.model_id,
+                "input": {"prompt": _normalize_happyhorse_prompt(request.prompt, required=True)},
+                "parameters": {"watermark": bool(params.get("watermark", False))},
+            }
+            for key in ("resolution", "ratio", "duration", "seed"):
+                if params.get(key) is not None:
+                    payload["parameters"][key] = params[key]
+            return payload
+
+        if request.task_kind == "image_to_video":
+            prompt = _normalize_happyhorse_prompt(request.prompt, required=False)
+            payload = {
+                "model": request.model_id,
+                "input": {
+                    "media": [{"type": "first_frame", "url": (request.input_assets.get("first_frame") or [None])[0]}],
+                },
+                "parameters": {"watermark": bool(params.get("watermark", False))},
+            }
+            if prompt:
+                payload["input"]["prompt"] = prompt
+            for key in ("resolution", "duration", "seed"):
+                if params.get(key) is not None:
+                    payload["parameters"][key] = params[key]
+            return payload
+
+        if request.task_kind == "reference_to_video":
+            payload = {
+                "model": request.model_id,
+                "input": {
+                    "prompt": _normalize_happyhorse_prompt(request.prompt, required=True),
+                    "media": [
+                        {"type": "reference_image", "url": url}
+                        for url in self._reference_image_urls(request)
+                    ],
+                },
+                "parameters": {"watermark": bool(params.get("watermark", False))},
+            }
+            for key in ("resolution", "ratio", "duration", "seed"):
+                if params.get(key) is not None:
+                    payload["parameters"][key] = params[key]
+            return payload
+
+        if request.task_kind == "video_edit_global":
+            media = [{"type": "video", "url": self._video_edit_base_video_url(request)}]
+            media.extend(
+                {"type": "reference_image", "url": url}
+                for url in self._video_edit_reference_image_urls(request)
+            )
+            payload = {
+                "model": request.model_id,
+                "input": {
+                    "prompt": _normalize_happyhorse_prompt(request.prompt, required=True),
+                    "media": media,
+                },
+                "parameters": {"watermark": bool(params.get("watermark", False))},
+            }
+            for key in ("resolution", "audio_setting", "seed"):
+                if params.get(key) is not None:
+                    payload["parameters"][key] = params[key]
+            return payload
+
+        raise ValueError(f"HappyHorse 暂不支持任务类型: {request.task_kind}")
+
+
 class KlingVideoAdapter(BaseVideoProviderAdapter):
     provider = "kling"
 
@@ -1360,6 +1667,8 @@ def infer_provider(model_id: Optional[str], task_kind: Optional[str]) -> str:
         return "kling"
     if model_id and model_id.startswith("vidu/"):
         return "vidu"
+    if model_id and model_id.startswith("happyhorse-"):
+        return "happyhorse"
     if task_kind in {"video_repainting", "video_edit_local"}:
         return "wan"
     return "wan"
@@ -1368,6 +1677,8 @@ def infer_provider(model_id: Optional[str], task_kind: Optional[str]) -> str:
 def get_video_adapter(provider: str) -> BaseVideoProviderAdapter:
     if provider == "wan":
         return WanVideoAdapter()
+    if provider == "happyhorse":
+        return HappyHorseVideoAdapter()
     if provider == "kling":
         return KlingVideoAdapter()
     if provider == "vidu":

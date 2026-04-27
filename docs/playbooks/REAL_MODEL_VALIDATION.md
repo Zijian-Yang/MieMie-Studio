@@ -9,6 +9,7 @@
 - 本地配置文件已存在且包含有效密钥
 - 已确认会产生真实调用成本
 - 本地前后端可正常启动
+- 若验证 HappyHorse：已获得模型白名单，且首次开通后至少登录过一次百炼控制台完成激活
 
 ## 原则
 
@@ -32,7 +33,10 @@
 
 - 至少一种文生视频
 - 至少一种图生视频或编辑能力
+- 若本轮接入了 HappyHorse：至少验证 1 条 `happyhorse-1.0-t2v`、`happyhorse-1.0-i2v`、`happyhorse-1.0-r2v` 与 `happyhorse-1.0-video-edit`
 - 轮询状态、封面、开发者模式快照
+- 开发者模式中的 canonical payload 与 provider payload 是否一致
+- HappyHorse 失败路径需确认前端可看到厂商错误，开发者模式可看到 `provider_result_meta.submit_error.raw_response`
 
 ### 图片测评
 
