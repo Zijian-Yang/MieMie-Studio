@@ -148,6 +148,18 @@ async def delete_project(project_id: str):
     for dataset in storage_service.get_image_benchmark_datasets(project_id):
         storage_service.delete_image_benchmark_dataset(dataset.id)
 
+    # 删除视频测评运行记录
+    for run in storage_service.get_video_benchmark_runs_by_project(project_id):
+        storage_service.delete_video_benchmark_run(run.id)
+
+    # 删除视频测评配置
+    for suite in storage_service.get_video_benchmark_suites(project_id):
+        storage_service.delete_video_benchmark_suite(suite.id)
+
+    # 删除视频测评数据集
+    for dataset in storage_service.get_video_benchmark_datasets(project_id):
+        storage_service.delete_video_benchmark_dataset(dataset.id)
+
     # 最后删除项目
     storage_service.delete_project(project_id)
 

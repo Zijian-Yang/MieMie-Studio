@@ -83,6 +83,8 @@ const MainLayout = () => {
     { key: `/project/${projectId}/text-library`, icon: <FileTextOutlined />, label: '文本库' },
     { key: `/project/${projectId}/image-benchmark-datasets`, icon: <DatabaseOutlined />, label: '数据集' },
     { key: `/project/${projectId}/image-benchmark`, icon: <BarChartOutlined />, label: '图片测评' },
+    { key: `/project/${projectId}/video-benchmark-datasets`, icon: <DatabaseOutlined />, label: '视频数据集' },
+    { key: `/project/${projectId}/video-benchmark`, icon: <BarChartOutlined />, label: '视频测评' },
     { key: 'divider-workflow', type: 'divider' },
     { key: 'workflow-title', label: <span style={sectionTitleStyle}>工作流程</span>, disabled: true },
     { key: `/project/${projectId}/script`, icon: <FileTextOutlined />, label: '分镜脚本' },

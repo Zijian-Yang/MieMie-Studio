@@ -1792,6 +1792,244 @@ export const imageBenchmarkPublicApi = {
   getShareMarkdown: (token: string) => getPublicJson<{ filename: string; content: string }>(`/api/image-benchmark/public/shares/${encodeURIComponent(token)}/markdown`),
 }
 
+// ============ 视频测评 API ============
+
+export type VideoBenchmarkTaskKind = 'image_to_video'
+export type VideoBenchmarkSuiteStatus = 'draft' | 'running' | 'completed' | 'failed'
+export type VideoBenchmarkRunStatus = 'pending' | 'running' | 'completed' | 'failed'
+export type VideoBenchmarkCellStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'unsupported'
+
+export interface VideoBenchmarkMediaAsset {
+  url: string
+  name: string
+  mime_type?: string | null
+  width?: number | null
+  height?: number | null
+  duration?: number | null
+  source_label?: string | null
+}
+
+export interface VideoBenchmarkDatasetItem {
+  id: string
+  name: string
+  prompt: string
+  negative_prompt: string
+  sort_order: number
+  tags: string[]
+  first_frame?: VideoBenchmarkMediaAsset | null
+  audio?: VideoBenchmarkMediaAsset | null
+  duration?: number | null
+}
+
+export interface VideoBenchmarkDatasetIssue {
+  item_id: string
+  item_name: string
+  missing_fields: string[]
+  message: string
+}
+
+export interface VideoBenchmarkDataset {
+  id: string
+  project_id: string
+  name: string
+  description: string
+  task_kind: VideoBenchmarkTaskKind
+  schema_version: string
+  items: VideoBenchmarkDatasetItem[]
+  created_at: string
+  updated_at: string
+}
+
+export interface VideoBenchmarkOutputVideo {
+  url?: string | null
+  thumbnail_url?: string | null
+  prompt_used?: string | null
+}
+
+export interface VideoBenchmarkCellResult {
+  id: string
+  case_id: string
+  case_name: string
+  model_id: string
+  model_name: string
+  status: VideoBenchmarkCellStatus
+  output_videos: VideoBenchmarkOutputVideo[]
+  error_message?: string | null
+  request_ids: string[]
+  task_ids: string[]
+  validation_warnings: string[]
+  effective_params: Record<string, any>
+  canonical_request?: Record<string, any> | null
+  provider_payload?: Record<string, any> | null
+  provider_result_meta?: Record<string, any>
+  created_at: string
+  updated_at: string
+}
+
+export interface VideoBenchmarkSuite {
+  id: string
+  project_id: string
+  name: string
+  description: string
+  dataset_id: string
+  task_kind: VideoBenchmarkTaskKind
+  selected_models: string[]
+  baseline_params: Record<string, any>
+  model_overrides: Record<string, Record<string, any>>
+  status: VideoBenchmarkSuiteStatus
+  latest_run_id?: string | null
+  latest_run_snapshot?: Record<string, any> | null
+  created_at: string
+  updated_at: string
+}
+
+export interface VideoBenchmarkRun {
+  id: string
+  suite_id: string
+  project_id: string
+  dataset_id: string
+  task_kind: VideoBenchmarkTaskKind
+  status: VideoBenchmarkRunStatus
+  dataset_snapshot: Record<string, any>
+  model_snapshots: Array<Record<string, any>>
+  baseline_params: Record<string, any>
+  model_overrides: Record<string, Record<string, any>>
+  cell_results: VideoBenchmarkCellResult[]
+  retry_source_run_id?: string | null
+  retry_targets?: Array<{ case_id: string; model_id: string }>
+  stats: Record<string, any>
+  created_at: string
+  updated_at: string
+  started_at?: string | null
+  finished_at?: string | null
+}
+
+export interface VideoBenchmarkCapabilitiesResponse {
+  task_kinds: Array<{ id: VideoBenchmarkTaskKind; label: string }>
+  models: Record<string, VideoCapabilityModel & {
+    configurable_parameters?: ModelParameterDef[]
+  }>
+}
+
+export interface VideoBenchmarkExportFileResponse {
+  filename: string
+  blob: Blob
+}
+
+const downloadVideoBenchmarkExportFile = async (
+  id: string,
+  format: 'md' | 'html',
+): Promise<VideoBenchmarkExportFileResponse> => {
+  const endpoint = format === 'md' ? 'export-md-file' : 'export-html-file'
+  const response = await fetch(`/api/video-benchmark/runs/${id}/${endpoint}`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+  })
+  if (response.status === 401) {
+    localStorage.removeItem('auth-storage')
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login'
+    }
+    throw new Error('未登录或登录已过期，请重新登录')
+  }
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null)
+    throw new Error(payload?.detail || `导出失败: HTTP ${response.status}`)
+  }
+  const fallbackFilename = `video_benchmark_${id}.${format}`
+  return {
+    filename: getFilenameFromContentDisposition(response.headers.get('content-disposition'), fallbackFilename),
+    blob: await response.blob(),
+  }
+}
+
+export const videoBenchmarkApi = {
+  getCapabilities: () => api.get<any, VideoBenchmarkCapabilitiesResponse>('/video-benchmark/capabilities'),
+  listDatasets: (projectId: string) => api.get<any, { datasets: VideoBenchmarkDataset[] }>('/video-benchmark/datasets', { params: { project_id: projectId } }),
+  getDataset: (id: string) => api.get<any, { dataset: VideoBenchmarkDataset; warnings: VideoBenchmarkDatasetIssue[]; blocking_issues: VideoBenchmarkDatasetIssue[] }>(`/video-benchmark/datasets/${id}`),
+  createDataset: (data: {
+    project_id: string
+    name: string
+    description?: string
+    task_kind?: VideoBenchmarkTaskKind
+    items?: Array<{
+      id?: string
+      name: string
+      prompt: string
+      negative_prompt?: string
+      tags?: string[]
+      first_frame?: VideoBenchmarkMediaAsset | null
+      audio?: VideoBenchmarkMediaAsset | null
+      duration?: number | null
+    }>
+  }) => api.post<any, { dataset: VideoBenchmarkDataset; warnings: VideoBenchmarkDatasetIssue[]; blocking_issues: VideoBenchmarkDatasetIssue[] }>('/video-benchmark/datasets', data),
+  updateDataset: (id: string, data: {
+    name?: string
+    description?: string
+    items?: Array<{
+      id?: string
+      name: string
+      prompt: string
+      negative_prompt?: string
+      tags?: string[]
+      first_frame?: VideoBenchmarkMediaAsset | null
+      audio?: VideoBenchmarkMediaAsset | null
+      duration?: number | null
+    }>
+  }) => api.put<any, { dataset: VideoBenchmarkDataset; warnings: VideoBenchmarkDatasetIssue[]; blocking_issues: VideoBenchmarkDatasetIssue[] }>(`/video-benchmark/datasets/${id}`, data),
+  deleteDataset: (id: string) => api.delete(`/video-benchmark/datasets/${id}`),
+  exportDataset: (id: string) => api.get<any, Record<string, any>>(`/video-benchmark/datasets/${id}/export`),
+  importDataset: (data: { project_id: string; data: Record<string, any>; name?: string; description?: string }) =>
+    api.post<any, { dataset: VideoBenchmarkDataset; warnings: VideoBenchmarkDatasetIssue[]; blocking_issues: VideoBenchmarkDatasetIssue[] }>('/video-benchmark/datasets/import', data),
+  listSuites: (projectId: string) => api.get<any, { suites: VideoBenchmarkSuite[] }>('/video-benchmark/suites', { params: { project_id: projectId } }),
+  getSuite: (id: string) => api.get<any, { suite: VideoBenchmarkSuite }>(`/video-benchmark/suites/${id}`),
+  createSuite: (data: {
+    project_id: string
+    name: string
+    description?: string
+    dataset_id: string
+    selected_models?: string[]
+    baseline_params?: Record<string, any>
+    model_overrides?: Record<string, Record<string, any>>
+  }) => api.post<any, { suite: VideoBenchmarkSuite }>('/video-benchmark/suites', data),
+  updateSuite: (id: string, data: {
+    name?: string
+    description?: string
+    dataset_id?: string
+    selected_models?: string[]
+    baseline_params?: Record<string, any>
+    model_overrides?: Record<string, Record<string, any>>
+  }) => api.put<any, { suite: VideoBenchmarkSuite }>(`/video-benchmark/suites/${id}`, data),
+  deleteSuite: (id: string) => api.delete(`/video-benchmark/suites/${id}`),
+  runSuite: (id: string) => api.post<any, { run: VideoBenchmarkRun; suite: VideoBenchmarkSuite }>(`/video-benchmark/suites/${id}/run`),
+  getRun: (id: string) => api.get<any, { run: VideoBenchmarkRun }>(`/video-benchmark/runs/${id}`),
+  retryFailedRun: (id: string) => api.post<any, { run: VideoBenchmarkRun; suite: VideoBenchmarkSuite }>(`/video-benchmark/runs/${id}/retry-failures`),
+  downloadRunMarkdown: (id: string) => downloadVideoBenchmarkExportFile(id, 'md'),
+  downloadRunHtml: (id: string) => downloadVideoBenchmarkExportFile(id, 'html'),
+  previewCell: (data: {
+    project_id: string
+    task_kind?: VideoBenchmarkTaskKind
+    model_id: string
+    case_data: {
+      id?: string
+      name: string
+      prompt: string
+      negative_prompt?: string
+      tags?: string[]
+      first_frame?: VideoBenchmarkMediaAsset | null
+      audio?: VideoBenchmarkMediaAsset | null
+      duration?: number | null
+    }
+    baseline_params?: Record<string, any>
+    override_params?: Record<string, any>
+  }) => api.post<any, {
+    effective_params: Record<string, any>
+    canonical_request: Record<string, any>
+    provider_payload: Record<string, any>
+    validation_warnings: string[]
+  }>('/video-benchmark/preview-cell', data),
+}
+
 // ============ 音频库 API ============
 export interface AudioItem {
   id: string

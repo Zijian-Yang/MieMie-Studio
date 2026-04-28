@@ -519,3 +519,22 @@ response = await asyncio.to_thread(MultiModalConversation.call, api_key=key, **p
   - `inline_images=true` 会下载输入图 / 输出图原始字节并转为 `data:` 内嵌；下载采用限流并发和多次重试，明显失效 URL 回退原 URL
   - `inline_images=false` 是快速导出，跳过图片下载并保留原 URL
   - 响应头 `X-Embedded-Image-Count` / `X-Fallback-Url-Count` 用于前端提示和排障
+
+# 视频测评运行时
+
+- 视频测评由 `routers/video_benchmark.py` 提供 API，由 `services/video_benchmark_runtime.py` 复用视频工作室 `video_capabilities.py` 与 `video_adapters.py`。
+- v1 固定支持 `image_to_video` 首帧生视频；capabilities 会自动筛选所有支持该任务类型的视频模型。
+- 数据集独立存储在 `video_benchmark_datasets`，样例包含首帧图、prompt、负向提示词、标签、可选驱动音频和可选样例级 `duration`。
+- 单元参数合并顺序为模型默认值、suite `baseline_params`、suite `model_overrides[model_id]`、case `duration`。case 时长仅影响当前单元，不回写 suite。
+- capabilities 会注入测评层 `group_count`（生成数量，1-5），用于一个 case × model 单元生成多条视频。`group_count` 会进入 `effective_params` / `canonical_request`，但 adapter validate / submit / fetch 使用移除该参数后的 provider request，避免下发给厂商。
+- 运行时按 case × model 构造 `NormalizedVideoTaskRequest`，执行 adapter validate / submit / fetch，并保存：
+  - `effective_params`
+  - `canonical_request`
+  - `provider_payload`
+  - `provider_result_meta`
+  - `task_ids`
+  - `request_ids`
+  - `output_videos`
+- 并发按模型 capability 的 `capabilities.max_concurrent` 执行；未声明时默认 1。同一单元从提交到终态都占用该模型 semaphore。
+- case `duration` 对某个模型不合法时，该单元标记为 `unsupported`，其他模型继续运行。
+- 报告导出只保留视频 URL；HTML 报告使用 `<video controls preload="metadata">`，不下载或内嵌视频字节。

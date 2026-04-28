@@ -29,6 +29,7 @@ from app.models.video import Video
 from app.models.style import Style
 from app.models.gallery import GalleryImage
 from app.models.image_benchmark import ImageBenchmarkDataset, ImageBenchmarkRun, ImageBenchmarkSuite
+from app.models.video_benchmark import VideoBenchmarkDataset, VideoBenchmarkRun, VideoBenchmarkSuite
 from app.models.studio import StudioTask
 from app.models.media import AudioItem, VideoItem, TextItem, VideoStudioTask
 from app.models.audio_studio import AudioStudioTask, VoiceProfile
@@ -75,6 +76,9 @@ class StorageService:
         self.image_benchmark_datasets_dir = self.data_dir / "image_benchmark_datasets"
         self.image_benchmark_suites_dir = self.data_dir / "image_benchmark_suites"
         self.image_benchmark_runs_dir = self.data_dir / "image_benchmark_runs"
+        self.video_benchmark_datasets_dir = self.data_dir / "video_benchmark_datasets"
+        self.video_benchmark_suites_dir = self.data_dir / "video_benchmark_suites"
+        self.video_benchmark_runs_dir = self.data_dir / "video_benchmark_runs"
 
         self._lock = threading.RLock()
         self._ensure_dirs()
@@ -88,6 +92,7 @@ class StorageService:
             self.audio_dir, self.video_library_dir, self.text_library_dir, self.video_studio_dir,
             self.audio_studio_dir, self.voices_dir,
             self.image_benchmark_datasets_dir, self.image_benchmark_suites_dir, self.image_benchmark_runs_dir,
+            self.video_benchmark_datasets_dir, self.video_benchmark_suites_dir, self.video_benchmark_runs_dir,
         ]:
             dir_path.mkdir(parents=True, exist_ok=True)
     
@@ -715,6 +720,111 @@ class StorageService:
     def delete_image_benchmark_run(self, run_id: str) -> None:
         """删除图片测评运行记录"""
         file_path = self.image_benchmark_runs_dir / f"{run_id}.json"
+        if file_path.exists():
+            file_path.unlink()
+
+    # ============ Video Benchmark Dataset ============
+
+    def save_video_benchmark_dataset(self, dataset: VideoBenchmarkDataset) -> None:
+        """保存视频测评数据集"""
+        with self._lock:
+            dataset.updated_at = datetime.now()
+            file_path = self.video_benchmark_datasets_dir / f"{dataset.id}.json"
+            self._write_json_with_lock(file_path, dataset.model_dump())
+
+    def get_video_benchmark_dataset(self, dataset_id: str) -> Optional[VideoBenchmarkDataset]:
+        """获取视频测评数据集"""
+        file_path = self.video_benchmark_datasets_dir / f"{dataset_id}.json"
+        data = self._read_json_with_lock(file_path)
+        if data:
+            return VideoBenchmarkDataset(**data)
+        return None
+
+    def get_video_benchmark_datasets(self, project_id: str) -> List[VideoBenchmarkDataset]:
+        """获取项目下的视频测评数据集"""
+        datasets = []
+        for file_path in self.video_benchmark_datasets_dir.glob("*.json"):
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("project_id") == project_id:
+                datasets.append(VideoBenchmarkDataset(**data))
+        return sorted(datasets, key=lambda item: item.updated_at, reverse=True)
+
+    def delete_video_benchmark_dataset(self, dataset_id: str) -> None:
+        """删除视频测评数据集"""
+        file_path = self.video_benchmark_datasets_dir / f"{dataset_id}.json"
+        if file_path.exists():
+            file_path.unlink()
+
+    # ============ Video Benchmark Suite ============
+
+    def save_video_benchmark_suite(self, suite: VideoBenchmarkSuite) -> None:
+        """保存视频测评配置"""
+        with self._lock:
+            suite.updated_at = datetime.now()
+            file_path = self.video_benchmark_suites_dir / f"{suite.id}.json"
+            self._write_json_with_lock(file_path, suite.model_dump())
+
+    def get_video_benchmark_suite(self, suite_id: str) -> Optional[VideoBenchmarkSuite]:
+        """获取视频测评配置"""
+        file_path = self.video_benchmark_suites_dir / f"{suite_id}.json"
+        data = self._read_json_with_lock(file_path)
+        if data:
+            return VideoBenchmarkSuite(**data)
+        return None
+
+    def get_video_benchmark_suites(self, project_id: str) -> List[VideoBenchmarkSuite]:
+        """获取项目下的视频测评配置"""
+        suites = []
+        for file_path in self.video_benchmark_suites_dir.glob("*.json"):
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("project_id") == project_id:
+                suites.append(VideoBenchmarkSuite(**data))
+        return sorted(suites, key=lambda item: item.updated_at, reverse=True)
+
+    def delete_video_benchmark_suite(self, suite_id: str) -> None:
+        """删除视频测评配置"""
+        file_path = self.video_benchmark_suites_dir / f"{suite_id}.json"
+        if file_path.exists():
+            file_path.unlink()
+
+    # ============ Video Benchmark Run ============
+
+    def save_video_benchmark_run(self, run: VideoBenchmarkRun) -> None:
+        """保存视频测评运行记录"""
+        with self._lock:
+            run.updated_at = datetime.now()
+            file_path = self.video_benchmark_runs_dir / f"{run.id}.json"
+            self._write_json_with_lock(file_path, run.model_dump())
+
+    def get_video_benchmark_run(self, run_id: str) -> Optional[VideoBenchmarkRun]:
+        """获取视频测评运行记录"""
+        file_path = self.video_benchmark_runs_dir / f"{run_id}.json"
+        data = self._read_json_with_lock(file_path)
+        if data:
+            return VideoBenchmarkRun(**data)
+        return None
+
+    def get_video_benchmark_runs_by_suite(self, suite_id: str) -> List[VideoBenchmarkRun]:
+        """获取某个视频测评配置下的所有运行记录"""
+        runs = []
+        for file_path in self.video_benchmark_runs_dir.glob("*.json"):
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("suite_id") == suite_id:
+                runs.append(VideoBenchmarkRun(**data))
+        return sorted(runs, key=lambda item: item.created_at, reverse=True)
+
+    def get_video_benchmark_runs_by_project(self, project_id: str) -> List[VideoBenchmarkRun]:
+        """获取项目下的所有视频测评运行记录"""
+        runs = []
+        for file_path in self.video_benchmark_runs_dir.glob("*.json"):
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("project_id") == project_id:
+                runs.append(VideoBenchmarkRun(**data))
+        return sorted(runs, key=lambda item: item.created_at, reverse=True)
+
+    def delete_video_benchmark_run(self, run_id: str) -> None:
+        """删除视频测评运行记录"""
+        file_path = self.video_benchmark_runs_dir / f"{run_id}.json"
         if file_path.exists():
             file_path.unlink()
 

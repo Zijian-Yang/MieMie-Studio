@@ -13,6 +13,16 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 视频测评首帧生视频模块：
+  - 侧边栏新增 `视频数据集` 与 `视频测评`
+  - 新增 `/api/video-benchmark/*`，独立保存 video benchmark datasets / suites / runs
+  - v1 自动筛选所有支持 `image_to_video` 的视频工作室模型，复用 video adapter 构造 payload、提交和轮询
+  - 数据集样例支持首帧图、可选驱动音频和可选样例级 `duration`
+  - 视频数据集页补齐图片数据集同级批量能力，支持行多选、批量导入首帧或 prompt、批量填充首帧、批量编辑字段、选中排序和删除
+  - 视频数据集允许暂存缺首帧样例，保存/导入返回 warnings，运行测评和 payload preview 前阻断缺首帧
+  - 视频测评模型参数新增 `生成数量`，支持每个 case × model 单元生成 1-5 条视频，并在矩阵和详情中展示多条输出
+  - 运行矩阵展示输出视频，详情保留 effective params、canonical request、provider payload、provider result meta、task/request id
+  - Markdown / HTML 报告导出保留视频 URL，不内嵌视频字节
 - 图片测评导出支持内嵌图片资源：
   - `导出 Markdown` 与 `导出 HTML` 统一改为后端生成
   - 导出时会把输入图 / 输出图下载并转成 `data:` 内嵌到单文件中

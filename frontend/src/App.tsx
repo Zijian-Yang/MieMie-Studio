@@ -20,6 +20,8 @@ import AudioStudioPage from './pages/AudioStudio/AudioStudioPage'
 import ImageBenchmarkPage from './pages/ImageBenchmark/ImageBenchmarkPage'
 import ImageBenchmarkDatasetsPage from './pages/ImageBenchmarkDatasets/ImageBenchmarkDatasetsPage'
 import ImageBenchmarkSharePage from './pages/ImageBenchmarkShare/ImageBenchmarkSharePage'
+import VideoBenchmarkPage from './pages/VideoBenchmark/VideoBenchmarkPage'
+import VideoBenchmarkDatasetsPage from './pages/VideoBenchmarkDatasets/VideoBenchmarkDatasetsPage'
 // 登录页
 import LoginPage from './pages/Login/LoginPage'
 import { useAuthStore } from './stores/authStore'
@@ -72,6 +74,8 @@ function App() {
             <Route path="audio-studio" element={<AudioStudioPage />} />
             <Route path="image-benchmark-datasets" element={<ImageBenchmarkDatasetsPage />} />
             <Route path="image-benchmark" element={<ImageBenchmarkPage />} />
+            <Route path="video-benchmark-datasets" element={<VideoBenchmarkDatasetsPage />} />
+            <Route path="video-benchmark" element={<VideoBenchmarkPage />} />
           </Route>
         </Route>
       </Routes>

@@ -327,6 +327,63 @@ Authorization: Bearer {token}
 - 响应中的 `migration_report` 包含 `enabled`、`attempted`、`succeeded`、`failed`、`skipped` 和 `errors`，用于判断是否有图片转存失败。
 - `interactive_edit` 数据集会保留 `bbox_list`，其长度必须与输入图数量一致；每张图最多 2 个框，不需要框选的位置使用空数组 `[]`。导出后再导入不会丢失 bbox 数据。
 
+### 视频测评 `/api/video-benchmark`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/capabilities` | 获取可测评首帧生视频模型与可配置参数 |
+| GET | `/datasets?project_id={id}` | 列出项目视频数据集 |
+| POST | `/datasets` | 创建视频数据集 |
+| GET | `/datasets/{id}` | 获取视频数据集 |
+| PUT | `/datasets/{id}` | 更新视频数据集 |
+| DELETE | `/datasets/{id}` | 删除视频数据集 |
+| GET | `/datasets/{id}/export` | 导出视频数据集 JSON |
+| POST | `/datasets/import` | 导入视频数据集 JSON |
+| GET | `/suites?project_id={id}` | 列出视频测评任务 |
+| POST | `/suites` | 创建视频测评任务 |
+| GET | `/suites/{id}` | 获取视频测评任务 |
+| PUT | `/suites/{id}` | 更新视频测评任务 |
+| DELETE | `/suites/{id}` | 删除视频测评任务及其运行记录 |
+| POST | `/suites/{id}/run` | 启动一次视频测评运行 |
+| GET | `/runs/{id}` | 获取运行记录与单元结果 |
+| POST | `/runs/{id}/retry-failures` | 重试状态为 `failed` 或 `unsupported` 的单元 |
+| POST | `/runs/{id}/export-md-file` | 导出 Markdown 视频测评报告附件 |
+| POST | `/runs/{id}/export-html-file` | 导出 HTML 视频测评报告附件 |
+| POST | `/preview-cell` | 预览单个 case × model 的 canonical 请求与厂商 payload |
+
+v1 固定 `task_kind=image_to_video`。数据集 item 示例：
+
+```json
+{
+  "name": "角色转身",
+  "prompt": "让画面中的角色自然转身，镜头稳定",
+  "negative_prompt": "模糊",
+  "tags": ["角色"],
+  "duration": 6,
+  "first_frame": {"url": "https://...", "name": "首帧.png"},
+  "audio": {"url": "https://...", "name": "驱动音频.mp3"}
+}
+```
+
+视频数据集允许暂存缺少 `first_frame` 的样例，`create/get/update/import` 响应会返回 `warnings` 与 `blocking_issues`：
+
+```json
+{
+  "item_id": "case-id",
+  "item_name": "样例 1",
+  "missing_fields": ["first_frame"],
+  "message": "缺首帧图，无法开始首帧生视频测评"
+}
+```
+
+缺首帧样例可以保存和导出，但 `preview-cell` 与 `suites/{id}/run` 会返回 400，并携带 `blocking_issues` 阻止真实提交。
+
+单元有效参数合并顺序为：模型默认值 → suite `baseline_params` → suite `model_overrides[model_id]` → case `duration`。case 时长对某个模型不合法时，该单元会标记为 `unsupported`，不阻塞其他模型。
+
+`GET /capabilities` 会为每个首帧生视频模型额外暴露测评层参数 `group_count`（生成数量），默认 1，范围 1-5。它会写入 `effective_params` 与 `canonical_request.normalized_params`，用于控制一个 case × model 单元提交多少个厂商任务；构造 `provider_payload` 时会移除，不作为厂商参数透传。运行结果会把多条结果保存在同一个 cell 的 `output_videos[]`，并累计所有 `task_ids` / `request_ids`。
+
+报告导出不内嵌视频字节。Markdown 保留视频 URL，HTML 使用 `<video controls preload="metadata">` 播放输出视频。
+
 #### 运行记录中的追踪字段
 
 每个 `cell_results[]` 会保留：

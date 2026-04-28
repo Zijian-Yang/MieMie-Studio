@@ -750,6 +750,13 @@ const startPolling = useCallback((taskId: string) => {
   - `快速导出`：传 `inline_images=false`，跳过图片内嵌并保留原 URL
 - 前端不要再用 JSON `content` 自行拼大文件下载；应通过 `downloadRunMarkdown` / `downloadRunHtml` 使用 `fetch` 获取 Blob，并从 `Content-Disposition` 解析文件名。
 - 下载触发时需要把 `<a>` 临时挂到 `document.body`，并延迟释放 `URL.createObjectURL()`，避免大文件在部分浏览器中不弹下载。
+- 视频测评新增两个独立页面：
+  - 视频数据集页：管理首帧生视频样例，支持从图库选择或上传首帧图、从音频库选择可选驱动音频、填写样例级时长、批量导入 prompt、批量首帧建样例、批量填充首帧、批量编辑字段、选中排序/删除、JSON 导入导出
+  - 视频测评页：基于视频数据集创建多模型矩阵测评，支持 baseline params JSON、模型参数 override、生成数量、payload 预览、运行轮询、失败/未支持重试和报告导出
+- 视频数据集允许暂存缺首帧样例，页面用 warning 提示；运行测评或 preview payload 前仍会被后端阻断。
+- 视频测评结果矩阵展示样例首帧、样例时长、每个 case × model 的状态、生成数量和多条输出视频播放器。
+- 视频测评单元详情弹窗展示全部输出视频、Task IDs / Request IDs、Effective Params、Canonical Request、Provider Payload 和 Provider Result Meta。
+- 视频测评报告导出只有 Markdown / HTML 附件入口，视频保持 URL，不内嵌视频字节。
 - 视频工作室已新增 `视频续写` 能力，默认对应长期主用模型 `wan2.7-i2v`
 - 视频工作室同时提供临时测试快照 `wan2.7-i2v-2026-04-25`，它不是 `wan2.7-i2v` 的别名，后续可删除
 - `wan2.7-i2v` / `wan2.7-i2v-2026-04-25` 在视频工作室支持：

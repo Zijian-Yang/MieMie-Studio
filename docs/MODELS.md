@@ -304,6 +304,75 @@ class ImageBenchmarkCellResult(BaseModel):
 - `unsupported` 代表前置校验未通过，常见于模型不支持、输入图无法读取或暂时下载失败。
 - 自动重试时最终 `cell_results` 会累计所有尝试产生的 `task_ids` 和 `request_ids`。
 
+### VideoBenchmarkDataset / Suite / Run（视频测评）
+
+```python
+class VideoBenchmarkDataset(BaseModel):
+    id: str
+    project_id: str
+    name: str
+    description: str = ""
+    task_kind: Literal["image_to_video"] = "image_to_video"
+    schema_version: str = "1.0"
+    items: List[VideoBenchmarkDatasetItem] = []
+    created_at: datetime
+    updated_at: datetime
+
+class VideoBenchmarkDatasetItem(BaseModel):
+    id: str
+    name: str = ""
+    prompt: str = ""
+    negative_prompt: str = ""
+    sort_order: int = 0
+    tags: List[str] = []
+    first_frame: Optional[VideoBenchmarkMediaAsset] = None
+    audio: Optional[VideoBenchmarkMediaAsset] = None
+    duration: Optional[int] = None
+
+class VideoBenchmarkSuite(BaseModel):
+    id: str
+    project_id: str
+    dataset_id: str
+    task_kind: Literal["image_to_video"] = "image_to_video"
+    selected_models: List[str] = []
+    baseline_params: Dict[str, Any] = {}
+    model_overrides: Dict[str, Dict[str, Any]] = {}
+    latest_run_id: Optional[str] = None
+
+class VideoBenchmarkRun(BaseModel):
+    id: str
+    suite_id: str
+    project_id: str
+    dataset_id: str
+    dataset_snapshot: Dict[str, Any] = {}
+    model_snapshots: List[Dict[str, Any]] = []
+    cell_results: List[VideoBenchmarkCellResult] = []
+    stats: Dict[str, Any] = {}
+
+class VideoBenchmarkCellResult(BaseModel):
+    case_id: str
+    model_id: str
+    status: Literal["pending", "running", "completed", "failed", "skipped", "unsupported"]
+    output_videos: List[VideoBenchmarkOutputVideo] = []
+    error_message: Optional[str] = None
+    request_ids: List[str] = []
+    task_ids: List[str] = []
+    canonical_request: Optional[Dict[str, Any]] = None
+    provider_payload: Optional[Dict[str, Any]] = None
+    provider_result_meta: Dict[str, Any] = {}
+```
+
+存储位置：
+- `data/users/{user_id}/video_benchmark_datasets/{id}.json`
+- `data/users/{user_id}/video_benchmark_suites/{id}.json`
+- `data/users/{user_id}/video_benchmark_runs/{id}.json`
+
+说明：
+- v1 仅支持首帧生视频，模型来自视频工作室 capability 中支持 `image_to_video` 的条目。
+- `duration` 是样例级可选覆盖值，优先级高于 suite baseline 与模型 override。
+- `group_count` 是视频测评层参数，保存在 `effective_params` 和 `canonical_request` 中，用于同一 cell 生成 1-5 条输出；provider payload 中不保留该参数。
+- 输出视频只保存 URL 与可选缩略信息，不保存视频二进制；同一 cell 可保存多条 `output_videos`。
+
 ### VideoStudioTask（视频工作室任务）
 
 ```python
