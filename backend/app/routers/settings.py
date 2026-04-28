@@ -197,6 +197,14 @@ def mask_api_key(api_key: str) -> str:
     return api_key[:4] + "*" * (len(api_key) - 8) + api_key[-4:]
 
 
+def normalize_secret_update(value: Optional[str]) -> Optional[str]:
+    """规范化敏感字段更新：空白表示不修改。"""
+    if value is None:
+        return None
+    normalized = value.strip()
+    return normalized or None
+
+
 @router.get("", response_model=ConfigResponse)
 async def get_settings():
     """获取当前设置"""
@@ -265,19 +273,23 @@ async def update_settings(request: ConfigUpdateRequest):
     """更新设置"""
     update_data = {}
 
-    if request.api_key is not None:
-        update_data["dashscope_api_key"] = request.api_key
-        update_data["production_api_key"] = request.api_key
+    api_key = normalize_secret_update(request.api_key)
+    if api_key is not None:
+        update_data["dashscope_api_key"] = api_key
+        update_data["production_api_key"] = api_key
 
-    if request.test_api_key is not None:
-        update_data["test_api_key"] = request.test_api_key
+    test_api_key = normalize_secret_update(request.test_api_key)
+    if test_api_key is not None:
+        update_data["test_api_key"] = test_api_key
 
-    if request.production_api_key is not None:
-        update_data["production_api_key"] = request.production_api_key
-        update_data["dashscope_api_key"] = request.production_api_key
+    production_api_key = normalize_secret_update(request.production_api_key)
+    if production_api_key is not None:
+        update_data["production_api_key"] = production_api_key
+        update_data["dashscope_api_key"] = production_api_key
 
-    if request.volcengine_api_key is not None:
-        update_data["volcengine_api_key"] = request.volcengine_api_key
+    volcengine_api_key = normalize_secret_update(request.volcengine_api_key)
+    if volcengine_api_key is not None:
+        update_data["volcengine_api_key"] = volcengine_api_key
 
     if request.wan_key_profile is not None:
         update_data["wan_key_profile"] = normalize_key_profile(request.wan_key_profile)

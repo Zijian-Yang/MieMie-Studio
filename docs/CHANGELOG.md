@@ -87,6 +87,10 @@
   - 设置接口返回 `volcengine_api_key_masked` 与 `is_volcengine_api_key_set`
 
 ### 变更 (Changed)
+- 设置页保存交互改为模块化：
+  - 移除页面底部“保存所有设置”
+  - Key、火山 Key、API 地域、文本模型、OSS 各模块各自保存
+  - 通知、文本模型开关和 OSS 启用开关变更后自动保存
 - 设置页：Key 路由新增 HappyHorse 独立选择项，并确认 Wan / HappyHorse / Kling / Vidu 均按各自 profile 实际取用测试或生产 Key。
 - 视频工作室：更新 HappyHorse 文生/图生视频参数口径，图片格式与媒体限制以新版官方文档和平台 spec 为准。
 - 视频工作室：HappyHorse 文生/图生 capability 明确暴露语义化 smoke/full `verification_profiles`，不再只依赖通用默认档位。
@@ -114,6 +118,9 @@
 - 管理脚本：`./run.sh status` 新增当前 Workers 与 Node 构建内存显示
 
 ### 修复 (Fixed)
+- 图片工作室：复核 Seedream 5.0 lite / 4.5 文档口径，清晰度档位 schema label 改为纯 `2K/3K/4K`，Seedream 参数面板新增“组图功能”开关；明确 `guidance_scale` 仅 Seedream 3.0 t2i 支持，5.0 lite / 4.5 不展示也不下发。
+- 图片工作室：整理 Seedream 尺寸选项来源并参考 Wan2.7 改为互斥尺寸方案，`size` 参数只暴露 2K/3K/4K 清晰度档位，固定像素尺寸通过 `common_sizes` 展示；前端先选择“清晰度档位 / 固定尺寸”二选一，清晰度模式不再展示比例，差异说明收进 popover。
+- 设置页：修复空白 Key 更新会覆盖已有火山引擎 Ark API Key，导致 Seedream 生成提示未配置的问题；Key 字段现在会 trim，空白表示不修改。
 - 视频工作室：修复 capability 中 `max_reference_videos=0` 被前端默认值覆盖的问题，HappyHorse 参考生视频不再显示参考视频选择控件。
 - 视频工作室：厂商在提交阶段直接失败且未返回 `task_id` 时，现在会把 `request_id`、错误码、错误信息和原始响应保存到 `provider_result_meta.submit_error`，开发者模式可直接查看。
 - 图片工作室生产环境卡顿治理：

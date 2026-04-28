@@ -824,7 +824,7 @@ def _validate_custom_size(
 
 
 def _normalize_seedream_size(size_value: Optional[str]) -> str:
-    value = (size_value or "2048x2048").strip()
+    value = (size_value or "2K").strip()
     if "*" in value:
         value = value.replace("*", "x")
     return value

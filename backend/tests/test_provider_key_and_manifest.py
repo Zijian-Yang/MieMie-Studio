@@ -67,6 +67,28 @@ def test_settings_supports_independent_volcengine_api_key(client, auth_header):
     assert data["volcengine_api_key_masked"] == "volc********5678"
 
 
+def test_blank_volcengine_key_update_keeps_existing_key(client, auth_header):
+    resp = client.put(
+        "/api/settings",
+        headers=auth_header,
+        json={"volcengine_api_key": "volc-ak-keep-12345678"},
+    )
+    assert resp.status_code == 200
+
+    blank_resp = client.put(
+        "/api/settings",
+        headers=auth_header,
+        json={"volcengine_api_key": "   "},
+    )
+    assert blank_resp.status_code == 200
+
+    settings = client.get("/api/settings", headers=auth_header)
+    assert settings.status_code == 200
+    data = settings.json()
+    assert data["is_volcengine_api_key_set"] is True
+    assert data["volcengine_api_key_masked"] == "volc*************5678"
+
+
 def test_settings_persists_happyhorse_test_profile_after_refresh(client, auth_header):
     resp = client.put(
         "/api/settings",

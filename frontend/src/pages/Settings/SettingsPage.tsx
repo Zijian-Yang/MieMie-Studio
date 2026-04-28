@@ -64,6 +64,31 @@ const SettingsPage = () => {
     }
   }
 
+  const saveSettingsPatch = async (
+    payload: Record<string, any>,
+    successMessage: string,
+    options?: { reload?: boolean }
+  ) => {
+    setSaving(true)
+    try {
+      await settingsApi.updateSettings(payload)
+      message.success(successMessage)
+      if (options?.reload !== false) {
+        await fetchSettings()
+      }
+      return true
+    } catch (error) {
+      if (error instanceof Error) {
+        message.error(error.message)
+      } else {
+        message.error('保存失败')
+      }
+      return false
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const handleSaveKeyRouting = async () => {
     const values = form.getFieldsValue()
     const payload: Record<string, any> = {
@@ -72,106 +97,95 @@ const SettingsPage = () => {
       kling_key_profile: values.kling_key_profile,
       vidu_key_profile: values.vidu_key_profile,
     }
-    if (values.test_api_key) {
-      payload.test_api_key = values.test_api_key
+    const testKey = values.test_api_key?.trim()
+    const productionKey = values.production_api_key?.trim()
+    if (testKey) {
+      payload.test_api_key = testKey
     }
-    if (values.production_api_key) {
-      payload.production_api_key = values.production_api_key
+    if (productionKey) {
+      payload.production_api_key = productionKey
     }
 
-    setSaving(true)
-    try {
-      await settingsApi.updateSettings(payload)
-      message.success('Key 与路由设置已保存')
+    const saved = await saveSettingsPatch(payload, 'Key 与路由设置已保存')
+    if (saved) {
       form.setFieldValue('test_api_key', '')
       form.setFieldValue('production_api_key', '')
-      fetchSettings()
-    } catch (error) {
-      if (error instanceof Error) {
-        message.error(error.message)
-      } else {
-        message.error('保存失败')
-      }
-    } finally {
-      setSaving(false)
     }
   }
 
   const handleSaveVolcengineKey = async () => {
     const values = form.getFieldsValue()
-    if (!values.volcengine_api_key) {
-      message.warning('请输入火山引擎 Ark API Key')
+    const volcengineKey = values.volcengine_api_key?.trim()
+    if (!volcengineKey) {
+      message.warning('请输入新的火山引擎 Ark API Key')
       return
     }
 
-    setSaving(true)
-    try {
-      await settingsApi.updateSettings({
-        volcengine_api_key: values.volcengine_api_key,
-      })
-      message.success('火山引擎 Ark API Key 已保存')
+    const saved = await saveSettingsPatch({
+      volcengine_api_key: volcengineKey,
+    }, '火山引擎 Ark API Key 已保存')
+    if (saved) {
       form.setFieldValue('volcengine_api_key', '')
-      fetchSettings()
-    } catch (error) {
-      if (error instanceof Error) {
-        message.error(error.message)
-      } else {
-        message.error('保存失败')
-      }
-    } finally {
-      setSaving(false)
     }
   }
 
-  const handleSaveSettings = async () => {
-    setSaving(true)
-    try {
-      const values = form.getFieldsValue()
-      
-      await settingsApi.updateSettings({
-        test_api_key: values.test_api_key || undefined,
-        production_api_key: values.production_api_key || undefined,
-        volcengine_api_key: values.volcengine_api_key || undefined,
-        wan_key_profile: values.wan_key_profile,
-        happyhorse_key_profile: values.happyhorse_key_profile,
-        kling_key_profile: values.kling_key_profile,
-        vidu_key_profile: values.vidu_key_profile,
-        video_task_notifications_enabled: values.video_task_notifications_enabled,
-        image_task_notifications_enabled: values.image_task_notifications_enabled,
-        api_region: values.api_region,
-        llm: {
-          model: values.llm_model,
-          max_tokens: values.llm_max_tokens,
-          top_p: values.llm_top_p,
-          temperature: values.llm_temperature,
-          enable_thinking: values.llm_enable_thinking,
-          thinking_budget: values.llm_thinking_budget,
-          result_format: values.llm_result_format,
-          enable_search: values.llm_enable_search,
-        },
-        oss: {
-          enabled: values.oss_enabled,
-          access_key_id: values.oss_access_key_id || undefined,
-          access_key_secret: values.oss_access_key_secret || undefined,
-          bucket_name: values.oss_bucket_name,
-          endpoint: values.oss_endpoint,
-          prefix: values.oss_prefix,
-        },
-      })
-      message.success('设置已保存')
-      form.setFieldValue('test_api_key', '')
-      form.setFieldValue('production_api_key', '')
-      form.setFieldValue('volcengine_api_key', '')
-      fetchSettings()
-    } catch (error) {
-      if (error instanceof Error) {
-        message.error(error.message)
-      } else {
-        message.error('保存失败')
-      }
-    } finally {
-      setSaving(false)
+  const buildLLMConfigPayload = (overrides?: Record<string, any>) => {
+    const values = form.getFieldsValue()
+    return {
+      model: values.llm_model,
+      max_tokens: values.llm_max_tokens,
+      top_p: values.llm_top_p,
+      temperature: values.llm_temperature,
+      enable_thinking: values.llm_enable_thinking,
+      thinking_budget: values.llm_thinking_budget,
+      result_format: values.llm_result_format,
+      enable_search: values.llm_enable_search,
+      ...overrides,
     }
+  }
+
+  const buildOSSConfigPayload = (overrides?: Record<string, any>) => {
+    const values = form.getFieldsValue()
+    return {
+      enabled: values.oss_enabled,
+      access_key_id: values.oss_access_key_id?.trim() || undefined,
+      access_key_secret: values.oss_access_key_secret?.trim() || undefined,
+      bucket_name: values.oss_bucket_name,
+      endpoint: values.oss_endpoint,
+      prefix: values.oss_prefix,
+      ...overrides,
+    }
+  }
+
+  const handleSaveApiRegion = async () => {
+    const values = form.getFieldsValue()
+    await saveSettingsPatch({ api_region: values.api_region }, 'API 地域已保存')
+  }
+
+  const handleSaveLLMConfig = async () => {
+    await saveSettingsPatch({ llm: buildLLMConfigPayload() }, '文本模型配置已保存')
+  }
+
+  const handleSaveOSSConfig = async () => {
+    const saved = await saveSettingsPatch({ oss: buildOSSConfigPayload() }, 'OSS 配置已保存')
+    if (saved) {
+      form.setFieldValue('oss_access_key_id', '')
+      form.setFieldValue('oss_access_key_secret', '')
+    }
+  }
+
+  const handleNotificationSwitchChange = async (
+    field: 'video_task_notifications_enabled' | 'image_task_notifications_enabled',
+    checked: boolean
+  ) => {
+    if (checked && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      try {
+        await Notification.requestPermission()
+      } catch {
+        message.warning('浏览器通知权限请求失败，请手动检查浏览器设置')
+      }
+    }
+    await saveSettingsPatch({ [field]: checked }, '通知设置已保存')
   }
 
   // 检查当前选中的模型是否支持深度思考
@@ -208,12 +222,18 @@ const SettingsPage = () => {
   }
 
   // 处理思考模式开关变化
-  const handleThinkingChange = (checked: boolean) => {
+  const handleThinkingChange = async (checked: boolean) => {
     setEnableThinking(checked)
     // 思考模式下不支持 JSON Mode，自动切换回 message
     if (checked) {
       form.setFieldValue('llm_result_format', 'message')
     }
+    await saveSettingsPatch({
+      llm: buildLLMConfigPayload({
+        enable_thinking: checked,
+        result_format: checked ? 'message' : form.getFieldValue('llm_result_format'),
+      }),
+    }, '文本模型开关已保存')
   }
 
   // 测试 OSS 连接
@@ -484,16 +504,7 @@ const SettingsPage = () => {
             extra="启用后，视频工作室任务成功或失败时会尝试发送浏览器通知。"
           >
             <Switch
-              onChange={async (checked) => {
-                if (!checked || typeof window === 'undefined' || !('Notification' in window)) return
-                if (Notification.permission === 'default') {
-                  try {
-                    await Notification.requestPermission()
-                  } catch {
-                    message.warning('浏览器通知权限请求失败，请手动检查浏览器设置')
-                  }
-                }
-              }}
+              onChange={(checked) => handleNotificationSwitchChange('video_task_notifications_enabled', checked)}
             />
           </Form.Item>
           <Form.Item
@@ -503,16 +514,7 @@ const SettingsPage = () => {
             extra="启用后，图片工作室任务成功或失败时会尝试发送浏览器通知。"
           >
             <Switch
-              onChange={async (checked) => {
-                if (!checked || typeof window === 'undefined' || !('Notification' in window)) return
-                if (Notification.permission === 'default') {
-                  try {
-                    await Notification.requestPermission()
-                  } catch {
-                    message.warning('浏览器通知权限请求失败，请手动检查浏览器设置')
-                  }
-                }
-              }}
+              onChange={(checked) => handleNotificationSwitchChange('image_task_notifications_enabled', checked)}
             />
           </Form.Item>
         </Form>
@@ -538,6 +540,14 @@ const SettingsPage = () => {
               }
             />
           </Form.Item>
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            onClick={handleSaveApiRegion}
+            loading={saving}
+          >
+            保存 API 地域
+          </Button>
         </Form>
       </Card>
 
@@ -631,7 +641,11 @@ const SettingsPage = () => {
                 label="联网搜索"
                 valuePropName="checked"
               >
-                <Switch />
+                <Switch
+                  onChange={(checked) => saveSettingsPatch({
+                    llm: buildLLMConfigPayload({ enable_search: checked }),
+                  }, '文本模型开关已保存')}
+                />
               </Form.Item>
             </Col>
           </Row>
@@ -717,6 +731,14 @@ const SettingsPage = () => {
               </Row>
             </>
           )}
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            onClick={handleSaveLLMConfig}
+            loading={saving}
+          >
+            保存文本模型配置
+          </Button>
         </Form>
       </Card>
 
@@ -761,7 +783,11 @@ const SettingsPage = () => {
             valuePropName="checked"
             extra="启用后，生成的图片和视频将上传到 OSS，获得持久化链接"
           >
-            <Switch />
+            <Switch
+              onChange={(checked) => saveSettingsPatch({
+                oss: buildOSSConfigPayload({ enabled: checked }),
+              }, 'OSS 启用状态已保存')}
+            />
           </Form.Item>
 
           <Alert
@@ -855,13 +881,23 @@ const SettingsPage = () => {
             <Input placeholder="例如: aistudio/" />
           </Form.Item>
 
-          <Button
-            icon={<ApiOutlined />}
-            onClick={handleTestOSSConnection}
-            loading={testingOSS}
-          >
-            测试连接
-          </Button>
+          <Space>
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              onClick={handleSaveOSSConfig}
+              loading={saving}
+            >
+              保存 OSS 配置
+            </Button>
+            <Button
+              icon={<ApiOutlined />}
+              onClick={handleTestOSSConnection}
+              loading={testingOSS}
+            >
+              测试连接
+            </Button>
+          </Space>
         </Form>
       </Card>
 
@@ -922,18 +958,6 @@ const SettingsPage = () => {
         </Form>
       </Card>
 
-      {/* 保存按钮 */}
-      <div style={{ textAlign: 'right', marginBottom: 24 }}>
-        <Button
-          type="primary"
-          icon={<SaveOutlined />}
-          onClick={handleSaveSettings}
-          loading={saving}
-          size="large"
-        >
-          保存所有设置
-        </Button>
-      </div>
     </div>
   )
 }

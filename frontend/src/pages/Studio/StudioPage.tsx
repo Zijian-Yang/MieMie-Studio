@@ -77,6 +77,7 @@ const parseCustomSizeString = (size?: string | null) => {
 
 type ImageTaskKind = 'text_to_image' | 'image_edit' | 'interactive_edit' | 'sequential_generation'
 type ImageSizeUiMode = 'preset_only' | 'preset_plus_custom_with_templates'
+type SeedreamSizeMode = 'clarity' | 'fixed'
 type ImageSizeTemplate = {
   ratio: string
   orientation: string
@@ -96,6 +97,22 @@ const WAN27_MODELS = new Set(['wan2.7-image-pro', 'wan2.7-image'])
 const SEEDREAM_5_LITE_MODEL_ID = 'doubao-seedream-5.0-lite'
 const SEEDREAM_45_MODEL_ID = 'doubao-seedream-4.5'
 const SEEDREAM_MODELS = new Set([SEEDREAM_5_LITE_MODEL_ID, SEEDREAM_45_MODEL_ID])
+const SEEDREAM_CLARITY_SIZE_VALUES = new Set(['2K', '3K', '4K'])
+const SEEDREAM_SIZE_MODE_HELP: HelpContent = {
+  summary: 'Seedream 有两套互斥的 size 方案：清晰度档位或固定尺寸。',
+  meaning: '清晰度档位只提交 2K/3K/4K，由模型结合提示词和参考图决定画幅比例；固定尺寸会提交具体宽高，因此同时锁定像素和比例。',
+  how_to_choose: [
+    '想让模型自动判断横图、竖图或方图时，使用清晰度档位。',
+    '需要封面、海报、竖屏/横屏等严格画幅时，使用固定尺寸。',
+  ],
+  notes: ['两种方式只能二选一，切换后会改变提交给火山引擎的 size 值。'],
+}
+const SEEDREAM_SEQUENTIAL_HELP: HelpContent = {
+  summary: '打开后使用 Seedream 组图生成能力。',
+  meaning: '平台会把任务类型切到组图生成，并向火山引擎提交 sequential_image_generation=auto。',
+  limits: ['参考图数量 + 最大组图数不能超过 15。'],
+  notes: ['关闭后，平台按当前参考图数量回到文生图或图像编辑，并提交 sequential_image_generation=disabled。'],
+}
 const WAN27_MAX_CUSTOM_DIMENSION = 12000
 const WAN25_T2I_MIN_TOTAL_PIXELS = 768 * 768
 const WAN25_T2I_MAX_TOTAL_PIXELS = 1440 * 1440
@@ -141,6 +158,14 @@ const getSeedreamDefaultN = (taskKind: ImageTaskKind) => (
 
 const getSeedreamMaxN = (taskKind: ImageTaskKind, referenceCount: number) => (
   taskKind === 'sequential_generation' ? Math.max(1, 15 - referenceCount) : 1
+)
+
+const isSeedreamClaritySize = (value?: string | null) => (
+  !!value && SEEDREAM_CLARITY_SIZE_VALUES.has(value)
+)
+
+const getSeedreamSizeModeFromValue = (value?: string | null): SeedreamSizeMode => (
+  isSeedreamClaritySize(value) ? 'clarity' : 'fixed'
 )
 
 const getImageCustomSizeLimits = (
@@ -221,7 +246,9 @@ const StudioPage = () => {
   const watchedEnableSequential = Form.useWatch('enable_sequential', form)
   const watchedPrompt = Form.useWatch('prompt', form)
   const watchedNegativePrompt = Form.useWatch('negative_prompt', form)
+  const watchedSize = Form.useWatch('size', form)
   const watchedSizeMode = Form.useWatch('size_mode', form)
+  const watchedSeedreamSizeMode = Form.useWatch('seedream_size_mode', form)
   const watchedSizePreset = Form.useWatch('size_preset', form)
   const watchedCustomWidth = Form.useWatch('custom_width', form)
   const watchedCustomHeight = Form.useWatch('custom_height', form)
@@ -457,21 +484,38 @@ const StudioPage = () => {
     }
     return form.getFieldValue('size_preset') || '2K'
   }, [effectiveWan27EntryMode, form, isWan27Model, watchedCustomHeight, watchedCustomWidth, watchedSizeMode, watchedSizePreset])
-  const seedreamSizeOptions = useMemo(() => {
+  const seedreamClaritySizeOptions = useMemo(() => {
     if (!isSeedreamModel) return []
-    const optionMap = new Map<string, string>()
     const sizeParam = getParamMeta(activeModelId, 'size') as any
+    const presetMap = new Map<string, string>()
     ;(sizeParam?.constraint?.options || []).forEach((option: any) => {
-      if (option?.value) optionMap.set(option.value, option.label || option.value)
+      if (option?.value) presetMap.set(option.value, option.label || option.value)
     })
+    return Array.from(presetMap.entries()).map(([value, label]) => ({ value, label }))
+  }, [activeModelId, getParamMeta, isSeedreamModel])
+  const seedreamClaritySelectOptions = useMemo(() => (
+    seedreamClaritySizeOptions.map((option) => ({ value: option.value, label: option.value }))
+  ), [seedreamClaritySizeOptions])
+  const seedreamClarityFallbackOptions = isSeedreamLiteModel
+    ? [{ value: '2K', label: '2K' }, { value: '3K', label: '3K' }, { value: '4K', label: '4K' }]
+    : [{ value: '2K', label: '2K' }, { value: '4K', label: '4K' }]
+  const seedreamFixedSizeOptions = useMemo(() => {
+    if (!isSeedreamModel) return []
+    const fixedSizeMap = new Map<string, string>()
     ;(availableModels[activeModelId]?.common_sizes || []).forEach((size: any) => {
       const value = size.value || (typeof size === 'string' ? size : `${size.width}x${size.height}`)
-      if (value && !optionMap.has(value)) {
-        optionMap.set(value, size.label || formatSizeLabel(value))
+      if (value && !fixedSizeMap.has(value)) {
+        fixedSizeMap.set(value, size.label || formatSizeLabel(value))
       }
     })
-    return Array.from(optionMap.entries()).map(([value, label]) => ({ value, label }))
-  }, [activeModelId, availableModels, getParamMeta, isSeedreamModel])
+    return Array.from(fixedSizeMap.entries()).map(([value, label]) => ({ value, label }))
+  }, [activeModelId, availableModels, isSeedreamModel])
+  const seedreamDefaultClaritySize = seedreamClaritySizeOptions[0]?.value || '2K'
+  const seedreamDefaultFixedSize = seedreamFixedSizeOptions[0]?.value || '2048x2048'
+  const effectiveSeedreamSizeMode = (watchedSeedreamSizeMode || getSeedreamSizeModeFromValue(watchedSize || selectedTask?.size || seedreamDefaultClaritySize)) as SeedreamSizeMode
+  const seedreamSubmittedSize = watchedSize || (
+    effectiveSeedreamSizeMode === 'clarity' ? seedreamDefaultClaritySize : seedreamDefaultFixedSize
+  )
   const hasPreviousTaskRequest = useMemo(() => {
     if (!selectedTask) return false
     return (
@@ -866,6 +910,8 @@ const StudioPage = () => {
     watchedEnableSequential,
     watchedOutputFormat,
     watchedWebSearch,
+    watchedSize,
+    watchedSeedreamSizeMode,
     watchedSizeMode,
     watchedSizePreset,
     watchedCustomWidth,
@@ -976,9 +1022,19 @@ const StudioPage = () => {
     const nextN = activeTaskKind === 'sequential_generation'
       ? (!currentN || currentN > maxN ? Math.min(getSeedreamDefaultN(activeTaskKind), maxN) : currentN)
       : 1
+    const currentSize = form.getFieldValue('size')
+    const currentMode = (form.getFieldValue('seedream_size_mode') || getSeedreamSizeModeFromValue(currentSize)) as SeedreamSizeMode
+    const nextMode = currentSize ? currentMode : 'clarity'
+    const nextSizeOptions = nextMode === 'clarity' ? seedreamClaritySizeOptions : seedreamFixedSizeOptions
+    const nextSize = nextSizeOptions.some((option) => option.value === currentSize)
+      ? currentSize
+      : nextMode === 'clarity'
+        ? seedreamDefaultClaritySize
+        : seedreamDefaultFixedSize
     form.setFieldsValue({
       n: nextN,
-      size: form.getFieldValue('size') || '2048x2048',
+      seedream_size_mode: nextMode,
+      size: nextSize,
       prompt_extend: form.getFieldValue('prompt_extend') !== false,
       watermark: !!form.getFieldValue('watermark'),
       enable_interleave: false,
@@ -994,7 +1050,7 @@ const StudioPage = () => {
       output_format: activeModelId === SEEDREAM_5_LITE_MODEL_ID ? (form.getFieldValue('output_format') || 'jpeg') : null,
       web_search: activeModelId === SEEDREAM_5_LITE_MODEL_ID ? !!form.getFieldValue('web_search') : false,
     })
-  }, [activeModelId, activeTaskKind, form, isModalOpen, isSeedreamModel, selectedReferenceItems.length])
+  }, [activeModelId, activeTaskKind, form, isModalOpen, isSeedreamModel, seedreamClaritySizeOptions, seedreamDefaultClaritySize, seedreamDefaultFixedSize, seedreamFixedSizeOptions, selectedReferenceItems.length])
 
   useEffect(() => {
     if (!isModalOpen || !isWan27Model || activeTaskKind !== 'interactive_edit') return
@@ -1070,6 +1126,7 @@ const StudioPage = () => {
       bbox_list: [],
       color_palette: [],
       size_mode: 'custom',
+      seedream_size_mode: 'clarity',
       size_preset: undefined,
       custom_width: undefined,
       custom_height: undefined,
@@ -1254,6 +1311,9 @@ const StudioPage = () => {
     const restoredBBoxList = resolvePreferredBBoxList(task.bbox_list, task.provider_payload_snapshot?.parameters?.bbox_list)
     const restoredCustomSize = parseCustomSizeString(task.size)
     const restoredSizeMode = task.size_mode || (restoredCustomSize ? 'custom' : (task.size_preset || (task.size && !task.size.includes('*')) ? 'preset' : null))
+    const restoredSeedreamSizeMode = SEEDREAM_MODELS.has(task.model)
+      ? getSeedreamSizeModeFromValue(task.size || '2K')
+      : 'clarity'
     setWan27SizeModeChoice(restoredSizeMode === 'preset' ? 'preset' : 'custom')
     setWan27BBoxList(restoredBBoxList)
     form.setFieldsValue({
@@ -1278,6 +1338,7 @@ const StudioPage = () => {
       bbox_list: restoredBBoxList,
       color_palette: task.color_palette || [],
       size_mode: restoredSizeMode,
+      seedream_size_mode: restoredSeedreamSizeMode,
       size_preset: task.size_preset || (task.size && !task.size.includes('*') ? task.size : undefined),
       custom_width: task.custom_width || restoredCustomSize?.width || undefined,
       custom_height: task.custom_height || restoredCustomSize?.height || undefined,
@@ -1359,6 +1420,34 @@ const StudioPage = () => {
     }
   }, [applyWan27QualityTemplate, form, queueStudioAutoSave, wan27QualityChoice, wan27QualityGroups, wan27RatioChoice])
 
+  const switchSeedreamSizeMode = useCallback((mode: SeedreamSizeMode) => {
+    const currentSize = form.getFieldValue('size')
+    const options = mode === 'clarity' ? seedreamClaritySizeOptions : seedreamFixedSizeOptions
+    const fallbackSize = mode === 'clarity' ? seedreamDefaultClaritySize : seedreamDefaultFixedSize
+    form.setFieldsValue({
+      seedream_size_mode: mode,
+      size: options.some((option) => option.value === currentSize) ? currentSize : fallbackSize,
+    })
+    queueStudioAutoSave()
+  }, [form, queueStudioAutoSave, seedreamClaritySizeOptions, seedreamDefaultClaritySize, seedreamDefaultFixedSize, seedreamFixedSizeOptions])
+
+  const toggleSeedreamSequentialMode = useCallback((enabled: boolean) => {
+    if (!isSeedreamModel) return
+    const refs = form.getFieldValue('references') || []
+    const nextKind: ImageTaskKind = enabled
+      ? 'sequential_generation'
+      : refs.length > 0
+        ? 'image_edit'
+        : 'text_to_image'
+    const maxN = getSeedreamMaxN(nextKind, refs.length)
+    form.setFieldsValue({
+      task_kind: nextKind,
+      enable_sequential: enabled,
+      n: enabled ? Math.min(getSeedreamDefaultN(nextKind), maxN) : 1,
+    })
+    queueStudioAutoSave()
+  }, [form, isSeedreamModel, queueStudioAutoSave])
+
   const syncWan27BBoxList = useCallback((nextBoxes: number[][][]) => {
     setWan27BBoxList(nextBoxes)
     form.setFieldValue('bbox_list', nextBoxes)
@@ -1419,6 +1508,7 @@ const StudioPage = () => {
           group_count: form.getFieldValue('group_count') || 1,
           size: undefined,
           size_mode: 'custom',
+          seedream_size_mode: undefined,
           size_preset: undefined,
           custom_width: form.getFieldValue('custom_width'),
           custom_height: form.getFieldValue('custom_height'),
@@ -1431,7 +1521,8 @@ const StudioPage = () => {
         form.setFieldsValue({
           n: Math.min(getSeedreamDefaultN(currentTaskKind), getSeedreamMaxN(currentTaskKind, refCount)),
           group_count: form.getFieldValue('group_count') || 1,
-          size: '2048x2048',
+          seedream_size_mode: 'clarity',
+          size: '2K',
           size_mode: undefined,
           size_preset: undefined,
           custom_width: undefined,
@@ -1448,16 +1539,17 @@ const StudioPage = () => {
           web_search: false,
         })
       } else if (model === 'qwen-image-max' || model === 'qwen-image-plus') {
-        form.setFieldsValue({ n: 1, size: '1664*928', watermark: false })
+        form.setFieldsValue({ n: 1, size: '1664*928', seedream_size_mode: undefined, watermark: false })
       } else if (model === 'wan2.6-image') {
-        form.setFieldsValue({ n: 4, size: '1280*1280', watermark: false })
+        form.setFieldsValue({ n: 4, size: '1280*1280', seedream_size_mode: undefined, watermark: false })
       } else if (model === 'wan2.6-t2i') {
-        form.setFieldsValue({ n: 4, size: '1280*1280', watermark: false })
+        form.setFieldsValue({ n: 4, size: '1280*1280', seedream_size_mode: undefined, watermark: false })
       } else if (model === 'wan2.5-t2i-preview') {
         form.setFieldsValue({
           n: 1,
           size: undefined,
           size_mode: 'preset',
+          seedream_size_mode: undefined,
           size_preset: '1024*1024',
           custom_width: undefined,
           custom_height: undefined,
@@ -1468,6 +1560,7 @@ const StudioPage = () => {
           n: 1,
           size: undefined,
           size_mode: 'preset',
+          seedream_size_mode: undefined,
           size_preset: '1024*1024',
           custom_width: undefined,
           custom_height: undefined,
@@ -1478,6 +1571,7 @@ const StudioPage = () => {
           n: 1,
           size: '',
           size_mode: undefined,
+          seedream_size_mode: undefined,
           size_preset: undefined,
           custom_width: undefined,
           custom_height: undefined,
@@ -1490,6 +1584,7 @@ const StudioPage = () => {
           n: 1,
           size: currentTaskKind === 'image_edit' || hasReferences ? '' : '1024*1024',
           size_mode: undefined,
+          seedream_size_mode: undefined,
           size_preset: undefined,
           custom_width: undefined,
           custom_height: undefined,
@@ -1498,6 +1593,7 @@ const StudioPage = () => {
       } else {
         form.setFieldsValue({
           size_mode: undefined,
+          seedream_size_mode: undefined,
           size_preset: undefined,
           custom_width: undefined,
           custom_height: undefined,
@@ -2897,17 +2993,14 @@ const StudioPage = () => {
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                       <Form.Item
-                        name="size"
-                        label={renderFormLabel(activeModelId, 'size', '输出尺寸')}
+                        label={renderFormLabel(undefined, 'seedream_sequential_generation', '组图功能', SEEDREAM_SEQUENTIAL_HELP)}
                         style={{ marginBottom: 0 }}
                       >
-                        <Select
-                          placeholder="2048×2048"
-                          options={seedreamSizeOptions.length ? seedreamSizeOptions : [
-                            { value: '2048x2048', label: '2K 1:1 正方形 2048×2048' },
-                            { value: '2K', label: '2K（模型自动判断比例）' },
-                            { value: '4K', label: '4K（模型自动判断比例）' },
-                          ]}
+                        <Switch
+                          checked={activeTaskKind === 'sequential_generation'}
+                          checkedChildren="开"
+                          unCheckedChildren="关"
+                          onChange={toggleSeedreamSequentialMode}
                         />
                       </Form.Item>
                       <Form.Item
@@ -2919,6 +3012,41 @@ const StudioPage = () => {
                         <Switch checkedChildren="开" unCheckedChildren="关" />
                       </Form.Item>
                     </div>
+
+                    <div style={{ marginBottom: 12 }}>
+                      <Form.Item
+                        label={renderFormLabel(undefined, 'seedream_size_mode', '尺寸方案', SEEDREAM_SIZE_MODE_HELP)}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Segmented
+                          block
+                          value={effectiveSeedreamSizeMode}
+                          options={[
+                            { value: 'clarity', label: '清晰度档位' },
+                            { value: 'fixed', label: '固定尺寸' },
+                          ]}
+                          onChange={(value) => switchSeedreamSizeMode(value as SeedreamSizeMode)}
+                        />
+                      </Form.Item>
+                      <div style={{ marginTop: 8, color: token.colorTextSecondary, fontSize: 12 }}>
+                        本次实际发送 size：{seedreamSubmittedSize}
+                      </div>
+                    </div>
+
+                    <Form.Item
+                      name="size"
+                      label={renderFormLabel(undefined, 'seedream_size_value', effectiveSeedreamSizeMode === 'clarity' ? '清晰度' : '固定尺寸', SEEDREAM_SIZE_MODE_HELP)}
+                      style={{ marginBottom: 12 }}
+                    >
+                      <Select
+                        placeholder={effectiveSeedreamSizeMode === 'clarity' ? seedreamDefaultClaritySize : '2048×2048'}
+                        options={
+                          effectiveSeedreamSizeMode === 'clarity'
+                            ? (seedreamClaritySelectOptions.length ? seedreamClaritySelectOptions : seedreamClarityFallbackOptions)
+                            : (seedreamFixedSizeOptions.length ? seedreamFixedSizeOptions : [{ value: '2048x2048', label: '2K 1:1 正方形 2048×2048' }])
+                        }
+                      />
+                    </Form.Item>
 
                     <div style={{ display: 'grid', gridTemplateColumns: isSeedreamLiteModel ? '1fr 1fr 1fr' : '1fr', gap: 12 }}>
                       <Form.Item

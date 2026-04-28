@@ -71,8 +71,30 @@ def test_get_available_image_models_includes_seedream_models(client, auth_header
         "image_edit",
         "sequential_generation",
     ]
-    seedream_params = {param["name"] for param in data["doubao-seedream-5.0-lite"]["parameters"]}
+    seedream_lite = data["doubao-seedream-5.0-lite"]
+    seedream_params = {param["name"] for param in seedream_lite["parameters"]}
     assert {"size", "n", "prompt_extend", "watermark", "output_format", "web_search"}.issubset(seedream_params)
+    assert "guidance_scale" not in seedream_params
+    size_param = next(param for param in seedream_lite["parameters"] if param["name"] == "size")
+    assert size_param["default"] == "2K"
+    size_option_values = [option["value"] for option in size_param["constraint"]["options"]]
+    assert size_option_values == ["2K", "3K", "4K"]
+    assert [option["label"] for option in size_param["constraint"]["options"]] == ["2K", "3K", "4K"]
+    fixed_size_values = {f"{size['width']}x{size['height']}" for size in seedream_lite["common_sizes"]}
+    assert fixed_size_values
+    assert not set(size_option_values) & fixed_size_values
+    assert "3072x3072" in fixed_size_values
+
+    seedream_45 = data["doubao-seedream-4.5"]
+    seedream_45_params = {param["name"] for param in seedream_45["parameters"]}
+    assert "guidance_scale" not in seedream_45_params
+    assert "output_format" not in seedream_45_params
+    assert "web_search" not in seedream_45_params
+    size_45_param = next(param for param in seedream_45["parameters"] if param["name"] == "size")
+    assert [option["value"] for option in size_45_param["constraint"]["options"]] == ["2K", "4K"]
+    assert [option["label"] for option in size_45_param["constraint"]["options"]] == ["2K", "4K"]
+    fixed_45_size_values = {f"{size['width']}x{size['height']}" for size in seedream_45["common_sizes"]}
+    assert "3072x3072" not in fixed_45_size_values
 
 
 def test_wan27_size_templates_are_legal_for_pure_text_mode():
@@ -166,6 +188,46 @@ def test_preview_payload_builds_seedream_lite_sequential_payload(client, auth_he
     assert payload["tools"] == [{"type": "web_search"}]
     assert payload["response_format"] == "url"
     assert payload["stream"] is False
+
+
+def test_preview_payload_builds_seedream_image_edit_payload_with_fixed_size(client, auth_header, monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.studio._resolve_reference_items",
+        lambda _refs: _mock_reference_items(
+            [
+                "https://oss.example.com/ref-1.png",
+                "https://oss.example.com/ref-2.png",
+            ]
+        ),
+    )
+    resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "doubao-seedream-4.5",
+            "task_kind": "image_edit",
+            "prompt": "融合图1和图2生成电影海报",
+            "n": 1,
+            "group_count": 1,
+            "size": "3750*1250",
+            "prompt_extend": False,
+            "watermark": True,
+            "references": [{"type": "gallery", "id": "g1"}, {"type": "gallery", "id": "g2"}],
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    payload = data["provider_payload"]
+    assert data["canonical_request"]["task_kind"] == "image_edit"
+    assert data["canonical_request"]["normalized_params"]["size"] == "3750x1250"
+    assert payload["model"] == "doubao-seedream-4-5-251128"
+    assert payload["size"] == "3750x1250"
+    assert payload["image"] == ["https://oss.example.com/ref-1.png", "https://oss.example.com/ref-2.png"]
+    assert payload["sequential_image_generation"] == "disabled"
+    assert payload["watermark"] is True
+    assert "optimize_prompt_options" not in payload
+    assert "guidance_scale" not in payload
 
 
 def test_preview_payload_rejects_seedream_45_output_format(client, auth_header):

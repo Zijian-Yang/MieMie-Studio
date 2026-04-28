@@ -47,13 +47,18 @@
 - 厂商 payload 下发 `sequential_image_generation=auto`。
 - `n` 映射为 `sequential_image_generation_options.max_images`。
 - `参考图数量 + n <= 15`。
+- 图片工作室前端提供“组图功能”开关作为 `task_kind=sequential_generation` 的快捷入口；打开后下发 `sequential_image_generation=auto`，关闭后下发 `disabled`。
 
 ## 参数口径
 
 - 通用参数：
-  - `size`: 支持 `2K` / `4K` 或 `宽x高`；5.0 lite 额外支持 `3K`。
+  - `size`: 支持两种互斥请求体格式，不可混用：
+    - 清晰度档位：5.0 lite 支持 `2K` / `3K` / `4K`；4.5 支持 `2K` / `4K`。
+    - 固定像素尺寸：`宽x高`，例如 `2048x2048` 或 `3750x1250`；总像素范围 `2560x1440` 到 `4096x4096`，宽高比范围 `[1/16, 16]`。
   - `watermark`: 原样下发。
   - `prompt_extend=true`: 下发 `optimize_prompt_options.mode=standard`。
+- 不支持参数：
+  - `guidance_scale`: 仅 Seedream 3.0 t2i 支持，5.0 lite / 4.5 不支持，平台不展示也不下发。
 - 5.0 lite 专属参数：
   - `output_format`: `jpeg` / `png`，默认 `jpeg`。
   - `web_search=true`: 下发 `tools=[{"type":"web_search"}]`。

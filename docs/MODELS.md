@@ -198,8 +198,11 @@ class StudioTask(BaseModel):
     custom_height: Optional[int] = None
 
     # 火山引擎 Seedream 特有参数
+    # size 使用 2K/3K/4K 清晰度档位或 宽x高 固定像素；固定像素必须使用 x
+    # enable_sequential 由 task_kind=sequential_generation 驱动，下发 sequential_image_generation=auto
     output_format: Optional[str] = None # jpeg | png，仅 5.0 lite
     web_search: bool = False            # 联网搜索，仅 5.0 lite
+    # guidance_scale 仅 Seedream 3.0 t2i 支持，5.0 lite / 4.5 不支持
 
     # 参考图/素材
     references: List[TaskReference] = []

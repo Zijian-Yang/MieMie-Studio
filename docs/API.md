@@ -102,6 +102,8 @@ Authorization: Bearer {token}
 
 `PUT /api/settings` 可写入 `volcengine_api_key`。这把 Key 仅供 `provider=volcengine` 的 Seedream 图片模型使用，不参与 DashScope 测试/生产 Key 路由。
 
+所有 Key 字段写入前会去除首尾空白；空白字符串表示“不修改现有 Key”，不会清空已保存配置。
+
 ### 项目 `/api/projects`
 
 | 方法 | 路径 | 说明 |
@@ -214,6 +216,9 @@ Authorization: Bearer {token}
 - 图像编辑：`task_kind=image_edit`，需要 1-14 张参考图，厂商 payload 使用 `sequential_image_generation=disabled`。
 - 组图生成：`task_kind=sequential_generation`，允许 0-14 张参考图，厂商 payload 使用 `sequential_image_generation=auto`，并将 `n` 映射为 `sequential_image_generation_options.max_images`；`参考图数量 + n <= 15`。
 - 通用参数：`size`、`watermark`、`prompt_extend`。`prompt_extend=true` 时下发 `optimize_prompt_options.mode=standard`。
+- `size` 请求体格式必须是两种互斥方案之一：清晰度档位（5.0 lite 为 `2K`/`3K`/`4K`，4.5 为 `2K`/`4K`）或固定像素 `宽x高`（如 `2048x2048`）。固定像素总像素范围为 `2560x1440` 到 `4096x4096`，宽高比范围 `[1/16, 16]`。
+- 模型 schema 中 `size.constraint.options` 仅暴露清晰度档位；固定像素尺寸由 `common_sizes` 暴露。图片工作室前端参考 Wan2.7 的尺寸设计，使用“清晰度档位 / 固定尺寸”二选一方案：清晰度模式只展示 `2K/3K/4K` 档位，固定尺寸模式才展示带比例的像素尺寸，popover 说明两种方案差异。
+- `guidance_scale` 仅 Seedream 3.0 t2i 支持，`doubao-seedream-5.0-lite` 与 `doubao-seedream-4.5` 不支持；平台不展示该控件，也不下发该字段。
 - 5.0 lite 专属参数：`output_format=jpeg/png`、`web_search=true` 时下发 `tools=[{"type":"web_search"}]`。
 - 固定下发 `response_format=url`、`stream=false`，结果继续走图片工作室后台生成、轮询和 OSS 持久化。
 

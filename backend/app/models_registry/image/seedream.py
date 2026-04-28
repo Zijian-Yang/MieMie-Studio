@@ -78,23 +78,10 @@ def _size_option(value: str, label: str, aspect_ratio: str) -> SizeOption:
 
 
 def _seedream_size_options(include_3k: bool) -> List[SelectOption]:
-    options = [
-        SelectOption(value="2K", label="2K（模型自动判断比例）"),
-        *[SelectOption(value=value, label=label) for value, label, _ in SEEDREAM_2K_SIZES],
-    ]
+    options = [SelectOption(value="2K", label="2K")]
     if include_3k:
-        options.extend(
-            [
-                SelectOption(value="3K", label="3K（模型自动判断比例，仅 5.0 lite）"),
-                *[SelectOption(value=value, label=label) for value, label, _ in SEEDREAM_3K_SIZES],
-            ]
-        )
-    options.extend(
-        [
-            SelectOption(value="4K", label="4K（模型自动判断比例）"),
-            *[SelectOption(value=value, label=label) for value, label, _ in SEEDREAM_4K_SIZES],
-        ]
-    )
+        options.append(SelectOption(value="3K", label="3K"))
+    options.append(SelectOption(value="4K", label="4K"))
     return options
 
 
@@ -105,15 +92,16 @@ def _seedream_common_sizes(include_3k: bool) -> List[SizeOption]:
 
 SEEDREAM_HELP = {
     "size": {
-        "summary": "Seedream 支持 2K/3K/4K 规格档位或明确宽高像素值。",
+        "summary": "Seedream 支持两种互斥的尺寸方案：清晰度档位或固定像素尺寸。",
+        "meaning": "清晰度档位只指定 2K/3K/4K，由模型根据提示词或参考图决定画幅比例；固定像素尺寸会同时指定宽高和比例。",
         "limits": [
             "5.0 lite 支持 2K / 3K / 4K；4.5 支持 2K / 4K。",
             "自定义像素总像素需在 2560×1440 到 4096×4096 之间。",
             "自定义像素宽高比需在 1:16 到 16:1 之间。",
         ],
         "how_to_choose": [
-            "只关心清晰度时选 2K/4K 档位，并在提示词里描述画幅。",
-            "需要精确横竖比例时选择具体像素尺寸。",
+            "想让模型按提示词或参考图自动判断横竖比例时，选择清晰度档位。",
+            "需要严格方图、横图、竖图或平台指定比例时，选择固定像素尺寸。",
         ],
     },
     "sequential": {
@@ -154,7 +142,7 @@ def _build_parameters(*, lite: bool) -> List[ModelParameter]:
             description="规格档位或宽高像素值。",
             help=SEEDREAM_HELP["size"],
             required=False,
-            default="2048x2048",
+            default="2K",
             constraint=ParameterConstraint(options=_seedream_size_options(include_3k=lite)),
             group="size",
             order=1,
@@ -320,7 +308,7 @@ class SeedreamImageService(BaseModelService[List[str]]):
         payload: Dict[str, Any] = {
             "model": self.model_info.api_model_name or self.model_info.id,
             "prompt": prompt,
-            "size": size or "2048x2048",
+            "size": size or "2K",
             "sequential_image_generation": "auto" if sequential_enabled else "disabled",
             "response_format": "url",
             "stream": False,
