@@ -50,6 +50,7 @@ WAN27_VIDEOEDIT_RESOLUTIONS = {"720P", "1080P"}
 WAN27_COMMON_RATIOS = {"16:9", "9:16", "1:1", "4:3", "3:4"}
 WAN27_VIDEOEDIT_RATIOS = WAN27_COMMON_RATIOS
 WAN27_VIDEOEDIT_AUDIO_SETTINGS = {"auto", "origin"}
+WAN27_I2V_MODEL_IDS = {"wan2.7-i2v", "wan2.7-i2v-2026-04-25"}
 WAN27_IMAGE_FORMATS = {"JPEG", "JPG", "PNG", "BMP", "WEBP"}
 WAN27_VIDEO_FORMATS = {"mp4", "mov"}
 WAN27_AUDIO_FORMATS = {"wav", "mp3"}
@@ -468,7 +469,7 @@ class WanVideoAdapter(BaseVideoProviderAdapter):
 
     @staticmethod
     def _is_wan27_i2v(request: NormalizedVideoTaskRequest) -> bool:
-        return request.model_id == "wan2.7-i2v"
+        return request.model_id in WAN27_I2V_MODEL_IDS
 
     @staticmethod
     def _is_wan27_t2v(request: NormalizedVideoTaskRequest) -> bool:

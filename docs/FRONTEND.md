@@ -750,8 +750,9 @@ const startPolling = useCallback((taskId: string) => {
   - `快速导出`：传 `inline_images=false`，跳过图片内嵌并保留原 URL
 - 前端不要再用 JSON `content` 自行拼大文件下载；应通过 `downloadRunMarkdown` / `downloadRunHtml` 使用 `fetch` 获取 Blob，并从 `Content-Disposition` 解析文件名。
 - 下载触发时需要把 `<a>` 临时挂到 `document.body`，并延迟释放 `URL.createObjectURL()`，避免大文件在部分浏览器中不弹下载。
-- 视频工作室已新增 `视频续写` 能力，对应 `wan2.7-i2v`
-- `wan2.7-i2v` 在视频工作室支持：
+- 视频工作室已新增 `视频续写` 能力，默认对应长期主用模型 `wan2.7-i2v`
+- 视频工作室同时提供临时测试快照 `wan2.7-i2v-2026-04-25`，它不是 `wan2.7-i2v` 的别名，后续可删除
+- `wan2.7-i2v` / `wan2.7-i2v-2026-04-25` 在视频工作室支持：
   - 图生视频：首帧图，可选驱动音频
   - 首尾帧生视频：首帧图 + 尾帧图，可选驱动音频
   - 视频续写：首段视频必填，尾帧图可选，不显示驱动音频

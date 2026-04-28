@@ -45,11 +45,13 @@ def test_get_capabilities_endpoint_returns_multi_provider_schema(client, auth_he
     assert "wan2.7-t2v" in models
     assert "wan2.7-r2v" in models
     assert "wan2.7-i2v" in models
+    assert "wan2.7-i2v-2026-04-25" in models
     assert "wan2.7-videoedit" in models
     assert data["legacy_task_kind_map"]["video_edit"] == "video_edit_local"
     task_kind_defaults = {item["id"]: item["default_model_id"] for item in data["task_kinds"]}
     assert task_kind_defaults["text_to_video"] == "wan2.7-t2v"
     assert task_kind_defaults["reference_to_video"] == "wan2.7-r2v"
+    assert task_kind_defaults["video_extension"] == "wan2.7-i2v"
     kling_edit_params = {
         item["name"]
         for item in models["kling/kling-v3-omni-video-generation"]["task_profiles"]["video_edit_global"]["parameters"]
@@ -66,6 +68,8 @@ def test_get_capabilities_endpoint_returns_multi_provider_schema(client, auth_he
     assert wan27_reference_profile["ui_hints"]["supports_reference_voice"] is True
     wan27_extension_profile = models["wan2.7-i2v"]["task_profiles"]["video_extension"]
     assert "first_clip" in wan27_extension_profile["input_roles"]
+    wan27_snapshot_profile = models["wan2.7-i2v-2026-04-25"]["task_profiles"]["video_extension"]
+    assert "first_clip" in wan27_snapshot_profile["input_roles"]
     wan27_videoedit_params = {
         item["name"]
         for item in models["wan2.7-videoedit"]["task_profiles"]["video_edit_global"]["parameters"]
@@ -386,6 +390,41 @@ def test_wan27_i2v_builds_driving_audio_payload():
     assert payload["parameters"]["resolution"] == "1080P"
 
 
+def test_wan27_i2v_snapshot_builds_distinct_provider_payload():
+    adapter = WanVideoAdapter()
+    payload = adapter.build_provider_payload(
+        NormalizedVideoTaskRequest(
+            project_id="p1",
+            task_kind="keyframe_to_video",
+            provider="wan",
+            model_id="wan2.7-i2v-2026-04-25",
+            prompt="从开门动作自然过渡到尾帧姿态",
+            input_assets={
+                "first_frame": ["https://oss.example.com/first.png"],
+                "last_frame": ["https://oss.example.com/last.png"],
+                "audio": ["https://oss.example.com/drive.mp3"],
+            },
+            normalized_params={
+                "resolution": "720P",
+                "duration": 10,
+                "prompt_extend": False,
+                "watermark": True,
+                "seed": 42,
+            },
+        )
+    )
+
+    assert payload["model"] == "wan2.7-i2v-2026-04-25"
+    assert [item["type"] for item in payload["input"]["media"]] == ["first_frame", "last_frame", "driving_audio"]
+    assert payload["parameters"] == {
+        "resolution": "720P",
+        "duration": 10,
+        "prompt_extend": False,
+        "watermark": True,
+        "seed": 42,
+    }
+
+
 def test_preview_payload_returns_wan27_provider_payload(client, auth_header, monkeypatch):
     project_id = _create_project(client, auth_header)
 
@@ -424,6 +463,49 @@ def test_preview_payload_returns_wan27_provider_payload(client, auth_header, mon
     data = resp.json()
     assert data["canonical_request"]["task_kind"] == "video_extension"
     assert data["provider_payload"]["model"] == "wan2.7-i2v"
+    media = data["provider_payload"]["input"]["media"]
+    assert media[0]["type"] == "first_clip"
+    assert media[1]["type"] == "last_frame"
+
+
+def test_preview_payload_returns_wan27_snapshot_provider_payload(client, auth_header, monkeypatch):
+    project_id = _create_project(client, auth_header)
+
+    async def fake_validate_video(url: str, label: str):
+        return {"duration": 4.0, "width": 1280, "height": 720, "aspect_ratio": 16 / 9, "format": "mp4", "file_size": 1024}
+
+    async def fake_validate_image(url: str, label: str):
+        return {"width": 1280, "height": 720, "aspect_ratio": 16 / 9, "format": "PNG", "file_size": 1024, "has_alpha": False}
+
+    monkeypatch.setattr("app.services.video_adapters._validate_wan27_video", fake_validate_video)
+    monkeypatch.setattr("app.services.video_adapters._validate_wan27_image", fake_validate_image)
+
+    resp = client.post(
+        "/api/video-studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "task_kind": "video_extension",
+            "provider": "wan",
+            "model_id": "wan2.7-i2v-2026-04-25",
+            "model": "wan2.7-i2v-2026-04-25",
+            "prompt": "续写机械臂打开柜门后的推进镜头",
+            "input_assets": {
+                "first_clip": ["https://oss.example.com/clip.mp4"],
+                "last_frame": ["https://oss.example.com/last.png"],
+            },
+            "normalized_params": {
+                "resolution": "1080P",
+                "duration": 5,
+                "prompt_extend": True,
+                "watermark": False,
+            },
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["canonical_request"]["model_id"] == "wan2.7-i2v-2026-04-25"
+    assert data["provider_payload"]["model"] == "wan2.7-i2v-2026-04-25"
     media = data["provider_payload"]["input"]["media"]
     assert media[0]["type"] == "first_clip"
     assert media[1]["type"] == "last_frame"

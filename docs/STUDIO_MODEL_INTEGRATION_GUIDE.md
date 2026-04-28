@@ -189,6 +189,7 @@
 例如：
 - `wan2.7-videoedit` 应该归入现有 `video_edit_global`
 - `wan2.7-i2v` 支持 `image_to_video`、`keyframe_to_video`，但还新增了 `video_extension`
+- `wan2.7-i2v-2026-04-25` 这类带日期快照模型应作为独立模型接入，不能默认当成主线模型别名；除非 spec 明确要求，否则也不替换现有默认模型
 
 ### 第 3 步：先写 schema，再写前端
 

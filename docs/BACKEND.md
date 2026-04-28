@@ -487,9 +487,9 @@ response = await asyncio.to_thread(MultiModalConversation.call, api_key=key, **p
   - 图片解码失败会返回内容类型和字节数
   - 平台不再因透明 PNG 直接阻断，是否最终支持以厂商返回结果为准
   - 预检会做短间隔重试，避免一次网络抖动直接把测评单元标为 `unsupported`
-- 视频工作室新增 `video_extension` 任务类型，当前由 `wan2.7-i2v` 承载
-- `WanVideoAdapter` 已加入 `wan2.7-i2v` / `wan2.7-videoedit` 的专用校验与 payload builder：
-  - `wan2.7-i2v`：支持 `first_frame`、`last_frame`、`driving_audio`、`first_clip`
+- 视频工作室新增 `video_extension` 任务类型，当前默认由 `wan2.7-i2v` 承载
+- `WanVideoAdapter` 已加入 `wan2.7-i2v`、临时快照 `wan2.7-i2v-2026-04-25`、`wan2.7-videoedit` 的专用校验与 payload builder：
+  - `wan2.7-i2v` / `wan2.7-i2v-2026-04-25`：支持 `first_frame`、`last_frame`、`driving_audio`、`first_clip`；两者是独立模型 ID，payload 不做别名改写
   - `wan2.7-videoedit`：支持 1 个 `video` + 最多 3 个 `reference_image`
 - `preview-payload` 与真实提交共用同一套构参逻辑，开发者模式可直接核对 `wan2.7` 请求体
 

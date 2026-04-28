@@ -974,7 +974,7 @@ def _wan27_video_models() -> Dict[str, Dict[str, Any]]:
         ),
     ]
 
-    return {
+    models = {
         "wan2.7-t2v": _build_model(
             model_id="wan2.7-t2v",
             name="万相 2.7 文生视频",
@@ -1277,6 +1277,18 @@ def _wan27_video_models() -> Dict[str, Dict[str, Any]]:
             },
         ),
     }
+    snapshot_model = deepcopy(models["wan2.7-i2v"])
+    snapshot_model["id"] = "wan2.7-i2v-2026-04-25"
+    snapshot_model["name"] = "万相 2.7 图生视频 2026-04-25 快照"
+    snapshot_model["description"] = "用于临时测试 2026-04-25 快照效果的万相 2.7 图生视频模型；长期主用模型仍为 wan2.7-i2v"
+    snapshot_model["doc_url"] = "docs/阿里云模型api文档/万相-图生视频2.7.md"
+    snapshot_model["ui_hints"] = {
+        **snapshot_model.get("ui_hints", {}),
+        "temporary_snapshot": True,
+        "removal_note": "该快照模型仅用于阶段性效果测试，后续可从能力 schema 中移除。",
+    }
+    models["wan2.7-i2v-2026-04-25"] = snapshot_model
+    return models
 
 
 def _wan_vace_models() -> Dict[str, Dict[str, Any]]:

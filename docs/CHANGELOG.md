@@ -43,6 +43,10 @@
   - `video_capabilities.py` 新增参数级 `help`
   - `ui_hints.asset_help` 和 `ui_hints.prompt_help` 升级为结构化帮助
   - Kling / Vidu / Wan 的关键参数和素材位说明统一由后端 schema 下发
+- 视频工作室：临时接入 `wan2.7-i2v-2026-04-25` 快照模型
+  - 与长期主用 `wan2.7-i2v` 并存，不作为别名、不替换默认模型
+  - 支持图生视频、首尾帧生视频和视频续写，复用 wan2.7 i2v 新版 `video-synthesis` 请求结构
+  - 开发者模式和真实提交 payload 保留用户选择的独立模型 ID，便于对比快照效果
 - 视频工作室：接入 `wanx2.1-vace-plus`
   - 新增 `video_repainting` 视频重绘任务类型
   - 新增 `video_edit` 局部编辑任务类型
