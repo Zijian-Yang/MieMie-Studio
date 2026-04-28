@@ -302,6 +302,7 @@ class ImageBenchmarkCellResult(BaseModel):
 - `interactive_edit` 样例使用 `bbox_list` 保存交互式框选数据，数组顺序与有效输入图顺序一致；不需要框选的图片位置也必须保留空数组 `[]`。
 - 数据集导入时可启用图片转存到当前 OSS，但数据模型仍只保存 URL，不保存图片二进制。
 - `unsupported` 代表前置校验未通过，常见于模型不支持、输入图无法读取或暂时下载失败。
+- run 创建后会立即写入完整 `pending` cell 矩阵；运行中 `cell_results` 会增量包含 `running` 与已完成 cell，`stats` 包含 `pending_count`、`running_count`、`completed_count`。
 - 自动重试时最终 `cell_results` 会累计所有尝试产生的 `task_ids` 和 `request_ids`。
 
 ### VideoBenchmarkDataset / Suite / Run（视频测评）
@@ -370,8 +371,10 @@ class VideoBenchmarkCellResult(BaseModel):
 说明：
 - v1 仅支持首帧生视频，模型来自视频工作室 capability 中支持 `image_to_video` 的条目。
 - `duration` 是样例级可选覆盖值，优先级高于 suite baseline 与模型 override。
+- 前端视频测评页不再编辑 `baseline_params`，新建、保存和运行时保持 `{}`；该字段保留用于历史记录和外部 API 兼容。
 - `group_count` 是视频测评层参数，保存在 `effective_params` 和 `canonical_request` 中，用于同一 cell 生成 1-5 条输出；provider payload 中不保留该参数。
-- 输出视频只保存 URL 与可选缩略信息，不保存视频二进制；同一 cell 可保存多条 `output_videos`。
+- run 创建后会立即写入完整 `pending` cell 矩阵；运行中 `cell_results` 会增量包含 `running` 与已完成 cell，`stats` 包含 `pending_count`、`running_count`、`completed_count`。
+- 输出视频只保存 URL 与可选缩略信息，不保存视频二进制；同一 cell 可保存多条 `output_videos`，且 `status="running"` 时也可能已有部分输出。
 
 ### VideoStudioTask（视频工作室任务）
 

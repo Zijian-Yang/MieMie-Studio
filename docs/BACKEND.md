@@ -496,6 +496,8 @@ response = await asyncio.to_thread(MultiModalConversation.call, api_key=key, **p
 # 图片测评运行时
 
 - 图片测评由 `routers/image_benchmark.py` 提供 API，由 `services/image_benchmark_runtime.py` 复用图片工作室的模型能力、payload 构造和生成函数。
+- 测评运行启动时立即保存完整 `pending` cell 矩阵；后台执行中通过 per-run `asyncio.Lock` 合并写入 `running` 与终态 cell，避免并发单元互相覆盖。
+- `GET /runs/{id}` 在 run 仍为 `running` 时会返回已完成 cell，`stats` 包含 `pending_count`、`running_count`、`completed_count`，前端轮询可即时展示结果。
 - 数据集支持 `schema_version=2.0` 的 `image_slots`，使用 `position` 保留“图1 / 图2 / 图N”的顺序语义；旧版 `input_images` 会在导入时迁移为槽位。
 - 测评任务类型包含 `text_to_image`、`image_edit`、`interactive_edit`。`interactive_edit` 仅由 wan2.7 image 系列承载，复用图片工作室的 `bbox_list` 构参和坐标归一化逻辑；`image_edit` 会显式剥离遗留 `bbox_list`。
 - `ImageBenchmarkDatasetItem.bbox_list` 与 `image_slots` 一起存储、导出和导入，长度必须与有效输入图数量一致；每张图最多 2 个框，不需要框选的位置必须保留空数组 `[]`。
@@ -526,7 +528,9 @@ response = await asyncio.to_thread(MultiModalConversation.call, api_key=key, **p
 - v1 固定支持 `image_to_video` 首帧生视频；capabilities 会自动筛选所有支持该任务类型的视频模型。
 - 数据集独立存储在 `video_benchmark_datasets`，样例包含首帧图、prompt、负向提示词、标签、可选驱动音频和可选样例级 `duration`。
 - 单元参数合并顺序为模型默认值、suite `baseline_params`、suite `model_overrides[model_id]`、case `duration`。case 时长仅影响当前单元，不回写 suite。
+- 前端视频测评页不暴露 `Baseline Params JSON`，会在创建、保存、运行和预览时传空 `baseline_params`；后端字段只作为旧数据和外部 API 兼容层保留。
 - capabilities 会注入测评层 `group_count`（生成数量，1-5），用于一个 case × model 单元生成多条视频。`group_count` 会进入 `effective_params` / `canonical_request`，但 adapter validate / submit / fetch 使用移除该参数后的 provider request，避免下发给厂商。
+- 视频测评与图片测评一样采用增量持久化：run 创建即保存完整 `pending` 矩阵，cell 开始后写入 `running`，每条视频完成 OSS 持久化后立即更新 `output_videos`，最后写入终态。
 - 运行时按 case × model 构造 `NormalizedVideoTaskRequest`，执行 adapter validate / submit / fetch，并保存：
   - `effective_params`
   - `canonical_request`

@@ -1237,11 +1237,13 @@ const ImageBenchmarkPage = () => {
                 <Empty description="还没有运行记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />
               ) : (
                 <Space direction="vertical" size={16} style={{ width: '100%' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 16 }}>
                     <Statistic title="样例数" value={currentRun.stats.case_count || 0} />
                     <Statistic title="模型数" value={currentRun.stats.model_count || 0} />
+                    <Statistic title="待运行" value={currentRun.stats.pending_count || 0} />
+                    <Statistic title="生成中" value={currentRun.stats.running_count || 0} />
                     <Statistic title="成功单元" value={currentRun.stats.success_count || 0} />
-                    <Statistic title="失败单元" value={currentRun.stats.failure_count || 0} />
+                    <Statistic title="失败/未支持" value={(currentRun.stats.failure_count || 0) + (currentRun.stats.unsupported_count || 0)} />
                   </div>
 
                   {getManualRetryCount(currentRun) > 0 && currentRun.status !== 'running' && (

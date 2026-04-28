@@ -8,7 +8,7 @@ import asyncio
 from dataclasses import asdict, replace
 from datetime import datetime
 from html import escape as html_escape
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 
 from fastapi import HTTPException
 
@@ -241,6 +241,7 @@ async def execute_video_benchmark_cell(
     model_meta: Dict[str, Any],
     case_data: Dict[str, Any],
     effective_params: Dict[str, Any],
+    on_progress: Optional[Callable[[VideoBenchmarkCellResult], Awaitable[None]]] = None,
 ) -> VideoBenchmarkCellResult:
     """执行单个视频测评单元"""
 
@@ -287,8 +288,32 @@ async def execute_video_benchmark_cell(
     request_ids: List[str] = []
     task_ids: List[str] = []
     provider_result_meta: Dict[str, Any] = {}
+    output_videos: List[VideoBenchmarkOutputVideo] = []
+
+    async def notify_progress(status: str = "running", error_message: Optional[str] = None) -> None:
+        if not on_progress:
+            return
+        await on_progress(
+            VideoBenchmarkCellResult(
+                case_id=case_data.get("id") or "",
+                case_name=case_data.get("name") or "",
+                model_id=model_id,
+                model_name=model_name,
+                status=status,
+                output_videos=[video.model_copy(deep=True) for video in output_videos],
+                error_message=error_message,
+                request_ids=list(request_ids),
+                task_ids=list(task_ids),
+                validation_warnings=list(warnings),
+                effective_params=dict(effective_params),
+                canonical_request=canonical_request,
+                provider_payload=provider_payload,
+                provider_result_meta=dict(provider_result_meta),
+            )
+        )
 
     try:
+        await notify_progress()
         submit_results = list(await asyncio.gather(*[
             adapter.submit(adapter_request, seed_offset=index)
             for index in range(group_count)
@@ -316,6 +341,7 @@ async def execute_video_benchmark_cell(
                 if result.task_id
             },
         }
+        await notify_progress()
     except Exception as exc:
         return VideoBenchmarkCellResult(
             case_id=case_data.get("id") or "",
@@ -335,7 +361,6 @@ async def execute_video_benchmark_cell(
 
     final_status = "failed"
     final_error: Optional[str] = None
-    output_videos: List[VideoBenchmarkOutputVideo] = []
     for task_id in task_ids:
         task_completed = False
         for attempt in range(VIDEO_BENCHMARK_MAX_POLL_ATTEMPTS):
@@ -371,6 +396,7 @@ async def execute_video_benchmark_cell(
                     final_error = str(exc)
                     break
                 output_videos.append(VideoBenchmarkOutputVideo(url=persisted_url))
+                await notify_progress()
                 task_completed = True
                 break
             if normalized_status == "FAILED":

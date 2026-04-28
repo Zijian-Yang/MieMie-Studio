@@ -20,6 +20,7 @@ from pydantic import BaseModel, model_validator
 
 from app.config import get_user_config_dir, set_user_config_dir
 from app.models.image_benchmark import (
+    ImageBenchmarkCellResult,
     ImageBenchmarkDataset,
     ImageBenchmarkDatasetImage,
     ImageBenchmarkDatasetItem,
@@ -41,6 +42,9 @@ from app.services.storage import get_current_user_id, set_current_user, storage_
 from app.services.user_service import get_user_service
 
 router = APIRouter()
+
+IMAGE_BENCHMARK_TERMINAL_CELL_STATUSES = {"completed", "failed", "unsupported", "skipped"}
+_image_benchmark_run_locks: Dict[str, asyncio.Lock] = {}
 
 _share_index_lock = threading.RLock()
 
@@ -585,6 +589,125 @@ def _cell_key(case_id: str, model_id: str) -> str:
     return f"{case_id}__{model_id}"
 
 
+def _get_image_run_lock(run_id: str) -> asyncio.Lock:
+    lock = _image_benchmark_run_locks.get(run_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _image_benchmark_run_locks[run_id] = lock
+    return lock
+
+
+def _ordered_image_dataset_items(run: ImageBenchmarkRun) -> List[Dict[str, Any]]:
+    return sorted(
+        (run.dataset_snapshot or {}).get("items") or [],
+        key=lambda item: item.get("sort_order", 0),
+    )
+
+
+def _pending_image_cell(case_data: Dict[str, Any], model_meta: Dict[str, Any], status: str = "pending") -> ImageBenchmarkCellResult:
+    return ImageBenchmarkCellResult(
+        case_id=case_data.get("id") or "",
+        case_name=case_data.get("name") or "",
+        model_id=model_meta["id"],
+        model_name=model_meta.get("name") or model_meta["id"],
+        status=status,
+    )
+
+
+def _ordered_image_cells(
+    run: ImageBenchmarkRun,
+    cell_map: Dict[str, ImageBenchmarkCellResult],
+) -> List[ImageBenchmarkCellResult]:
+    ordered_cells: List[ImageBenchmarkCellResult] = []
+    for case_data in _ordered_image_dataset_items(run):
+        for model_meta in run.model_snapshots or []:
+            cell = cell_map.get(_cell_key(case_data.get("id", ""), model_meta["id"]))
+            if cell:
+                ordered_cells.append(cell)
+    return ordered_cells
+
+
+def _image_run_stats(run: ImageBenchmarkRun, cells: List[ImageBenchmarkCellResult]) -> Dict[str, Any]:
+    pending_count = sum(1 for cell in cells if cell.status == "pending")
+    running_count = sum(1 for cell in cells if cell.status == "running")
+    completed_count = sum(1 for cell in cells if cell.status == "completed")
+    failure_count = sum(1 for cell in cells if cell.status == "failed")
+    unsupported_count = sum(1 for cell in cells if cell.status == "unsupported")
+    skipped_count = sum(1 for cell in cells if cell.status == "skipped")
+    return {
+        "case_count": len(_ordered_image_dataset_items(run)),
+        "model_count": len(run.model_snapshots or []),
+        "cell_count": len(cells),
+        "pending_count": pending_count,
+        "running_count": running_count,
+        "completed_count": completed_count,
+        "success_count": completed_count,
+        "failure_count": failure_count,
+        "unsupported_count": unsupported_count,
+        "skipped_count": skipped_count,
+        "retried_failure_count": len(run.retry_targets or []),
+    }
+
+
+def _refresh_image_run_status(run: ImageBenchmarkRun) -> ImageBenchmarkRun:
+    run.stats = _image_run_stats(run, run.cell_results or [])
+    active_count = (run.stats.get("pending_count") or 0) + (run.stats.get("running_count") or 0)
+    if active_count > 0:
+        run.status = "running"
+        run.finished_at = None
+    else:
+        success_count = run.stats.get("success_count") or 0
+        failure_count = run.stats.get("failure_count") or 0
+        run.status = "failed" if run.cell_results and success_count == 0 and failure_count > 0 else "completed"
+        run.finished_at = run.finished_at or datetime.now()
+    run.updated_at = datetime.now()
+    return run
+
+
+def _initial_image_cells(
+    dataset_items: List[Dict[str, Any]],
+    model_snapshots: List[Dict[str, Any]],
+    *,
+    retry_target_keys: Optional[set[str]] = None,
+    preserved_cells: Optional[List[ImageBenchmarkCellResult]] = None,
+) -> List[ImageBenchmarkCellResult]:
+    preserved_map = {
+        _cell_key(cell.case_id, cell.model_id): cell
+        for cell in preserved_cells or []
+    }
+    cells: List[ImageBenchmarkCellResult] = []
+    for case_data in dataset_items:
+        for model_meta in model_snapshots:
+            key = _cell_key(case_data.get("id", ""), model_meta["id"])
+            if retry_target_keys is not None and key not in retry_target_keys:
+                cells.append(preserved_map.get(key) or _pending_image_cell(case_data, model_meta, status="skipped"))
+                continue
+            cells.append(_pending_image_cell(case_data, model_meta))
+    return cells
+
+
+async def _save_image_run_cell(run_id: str, cell: ImageBenchmarkCellResult) -> Optional[ImageBenchmarkRun]:
+    async with _get_image_run_lock(run_id):
+        run = storage_service.get_image_benchmark_run(run_id)
+        if not run:
+            return None
+        cell_map = {
+            _cell_key(existing.case_id, existing.model_id): existing
+            for existing in run.cell_results or []
+        }
+        key = _cell_key(cell.case_id, cell.model_id)
+        existing_cell = cell_map.get(key)
+        if existing_cell:
+            cell.id = existing_cell.id
+            cell.created_at = existing_cell.created_at
+        cell.updated_at = datetime.now()
+        cell_map[key] = cell
+        run.cell_results = _ordered_image_cells(run, cell_map)
+        _refresh_image_run_status(run)
+        storage_service.save_image_benchmark_run(run)
+        return run
+
+
 async def _validate_suite_payload(
     *,
     project_id: str,
@@ -635,11 +758,6 @@ async def _background_run_suite(run_id: str, suite_id: str, user_id: Optional[st
             for target in (run.retry_targets or [])
             if target.get("case_id") and target.get("model_id")
         }
-        existing_results_map = {
-            _cell_key(cell.case_id, cell.model_id): cell
-            for cell in run.cell_results
-        }
-
         async def run_cell(index: int, case_data: Dict[str, Any], model_meta: Dict[str, Any]):
             effective_params = merge_effective_params(
                 model_meta,
@@ -648,6 +766,17 @@ async def _background_run_suite(run_id: str, suite_id: str, user_id: Optional[st
                 run.task_kind,
             )
             async with global_semaphore, model_semaphores[model_meta["id"]]:
+                await _save_image_run_cell(
+                    run_id,
+                    ImageBenchmarkCellResult(
+                        case_id=case_data.get("id") or "",
+                        case_name=case_data.get("name") or "",
+                        model_id=model_meta["id"],
+                        model_name=model_meta.get("name") or model_meta["id"],
+                        status="running",
+                        effective_params=effective_params,
+                    ),
+                )
                 cell = await execute_benchmark_cell(
                     project_id=run.project_id,
                     task_kind=run.task_kind,
@@ -655,6 +784,7 @@ async def _background_run_suite(run_id: str, suite_id: str, user_id: Optional[st
                     case_data=case_data,
                     effective_params=effective_params,
                 )
+                await _save_image_run_cell(run_id, cell)
                 return index, cell
 
         tasks = []
@@ -668,41 +798,11 @@ async def _background_run_suite(run_id: str, suite_id: str, user_id: Optional[st
                 tasks.append(run_cell(index, case_data, model_meta))
                 index += 1
 
-        results = await asyncio.gather(*tasks) if tasks else []
-        retried_cells_map = {
-            _cell_key(cell.case_id, cell.model_id): cell
-            for _, cell in sorted(results, key=lambda item: item[0])
-        }
-        merged_cells_map = {
-            **existing_results_map,
-            **retried_cells_map,
-        }
-
-        ordered_cells = []
-        for case_data in dataset_items:
-            for model_meta in model_snapshots:
-                key = _cell_key(case_data.get("id", ""), model_meta["id"])
-                cell = merged_cells_map.get(key)
-                if cell:
-                    ordered_cells.append(cell)
-
-        run.cell_results = ordered_cells
-        run.finished_at = datetime.now()
-        success_count = sum(1 for cell in ordered_cells if cell.status == "completed")
-        failure_count = sum(1 for cell in ordered_cells if cell.status == "failed")
-        unsupported_count = sum(1 for cell in ordered_cells if cell.status == "unsupported")
-        skipped_count = sum(1 for cell in ordered_cells if cell.status == "skipped")
-        run.stats = {
-            "case_count": len(dataset_items),
-            "model_count": len(model_snapshots),
-            "cell_count": len(ordered_cells),
-            "success_count": success_count,
-            "failure_count": failure_count,
-            "unsupported_count": unsupported_count,
-            "skipped_count": skipped_count,
-            "retried_failure_count": len(retry_target_keys),
-        }
-        run.status = "failed" if ordered_cells and success_count == 0 and failure_count > 0 else "completed"
+        await asyncio.gather(*tasks) if tasks else []
+        run = storage_service.get_image_benchmark_run(run_id)
+        if not run:
+            return
+        _refresh_image_run_status(run)
         storage_service.save_image_benchmark_run(run)
 
         suite.status = "failed" if run.status == "failed" else "completed"
@@ -727,6 +827,8 @@ async def _background_run_suite(run_id: str, suite_id: str, user_id: Optional[st
         storage_service.save_image_benchmark_run(run)
         suite.status = "failed"
         storage_service.save_image_benchmark_suite(suite)
+    finally:
+        _image_benchmark_run_locks.pop(run_id, None)
 
 
 @router.get("/capabilities")
@@ -1020,18 +1122,22 @@ async def run_suite(suite_id: str):
     if migration_report["succeeded"] > 0:
         dataset.updated_at = datetime.now()
         storage_service.save_image_benchmark_dataset(dataset)
+    dataset_snapshot = dataset.model_dump()
+    dataset_items = sorted(dataset_snapshot.get("items") or [], key=lambda item: item.get("sort_order", 0))
     run = ImageBenchmarkRun(
         suite_id=suite.id,
         project_id=suite.project_id,
         dataset_id=dataset.id,
         task_kind=dataset.task_kind,
         status="running",
-        dataset_snapshot=dataset.model_dump(),
+        dataset_snapshot=dataset_snapshot,
         model_snapshots=model_snapshots,
         baseline_params=suite.baseline_params,
         model_overrides=suite.model_overrides,
+        cell_results=_initial_image_cells(dataset_items, model_snapshots),
         started_at=datetime.now(),
     )
+    _refresh_image_run_status(run)
     storage_service.save_image_benchmark_run(run)
 
     suite.status = "running"
@@ -1152,6 +1258,11 @@ async def retry_failed_cells(run_id: str):
         {"case_id": cell.case_id, "model_id": cell.model_id}
         for cell in retryable_cells
     ]
+    retry_target_keys = {
+        _cell_key(target["case_id"], target["model_id"])
+        for target in retry_targets
+    }
+    dataset_items = sorted((source_run.dataset_snapshot or {}).get("items") or [], key=lambda item: item.get("sort_order", 0))
 
     retry_run = ImageBenchmarkRun(
         suite_id=source_run.suite_id,
@@ -1163,11 +1274,17 @@ async def retry_failed_cells(run_id: str):
         model_snapshots=source_run.model_snapshots,
         baseline_params=source_run.baseline_params,
         model_overrides=source_run.model_overrides,
-        cell_results=preserved_cells,
+        cell_results=_initial_image_cells(
+            dataset_items,
+            source_run.model_snapshots or [],
+            retry_target_keys=retry_target_keys,
+            preserved_cells=preserved_cells,
+        ),
         retry_source_run_id=source_run.id,
         retry_targets=retry_targets,
         started_at=datetime.now(),
     )
+    _refresh_image_run_status(retry_run)
     storage_service.save_image_benchmark_run(retry_run)
 
     suite.status = "running"

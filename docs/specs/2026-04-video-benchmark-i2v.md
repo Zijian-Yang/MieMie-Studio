@@ -14,7 +14,9 @@
 - 视频数据集对标图片数据集的编辑体验，支持行多选、批量导入 Prompt、批量首帧建样例、批量填充首帧、批量编辑字段、选中行排序和删除。
 - 缺首帧样例允许暂存、导入、保存和导出；数据集响应通过 `warnings` / `blocking_issues` 提示，启动测评和 payload preview 前必须补齐首帧。
 - 样例级 `duration` 只覆盖当前 case × model 单元的有效参数，不回写 suite 配置。
+- 前端不提供 `Baseline Params JSON` 入口，常规配置都放在参与测评的每个模型独立参数表单中；后端 `baseline_params` 字段仅保留 API 兼容，前端创建、保存、运行和预览时传 `{}`。
 - 视频测评在模型参数中提供测评层 `group_count`（生成数量），范围 1-5；它控制每个 case × model 单元提交多少个厂商任务，并保存为同一单元的多条 `output_videos`。
+- 测评运行中即时展示已完成结果：run 创建即返回完整 `pending` 矩阵，cell 执行中保存 `running` 状态，单条视频完成 OSS 持久化后立即追加到 `output_videos`。
 - 报告导出保留视频 URL；HTML 报告使用 `<video controls preload="metadata">`，不内嵌视频字节。
 
 ## 数据与运行
@@ -24,7 +26,9 @@
   - `video_benchmark_suites`
   - `video_benchmark_runs`
 - 单元参数合并顺序：模型默认值 → suite `baseline_params` → suite `model_overrides[model_id]` → case `duration`。
+- 产品界面只编辑 `model_overrides[model_id]`；`baseline_params` 可被旧数据或 API 调用读取，但新前端流程始终保持为空对象。
 - `group_count` 参与 `effective_params` 和 `canonical_request` 快照，但属于测评层调度参数；构造 provider payload、validate、submit、fetch 时会从 adapter request 中移除，避免透传给厂商。
+- 增量保存使用 per-run `asyncio.Lock`，每次写入前重新读取最新 run 并按 `case_id + model_id` 合并 cell，避免并发写覆盖。
 - case `duration` 若对某模型非法，该单元标记 `unsupported`，其他模型继续运行。
 - 后端运行复用视频工作室 `NormalizedVideoTaskRequest` 与 provider adapter，保存：
   - `effective_params`

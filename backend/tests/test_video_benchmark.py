@@ -89,6 +89,39 @@ class FakeVideoAdapter:
         )
 
 
+class PartialProgressVideoAdapter(FakeVideoAdapter):
+    def __init__(self, run_id: str):
+        self.run_id = run_id
+        self.partial_seen = False
+
+    async def fetch(self, request, task_id):
+        if task_id.endswith("-1"):
+            run = storage_service.get_video_benchmark_run(self.run_id)
+            cell = run.cell_results[0]
+            self.partial_seen = (
+                run.status == "running"
+                and cell.status == "running"
+                and [video.url for video in cell.output_videos] == [
+                    "https://oss.example.com/task-wan2.7-i2v-8-0.mp4"
+                ]
+            )
+        return await super().fetch(request, task_id)
+
+
+class PartialFailureVideoAdapter(FakeVideoAdapter):
+    async def fetch(self, request, task_id):
+        if task_id.endswith("-1"):
+            return VideoStatusResult(
+                status="FAILED",
+                request_id=f"fetch-{task_id}",
+                key_profile="test",
+                error_code="MockFailure",
+                error_message="第二条视频失败",
+                raw_output={"task_id": task_id},
+            )
+        return await super().fetch(request, task_id)
+
+
 @pytest.mark.asyncio
 async def test_video_benchmark_capabilities_only_include_image_to_video_models():
     capabilities = await video_benchmark_runtime.get_video_benchmark_capabilities()
@@ -373,6 +406,8 @@ async def test_run_suite_saves_video_results_and_case_duration_override(client, 
     run_resp = client.post(f"/api/video-benchmark/suites/{suite['id']}/run", headers=auth_header)
     assert run_resp.status_code == 200
     run_id = run_resp.json()["run"]["id"]
+    assert run_resp.json()["run"]["cell_results"][0]["status"] == "pending"
+    assert run_resp.json()["run"]["stats"]["pending_count"] == 1
 
     await video_benchmark_router._background_run_suite(run_id, suite["id"], user["id"], None)
 
@@ -409,6 +444,91 @@ async def test_run_suite_saves_video_results_and_case_duration_override(client, 
     ]
     assert run.cell_results[0].provider_result_meta["usage"]["duration"] == 8
     assert run.cell_results[0].provider_result_meta["group_count"] == 3
+    assert run.stats["pending_count"] == 0
+    assert run.stats["running_count"] == 0
+    assert run.stats["completed_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_video_benchmark_persists_each_output_while_cell_is_running(client, auth_header, registered_user, monkeypatch):
+    _patch_async_create_task(monkeypatch)
+    _token, user = registered_user
+    project_id = _create_project(client, auth_header)
+    dataset = client.post(
+        "/api/video-benchmark/datasets",
+        headers=auth_header,
+        json=_first_frame_payload(project_id, duration=8),
+    ).json()["dataset"]
+    suite = client.post(
+        "/api/video-benchmark/suites",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "首帧实时测评",
+            "dataset_id": dataset["id"],
+            "selected_models": ["wan2.7-i2v"],
+            "model_overrides": {"wan2.7-i2v": {"duration": 8, "group_count": 3}},
+        },
+    ).json()["suite"]
+    run_resp = client.post(f"/api/video-benchmark/suites/{suite['id']}/run", headers=auth_header)
+    run_id = run_resp.json()["run"]["id"]
+    adapter = PartialProgressVideoAdapter(run_id)
+    monkeypatch.setattr(video_benchmark_runtime, "get_video_adapter", lambda _provider: adapter)
+    monkeypatch.setattr(video_benchmark_runtime.oss_service, "should_persist_generated_url", lambda _url: False)
+
+    await video_benchmark_router._background_run_suite(run_id, suite["id"], user["id"], None)
+
+    set_current_user(user["id"])
+    try:
+        run = storage_service.get_video_benchmark_run(run_id)
+    finally:
+        set_current_user(None)
+
+    assert adapter.partial_seen is True
+    assert run.status == "completed"
+    assert len(run.cell_results[0].output_videos) == 3
+
+
+@pytest.mark.asyncio
+async def test_video_benchmark_keeps_partial_outputs_when_later_group_fails(client, auth_header, registered_user, monkeypatch):
+    _patch_async_create_task(monkeypatch)
+    monkeypatch.setattr(video_benchmark_runtime, "get_video_adapter", lambda _provider: PartialFailureVideoAdapter())
+    monkeypatch.setattr(video_benchmark_runtime.oss_service, "should_persist_generated_url", lambda _url: False)
+    _token, user = registered_user
+    project_id = _create_project(client, auth_header)
+    dataset = client.post(
+        "/api/video-benchmark/datasets",
+        headers=auth_header,
+        json=_first_frame_payload(project_id, duration=8),
+    ).json()["dataset"]
+    suite = client.post(
+        "/api/video-benchmark/suites",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "部分失败测评",
+            "dataset_id": dataset["id"],
+            "selected_models": ["wan2.7-i2v"],
+            "model_overrides": {"wan2.7-i2v": {"duration": 8, "group_count": 3}},
+        },
+    ).json()["suite"]
+    run_resp = client.post(f"/api/video-benchmark/suites/{suite['id']}/run", headers=auth_header)
+    run_id = run_resp.json()["run"]["id"]
+
+    await video_benchmark_router._background_run_suite(run_id, suite["id"], user["id"], None)
+
+    set_current_user(user["id"])
+    try:
+        run = storage_service.get_video_benchmark_run(run_id)
+    finally:
+        set_current_user(None)
+
+    cell = run.cell_results[0]
+    assert cell.status == "failed"
+    assert cell.error_message == "第二条视频失败"
+    assert [video.url for video in cell.output_videos] == [
+        "https://oss.example.com/task-wan2.7-i2v-8-0.mp4"
+    ]
 
 
 @pytest.mark.asyncio

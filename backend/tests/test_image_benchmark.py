@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 
 from app.models.image_benchmark import ImageBenchmarkCellResult, ImageBenchmarkOutputImage, ImageBenchmarkRun
@@ -428,6 +430,76 @@ def test_run_suite_migrates_dataset_snapshot_images_to_current_oss(client, auth_
 
     stored_dataset = client.get(f"/api/image-benchmark/datasets/{dataset['id']}", headers=auth_header).json()["dataset"]
     assert stored_dataset["items"][0]["image_slots"][0]["image"]["url"] == "https://current-oss.example.com/ref.png"
+
+
+@pytest.mark.asyncio
+async def test_image_benchmark_persists_pending_matrix_and_completed_cells_incrementally(client, auth_header, registered_user, monkeypatch):
+    project_id = _create_project(client, auth_header)
+    _, user = registered_user
+    dataset_resp = client.post(
+        "/api/image-benchmark/datasets",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "实时图片测评数据集",
+            "task_kind": "text_to_image",
+            "items": [
+                {"name": "样例1", "prompt": "海报 1", "tags": []},
+                {"name": "样例2", "prompt": "海报 2", "tags": []},
+            ],
+        },
+    )
+    dataset = dataset_resp.json()["dataset"]
+    suite_resp = client.post(
+        "/api/image-benchmark/suites",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "实时图片测评",
+            "dataset_id": dataset["id"],
+            "selected_models": ["wan2.7-image-pro"],
+            "baseline_params": {"n": 1},
+        },
+    )
+    suite = suite_resp.json()["suite"]
+
+    _patch_async_create_task(monkeypatch)
+    run_resp = client.post(f"/api/image-benchmark/suites/{suite['id']}/run", headers=auth_header)
+    assert run_resp.status_code == 200
+    run_id = run_resp.json()["run"]["id"]
+    assert [cell["status"] for cell in run_resp.json()["run"]["cell_results"]] == ["pending", "pending"]
+    assert run_resp.json()["run"]["stats"]["pending_count"] == 2
+
+    partial_seen = {"value": False}
+
+    async def fake_execute_benchmark_cell(**kwargs):
+        if kwargs["case_data"]["name"] == "样例2":
+            for _ in range(20):
+                run = storage_service.get_image_benchmark_run(run_id)
+                first_cell = next(cell for cell in run.cell_results if cell.case_name == "样例1")
+                if run.status == "running" and first_cell.status == "completed":
+                    partial_seen["value"] = True
+                    break
+                await asyncio.sleep(0)
+        return ImageBenchmarkCellResult(
+            case_id=kwargs["case_data"]["id"],
+            case_name=kwargs["case_data"]["name"],
+            model_id=kwargs["model_meta"]["id"],
+            model_name=kwargs["model_meta"]["name"],
+            status="completed",
+            output_images=[{"url": f"https://oss.example.com/{kwargs['case_data']['id']}.png"}],
+            effective_params=kwargs["effective_params"],
+        )
+
+    monkeypatch.setattr(image_benchmark_router, "execute_benchmark_cell", fake_execute_benchmark_cell)
+    await image_benchmark_router._background_run_suite(run_id, suite["id"], user["id"], None)
+
+    saved_run = client.get(f"/api/image-benchmark/runs/{run_id}", headers=auth_header).json()["run"]
+    assert partial_seen["value"] is True
+    assert saved_run["status"] == "completed"
+    assert [cell["status"] for cell in saved_run["cell_results"]] == ["completed", "completed"]
+    assert saved_run["stats"]["pending_count"] == 0
+    assert saved_run["stats"]["completed_count"] == 2
 
 
 def test_preview_cell_merges_baseline_and_override(client, auth_header):
@@ -1413,4 +1485,5 @@ async def test_retry_failed_cells_also_retries_unsupported(client, auth_header, 
     assert retry_resp.status_code == 200
     retry_run = retry_resp.json()["run"]
     assert retry_run["retry_targets"] == [{"case_id": dataset["items"][0]["id"], "model_id": "wan2.7-image"}]
-    assert retry_run["cell_results"] == []
+    assert retry_run["cell_results"][0]["status"] == "pending"
+    assert retry_run["cell_results"][0]["case_id"] == dataset["items"][0]["id"]

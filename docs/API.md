@@ -257,6 +257,8 @@ Authorization: Bearer {token}
 | POST | `/runs/{id}/retry-failures` | 重试状态为 `failed` 或 `unsupported` 的单元 |
 | POST | `/preview-cell` | 预览单个 case × model 的 canonical 请求与厂商 payload |
 
+运行接口会立即返回完整 `pending` cell 矩阵；后台执行中会增量写入 `running` / 终态 cell，`GET /runs/{id}` 可在 run 仍为 `running` 时看到已完成输出。`stats` 包含 `pending_count`、`running_count`、`completed_count`，前端通过轮询即时展示已完成结果。
+
 #### 测评报告导出
 
 `export-md-file` 与 `export-html-file` 是当前前端按钮使用的推荐接口，直接返回附件文件，避免超大 Markdown / HTML 通过 JSON 传输导致浏览器内存占用高或下载不触发。
@@ -380,7 +382,11 @@ v1 固定 `task_kind=image_to_video`。数据集 item 示例：
 
 单元有效参数合并顺序为：模型默认值 → suite `baseline_params` → suite `model_overrides[model_id]` → case `duration`。case 时长对某个模型不合法时，该单元会标记为 `unsupported`，不阻塞其他模型。
 
+前端视频测评页不再提供 `Baseline Params JSON` 输入，创建、保存、运行和 preview 时会把 `baseline_params` 置为 `{}`，常规参数全部通过每个参与模型的独立参数表单写入 `model_overrides[model_id]`。API 字段仍保留用于旧数据读取和外部调用兼容。
+
 `GET /capabilities` 会为每个首帧生视频模型额外暴露测评层参数 `group_count`（生成数量），默认 1，范围 1-5。它会写入 `effective_params` 与 `canonical_request.normalized_params`，用于控制一个 case × model 单元提交多少个厂商任务；构造 `provider_payload` 时会移除，不作为厂商参数透传。运行结果会把多条结果保存在同一个 cell 的 `output_videos[]`，并累计所有 `task_ids` / `request_ids`。
+
+`POST /suites/{id}/run` 会立即返回完整 `pending` cell 矩阵；后台执行中会增量写入 `running` / 终态 cell。`group_count > 1` 时，单条视频完成 OSS 持久化后会先追加到 `output_videos[]`，因此 `GET /runs/{id}` 可在 run 仍为 `running` 时看到部分可播放视频。`stats` 包含 `pending_count`、`running_count`、`completed_count`。
 
 报告导出不内嵌视频字节。Markdown 保留视频 URL，HTML 使用 `<video controls preload="metadata">` 播放输出视频。
 
