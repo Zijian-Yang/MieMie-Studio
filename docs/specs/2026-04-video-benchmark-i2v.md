@@ -15,7 +15,7 @@
 - 缺首帧样例允许暂存、导入、保存和导出；数据集响应通过 `warnings` / `blocking_issues` 提示，启动测评和 payload preview 前必须补齐首帧。
 - 样例级 `duration` 只覆盖当前 case × model 单元的有效参数，不回写 suite 配置。
 - 前端不提供 `Baseline Params JSON` 入口，常规配置都放在参与测评的每个模型独立参数表单中；后端 `baseline_params` 字段仅保留 API 兼容，前端创建、保存、运行和预览时传 `{}`。
-- 视频测评在模型参数中提供测评层 `group_count`（生成数量），范围 1-5；它控制每个 case × model 单元提交多少个厂商任务，并保存为同一单元的多条 `output_videos`。
+- 视频测评在模型参数中提供测评层 `group_count`（生成数量）；有限并发模型上限来自模型 `capabilities.max_concurrent`，同步无限并发模型不额外设置上限。它控制每个 case × model 单元提交多少个厂商任务，并保存为同一单元的多条 `output_videos`。
 - 测评运行中即时展示已完成结果：run 创建即返回完整 `pending` 矩阵，cell 执行中保存 `running` 状态，单条视频完成 OSS 持久化后立即追加到 `output_videos`。
 - 报告导出保留视频 URL；HTML 报告使用 `<video controls preload="metadata">`，不内嵌视频字节。
 
@@ -38,7 +38,7 @@
   - `task_ids`
   - `request_ids`
   - `output_videos`
-- 并发按模型 capability 的 `capabilities.max_concurrent` 执行；未声明时默认 1。同一单元从提交到终态都占用该模型 semaphore。
+- 并发与提交频率复用统一模型限流 helper：提交前按 `capabilities.submit_rate_limit` 排队；异步任务从提交成功到终态占用 `capabilities.max_concurrent` lease；共享池模型按 `capabilities.concurrency_pool_id` 共享 semaphore。
 
 ## 非目标
 

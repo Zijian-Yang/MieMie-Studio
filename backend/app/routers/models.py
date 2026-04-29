@@ -26,6 +26,12 @@ class ModelListResponse(BaseModel):
 
 def _format_model_for_frontend(model) -> dict:
     """格式化模型信息用于前端"""
+    from app.services.model_rate_limits import rate_limit_capabilities
+
+    capabilities = rate_limit_capabilities(
+        model.id,
+        model.capabilities.model_dump() if model.capabilities else {},
+    )
     return {
         "id": model.id,
         "name": model.name,
@@ -33,7 +39,7 @@ def _format_model_for_frontend(model) -> dict:
         "provider": model.provider,
         "description": model.description,
         "version": model.version,
-        "capabilities": model.capabilities.model_dump(),
+        "capabilities": capabilities,
         "parameters": [p.model_dump() for p in model.parameters],
         "default_values": model.get_default_values(),
         "supported_task_kinds": [task_kind.value for task_kind in model.supported_task_kinds],

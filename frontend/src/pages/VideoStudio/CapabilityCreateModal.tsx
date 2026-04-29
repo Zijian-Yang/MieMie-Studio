@@ -603,10 +603,24 @@ const CapabilityCreateModal = ({
 
   const addUnique = (items: string[], value: string) => items.includes(value) ? items : [...items, value]
   const currentProvider = currentModel?.provider || 'wan'
+  const currentRateLimitCapabilities = currentModel?.capabilities || {}
+  const groupCountMax = typeof currentRateLimitCapabilities.max_concurrent === 'number'
+    ? currentRateLimitCapabilities.max_concurrent
+    : undefined
+  const submitRate = currentRateLimitCapabilities.submit_rate_limit
+  const groupCountHelp = [
+    groupCountMax ? `并发上限 ${groupCountMax} 组` : null,
+    submitRate ? `提交频率 ${submitRate.count} 次/${submitRate.period_seconds === 1 ? '秒' : `${submitRate.period_seconds} 秒`}` : null,
+  ].filter(Boolean).join('；')
   const isWan27ReferenceModel = taskKind === 'reference_to_video' && modelId === 'wan2.7-r2v'
   const promptRequired = isPromptRequired(taskKind, currentProvider)
   const narrativeMode = ((dynamicValues.narrative_mode as VideoNarrativeMode | undefined) || dynamicValues.shot_type || task?.narrative_mode || 'single') as VideoNarrativeMode
   const supportsMultiShot = currentProfile?.supported_narrative_modes?.some((mode) => mode !== 'single') || false
+
+  useEffect(() => {
+    if (!groupCountMax || groupCount <= groupCountMax) return
+    setGroupCount(groupCountMax)
+  }, [groupCount, groupCountMax])
 
   const removeReferenceImage = (url: string) => setReferenceImageUrls((prev) => prev.filter((item) => item !== url))
   const removeReferenceVideo = (url: string) => setReferenceVideoUrls((prev) => prev.filter((item) => item !== url))
@@ -1503,7 +1517,12 @@ const CapabilityCreateModal = ({
             <Col span={12}>
               <div style={{ marginTop: 16 }}>
                 <div style={{ marginBottom: 8 }}>生成组数</div>
-                <InputNumber style={{ width: '100%' }} min={1} max={5} value={groupCount} onChange={(value) => setGroupCount(value || 1)} />
+                <InputNumber style={{ width: '100%' }} min={1} max={groupCountMax} value={groupCount} onChange={(value) => setGroupCount(value || 1)} />
+                {groupCountHelp && (
+                  <div style={{ marginTop: 4, color: token.colorTextSecondary, fontSize: 12 }}>
+                    {groupCountHelp}
+                  </div>
+                )}
               </div>
             </Col>
           </Row>

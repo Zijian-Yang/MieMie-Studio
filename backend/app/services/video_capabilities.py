@@ -22,6 +22,7 @@ from app.config import (
     VIDEO_MODELS,
     VIDEO_REPAINTING_MODELS,
 )
+from app.services.model_rate_limits import rate_limit_capabilities
 
 
 TASK_KIND_DEFS: List[Dict[str, Any]] = [
@@ -329,6 +330,7 @@ def _build_model(
         "type": supported_task_kinds[0] if supported_task_kinds else "video",
         "description": description,
         "doc_url": doc_url,
+        "capabilities": rate_limit_capabilities(model_id),
         "supported_task_kinds": supported_task_kinds,
         "task_profiles": normalized_profiles,
         "ui_hints": ui_hints or {},
@@ -1282,6 +1284,7 @@ def _wan27_video_models() -> Dict[str, Dict[str, Any]]:
     snapshot_model["name"] = "万相 2.7 图生视频 2026-04-25 快照"
     snapshot_model["description"] = "用于临时测试 2026-04-25 快照效果的万相 2.7 图生视频模型；长期主用模型仍为 wan2.7-i2v"
     snapshot_model["doc_url"] = "docs/阿里云模型api文档/万相-图生视频2.7.md"
+    snapshot_model["capabilities"] = rate_limit_capabilities("wan2.7-i2v-2026-04-25")
     snapshot_model["ui_hints"] = {
         **snapshot_model.get("ui_hints", {}),
         "temporary_snapshot": True,

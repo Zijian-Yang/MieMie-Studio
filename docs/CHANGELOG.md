@@ -13,6 +13,12 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 阿里生图/生视频同步/异步限流校准：
+  - 新增统一模型限流定义，区分 `submit_rate_limit` 与 `max_concurrent`
+  - Qwen 图片同步接口保留 `2/min` 或 `2/sec` 提交频率，处理中任务数量不再误套异步并发上限
+  - Wan / HappyHorse / Kling / Vidu 异步任务从提交到终态占用 in-flight lease，Kling / Vidu 支持共享并发池
+  - 图片工作室、图片测评、视频工作室、视频测评统一接入提交频率与并发 helper
+  - 能力 schema 暴露 `api_mode`、`submit_rate_limit`、`max_concurrent`、`concurrency_scope` 和共享池信息
 - 测评运行结果即时展示：
   - 图片测评与视频测评启动后立即返回完整 `pending` 矩阵
   - 后台执行中增量保存 `running` / 终态 cell，前端轮询即可看到已完成结果
@@ -25,7 +31,7 @@
   - 数据集样例支持首帧图、可选驱动音频和可选样例级 `duration`
   - 视频数据集页补齐图片数据集同级批量能力，支持行多选、批量导入首帧或 prompt、批量填充首帧、批量编辑字段、选中排序和删除
   - 视频数据集允许暂存缺首帧样例，保存/导入返回 warnings，运行测评和 payload preview 前阻断缺首帧
-  - 视频测评模型参数新增 `生成数量`，支持每个 case × model 单元生成 1-5 条视频，并在矩阵和详情中展示多条输出
+  - 视频测评模型参数新增 `生成数量`，上限跟随模型 `max_concurrent`，并在矩阵和详情中展示多条输出
   - 视频测评页移除 `Baseline Params JSON`，参数只通过每个参与测评模型的独立设置填写
   - 运行矩阵展示输出视频，详情保留 effective params、canonical request、provider payload、provider result meta、task/request id
   - Markdown / HTML 报告导出保留视频 URL，不内嵌视频字节

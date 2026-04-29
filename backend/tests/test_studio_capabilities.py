@@ -1,4 +1,6 @@
 import pytest
+import asyncio
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 
 from app.models.studio import ReferenceItem, StudioTaskImage
@@ -1371,6 +1373,20 @@ async def test_generate_with_wan27_image_respects_group_count(monkeypatch):
     from app.routers.studio import generate_with_wan27_image
 
     create_calls = []
+    inflight_entries = []
+    active_inflight = 0
+    max_active_inflight = 0
+
+    @asynccontextmanager
+    async def fake_model_inflight_context(model_id):
+        nonlocal active_inflight, max_active_inflight
+        inflight_entries.append(model_id)
+        active_inflight += 1
+        max_active_inflight = max(max_active_inflight, active_inflight)
+        try:
+            yield
+        finally:
+            active_inflight -= 1
 
     async def fake_create_task(self, **kwargs):
         call_index = len(create_calls)
@@ -1379,6 +1395,7 @@ async def test_generate_with_wan27_image_respects_group_count(monkeypatch):
         return f"task-{call_index}"
 
     async def fake_get_task_status(self, task_id):
+        await asyncio.sleep(0)
         return TaskResult(
             task_id=task_id,
             status=TaskStatus.SUCCEEDED,
@@ -1389,6 +1406,7 @@ async def test_generate_with_wan27_image_respects_group_count(monkeypatch):
     monkeypatch.setattr("app.models_registry.image.wan27_image.Wan27ImageService.create_task", fake_create_task)
     monkeypatch.setattr("app.models_registry.image.wan27_image.Wan27ImageService.get_task_status", fake_get_task_status)
     monkeypatch.setattr(studio_router.oss_service, "is_enabled", lambda: False)
+    monkeypatch.setattr(studio_router, "model_inflight_context", fake_model_inflight_context)
 
     task = StudioTask(
         project_id="p1",
@@ -1414,6 +1432,8 @@ async def test_generate_with_wan27_image_respects_group_count(monkeypatch):
     )
 
     assert len(create_calls) == 3
+    assert inflight_entries == ["wan2.7-image-pro"] * 3
+    assert max_active_inflight == 3
     assert all(call["n"] == 2 for call in create_calls)
     assert all(call["size"] == "1080*1920" for call in create_calls)
     assert len(images) == 6

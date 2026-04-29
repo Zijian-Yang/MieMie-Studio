@@ -447,6 +447,16 @@ const StudioPage = () => {
   const activeSizeUiMode = (availableModels[activeModelId]?.size_ui_mode || (isWan27Model || isWan25CustomSizeModel ? 'preset_plus_custom_with_templates' : 'preset_only')) as ImageSizeUiMode
   const shouldShowReferences = activeTaskKind !== 'text_to_image'
   const shouldShowGroupCount = true
+  const activeRateLimitCapabilities = availableModels[activeModelId]?.capabilities || {}
+  const activeGroupCountMax = typeof activeRateLimitCapabilities.max_concurrent === 'number'
+    ? activeRateLimitCapabilities.max_concurrent
+    : undefined
+  const activeSubmitRate = activeRateLimitCapabilities.submit_rate_limit
+  const activeGroupCountExtra = [
+    `总计: ${(form.getFieldValue('n') || 1) * (form.getFieldValue('group_count') || 1)} 张`,
+    activeGroupCountMax ? `并发上限: ${activeGroupCountMax} 组` : null,
+    activeSubmitRate ? `提交频率: ${activeSubmitRate.count} 次/${activeSubmitRate.period_seconds === 1 ? '秒' : `${activeSubmitRate.period_seconds} 秒`}` : null,
+  ].filter(Boolean).join('；')
   const activeCustomSizeLimits = useMemo(
     () => getImageCustomSizeLimits(activeModelId, activeTaskKind, selectedReferenceItems.length),
     [activeModelId, activeTaskKind, selectedReferenceItems.length]
@@ -493,6 +503,11 @@ const StudioPage = () => {
     })
     return Array.from(presetMap.entries()).map(([value, label]) => ({ value, label }))
   }, [activeModelId, getParamMeta, isSeedreamModel])
+
+  useEffect(() => {
+    if (!activeGroupCountMax || !watchedGroupCount || watchedGroupCount <= activeGroupCountMax) return
+    form.setFieldValue('group_count', activeGroupCountMax)
+  }, [activeGroupCountMax, form, watchedGroupCount])
   const seedreamClaritySelectOptions = useMemo(() => (
     seedreamClaritySizeOptions.map((option) => ({ value: option.value, label: option.value }))
   ), [seedreamClaritySizeOptions])
@@ -2776,11 +2791,11 @@ const StudioPage = () => {
                           '总输出数量 = n × 并发组数；提高并发会增加费用与限流风险。',
                         ],
                       })}
-                      extra={`总计: ${(form.getFieldValue('n') || 1) * (form.getFieldValue('group_count') || 1)} 张`}
+                      extra={activeGroupCountExtra}
                     >
                       <InputNumber 
                         min={1} 
-                        max={10} 
+                        max={activeGroupCountMax}
                         style={{ width: '100%' }} 
                       />
                     </Form.Item>

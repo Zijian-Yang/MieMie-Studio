@@ -351,11 +351,6 @@ async def _background_run_suite(run_id: str, suite_id: str, user_id: Optional[st
             for item in run.retry_targets
             if item.get("case_id") and item.get("model_id")
         }
-        model_semaphores = {
-            model["id"]: asyncio.Semaphore(max(1, int((model.get("capabilities") or {}).get("max_concurrent") or 1)))
-            for model in model_snapshots
-        }
-
         async def run_cell(index: int, case_data: Dict[str, Any], model_meta: Dict[str, Any]):
             effective_params = merge_effective_params(
                 model_meta,
@@ -363,31 +358,30 @@ async def _background_run_suite(run_id: str, suite_id: str, user_id: Optional[st
                 (run.model_overrides or {}).get(model_meta["id"]),
                 case_data,
             )
-            async with model_semaphores[model_meta["id"]]:
-                await _save_video_run_cell(
-                    run_id,
-                    VideoBenchmarkCellResult(
-                        case_id=case_data.get("id") or "",
-                        case_name=case_data.get("name") or "",
-                        model_id=model_meta["id"],
-                        model_name=model_meta.get("name") or model_meta["id"],
-                        status="running",
-                        effective_params=effective_params,
-                    ),
-                )
-
-                async def save_progress(cell: VideoBenchmarkCellResult) -> None:
-                    await _save_video_run_cell(run_id, cell)
-
-                cell = await execute_video_benchmark_cell(
-                    project_id=run.project_id,
-                    model_meta=model_meta,
-                    case_data=case_data,
+            await _save_video_run_cell(
+                run_id,
+                VideoBenchmarkCellResult(
+                    case_id=case_data.get("id") or "",
+                    case_name=case_data.get("name") or "",
+                    model_id=model_meta["id"],
+                    model_name=model_meta.get("name") or model_meta["id"],
+                    status="running",
                     effective_params=effective_params,
-                    on_progress=save_progress,
-                )
+                ),
+            )
+
+            async def save_progress(cell: VideoBenchmarkCellResult) -> None:
                 await _save_video_run_cell(run_id, cell)
-                return index, cell
+
+            cell = await execute_video_benchmark_cell(
+                project_id=run.project_id,
+                model_meta=model_meta,
+                case_data=case_data,
+                effective_params=effective_params,
+                on_progress=save_progress,
+            )
+            await _save_video_run_cell(run_id, cell)
+            return index, cell
 
         tasks = []
         index = 0

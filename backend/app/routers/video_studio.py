@@ -41,12 +41,34 @@ from app.services.video_adapters import (
     infer_provider,
 )
 from app.services.video_capabilities import get_video_capabilities, LEGACY_TASK_KIND_MAP
+from app.services.model_rate_limits import (
+    InflightLease,
+    acquire_model_inflight_lease,
+    validate_group_count_for_model,
+    wait_for_model_submit,
+)
 from app.services.oss import oss_service
 from app.config import set_user_config_dir, get_user_config_dir, get_provider_key_profile
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+_video_studio_inflight_leases: Dict[str, InflightLease] = {}
+_video_studio_inflight_lock = asyncio.Lock()
+
+
+async def _remember_video_inflight_lease(task_id: str, lease: InflightLease) -> None:
+    if not lease.acquired:
+        return
+    async with _video_studio_inflight_lock:
+        _video_studio_inflight_leases[task_id] = lease
+
+
+async def _release_video_inflight_lease(task_id: str) -> None:
+    async with _video_studio_inflight_lock:
+        lease = _video_studio_inflight_leases.pop(task_id, None)
+    if lease:
+        lease.release()
 
 
 class VideoStudioTaskCreateRequest(BaseModel):
@@ -902,6 +924,10 @@ async def create_task(request: VideoStudioTaskCreateRequest):
         await adapter.validate(normalized)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    try:
+        validate_group_count_for_model(normalized.model_id, max(1, int(request.group_count or 1)))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     task_duration = int(normalized.normalized_params.get("duration") or request.duration or 5)
     if normalized.task_kind in {"video_repainting", "video_edit_local"}:
@@ -1001,6 +1027,8 @@ async def get_task_status(task_id: str):
         else:
             all_succeeded = False
             task.error_message = result.error_message or f"未知任务状态: {result.status}"
+        if normalized_status not in {"PENDING", "RUNNING", "UNKNOWN"}:
+            await _release_video_inflight_lease(api_task_id)
     
     # 更新任务状态
     task.video_urls = video_urls
@@ -1048,6 +1076,10 @@ async def update_task(task_id: str, request: VideoStudioTaskUpdateRequest):
     if "source_video_preview_url" in provided_fields:
         task.source_video_preview_url = request.source_video_preview_url
     if request.group_count is not None:
+        try:
+            validate_group_count_for_model(task.model_id or task.model, max(1, int(request.group_count or 1)))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         task.group_count = request.group_count
 
     canonical_update_fields = {
@@ -1390,9 +1422,30 @@ async def _submit_api_tasks(
     adapter = get_video_adapter(request.provider)
 
     async def create_one(idx: int) -> VideoSubmitResult:
-        return await adapter.submit(request, seed_offset=idx)
+        lease = await acquire_model_inflight_lease(request.model_id)
+        try:
+            await wait_for_model_submit(request.model_id)
+            result = await adapter.submit(request, seed_offset=idx)
+        except Exception:
+            lease.release()
+            raise
+        if result.task_id:
+            await _remember_video_inflight_lease(result.task_id, lease)
+        else:
+            lease.release()
+        return result
 
-    results = list(await asyncio.gather(*[create_one(i) for i in range(task.group_count)]))
+    raw_results = list(await asyncio.gather(
+        *[create_one(i) for i in range(task.group_count)],
+        return_exceptions=True,
+    ))
+    submit_errors = [result for result in raw_results if isinstance(result, Exception)]
+    results = [result for result in raw_results if not isinstance(result, Exception)]
+    if submit_errors:
+        for result in results:
+            if result.task_id:
+                await _release_video_inflight_lease(result.task_id)
+        raise submit_errors[0]
     task.request_ids = [result.request_id for result in results if result.request_id]
     if results:
         task.provider_payload_snapshot = results[0].provider_payload

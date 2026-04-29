@@ -141,6 +141,12 @@ async def test_video_benchmark_capabilities_only_include_image_to_video_models()
     assert group_count_param["label"] == "生成数量"
     assert group_count_param["default"] == 1
     assert group_count_param["constraint"]["max_value"] == 5
+    kling_group_count_param = next(
+        param
+        for param in capabilities["models"]["kling/kling-v3-video-generation"]["configurable_parameters"]
+        if param["name"] == "group_count"
+    )
+    assert kling_group_count_param["constraint"]["max_value"] == 10
 
 
 def test_dataset_create_export_and_import_preserves_case_duration(client, auth_header):

@@ -747,12 +747,6 @@ async def _background_run_suite(run_id: str, suite_id: str, user_id: Optional[st
         model_snapshots = run.model_snapshots or []
         dataset_items = sorted(dataset_snapshot.get("items") or [], key=lambda item: item.get("sort_order", 0))
 
-        global_semaphore = asyncio.Semaphore(4)
-        model_semaphores = {
-            model["id"]: asyncio.Semaphore(max(1, int((model.get("capabilities") or {}).get("max_concurrent") or 1)))
-            for model in model_snapshots
-        }
-
         retry_target_keys = {
             _cell_key(target.get("case_id", ""), target.get("model_id", ""))
             for target in (run.retry_targets or [])
@@ -765,27 +759,26 @@ async def _background_run_suite(run_id: str, suite_id: str, user_id: Optional[st
                 (run.model_overrides or {}).get(model_meta["id"]),
                 run.task_kind,
             )
-            async with global_semaphore, model_semaphores[model_meta["id"]]:
-                await _save_image_run_cell(
-                    run_id,
-                    ImageBenchmarkCellResult(
-                        case_id=case_data.get("id") or "",
-                        case_name=case_data.get("name") or "",
-                        model_id=model_meta["id"],
-                        model_name=model_meta.get("name") or model_meta["id"],
-                        status="running",
-                        effective_params=effective_params,
-                    ),
-                )
-                cell = await execute_benchmark_cell(
-                    project_id=run.project_id,
-                    task_kind=run.task_kind,
-                    model_meta=model_meta,
-                    case_data=case_data,
+            await _save_image_run_cell(
+                run_id,
+                ImageBenchmarkCellResult(
+                    case_id=case_data.get("id") or "",
+                    case_name=case_data.get("name") or "",
+                    model_id=model_meta["id"],
+                    model_name=model_meta.get("name") or model_meta["id"],
+                    status="running",
                     effective_params=effective_params,
-                )
-                await _save_image_run_cell(run_id, cell)
-                return index, cell
+                ),
+            )
+            cell = await execute_benchmark_cell(
+                project_id=run.project_id,
+                task_kind=run.task_kind,
+                model_meta=model_meta,
+                case_data=case_data,
+                effective_params=effective_params,
+            )
+            await _save_image_run_cell(run_id, cell)
+            return index, cell
 
         tasks = []
         index = 0

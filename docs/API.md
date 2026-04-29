@@ -209,6 +209,24 @@ Authorization: Bearer {token}
 | GET | `/models/available` | 获取可用模型 |
 | POST | `/preview-payload` | 预览 canonical 请求与厂商 payload |
 
+`GET /api/studio/models/available`、`GET /api/settings` 与模型 registry/capabilities 会在已校准的阿里模型上暴露统一限流元数据：
+
+```json
+{
+  "capabilities": {
+    "api_mode": "sync",
+    "submit_rate_limit": {"count": 2, "period_seconds": 60},
+    "max_concurrent": null,
+    "concurrency_scope": "unlimited",
+    "rate_limit_note": "..."
+  }
+}
+```
+
+- `submit_rate_limit` 限制同步生成请求或异步任务提交请求的发出频率。
+- `max_concurrent` 限制异步任务从提交成功到终态期间的处理中任务数量；`null` 表示当前平台实际调用接口的处理中任务无限制。
+- `concurrency_scope=shared_pool` 时，多个模型共享同一个 `concurrency_pool_id` 的并发池。
+
 #### Seedream / Volcengine
 
 - `doubao-seedream-5.0-lite` 与 `doubao-seedream-4.5` 使用 `provider=volcengine`。
@@ -384,7 +402,7 @@ v1 固定 `task_kind=image_to_video`。数据集 item 示例：
 
 前端视频测评页不再提供 `Baseline Params JSON` 输入，创建、保存、运行和 preview 时会把 `baseline_params` 置为 `{}`，常规参数全部通过每个参与模型的独立参数表单写入 `model_overrides[model_id]`。API 字段仍保留用于旧数据读取和外部调用兼容。
 
-`GET /capabilities` 会为每个首帧生视频模型额外暴露测评层参数 `group_count`（生成数量），默认 1，范围 1-5。它会写入 `effective_params` 与 `canonical_request.normalized_params`，用于控制一个 case × model 单元提交多少个厂商任务；构造 `provider_payload` 时会移除，不作为厂商参数透传。运行结果会把多条结果保存在同一个 cell 的 `output_videos[]`，并累计所有 `task_ids` / `request_ids`。
+`GET /capabilities` 会为每个首帧生视频模型额外暴露测评层参数 `group_count`（生成数量），默认 1。有限并发模型的最大值来自 `capabilities.max_concurrent`，同步无限并发模型不额外设置上限。它会写入 `effective_params` 与 `canonical_request.normalized_params`，用于控制一个 case × model 单元提交多少个厂商任务；构造 `provider_payload` 时会移除，不作为厂商参数透传。运行结果会把多条结果保存在同一个 cell 的 `output_videos[]`，并累计所有 `task_ids` / `request_ids`。
 
 `POST /suites/{id}/run` 会立即返回完整 `pending` cell 矩阵；后台执行中会增量写入 `running` / 终态 cell。`group_count > 1` 时，单条视频完成 OSS 持久化后会先追加到 `output_videos[]`，因此 `GET /runs/{id}` 可在 run 仍为 `running` 时看到部分可播放视频。`stats` 包含 `pending_count`、`running_count`、`completed_count`。
 
@@ -429,6 +447,8 @@ v1 固定 `task_kind=image_to_video`。数据集 item 示例：
 ### 视频工作室能力 Schema 说明
 
 `GET /api/video-studio/capabilities` 返回的视频能力 schema 用于驱动前端任务表单。
+
+视频模型的 `capabilities` 同样包含 `api_mode`、`submit_rate_limit`、`max_concurrent`、`concurrency_scope`、`concurrency_pool_id` 与 `rate_limit_note`。视频工作室创建/更新任务时会拒绝超过有限 `max_concurrent` 的 `group_count`；状态查询和轮询不计入任务下发频率限制。
 
 关键结构：
 

@@ -239,8 +239,13 @@ class ModelCapability(BaseModel):
     supports_streaming: bool = False  # 支持流式输出
     supports_batch: bool = False  # 支持批量处理
     supports_async: bool = True  # 支持异步调用
-    max_concurrent: int = 5  # 最大并发数
+    max_concurrent: Optional[int] = 5  # 最大并发数；None 表示当前接口无限制
     rate_limit: Optional[int] = None  # 每分钟请求限制
+    api_mode: Optional[Literal["sync", "async"]] = None  # 平台实际调用接口模式
+    submit_rate_limit: Optional[Dict[str, int]] = None  # 任务下发接口调用限制
+    concurrency_scope: Optional[Literal["model", "shared_pool", "unlimited", "unknown"]] = None
+    concurrency_pool_id: Optional[str] = None
+    rate_limit_note: Optional[str] = None
     
     # LLM 特有能力
     supports_thinking: bool = False  # 支持深度思考
@@ -519,17 +524,23 @@ class ModelRegistry:
         获取所有模型信息（用于前端）
         返回格式化的模型配置，前端可直接使用
         """
+        from app.services.model_rate_limits import rate_limit_capabilities
+
         result = {}
         for model_id, model_info in self._models.items():
             if not model_info.enabled:
                 continue
+            capabilities = rate_limit_capabilities(
+                model_info.id,
+                model_info.capabilities.model_dump() if model_info.capabilities else {},
+            )
             result[model_id] = {
                 "id": model_info.id,
                 "name": model_info.name,
                 "type": model_info.type.value,
                 "provider": model_info.provider,
                 "description": model_info.description,
-                "capabilities": model_info.capabilities.model_dump(),
+                "capabilities": capabilities,
                 "parameters": [p.model_dump() for p in model_info.parameters],
                 "default_values": model_info.get_default_values(),
                 "supported_task_kinds": [task_kind.value for task_kind in model_info.supported_task_kinds],

@@ -79,6 +79,7 @@ export interface ImageModelSizeOption {
 export interface ImageModelInfo {
   name: string
   description?: string
+  capabilities?: ModelCapabilities
   min_pixels: number
   max_pixels: number
   min_ratio: number
@@ -117,6 +118,7 @@ export interface VideoModelInfo {
   id?: string
   name: string
   description?: string
+  capabilities?: ModelCapabilities
   resolutions: VideoResolutionOption[]
   default_resolution: string
   durations?: number[]  // 支持的时长列表（固定选项）
@@ -207,6 +209,7 @@ export interface RefVideoConfig {
 export interface TextToVideoModelInfo {
   name: string
   description?: string
+  capabilities?: ModelCapabilities
   resolutions?: VideoResolutionOption[]
   resolutions_480p?: VideoResolutionOption[]
   resolutions_720p?: VideoResolutionOption[]
@@ -234,6 +237,7 @@ export interface TextToVideoModelInfo {
 export interface KeyframeToVideoModelInfo {
   name: string
   description?: string
+  capabilities?: ModelCapabilities
   resolutions: string[]  // 支持的分辨率档位列表 ["480P", "720P", "1080P"]
   default_resolution: string  // 默认分辨率档位
   duration: number  // 固定时长（秒）
@@ -250,6 +254,7 @@ export interface KeyframeToVideoModelInfo {
 export interface RefVideoModelInfo {
   name: string
   description?: string
+  capabilities?: ModelCapabilities
   resolutions?: VideoResolutionOption[]
   resolutions_720p: VideoResolutionOption[]
   resolutions_1080p: VideoResolutionOption[]
@@ -277,6 +282,7 @@ export interface RefVideoModelInfo {
 export interface VaceVideoRepaintingModelInfo {
   name: string
   description?: string
+  capabilities?: ModelCapabilities
   prompt_max_length: number
   supports_prompt_extend: boolean
   supports_watermark: boolean
@@ -301,6 +307,7 @@ export interface VaceVideoRepaintingModelInfo {
 export interface VaceVideoEditModelInfo {
   name: string
   description?: string
+  capabilities?: ModelCapabilities
   prompt_max_length: number
   supports_prompt_extend: boolean
   supports_watermark: boolean
@@ -1417,7 +1424,12 @@ export const studioApi = {
         supports_batch?: boolean
         supports_async?: boolean
         supports_negative_prompt?: boolean
-        max_concurrent?: number
+        max_concurrent?: number | null
+        api_mode?: 'sync' | 'async'
+        submit_rate_limit?: { count: number; period_seconds: number }
+        concurrency_scope?: 'model' | 'shared_pool' | 'unlimited' | 'unknown'
+        concurrency_pool_id?: string
+        rate_limit_note?: string
       }
       parameters?: Array<{
         name: string
@@ -2228,6 +2240,7 @@ export interface VideoCapabilityModel {
   type: string
   description?: string
   doc_url?: string
+  capabilities?: ModelCapabilities
   supported_task_kinds: VideoTaskKind[]
   task_profiles: Partial<Record<VideoTaskKind, VideoTaskProfile>>
   ui_hints?: Record<string, any>
@@ -2578,7 +2591,12 @@ export interface ModelCapabilities {
   supports_prompt_extend?: boolean
   supports_watermark?: boolean
   supports_audio?: boolean
-  max_concurrent?: number
+  max_concurrent?: number | null
+  api_mode?: 'sync' | 'async'
+  submit_rate_limit?: { count: number; period_seconds: number }
+  concurrency_scope?: 'model' | 'shared_pool' | 'unlimited' | 'unknown'
+  concurrency_pool_id?: string
+  rate_limit_note?: string
   // 图像特有能力
   supports_reference_images?: boolean
   max_reference_images?: number

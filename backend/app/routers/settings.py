@@ -11,9 +11,22 @@ from app.config import (
     API_REGIONS, LLM_MODELS, IMAGE_MODELS, IMAGE_EDIT_MODELS, VIDEO_MODELS, TEXT_TO_VIDEO_MODELS, REF_VIDEO_MODELS,
     KEYFRAME_TO_VIDEO_MODELS, VIDEO_REPAINTING_MODELS, VIDEO_EDIT_MODELS, normalize_key_profile
 )
+from app.services.model_rate_limits import rate_limit_capabilities
 from app.services.oss import oss_service
 
 router = APIRouter()
+
+
+def with_rate_limit_capabilities(models: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """Attach platform rate-limit metadata without mutating config constants."""
+
+    return {
+        model_id: {
+            **model_info,
+            "capabilities": rate_limit_capabilities(model_id, model_info.get("capabilities") or {}),
+        }
+        for model_id, model_info in models.items()
+    }
 
 
 class ApiKeyRequest(BaseModel):
@@ -257,14 +270,14 @@ async def get_settings():
         oss=oss_response,
         available_regions=API_REGIONS,
         available_llm_models=LLM_MODELS,
-        available_image_models=IMAGE_MODELS,
-        available_image_edit_models=IMAGE_EDIT_MODELS,
-        available_video_models=VIDEO_MODELS,
-        available_text_to_video_models=TEXT_TO_VIDEO_MODELS,
-        available_ref_video_models=REF_VIDEO_MODELS,
-        available_keyframe_to_video_models=KEYFRAME_TO_VIDEO_MODELS,
-        available_video_repainting_models=VIDEO_REPAINTING_MODELS,
-        available_video_edit_models=VIDEO_EDIT_MODELS
+        available_image_models=with_rate_limit_capabilities(IMAGE_MODELS),
+        available_image_edit_models=with_rate_limit_capabilities(IMAGE_EDIT_MODELS),
+        available_video_models=with_rate_limit_capabilities(VIDEO_MODELS),
+        available_text_to_video_models=with_rate_limit_capabilities(TEXT_TO_VIDEO_MODELS),
+        available_ref_video_models=with_rate_limit_capabilities(REF_VIDEO_MODELS),
+        available_keyframe_to_video_models=with_rate_limit_capabilities(KEYFRAME_TO_VIDEO_MODELS),
+        available_video_repainting_models=with_rate_limit_capabilities(VIDEO_REPAINTING_MODELS),
+        available_video_edit_models=with_rate_limit_capabilities(VIDEO_EDIT_MODELS)
     )
 
 

@@ -77,6 +77,33 @@ def test_get_capabilities_endpoint_returns_multi_provider_schema(client, auth_he
     assert {"ratio", "audio_setting"} <= wan27_videoedit_params
 
 
+def test_video_capabilities_expose_async_rate_limits_and_shared_pools(client, auth_header):
+    resp = client.get("/api/video-studio/capabilities", headers=auth_header)
+    assert resp.status_code == 200
+    models = resp.json()["models"]
+
+    wan = models["wan2.7-i2v"]["capabilities"]
+    assert wan["api_mode"] == "async"
+    assert wan["submit_rate_limit"] == {"count": 5, "period_seconds": 1}
+    assert wan["max_concurrent"] == 5
+    assert wan["concurrency_scope"] == "model"
+
+    snapshot = models["wan2.7-i2v-2026-04-25"]["capabilities"]
+    assert snapshot["max_concurrent"] == 5
+
+    kling = models["kling/kling-v3-video-generation"]["capabilities"]
+    assert kling["api_mode"] == "async"
+    assert kling["max_concurrent"] == 10
+    assert kling["concurrency_scope"] == "shared_pool"
+    assert kling["concurrency_pool_id"] == "aliyun:kling:video-image"
+
+    vidu = models["vidu/viduq3-turbo_img2video"]["capabilities"]
+    assert vidu["api_mode"] == "async"
+    assert vidu["max_concurrent"] == 5
+    assert vidu["concurrency_scope"] == "shared_pool"
+    assert vidu["concurrency_pool_id"] == "aliyun:vidu:video"
+
+
 def test_video_capability_schema_exposes_structured_help_content():
     capabilities = get_video_capabilities()
     models = capabilities["models"]

@@ -821,6 +821,24 @@ def test_benchmark_capabilities_expose_wan27_custom_size_params(client, auth_hea
     assert {"size_mode", "size_preset", "custom_width", "custom_height"} <= param_names
 
 
+def test_image_benchmark_capabilities_expose_sync_and_async_rate_limits(client, auth_header):
+    resp = client.get("/api/image-benchmark/capabilities", headers=auth_header)
+    assert resp.status_code == 200
+    models = resp.json()["models"]
+
+    qwen = models["qwen-image-2.0-pro"]["capabilities"]
+    assert qwen["api_mode"] == "sync"
+    assert qwen["submit_rate_limit"] == {"count": 2, "period_seconds": 60}
+    assert qwen["max_concurrent"] is None
+    assert qwen["concurrency_scope"] == "unlimited"
+
+    wan = models["wan2.7-image-pro"]["capabilities"]
+    assert wan["api_mode"] == "async"
+    assert wan["submit_rate_limit"] == {"count": 5, "period_seconds": 1}
+    assert wan["max_concurrent"] == 5
+    assert wan["concurrency_scope"] == "model"
+
+
 def test_preview_cell_wan27_custom_size(client, auth_header):
     project_id = _create_project(client, auth_header)
     resp = client.post(

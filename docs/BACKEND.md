@@ -440,6 +440,13 @@ response = await asyncio.to_thread(MultiModalConversation.call, api_key=key, **p
 - 默认限制：200 请求/分钟/IP
 - 配置位于 `backend/app/main.py`
 
+模型厂商限流与 API 请求限流分开处理。阿里生图/生视频模型的同步/异步限流统一定义在 `backend/app/services/model_rate_limits.py`：
+- `submit_rate_limit` 控制同步生成请求或异步任务下发请求的发出频率。
+- `max_inflight` / `capabilities.max_concurrent` 控制异步任务从提交成功到终态期间的处理中任务数量。
+- Qwen 图片模型当前走同步 HTTP，`max_concurrent=null` 表示处理中任务数量无限制，但仍按 `2/min` 或 `2/sec` 执行提交频率限制。
+- Wan、HappyHorse、Kling、Vidu 的异步任务提交后到终态前占用 in-flight lease；Kling/Vidu 按共享池 ID 复用 semaphore。
+- 状态查询和轮询不按任务下发接口频率限制。
+
 ---
 
 *最后更新: 2026-02-05*
@@ -529,7 +536,7 @@ response = await asyncio.to_thread(MultiModalConversation.call, api_key=key, **p
 - 数据集独立存储在 `video_benchmark_datasets`，样例包含首帧图、prompt、负向提示词、标签、可选驱动音频和可选样例级 `duration`。
 - 单元参数合并顺序为模型默认值、suite `baseline_params`、suite `model_overrides[model_id]`、case `duration`。case 时长仅影响当前单元，不回写 suite。
 - 前端视频测评页不暴露 `Baseline Params JSON`，会在创建、保存、运行和预览时传空 `baseline_params`；后端字段只作为旧数据和外部 API 兼容层保留。
-- capabilities 会注入测评层 `group_count`（生成数量，1-5），用于一个 case × model 单元生成多条视频。`group_count` 会进入 `effective_params` / `canonical_request`，但 adapter validate / submit / fetch 使用移除该参数后的 provider request，避免下发给厂商。
+- capabilities 会注入测评层 `group_count`（生成数量），用于一个 case × model 单元生成多条视频。有限并发模型的上限来自 `capabilities.max_concurrent`，同步无限并发模型不额外设置上限。`group_count` 会进入 `effective_params` / `canonical_request`，但 adapter validate / submit / fetch 使用移除该参数后的 provider request，避免下发给厂商。
 - 视频测评与图片测评一样采用增量持久化：run 创建即保存完整 `pending` 矩阵，cell 开始后写入 `running`，每条视频完成 OSS 持久化后立即更新 `output_videos`，最后写入终态。
 - 运行时按 case × model 构造 `NormalizedVideoTaskRequest`，执行 adapter validate / submit / fetch，并保存：
   - `effective_params`
@@ -539,6 +546,6 @@ response = await asyncio.to_thread(MultiModalConversation.call, api_key=key, **p
   - `task_ids`
   - `request_ids`
   - `output_videos`
-- 并发按模型 capability 的 `capabilities.max_concurrent` 执行；未声明时默认 1。同一单元从提交到终态都占用该模型 semaphore。
+- 视频测评真实提交前按 `capabilities.submit_rate_limit` 等待令牌；异步任务从提交成功到终态占用 `capabilities.max_concurrent` lease；共享池模型按 `capabilities.concurrency_pool_id` 合并并发池。
 - case `duration` 对某个模型不合法时，该单元标记为 `unsupported`，其他模型继续运行。
 - 报告导出只保留视频 URL；HTML 报告使用 `<video controls preload="metadata">`，不下载或内嵌视频字节。

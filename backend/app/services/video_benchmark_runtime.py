@@ -17,6 +17,12 @@ from app.models.video_benchmark import (
     VideoBenchmarkDataset,
     VideoBenchmarkOutputVideo,
 )
+from app.services.model_rate_limits import (
+    InflightLease,
+    acquire_model_inflight_lease,
+    validate_group_count_for_model,
+    wait_for_model_submit,
+)
 from app.services.oss import oss_service
 from app.services.video_adapters import (
     NormalizedVideoTaskRequest,
@@ -29,11 +35,15 @@ from app.services.video_capabilities import get_video_capabilities
 VIDEO_BENCHMARK_TASK_KIND = "image_to_video"
 VIDEO_BENCHMARK_POLL_INTERVAL_SECONDS = 5
 VIDEO_BENCHMARK_MAX_POLL_ATTEMPTS = 720
-VIDEO_BENCHMARK_MAX_GROUP_COUNT = 5
+VIDEO_BENCHMARK_DEFAULT_MAX_GROUP_COUNT = 5
 VIDEO_BENCHMARK_MANAGED_PARAMS = {"group_count"}
 
 
-def _group_count_param() -> Dict[str, Any]:
+def _group_count_param(max_value: Optional[int] = VIDEO_BENCHMARK_DEFAULT_MAX_GROUP_COUNT) -> Dict[str, Any]:
+    constraint = {"min_value": 1}
+    if max_value is not None:
+        constraint["max_value"] = max_value
+    limits = [f"支持 1 到 {max_value} 条"] if max_value is not None else ["提交频率受模型限流控制，当前接口不设置生成数量上限"]
     return {
         "name": "group_count",
         "label": "生成数量",
@@ -41,19 +51,27 @@ def _group_count_param() -> Dict[str, Any]:
         "description": "每个样例在该模型下生成的视频条数。视频测评会为每条结果单独提交一次厂商任务。",
         "help": {
             "summary": "控制每个 case × model 生成多少条视频。",
-            "limits": [f"支持 1 到 {VIDEO_BENCHMARK_MAX_GROUP_COUNT} 条"],
+            "limits": limits,
             "how_to_choose": ["快速横评时保持 1", "需要比较稳定性或挑选更好结果时设置为 2 到 5"],
         },
         "required": False,
         "default": 1,
-        "constraint": {
-            "min_value": 1,
-            "max_value": VIDEO_BENCHMARK_MAX_GROUP_COUNT,
-        },
+        "constraint": constraint,
         "group": "generation",
         "advanced": False,
         "order": 0,
     }
+
+
+def _group_count_max_for_model(model_meta: Dict[str, Any]) -> Optional[int]:
+    capabilities = model_meta.get("capabilities") or {}
+    if "max_concurrent" in capabilities:
+        max_concurrent = capabilities.get("max_concurrent")
+        if max_concurrent is None:
+            return None
+        if isinstance(max_concurrent, int) and not isinstance(max_concurrent, bool):
+            return max(1, max_concurrent)
+    return VIDEO_BENCHMARK_DEFAULT_MAX_GROUP_COUNT
 
 
 async def get_video_benchmark_capabilities() -> Dict[str, Any]:
@@ -69,8 +87,14 @@ async def get_video_benchmark_capabilities() -> Dict[str, Any]:
         image_profile = dict((next_model.get("task_profiles") or {}).get(VIDEO_BENCHMARK_TASK_KIND) or {})
         profile_parameters = list(image_profile.get("parameters") or [])
         existing_names = {param.get("name") for param in profile_parameters}
+        group_count_param = _group_count_param(_group_count_max_for_model(next_model))
         if "group_count" not in existing_names:
-            profile_parameters = [_group_count_param(), *profile_parameters]
+            profile_parameters = [group_count_param, *profile_parameters]
+        else:
+            profile_parameters = [
+                group_count_param if param.get("name") == "group_count" else param
+                for param in profile_parameters
+            ]
         image_profile["parameters"] = profile_parameters
         image_profile["default_values"] = {
             "group_count": 1,
@@ -149,14 +173,18 @@ def _case_asset_url(case_data: Dict[str, Any], key: str) -> Optional[str]:
     return None
 
 
-def _normalize_group_count(effective_params: Dict[str, Any]) -> int:
+def _normalize_group_count(effective_params: Dict[str, Any], model_id: str) -> int:
     raw = effective_params.get("group_count", 1)
     try:
         group_count = int(raw)
     except (TypeError, ValueError) as exc:
         raise ValueError("生成数量必须是整数") from exc
-    if not (1 <= group_count <= VIDEO_BENCHMARK_MAX_GROUP_COUNT):
-        raise ValueError(f"生成数量必须在 1 到 {VIDEO_BENCHMARK_MAX_GROUP_COUNT} 之间")
+    if group_count < 1:
+        raise ValueError("生成数量必须大于等于 1")
+    try:
+        validate_group_count_for_model(model_id, group_count)
+    except ValueError as exc:
+        raise ValueError(str(exc).replace("生成组数", "生成数量")) from exc
     effective_params["group_count"] = group_count
     return group_count
 
@@ -204,7 +232,7 @@ async def preview_video_benchmark_cell(
 ) -> Tuple[Dict[str, Any], Dict[str, Any], List[str]]:
     """预览单个视频测评单元的 canonical request 和厂商 payload"""
 
-    _normalize_group_count(effective_params)
+    _normalize_group_count(effective_params, model_meta["id"])
     request = build_normalized_request(
         project_id=project_id,
         model_meta=model_meta,
@@ -248,7 +276,7 @@ async def execute_video_benchmark_cell(
     model_id = model_meta["id"]
     model_name = model_meta.get("name") or model_id
     try:
-        group_count = _normalize_group_count(effective_params)
+        group_count = _normalize_group_count(effective_params, model_id)
     except ValueError as exc:
         return VideoBenchmarkCellResult(
             case_id=case_data.get("id") or "",
@@ -289,6 +317,7 @@ async def execute_video_benchmark_cell(
     task_ids: List[str] = []
     provider_result_meta: Dict[str, Any] = {}
     output_videos: List[VideoBenchmarkOutputVideo] = []
+    task_leases: Dict[str, InflightLease] = {}
 
     async def notify_progress(status: str = "running", error_message: Optional[str] = None) -> None:
         if not on_progress:
@@ -314,10 +343,34 @@ async def execute_video_benchmark_cell(
 
     try:
         await notify_progress()
-        submit_results = list(await asyncio.gather(*[
-            adapter.submit(adapter_request, seed_offset=index)
-            for index in range(group_count)
-        ]))
+
+        async def submit_one(index: int):
+            lease = await acquire_model_inflight_lease(adapter_request.model_id)
+            try:
+                await wait_for_model_submit(adapter_request.model_id)
+                result = await adapter.submit(adapter_request, seed_offset=index)
+            except Exception:
+                lease.release()
+                raise
+            return index, result, lease
+
+        raw_submit_entries = list(await asyncio.gather(
+            *[submit_one(index) for index in range(group_count)],
+            return_exceptions=True,
+        ))
+        submit_errors = [entry for entry in raw_submit_entries if isinstance(entry, Exception)]
+        submit_entries = [entry for entry in raw_submit_entries if not isinstance(entry, Exception)]
+        submit_results = [entry[1] for entry in submit_entries]
+        task_leases = {
+            result.task_id: lease
+            for _, result, lease in submit_entries
+            if result.task_id
+        }
+        for _, result, lease in submit_entries:
+            if not result.task_id:
+                lease.release()
+        if submit_errors and not submit_results:
+            raise submit_errors[0]
         task_ids = [result.task_id for result in submit_results if result.task_id]
         request_ids = [result.request_id for result in submit_results if result.request_id]
         first_payload = next((result.provider_payload for result in submit_results if result.provider_payload), None)
@@ -342,7 +395,14 @@ async def execute_video_benchmark_cell(
             },
         }
         await notify_progress()
+        if submit_errors:
+            final_submit_error = str(submit_errors[0])
+        else:
+            final_submit_error = None
     except Exception as exc:
+        for lease in task_leases.values():
+            lease.release()
+        task_leases.clear()
         return VideoBenchmarkCellResult(
             case_id=case_data.get("id") or "",
             case_name=case_data.get("name") or "",
@@ -360,60 +420,71 @@ async def execute_video_benchmark_cell(
         )
 
     final_status = "failed"
-    final_error: Optional[str] = None
+    final_error: Optional[str] = locals().get("final_submit_error")
     for task_id in task_ids:
         task_completed = False
-        for attempt in range(VIDEO_BENCHMARK_MAX_POLL_ATTEMPTS):
-            status_result = await adapter.fetch(adapter_request, task_id)
-            request_ids = _merge_unique_ids(request_ids, [status_result.request_id] if status_result.request_id else [])
-            task_meta = (provider_result_meta.get("tasks") or {}).setdefault(task_id, {})
-            task_meta.update(
-                {
-                    "key_profile": status_result.key_profile or task_meta.get("key_profile"),
-                    "usage": status_result.usage or {},
-                    "error_code": status_result.error_code,
-                    "error_message": status_result.error_message,
-                    "raw_output": status_result.raw_output or {},
-                    "finished_at": datetime.now().isoformat(),
-                }
-            )
-            provider_result_meta.update(
-                {
-                    "key_profile": status_result.key_profile or provider_result_meta.get("key_profile"),
-                    "usage": status_result.usage or {},
-                    "error_code": status_result.error_code,
-                    "error_message": status_result.error_message,
-                    "raw_output": status_result.raw_output or {},
-                    "finished_at": datetime.now().isoformat(),
-                }
-            )
-            normalized_status = str(status_result.status).upper()
-            if normalized_status == "SUCCEEDED" and status_result.video_url:
-                try:
-                    persisted_url = await _persist_video_url(status_result.video_url, project_id)
-                except Exception as exc:
-                    final_status = "failed"
-                    final_error = str(exc)
+        try:
+            for attempt in range(VIDEO_BENCHMARK_MAX_POLL_ATTEMPTS):
+                status_result = await adapter.fetch(adapter_request, task_id)
+                request_ids = _merge_unique_ids(request_ids, [status_result.request_id] if status_result.request_id else [])
+                task_meta = (provider_result_meta.get("tasks") or {}).setdefault(task_id, {})
+                task_meta.update(
+                    {
+                        "key_profile": status_result.key_profile or task_meta.get("key_profile"),
+                        "usage": status_result.usage or {},
+                        "error_code": status_result.error_code,
+                        "error_message": status_result.error_message,
+                        "raw_output": status_result.raw_output or {},
+                        "finished_at": datetime.now().isoformat(),
+                    }
+                )
+                provider_result_meta.update(
+                    {
+                        "key_profile": status_result.key_profile or provider_result_meta.get("key_profile"),
+                        "usage": status_result.usage or {},
+                        "error_code": status_result.error_code,
+                        "error_message": status_result.error_message,
+                        "raw_output": status_result.raw_output or {},
+                        "finished_at": datetime.now().isoformat(),
+                    }
+                )
+                normalized_status = str(status_result.status).upper()
+                if normalized_status == "SUCCEEDED" and status_result.video_url:
+                    try:
+                        persisted_url = await _persist_video_url(status_result.video_url, project_id)
+                    except Exception as exc:
+                        final_status = "failed"
+                        final_error = str(exc)
+                        break
+                    output_videos.append(VideoBenchmarkOutputVideo(url=persisted_url))
+                    await notify_progress()
+                    task_completed = True
                     break
-                output_videos.append(VideoBenchmarkOutputVideo(url=persisted_url))
-                await notify_progress()
-                task_completed = True
-                break
-            if normalized_status == "FAILED":
+                if normalized_status == "FAILED":
+                    final_status = "failed"
+                    final_error = status_result.error_message or status_result.error_code or "视频生成失败"
+                    break
+                if attempt < VIDEO_BENCHMARK_MAX_POLL_ATTEMPTS - 1:
+                    await asyncio.sleep(VIDEO_BENCHMARK_POLL_INTERVAL_SECONDS)
+            else:
                 final_status = "failed"
-                final_error = status_result.error_message or status_result.error_code or "视频生成失败"
-                break
-            if attempt < VIDEO_BENCHMARK_MAX_POLL_ATTEMPTS - 1:
-                await asyncio.sleep(VIDEO_BENCHMARK_POLL_INTERVAL_SECONDS)
-        else:
-            final_status = "failed"
-            final_error = "视频生成轮询超时"
+                final_error = "视频生成轮询超时"
+        finally:
+            lease = task_leases.pop(task_id, None)
+            if lease:
+                lease.release()
 
         if not task_completed:
+            for remaining_task_id in task_ids[task_ids.index(task_id) + 1:]:
+                remaining_lease = task_leases.pop(remaining_task_id, None)
+                if remaining_lease:
+                    remaining_lease.release()
             break
 
     if len(output_videos) == group_count:
         final_status = "completed"
+    elif final_error:
+        final_status = "failed"
 
     return VideoBenchmarkCellResult(
         case_id=case_data.get("id") or "",

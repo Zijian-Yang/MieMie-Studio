@@ -372,9 +372,29 @@ class VideoBenchmarkCellResult(BaseModel):
 - v1 仅支持首帧生视频，模型来自视频工作室 capability 中支持 `image_to_video` 的条目。
 - `duration` 是样例级可选覆盖值，优先级高于 suite baseline 与模型 override。
 - 前端视频测评页不再编辑 `baseline_params`，新建、保存和运行时保持 `{}`；该字段保留用于历史记录和外部 API 兼容。
-- `group_count` 是视频测评层参数，保存在 `effective_params` 和 `canonical_request` 中，用于同一 cell 生成 1-5 条输出；provider payload 中不保留该参数。
+- `group_count` 是视频测评层参数，保存在 `effective_params` 和 `canonical_request` 中；有限并发模型上限来自模型能力 `capabilities.max_concurrent`，同步无限并发模型不额外设置上限；provider payload 中不保留该参数。
 - run 创建后会立即写入完整 `pending` cell 矩阵；运行中 `cell_results` 会增量包含 `running` 与已完成 cell，`stats` 包含 `pending_count`、`running_count`、`completed_count`。
 - 输出视频只保存 URL 与可选缩略信息，不保存视频二进制；同一 cell 可保存多条 `output_videos`，且 `status="running"` 时也可能已有部分输出。
+
+### ModelRateLimitSpec（模型限流能力）
+
+`backend/app/services/model_rate_limits.py` 是阿里生图/生视频模型限流的唯一映射源，capabilities 与运行时调度都从这里读取：
+
+```python
+class ModelRateLimitSpec:
+    api_mode: Literal["sync", "async"]
+    submit_rate_limit: SubmitRateLimit
+    max_inflight: Optional[int]
+    inflight_scope: Literal["model", "shared_pool", "unlimited", "unknown"]
+    shared_pool_id: Optional[str] = None
+    source_note: str
+```
+
+说明：
+- `submit_rate_limit` 表示任务下发接口调用频率，适用于同步生成请求和异步任务提交请求。
+- `max_inflight=None` 表示平台当前实际调用接口的处理中任务数量无限制；Qwen 图片同步模型属于该类，但仍受提交频率限制。
+- `inflight_scope="shared_pool"` 时，多个模型共享同一个 `shared_pool_id` 的 semaphore，例如 Kling 与 Vidu。
+- capabilities 对外字段为 `api_mode`、`submit_rate_limit`、`max_concurrent`、`concurrency_scope`、`concurrency_pool_id`、`rate_limit_note`。
 
 ### VideoStudioTask（视频工作室任务）
 

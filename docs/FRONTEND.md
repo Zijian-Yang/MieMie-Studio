@@ -104,8 +104,11 @@ frontend/src/
 - 参数级：`parameter.help`
 - 素材位：`task_profile.ui_hints.asset_help`
 - Prompt：`task_profile.ui_hints.prompt_help`
+- 模型限流：`model.capabilities.api_mode`、`submit_rate_limit`、`max_concurrent`、`concurrency_scope`
 
 前端只在少数素材位上保留兜底说明，避免后端帮助缺失时完全没有提示。
+
+图片工作室与视频工作室的“生成组数”上限来自后端 capabilities。有限异步并发模型使用 `max_concurrent` 作为 `InputNumber.max`；同步接口 `max_concurrent=null` 时不设置前端并发上限，但仍展示提交频率提示，让实际提交由后端排队。
 
 ### 参数迁移提示
 

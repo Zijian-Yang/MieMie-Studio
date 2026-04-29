@@ -30,6 +30,11 @@ from app.models.studio import StudioTask, StudioTaskImage, ReferenceItem
 from app.models.gallery import GalleryImage
 from app.services.storage import storage_service, set_current_user, get_current_user_id
 from app.services.dashscope.image_to_image import ImageToImageService
+from app.services.model_rate_limits import (
+    model_inflight_context,
+    validate_group_count_for_model,
+    wait_for_model_submit,
+)
 from app.services.oss import oss_service
 from app.services.remote_media_validation import inspect_remote_image
 from app.config import get_config, get_provider_api_key, get_provider_key_profile, set_user_config_dir, get_user_config_dir
@@ -1504,6 +1509,10 @@ async def create_studio_task(request: TaskCreateRequest):
     )
     bbox_list = _bbox_list_for_task_kind(task_kind, request.bbox_list)
     color_palette = _serialize_color_palette(request.color_palette)
+    try:
+        validate_group_count_for_model(request.model, max(1, int(request.group_count or 1)))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     task = StudioTask(
         project_id=request.project_id,
@@ -1710,6 +1719,10 @@ async def update_studio_task(task_id: str, request: TaskUpdateRequest):
     task.provider = _get_image_model_provider(task.model)
     task.task_kind = _infer_task_kind(task.model, task.task_kind, ref_urls, task.enable_sequential, task.bbox_list)
     task.bbox_list = _bbox_list_for_task_kind(task.task_kind, task.bbox_list) or []
+    try:
+        validate_group_count_for_model(task.model, max(1, int(task.group_count or 1)))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     task.input_assets = {"images": ref_urls}
     task.normalized_params = {
         "size": task.size,
@@ -1863,6 +1876,10 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
             task.web_search = bool(request.web_search)
 
         model_name = task.model or "wan2.5-i2i-preview"
+        try:
+            validate_group_count_for_model(model_name, max(1, int(task.group_count or 1)))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         is_text_to_image = model_name in IMAGE_MODELS
         ref_urls = [ref.url for ref in task.references if ref.url]
         normalized_bbox_list = request.bbox_list if request.bbox_list is not None else task.bbox_list
@@ -2204,136 +2221,139 @@ async def generate_with_wan27_image(
         service = Wan27ImageService(model_info)
         service.configure(api_key, base_url)
 
-        try:
-            external_task_id = await service.create_task(
-                prompt=task.prompt,
-                images=ref_urls or None,
-                size=size or "2K",
-                n=max(1, task.n),
-                enable_sequential=enable_sequential,
-                thinking_mode=thinking_mode,
-                color_palette=color_palette or None,
-                bbox_list=bbox_list,
-                watermark=watermark,
-                seed=seed,
-            )
-        except Exception as exc:
+        async with model_inflight_context(task.model):
+            try:
+                await wait_for_model_submit(task.model)
+                external_task_id = await service.create_task(
+                    prompt=task.prompt,
+                    images=ref_urls or None,
+                    size=size or "2K",
+                    n=max(1, task.n),
+                    enable_sequential=enable_sequential,
+                    thinking_mode=thinking_mode,
+                    color_palette=color_palette or None,
+                    bbox_list=bbox_list,
+                    watermark=watermark,
+                    seed=seed,
+                )
+            except Exception as exc:
+                submit_request_id = service.last_request_id
+                error_message = str(exc)
+                error_message = service.last_error_message or error_message
+                error_code = service.last_error_code or exc.__class__.__name__
+                meta_key = submit_request_id or f"submit_error_group_{group_index}"
+                meta = {
+                    meta_key: {
+                        "provider": "wan",
+                        "key_profile": get_provider_key_profile("wan"),
+                        "submit_request_id": submit_request_id,
+                        "request_id": submit_request_id,
+                        "usage": service.last_usage or {},
+                        "error_code": error_code,
+                        "error_message": error_message,
+                        "raw_output": service.last_raw_output or {},
+                        "stage": "submit",
+                    }
+                }
+                return [], [], [rid for rid in [submit_request_id] if rid], meta, error_message
+
             submit_request_id = service.last_request_id
-            error_message = service.last_error_message or str(exc)
-            error_code = service.last_error_code or exc.__class__.__name__
-            meta_key = submit_request_id or f"submit_error_group_{group_index}"
-            meta = {
-                meta_key: {
+
+            elapsed = 0
+            while elapsed < 300:
+                try:
+                    status = await service.get_task_status(external_task_id)
+                except Exception as exc:
+                    error_message = str(exc)
+                    meta = {
+                        external_task_id: {
+                            "provider": "wan",
+                            "key_profile": get_provider_key_profile("wan"),
+                            "submit_request_id": submit_request_id,
+                            "request_id": None,
+                            "usage": {},
+                            "error_code": exc.__class__.__name__,
+                            "error_message": error_message,
+                            "raw_output": {},
+                            "stage": "poll",
+                        }
+                    }
+                    return [], [external_task_id], [rid for rid in [submit_request_id] if rid], meta, error_message
+
+                if status.status.value == "succeeded":
+                    final_urls: List[str] = []
+                    for url in status.result or []:
+                        final_url = url
+                        if oss_service.is_enabled():
+                            final_url = await oss_service.upload_image_async(url, task.project_id)
+                            if final_url == url and oss_service.should_persist_generated_url(url):
+                                parsed = urlparse(url)
+                                logger.warning(
+                                    "[OSS][studio] initial persist fallback model_id=%s project_id=%s request_ids=%s task_ids=%s original_host=%s oss_enabled=%s reason=%s",
+                                    task.model or "unknown",
+                                    task.project_id or "_global",
+                                    ",".join([rid for rid in [submit_request_id, (status.metadata or {}).get("request_id")] if rid]) or "-",
+                                    external_task_id,
+                                    parsed.netloc or "unknown",
+                                    oss_service.is_enabled(),
+                                    "upload_image_async returned original url",
+                                )
+                        final_urls.append(final_url)
+
+                    images = [
+                        StudioTaskImage(
+                            group_index=group_index * max(1, task.n) + idx,
+                            url=url,
+                            prompt_used=task.prompt,
+                        )
+                        for idx, url in enumerate(final_urls)
+                    ]
+                    meta = {
+                        external_task_id: {
+                            "provider": "wan",
+                            "key_profile": get_provider_key_profile("wan"),
+                            "submit_request_id": submit_request_id,
+                            "request_id": (status.metadata or {}).get("request_id"),
+                            "usage": (status.metadata or {}).get("usage") or {},
+                            "error_code": (status.metadata or {}).get("error_code"),
+                            "error_message": (status.metadata or {}).get("error_message"),
+                            "raw_output": (status.metadata or {}).get("raw_output") or {},
+                        }
+                    }
+                    request_ids = [rid for rid in [submit_request_id, (status.metadata or {}).get("request_id")] if rid]
+                    return images, [external_task_id], request_ids, meta, None
+
+                if status.status.value in {"failed", "cancelled"}:
+                    meta = {
+                        external_task_id: {
+                            "provider": "wan",
+                            "key_profile": get_provider_key_profile("wan"),
+                            "submit_request_id": submit_request_id,
+                            "request_id": (status.metadata or {}).get("request_id"),
+                            "usage": (status.metadata or {}).get("usage") or {},
+                            "error_code": (status.metadata or {}).get("error_code"),
+                            "error_message": status.error_message,
+                            "raw_output": (status.metadata or {}).get("raw_output") or {},
+                        }
+                    }
+                    request_ids = [rid for rid in [submit_request_id, (status.metadata or {}).get("request_id")] if rid]
+                    return [], [external_task_id], request_ids, meta, status.error_message or "万相2.7 生成失败"
+
+                await asyncio.sleep(2)
+                elapsed += 2
+
+            return [], [external_task_id], [rid for rid in [submit_request_id] if rid], {
+                external_task_id: {
                     "provider": "wan",
                     "key_profile": get_provider_key_profile("wan"),
                     "submit_request_id": submit_request_id,
-                    "request_id": submit_request_id,
-                    "usage": service.last_usage or {},
-                    "error_code": error_code,
-                    "error_message": error_message,
-                    "raw_output": service.last_raw_output or {},
-                    "stage": "submit",
+                    "request_id": None,
+                    "usage": {},
+                    "error_code": "Timeout",
+                    "error_message": "万相2.7 生成超时",
+                    "raw_output": {},
                 }
-            }
-            return [], [], [rid for rid in [submit_request_id] if rid], meta, error_message
-
-        submit_request_id = service.last_request_id
-
-        elapsed = 0
-        while elapsed < 300:
-            try:
-                status = await service.get_task_status(external_task_id)
-            except Exception as exc:
-                error_message = str(exc)
-                meta = {
-                    external_task_id: {
-                        "provider": "wan",
-                        "key_profile": get_provider_key_profile("wan"),
-                        "submit_request_id": submit_request_id,
-                        "request_id": None,
-                        "usage": {},
-                        "error_code": exc.__class__.__name__,
-                        "error_message": error_message,
-                        "raw_output": {},
-                        "stage": "poll",
-                    }
-                }
-                return [], [external_task_id], [rid for rid in [submit_request_id] if rid], meta, error_message
-
-            if status.status.value == "succeeded":
-                final_urls: List[str] = []
-                for url in status.result or []:
-                    final_url = url
-                    if oss_service.is_enabled():
-                        final_url = await oss_service.upload_image_async(url, task.project_id)
-                        if final_url == url and oss_service.should_persist_generated_url(url):
-                            parsed = urlparse(url)
-                            logger.warning(
-                                "[OSS][studio] initial persist fallback model_id=%s project_id=%s request_ids=%s task_ids=%s original_host=%s oss_enabled=%s reason=%s",
-                                task.model or "unknown",
-                                task.project_id or "_global",
-                                ",".join([rid for rid in [submit_request_id, (status.metadata or {}).get("request_id")] if rid]) or "-",
-                                external_task_id,
-                                parsed.netloc or "unknown",
-                                oss_service.is_enabled(),
-                                "upload_image_async returned original url",
-                            )
-                    final_urls.append(final_url)
-
-                images = [
-                    StudioTaskImage(
-                        group_index=group_index * max(1, task.n) + idx,
-                        url=url,
-                        prompt_used=task.prompt,
-                    )
-                    for idx, url in enumerate(final_urls)
-                ]
-                meta = {
-                    external_task_id: {
-                        "provider": "wan",
-                        "key_profile": get_provider_key_profile("wan"),
-                        "submit_request_id": submit_request_id,
-                        "request_id": (status.metadata or {}).get("request_id"),
-                        "usage": (status.metadata or {}).get("usage") or {},
-                        "error_code": (status.metadata or {}).get("error_code"),
-                        "error_message": (status.metadata or {}).get("error_message"),
-                        "raw_output": (status.metadata or {}).get("raw_output") or {},
-                    }
-                }
-                request_ids = [rid for rid in [submit_request_id, (status.metadata or {}).get("request_id")] if rid]
-                return images, [external_task_id], request_ids, meta, None
-
-            if status.status.value in {"failed", "cancelled"}:
-                meta = {
-                    external_task_id: {
-                        "provider": "wan",
-                        "key_profile": get_provider_key_profile("wan"),
-                        "submit_request_id": submit_request_id,
-                        "request_id": (status.metadata or {}).get("request_id"),
-                        "usage": (status.metadata or {}).get("usage") or {},
-                        "error_code": (status.metadata or {}).get("error_code"),
-                        "error_message": status.error_message,
-                        "raw_output": (status.metadata or {}).get("raw_output") or {},
-                    }
-                }
-                request_ids = [rid for rid in [submit_request_id, (status.metadata or {}).get("request_id")] if rid]
-                return [], [external_task_id], request_ids, meta, status.error_message or "万相2.7 生成失败"
-
-            await asyncio.sleep(2)
-            elapsed += 2
-
-        return [], [external_task_id], [rid for rid in [submit_request_id] if rid], {
-            external_task_id: {
-                "provider": "wan",
-                "key_profile": get_provider_key_profile("wan"),
-                "submit_request_id": submit_request_id,
-                "request_id": None,
-                "usage": {},
-                "error_code": "Timeout",
-                "error_message": "万相2.7 生成超时",
-                "raw_output": {},
-            }
-        }, "万相2.7 生成超时"
+            }, "万相2.7 生成超时"
 
     all_images: List[StudioTaskImage] = []
     all_task_ids: List[str] = []
@@ -2537,18 +2557,20 @@ async def generate_with_text_to_image(
     async def generate_single_group(group_index: int) -> tuple[List[StudioTaskImage], bool, str, str, str]:
         """Returns: (图片列表, 是否成功, 错误信息, task_id, request_id)"""
         try:
-            result = await t2i_service.generate_batch(
-                prompt=task.prompt,
-                negative_prompt=task.negative_prompt or "",
-                width=width,
-                height=height,
-                n=n,
-                model=model_name,
-                prompt_extend=prompt_extend,
-                watermark=watermark,
-                seed=seed,
-                project_id=task.project_id
-            )
+            async with model_inflight_context(model_name):
+                await wait_for_model_submit(model_name)
+                result = await t2i_service.generate_batch(
+                    prompt=task.prompt,
+                    negative_prompt=task.negative_prompt or "",
+                    width=width,
+                    height=height,
+                    n=n,
+                    model=model_name,
+                    prompt_extend=prompt_extend,
+                    watermark=watermark,
+                    seed=seed,
+                    project_id=task.project_id
+                )
             
             images = []
             for i, url in enumerate(result.urls):
@@ -2649,19 +2671,21 @@ async def generate_with_wan26_image(
     
     async def generate_single_group(group_index: int) -> List[StudioTaskImage]:
         try:
-            urls, rid = await t2i_service.generate_with_wan26_image(
-                prompt=task.prompt,
-                image_urls=ref_urls,
-                negative_prompt=task.negative_prompt or "",
-                n=n,
-                size=size or "1280*1280",
-                prompt_extend=prompt_extend,
-                watermark=watermark,
-                seed=seed,
-                enable_interleave=enable_interleave,
-                max_images=max_images,
-                project_id=task.project_id
-            )
+            async with model_inflight_context("wan2.6-image"):
+                await wait_for_model_submit("wan2.6-image")
+                urls, rid = await t2i_service.generate_with_wan26_image(
+                    prompt=task.prompt,
+                    image_urls=ref_urls,
+                    negative_prompt=task.negative_prompt or "",
+                    n=n,
+                    size=size or "1280*1280",
+                    prompt_extend=prompt_extend,
+                    watermark=watermark,
+                    seed=seed,
+                    enable_interleave=enable_interleave,
+                    max_images=max_images,
+                    project_id=task.project_id
+                )
             if rid:
                 collected_request_ids.append(rid)
             
@@ -2726,18 +2750,20 @@ async def generate_with_wanx_i2i(
                 except ValueError:
                     width = None
                     height = None
-            urls, rid = await i2i_service.generate_with_multi_images(
-                prompt=task.prompt,
-                image_urls=ref_urls,
-                negative_prompt=task.negative_prompt,
-                width=width,
-                height=height,
-                model=task.model,
-                prompt_extend=prompt_extend,
-                seed=seed,
-                n=n,
-                project_id=task.project_id
-            )
+            async with model_inflight_context(task.model):
+                await wait_for_model_submit(task.model)
+                urls, rid = await i2i_service.generate_with_multi_images(
+                    prompt=task.prompt,
+                    image_urls=ref_urls,
+                    negative_prompt=task.negative_prompt,
+                    width=width,
+                    height=height,
+                    model=task.model,
+                    prompt_extend=prompt_extend,
+                    seed=seed,
+                    n=n,
+                    project_id=task.project_id
+                )
             if rid:
                 collected_request_ids.append(rid)
             if isinstance(urls, str):
@@ -2808,6 +2834,7 @@ async def generate_with_qwen_image_edit(
     
     async def generate_single_group(group_index: int) -> List[StudioTaskImage]:
         try:
+            await wait_for_model_submit(model_name)
             urls, rid = await service.generate(
                 prompt=task.prompt,
                 images=ref_urls,
@@ -2879,6 +2906,7 @@ async def generate_with_qwen_image(
     
     async def generate_single(group_index: int) -> List[StudioTaskImage]:
         try:
+            await wait_for_model_submit(model_name)
             urls, rid = await service.generate(
                 prompt=task.prompt,
                 negative_prompt=task.negative_prompt or "",
@@ -2975,6 +3003,7 @@ async def generate_with_qwen_image_2(
 
     async def generate_single(group_index: int) -> List[StudioTaskImage]:
         try:
+            await wait_for_model_submit(model_name)
             urls, rid = await service.generate(
                 prompt=task.prompt,
                 images=images_input,
@@ -3100,6 +3129,7 @@ async def get_available_models():
     """
     from app.models_registry import registry, ModelType
     from app.config import IMAGE_MODELS
+    from app.services.model_rate_limits import rate_limit_capabilities
     
     result = {}
     
@@ -3112,7 +3142,10 @@ async def get_available_models():
             "provider": model.provider,
             "description": model.description,
             "model_type": "image_to_image",
-            "capabilities": model.capabilities.model_dump() if model.capabilities else {},
+            "capabilities": rate_limit_capabilities(
+                model.id,
+                model.capabilities.model_dump() if model.capabilities else {},
+            ),
             "parameters": [p.model_dump() for p in model.parameters] if model.parameters else [],
             "common_sizes": model.get_common_sizes_for_frontend(),
             "supported_task_kinds": IMAGE_TASK_KIND_SUPPORT.get(model.id, ["image_edit"]),
@@ -3128,7 +3161,10 @@ async def get_available_models():
             "provider": model.provider,
             "description": model.description,
             "model_type": "text_to_image",
-            "capabilities": model.capabilities.model_dump() if model.capabilities else {},
+            "capabilities": rate_limit_capabilities(
+                model.id,
+                model.capabilities.model_dump() if model.capabilities else {},
+            ),
             "parameters": [p.model_dump() for p in model.parameters] if model.parameters else [],
             "common_sizes": model.get_common_sizes_for_frontend(),
             "supported_task_kinds": IMAGE_TASK_KIND_SUPPORT.get(model.id, ["text_to_image"]),
@@ -3151,7 +3187,7 @@ async def get_available_models():
             "provider": _get_image_model_provider(model_id),
             "description": model_info.get("description", ""),
             "model_type": model_type,
-            "capabilities": {
+            "capabilities": rate_limit_capabilities(model_id, {
                 "supports_prompt_extend": model_info.get("supports_prompt_extend", True),
                 "supports_watermark": model_info.get("supports_watermark", True),
                 "supports_seed": model_info.get("supports_seed", True),
@@ -3160,7 +3196,7 @@ async def get_available_models():
                 "supports_reference_images": model_info.get("supports_reference_images", False),
                 "supports_interleave": model_info.get("supports_interleave", False),
                 "max_reference_images": model_info.get("max_reference_images", 0),
-            },
+            }),
             "parameters": [],
             "common_sizes": model_info.get("common_sizes", []),
             "supported_task_kinds": IMAGE_TASK_KIND_SUPPORT.get(model_id, ["text_to_image"]),
