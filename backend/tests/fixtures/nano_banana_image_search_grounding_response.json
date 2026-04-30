@@ -1,0 +1,67 @@
+{
+  "candidates": [
+    {
+      "finishReason": "STOP",
+      "content": {
+        "parts": [
+          {
+            "text": "已使用 Google Search 图片结果作为视觉参考。"
+          },
+          {
+            "inlineData": {
+              "mimeType": "image/jpeg",
+              "data": "aW1hZ2UtZnJvbS1zYW1wbGU="
+            }
+          }
+        ]
+      },
+      "groundingMetadata": {
+        "searchEntryPoint": {
+          "renderedContent": "<div class=\"google-search-chip\">Google Search</div>"
+        },
+        "imageSearchQueries": [
+          "Timareta butterfly flower reference"
+        ],
+        "groundingChunks": [
+          {
+            "web": {
+              "uri": "https://example.com/articles/timareta-butterfly",
+              "title": "Timareta butterfly article"
+            }
+          },
+          {
+            "image": {
+              "uri": "https://example.com/photos/timareta-butterfly-on-flower",
+              "imageUri": "https://images.example.com/timareta-source.jpg",
+              "title": "Timareta butterfly photo"
+            }
+          },
+          {
+            "uri": "https://example.com/gallery/timareta-landing-page",
+            "image_uri": "https://images.example.com/timareta-gallery.jpg",
+            "title": "Timareta gallery"
+          },
+          {
+            "retrievedContext": {
+              "uri": "https://example.com/context/timareta",
+              "title": "Retrieved Timareta context"
+            }
+          }
+        ],
+        "groundingSupports": [
+          {
+            "segment": {
+              "text": "Timareta butterfly"
+            },
+            "groundingChunkIndices": [0, 1, 2]
+          }
+        ]
+      }
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 42,
+    "candidatesTokenCount": 11,
+    "totalTokenCount": 53
+  }
+}

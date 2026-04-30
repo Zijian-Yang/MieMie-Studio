@@ -172,7 +172,7 @@ class StudioTask(BaseModel):
 
     # 生成配置
     model: str                   # 模型
-    provider: Optional[str] = None # dashscope | volcengine | ...
+    provider: Optional[str] = None # dashscope | volcengine | google | ...
     task_kind: str = "image_edit" # text_to_image | image_edit | interactive_edit | sequential_generation
     prompt: str = ""
     negative_prompt: str = ""
@@ -204,6 +204,14 @@ class StudioTask(BaseModel):
     web_search: bool = False            # 联网搜索，仅 5.0 lite
     # guidance_scale 仅 Seedream 3.0 t2i 支持，5.0 lite / 4.5 不支持
 
+    # Google Gemini Nano Banana 特有参数
+    # aspect_ratio 与 image_size 分别下发到 generationConfig.imageConfig.aspectRatio / imageSize
+    # v1 支持 text_to_image 与 image_edit，不支持 sequential_generation
+    aspect_ratio: Optional[str] = None       # 1:1 / 16:9 / 21:9 等模型支持比例
+    image_size: Optional[str] = None         # 512 / 1K / 2K / 4K，512 仅 nano-banana-2
+    google_search_mode: str = "none"         # none | web | image | web_and_image；Pro 仅 none/web
+    thinking_level: Optional[str] = None     # minimal | high，仅 nano-banana-2
+
     # 参考图/素材
     references: List[TaskReference] = []
 
@@ -213,7 +221,7 @@ class StudioTask(BaseModel):
     error_message: Optional[str] = None
     request_ids: List[str] = []  # 所有并发组的 request_id
     provider_payload_snapshot: Optional[Dict[str, Any]] = None
-    provider_result_meta: Dict[str, Any] = {}
+    provider_result_meta: Dict[str, Any] = {} # Nano Banana 会额外保留 grounding_source_links[]
 
     created_at: datetime
     updated_at: datetime

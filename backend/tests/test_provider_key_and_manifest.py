@@ -67,6 +67,25 @@ def test_settings_supports_independent_volcengine_api_key(client, auth_header):
     assert data["volcengine_api_key_masked"] == "volc********5678"
 
 
+def test_settings_supports_independent_google_api_key(client, auth_header):
+    resp = client.put(
+        "/api/settings",
+        headers=auth_header,
+        json={
+            "test_api_key": "dashscope-test-key",
+            "production_api_key": "dashscope-prod-key",
+            "google_api_key": "goog-ak-12345678",
+        },
+    )
+    assert resp.status_code == 200
+
+    settings = client.get("/api/settings", headers=auth_header)
+    assert settings.status_code == 200
+    data = settings.json()
+    assert data["is_google_api_key_set"] is True
+    assert data["google_api_key_masked"] == "goog********5678"
+
+
 def test_blank_volcengine_key_update_keeps_existing_key(client, auth_header):
     resp = client.put(
         "/api/settings",
@@ -87,6 +106,28 @@ def test_blank_volcengine_key_update_keeps_existing_key(client, auth_header):
     data = settings.json()
     assert data["is_volcengine_api_key_set"] is True
     assert data["volcengine_api_key_masked"] == "volc*************5678"
+
+
+def test_blank_google_key_update_keeps_existing_key(client, auth_header):
+    resp = client.put(
+        "/api/settings",
+        headers=auth_header,
+        json={"google_api_key": "goog-ak-keep-12345678"},
+    )
+    assert resp.status_code == 200
+
+    blank_resp = client.put(
+        "/api/settings",
+        headers=auth_header,
+        json={"google_api_key": "   "},
+    )
+    assert blank_resp.status_code == 200
+
+    settings = client.get("/api/settings", headers=auth_header)
+    assert settings.status_code == 200
+    data = settings.json()
+    assert data["is_google_api_key_set"] is True
+    assert data["google_api_key_masked"] == "goog*************5678"
 
 
 def test_settings_persists_happyhorse_test_profile_after_refresh(client, auth_header):
@@ -153,6 +194,21 @@ def test_get_provider_api_key_returns_independent_volcengine_key(registered_user
 
     assert get_provider_api_key("wan") == "dashscope-test-key"
     assert get_provider_api_key("volcengine") == "volc-ak-independent"
+
+
+def test_get_provider_api_key_returns_independent_google_key(registered_user):
+    _, user = registered_user
+    user_dir = get_user_service().get_user_data_path(user["id"])
+    set_user_config_dir(str(user_dir))
+    config_manager.update(
+        production_api_key="dashscope-prod-key",
+        test_api_key="dashscope-test-key",
+        google_api_key="goog-ak-independent",
+        wan_key_profile="test",
+    )
+
+    assert get_provider_api_key("wan") == "dashscope-test-key"
+    assert get_provider_api_key("google") == "goog-ak-independent"
 
 
 def test_provider_profile_override_supports_happyhorse_independently(registered_user):

@@ -8,6 +8,7 @@
 - wan2.5-i2i-preview: 万相2.5 图生图（风格迁移）
 - qwen-image-edit-plus: 通义千问图像编辑（单图编辑/多图融合）
 - doubao-seedream-5.0-lite / doubao-seedream-4.5: 火山引擎图片生成
+- nano-banana-2 / nano-banana-pro: Google Gemini 原生图片生成
 
 API 文档：
 - 万相2.6: https://help.aliyun.com/zh/model-studio/wan-image-generation-api-reference
@@ -37,6 +38,9 @@ from . import wan27_image
 # 火山引擎 Seedream（文生图 / 图像编辑 / 组图生成）
 from . import seedream
 
+# Google Gemini Nano Banana（文生图 / 图像编辑）
+from . import nano_banana
+
 # 导出
 from .wan26_t2i import WAN26_T2I_MODEL_INFO, Wan26T2IService
 from .wan26_image import WAN26_IMAGE_MODEL_INFO, Wan26ImageService
@@ -47,6 +51,7 @@ from .qwen_image_edit import QWEN_IMAGE_EDIT_PLUS_MODEL_INFO, QwenImageEditServi
 from .qwen_image_2 import QWEN_IMAGE_2_PRO_MODEL_INFO, QWEN_IMAGE_2_MODEL_INFO, QwenImage2Service
 from .wan27_image import WAN27_PRO_MODEL_INFO, WAN27_MODEL_INFO, Wan27ImageService
 from .seedream import SEEDREAM_5_LITE_MODEL_INFO, SEEDREAM_45_MODEL_INFO, SeedreamImageService
+from .nano_banana import NANO_BANANA_2_MODEL_INFO, NANO_BANANA_PRO_MODEL_INFO, NanoBananaImageService
 
 __all__ = [
     # 万相2.6
@@ -74,4 +79,7 @@ __all__ = [
     "SEEDREAM_5_LITE_MODEL_INFO",
     "SEEDREAM_45_MODEL_INFO",
     "SeedreamImageService",
+    "NANO_BANANA_2_MODEL_INFO",
+    "NANO_BANANA_PRO_MODEL_INFO",
+    "NanoBananaImageService",
 ]

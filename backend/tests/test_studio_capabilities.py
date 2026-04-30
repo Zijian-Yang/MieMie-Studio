@@ -1,7 +1,9 @@
 import pytest
 import asyncio
+import json
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from app.models.studio import ReferenceItem, StudioTaskImage
 from app.routers import studio as studio_router
@@ -97,6 +99,43 @@ def test_get_available_image_models_includes_seedream_models(client, auth_header
     assert [option["label"] for option in size_45_param["constraint"]["options"]] == ["2K", "4K"]
     fixed_45_size_values = {f"{size['width']}x{size['height']}" for size in seedream_45["common_sizes"]}
     assert "3072x3072" not in fixed_45_size_values
+
+
+def test_get_available_image_models_includes_nano_banana_models(client, auth_header):
+    resp = client.get("/api/studio/models/available", headers=auth_header)
+    assert resp.status_code == 200
+    data = resp.json()["models"]
+
+    assert "nano-banana-2" in data
+    assert "nano-banana-pro" in data
+
+    nano2 = data["nano-banana-2"]
+    assert nano2["provider"] == "google"
+    assert nano2["supported_task_kinds"] == ["text_to_image", "image_edit"]
+    nano2_params = {param["name"] for param in nano2["parameters"]}
+    assert {"aspect_ratio", "image_size", "google_search_mode", "thinking_level"}.issubset(nano2_params)
+    assert {"negative_prompt", "seed", "watermark", "output_format", "prompt_extend"}.isdisjoint(nano2_params)
+    image_size_param = next(param for param in nano2["parameters"] if param["name"] == "image_size")
+    assert [option["value"] for option in image_size_param["constraint"]["options"]] == ["512", "1K", "2K", "4K"]
+    ratio_param = next(param for param in nano2["parameters"] if param["name"] == "aspect_ratio")
+    assert "1:8" in [option["value"] for option in ratio_param["constraint"]["options"]]
+    search_param = next(param for param in nano2["parameters"] if param["name"] == "google_search_mode")
+    assert [option["value"] for option in search_param["constraint"]["options"]] == ["none", "web", "image", "web_and_image"]
+
+    pro = data["nano-banana-pro"]
+    assert pro["provider"] == "google"
+    assert pro["supported_task_kinds"] == ["text_to_image", "image_edit"]
+    pro_params = {param["name"] for param in pro["parameters"]}
+    assert {"aspect_ratio", "image_size", "google_search_mode"}.issubset(pro_params)
+    assert "thinking_level" not in pro_params
+    pro_image_size_param = next(param for param in pro["parameters"] if param["name"] == "image_size")
+    assert [option["value"] for option in pro_image_size_param["constraint"]["options"]] == ["1K", "2K", "4K"]
+    pro_ratio_param = next(param for param in pro["parameters"] if param["name"] == "aspect_ratio")
+    pro_ratio_values = [option["value"] for option in pro_ratio_param["constraint"]["options"]]
+    assert "1:8" not in pro_ratio_values
+    assert "21:9" in pro_ratio_values
+    pro_search_param = next(param for param in pro["parameters"] if param["name"] == "google_search_mode")
+    assert [option["value"] for option in pro_search_param["constraint"]["options"]] == ["none", "web"]
 
 
 def test_wan27_size_templates_are_legal_for_pure_text_mode():
@@ -271,6 +310,192 @@ def test_preview_payload_rejects_seedream_too_many_reference_and_output_images(c
     )
     assert resp.status_code == 400
     assert "参考图数量 + 最终生成图片数量" in resp.json()["detail"]
+
+
+def test_preview_payload_builds_nano_banana_2_grounded_payload(client, auth_header):
+    resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "nano-banana-2",
+            "task_kind": "text_to_image",
+            "prompt": "生成一张伦敦实时天气信息图",
+            "n": 1,
+            "group_count": 1,
+            "aspect_ratio": "16:9",
+            "image_size": "2K",
+            "google_search_mode": "web_and_image",
+            "thinking_level": "high",
+            "references": [],
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    canonical = data["canonical_request"]
+    payload = data["provider_payload"]
+
+    assert canonical["provider"] == "google"
+    assert canonical["model_id"] == "nano-banana-2"
+    assert canonical["task_kind"] == "text_to_image"
+    assert canonical["normalized_params"]["aspect_ratio"] == "16:9"
+    assert canonical["normalized_params"]["image_size"] == "2K"
+    assert canonical["normalized_params"]["google_search_mode"] == "web_and_image"
+    assert canonical["normalized_params"]["thinking_level"] == "high"
+
+    assert payload["model"] == "gemini-3.1-flash-image-preview"
+    assert payload["contents"] == [
+        {
+            "role": "user",
+            "parts": [{"text": "生成一张伦敦实时天气信息图"}],
+        }
+    ]
+    assert payload["generationConfig"]["responseModalities"] == ["IMAGE"]
+    assert payload["generationConfig"]["imageConfig"] == {
+        "aspectRatio": "16:9",
+        "imageSize": "2K",
+    }
+    assert payload["generationConfig"]["thinkingConfig"] == {
+        "thinkingLevel": "high",
+        "includeThoughts": False,
+    }
+    assert payload["tools"] == [
+        {
+            "google_search": {
+                "searchTypes": {
+                    "webSearch": {},
+                    "imageSearch": {},
+                }
+            }
+        }
+    ]
+
+
+def test_preview_payload_builds_nano_banana_image_edit_payload(client, auth_header, monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.studio._resolve_reference_items",
+        lambda _refs: _mock_reference_items(
+            [
+                "https://oss.example.com/ref-1.png",
+                "https://oss.example.com/ref-2.jpg",
+            ]
+        ),
+    )
+    resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "nano-banana-pro",
+            "task_kind": "image_edit",
+            "prompt": "把图1和图2合成为一张专业电商海报",
+            "n": 1,
+            "group_count": 1,
+            "aspect_ratio": "4:5",
+            "image_size": "4K",
+            "google_search_mode": "web",
+            "references": [{"type": "gallery", "id": "g1"}, {"type": "gallery", "id": "g2"}],
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    payload = data["provider_payload"]
+
+    assert data["canonical_request"]["provider"] == "google"
+    assert data["canonical_request"]["task_kind"] == "image_edit"
+    assert payload["model"] == "gemini-3-pro-image-preview"
+    parts = payload["contents"][0]["parts"]
+    assert parts[0] == {"text": "把图1和图2合成为一张专业电商海报"}
+    assert parts[1]["inline_data"] == {
+        "mime_type": "image/png",
+        "data": "<resolved at generation time>",
+        "source_url": "https://oss.example.com/ref-1.png",
+    }
+    assert parts[2]["inline_data"] == {
+        "mime_type": "image/png",
+        "data": "<resolved at generation time>",
+        "source_url": "https://oss.example.com/ref-2.jpg",
+    }
+    assert payload["generationConfig"]["imageConfig"] == {
+        "aspectRatio": "4:5",
+        "imageSize": "4K",
+    }
+    assert payload["tools"] == [{"google_search": {}}]
+
+
+def test_preview_payload_rejects_nano_banana_pro_flash_only_options(client, auth_header):
+    resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "nano-banana-pro",
+            "task_kind": "text_to_image",
+            "prompt": "一张海报",
+            "n": 1,
+            "aspect_ratio": "1:8",
+            "image_size": "512",
+            "google_search_mode": "image",
+            "references": [],
+        },
+    )
+    assert resp.status_code == 400
+    detail = resp.json()["detail"]
+    assert "nano-banana-pro" in detail
+    assert "不支持" in detail
+
+
+def test_preview_payload_rejects_nano_banana_reference_count_rules(client, auth_header, monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.studio._resolve_reference_items",
+        lambda _refs: _mock_reference_items([f"https://oss.example.com/ref-{index}.png" for index in range(15)]),
+    )
+    too_many_resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "nano-banana-2",
+            "task_kind": "image_edit",
+            "prompt": "合成海报",
+            "n": 1,
+            "aspect_ratio": "1:1",
+            "image_size": "1K",
+            "references": [{"type": "gallery", "id": f"g{index}"} for index in range(15)],
+        },
+    )
+    assert too_many_resp.status_code == 400
+    assert "最多支持 14 张参考图片" in too_many_resp.json()["detail"]
+
+    text_with_ref_resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "nano-banana-2",
+            "task_kind": "text_to_image",
+            "prompt": "一张海报",
+            "n": 1,
+            "references": [{"type": "gallery", "id": "g1"}],
+        },
+    )
+    assert text_with_ref_resp.status_code == 400
+    assert "文生图模式不支持输入图片" in text_with_ref_resp.json()["detail"]
+
+    edit_without_ref_resp = client.post(
+        "/api/studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": "p1",
+            "model": "nano-banana-2",
+            "task_kind": "image_edit",
+            "prompt": "编辑图片",
+            "n": 1,
+            "references": [],
+        },
+    )
+    assert edit_without_ref_resp.status_code == 400
+    assert "图像编辑模式至少需要 1 张输入图片" in edit_without_ref_resp.json()["detail"]
 
 
 def test_oss_temporary_url_detection_includes_volcengine_tos_signature():
@@ -1054,6 +1279,276 @@ async def test_seedream_service_normalizes_success_and_item_errors(monkeypatch):
     assert meta["usage"]["generated_images"] == 1
     assert meta["item_errors"][0]["code"] == "ContentRisk"
     assert meta["raw_response"]["data"][1]["error"]["message"] == "审核不通过"
+
+
+@pytest.mark.asyncio
+async def test_nano_banana_service_normalizes_inline_images_and_grounding(monkeypatch):
+    from app.models_registry.image.nano_banana import (
+        NANO_BANANA_2_MODEL_INFO,
+        NanoBananaImageService,
+    )
+
+    captured = {}
+
+    class MockResponse:
+        status_code = 200
+        headers = {"x-request-id": "google-req-123"}
+
+        @staticmethod
+        def json():
+            return {
+                "candidates": [
+                    {
+                        "finishReason": "STOP",
+                        "content": {
+                            "parts": [
+                                {
+                                    "thought": True,
+                                    "inlineData": {
+                                        "mimeType": "image/png",
+                                        "data": "dGhvdWdodA==",
+                                    },
+                                },
+                                {"text": "已生成图片", "thoughtSignature": "sig-text"},
+                                {
+                                    "inlineData": {
+                                        "mimeType": "image/png",
+                                        "data": "aW1hZ2UtMQ==",
+                                    },
+                                    "thoughtSignature": "sig-image-1",
+                                },
+                                {
+                                    "inline_data": {
+                                        "mime_type": "image/jpeg",
+                                        "data": "aW1hZ2UtMg==",
+                                    },
+                                    "thought_signature": "sig-image-2",
+                                },
+                            ]
+                        },
+                        "groundingMetadata": {
+                            "groundingChunks": [
+                                {"web": {"uri": "https://example.com/source", "title": "Source"}}
+                            ]
+                        },
+                    }
+                ],
+                "usageMetadata": {"totalTokenCount": 123},
+            }
+
+    class MockAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, headers=None, json=None):
+            captured["url"] = url
+            captured["headers"] = headers or {}
+            captured["payload"] = json or {}
+            return MockResponse()
+
+    async def fake_download(url, timeout=None):
+        assert url == "https://oss.example.com/ref.png"
+        return b"ref-bytes", "image/png"
+
+    monkeypatch.setattr("app.models_registry.image.nano_banana.httpx.AsyncClient", MockAsyncClient)
+    monkeypatch.setattr("app.models_registry.image.nano_banana.download_remote_bytes", fake_download)
+
+    service = NanoBananaImageService(NANO_BANANA_2_MODEL_INFO)
+    service.configure("google-key")
+
+    images, request_id, meta = await service.generate(
+        prompt="生成海报",
+        images=["https://oss.example.com/ref.png"],
+        aspect_ratio="16:9",
+        image_size="2K",
+        google_search_mode="web_and_image",
+        thinking_level="high",
+    )
+
+    assert request_id == "google-req-123"
+    assert captured["url"] == "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent"
+    assert captured["headers"]["x-goog-api-key"] == "google-key"
+    assert captured["payload"]["contents"][0]["parts"][1]["inline_data"] == {
+        "mime_type": "image/png",
+        "data": "cmVmLWJ5dGVz",
+    }
+    assert captured["payload"]["generationConfig"]["thinkingConfig"]["thinkingLevel"] == "high"
+    assert len(images) == 2
+    assert images[0]["mime_type"] == "image/png"
+    assert images[0]["data"] == b"image-1"
+    assert images[0]["thought_signature"] == "sig-image-1"
+    assert images[1]["mime_type"] == "image/jpeg"
+    assert images[1]["data"] == b"image-2"
+    assert meta["usage"]["totalTokenCount"] == 123
+    assert meta["grounding_metadata"][0]["groundingChunks"][0]["web"]["uri"] == "https://example.com/source"
+    assert meta["text_parts"] == ["已生成图片"]
+    assert meta["raw_response"]["candidates"][0]["finishReason"] == "STOP"
+
+
+@pytest.mark.asyncio
+async def test_nano_banana_service_extracts_grounding_source_links_from_sample(monkeypatch):
+    from app.models_registry.image.nano_banana import (
+        NANO_BANANA_2_MODEL_INFO,
+        NanoBananaImageService,
+    )
+
+    sample_path = Path(__file__).parent / "fixtures" / "nano_banana_image_search_grounding_response.json"
+    sample_response = json.loads(sample_path.read_text(encoding="utf-8"))
+
+    class MockResponse:
+        status_code = 200
+        headers = {"x-request-id": "google-grounding-sample"}
+
+        @staticmethod
+        def json():
+            return sample_response
+
+    class MockAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, headers=None, json=None):
+            return MockResponse()
+
+    monkeypatch.setattr("app.models_registry.image.nano_banana.httpx.AsyncClient", MockAsyncClient)
+
+    service = NanoBananaImageService(NANO_BANANA_2_MODEL_INFO)
+    service.configure("google-key")
+
+    images, request_id, meta = await service.generate(
+        prompt="A detailed painting of a Timareta butterfly resting on a flower",
+        google_search_mode="web_and_image",
+    )
+
+    assert request_id == "google-grounding-sample"
+    assert images[0]["mime_type"] == "image/jpeg"
+    assert images[0]["data"] == b"image-from-sample"
+    assert meta["grounding_metadata"][0]["imageSearchQueries"] == [
+        "Timareta butterfly flower reference"
+    ]
+    assert meta["grounding_source_links"] == [
+        {
+            "uri": "https://example.com/articles/timareta-butterfly",
+            "title": "Timareta butterfly article",
+            "source_type": "web",
+            "image_uri": None,
+        },
+        {
+            "uri": "https://example.com/photos/timareta-butterfly-on-flower",
+            "title": "Timareta butterfly photo",
+            "source_type": "image",
+            "image_uri": "https://images.example.com/timareta-source.jpg",
+        },
+        {
+            "uri": "https://example.com/gallery/timareta-landing-page",
+            "title": "Timareta gallery",
+            "source_type": "image",
+            "image_uri": "https://images.example.com/timareta-gallery.jpg",
+        },
+        {
+            "uri": "https://example.com/context/timareta",
+            "title": "Retrieved Timareta context",
+            "source_type": "retrieved_context",
+            "image_uri": None,
+        },
+    ]
+    assert meta["raw_response"]["candidates"][0]["groundingMetadata"]["searchEntryPoint"][
+        "renderedContent"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_generate_with_nano_banana_persists_inline_bytes(monkeypatch):
+    from app.models.studio import StudioTask
+    from app.routers.studio import generate_with_nano_banana_image
+
+    class MockService:
+        def __init__(self, model_info):
+            self.model_info = model_info
+
+        def configure(self, api_key):
+            assert api_key == "google-key"
+
+        async def generate(self, **kwargs):
+            return (
+                [
+                    {"data": b"image-1", "mime_type": "image/png", "thought_signature": "sig-1"},
+                    {"data": b"image-2", "mime_type": "image/jpeg", "thought_signature": "sig-2"},
+                ],
+                "google-req-123",
+                {
+                    "provider": "google",
+                    "usage": {"totalTokenCount": 123},
+                    "grounding_source_links": [
+                        {
+                            "uri": "https://example.com/source",
+                            "title": "Source",
+                            "source_type": "web",
+                            "image_uri": None,
+                        }
+                    ],
+                    "raw_response": {"ok": True},
+                },
+            )
+
+    async def fake_persist(data, project_id="", mime_type="image/png", max_retries=5):
+        extension = "jpg" if mime_type == "image/jpeg" else "png"
+        return PersistedAssetResult(
+            url=f"https://oss.example.com/{project_id}/{data.decode()}.{extension}",
+            storage_source="oss",
+        )
+
+    monkeypatch.setattr("app.routers.studio.NanoBananaImageService", MockService)
+    monkeypatch.setattr(
+        studio_router.oss_service,
+        "persist_generated_image_bytes_with_fallback_async",
+        fake_persist,
+    )
+
+    task = StudioTask(
+        project_id="p1",
+        name="nano 测试",
+        model="nano-banana-2",
+        task_kind="text_to_image",
+        prompt="生成海报",
+        n=1,
+        group_count=1,
+        aspect_ratio="1:1",
+        image_size="1K",
+    )
+
+    images, request_ids, meta = await generate_with_nano_banana_image(
+        task=task,
+        api_key="google-key",
+        ref_urls=[],
+        aspect_ratio="1:1",
+        image_size="1K",
+        google_search_mode="none",
+        thinking_level="minimal",
+    )
+
+    assert request_ids == ["google-req-123"]
+    assert [image.url for image in images] == [
+        "https://oss.example.com/p1/image-1.png",
+        "https://oss.example.com/p1/image-2.jpg",
+    ]
+    assert all(image.storage_source == "oss" for image in images)
+    assert meta["google-req-123"]["provider"] == "google"
+    assert meta["google-req-123"]["usage"]["totalTokenCount"] == 123
+    assert meta["google-req-123"]["raw_response"] == {"ok": True}
+    assert meta["google-req-123"]["grounding_source_links"][0]["uri"] == "https://example.com/source"
 
 
 @pytest.mark.asyncio

@@ -191,6 +191,28 @@ class OSSService:
         local_url = "/" + str(Path("assets") / relative_path).replace(os.sep, "/")
         return file_path, local_url
 
+    def _write_bytes_to_staging_sync(
+        self,
+        data: bytes,
+        file_type: str = "image",
+        extension: str = "png",
+        project_id: str = "",
+    ) -> _StagedFile:
+        """将内联生成结果写入本地暂存文件。"""
+        final_extension = self._normalize_extension(extension)
+        staged_path, local_url = self._build_staging_target(file_type, final_extension, project_id)
+        try:
+            with open(staged_path, "wb") as file:
+                file.write(data)
+                file.flush()
+                os.fsync(file.fileno())
+            if staged_path.stat().st_size <= 0:
+                raise OSError("写入文件为空")
+            return _StagedFile(path=staged_path, local_url=local_url, extension=final_extension)
+        except Exception:
+            staged_path.unlink(missing_ok=True)
+            raise
+
     def _cleanup_staged_file(self, file_path: Path) -> None:
         """清理本地暂存文件，父目录为空时顺带清理"""
         try:
@@ -766,6 +788,77 @@ class OSSService:
                 url=staged_file.local_url,
                 storage_source="local_fallback",
                 warning=warning,
+                error=last_error or None,
+            )
+        except Exception:
+            self._cleanup_staged_file(staged_file.path)
+            raise
+
+    async def persist_generated_image_bytes_with_fallback_async(
+        self,
+        data: bytes,
+        project_id: str = "",
+        mime_type: str = "image/png",
+        max_retries: int = 5,
+    ) -> PersistedAssetResult:
+        """内联图片字节统一落盘后上传 OSS；OSS 不可用或持续失败时回落本地 URL。"""
+        if not data:
+            return PersistedAssetResult(url="", storage_source="remote")
+
+        extension = self._extension_from_content_type(mime_type, "png")
+        loop = asyncio.get_event_loop()
+        context = copy_context()
+        staged_file = await loop.run_in_executor(
+            _oss_executor,
+            context.run,
+            self._write_bytes_to_staging_sync,
+            data,
+            "image",
+            extension,
+            project_id,
+        )
+
+        if not self.is_enabled():
+            return PersistedAssetResult(
+                url=staged_file.local_url,
+                storage_source="local_fallback",
+                warning="OSS 未启用，Google 内联图片已暂时保存为服务器本地文件。",
+                error="OSS 未启用",
+                retryable=False,
+            )
+
+        last_error = ""
+        attempts = max(1, max_retries)
+        try:
+            for attempt in range(attempts):
+                success, result = await loop.run_in_executor(
+                    _oss_executor,
+                    context.run,
+                    self._upload_staged_file_sync,
+                    staged_file,
+                    "image",
+                    project_id,
+                )
+                if success:
+                    self._cleanup_staged_file(staged_file.path)
+                    return PersistedAssetResult(url=result, storage_source="oss")
+
+                last_error = result
+                if self._is_non_retryable_upload_failure(last_error):
+                    return PersistedAssetResult(
+                        url=staged_file.local_url,
+                        storage_source="local_fallback",
+                        warning=f"Google 内联图片转存 OSS 失败，已暂时保存为服务器本地文件：{last_error}",
+                        error=last_error,
+                        retryable=False,
+                    )
+                if attempt < attempts - 1:
+                    await asyncio.sleep(min(2 ** attempt, 8))
+
+            return PersistedAssetResult(
+                url=staged_file.local_url,
+                storage_source="local_fallback",
+                warning=f"Google 内联图片转存 OSS 连续失败，已暂时保存为服务器本地文件：{last_error or '未知错误'}",
                 error=last_error or None,
             )
         except Exception:
