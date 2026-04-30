@@ -95,12 +95,16 @@ Authorization: Bearer {token}
 | DELETE | `/api-key` | 删除 API Key |
 | POST | `/oss/test` | 测试 OSS 连接 |
 
-`GET /api/settings` 会返回火山引擎 Ark Key 的脱敏状态：
+`GET /api/settings` 会返回独立厂商 Key 的脱敏状态：
 
 - `volcengine_api_key_masked`
 - `is_volcengine_api_key_set`
+- `google_api_key_masked`
+- `is_google_api_key_set`
 
 `PUT /api/settings` 可写入 `volcengine_api_key`。这把 Key 仅供 `provider=volcengine` 的 Seedream 图片模型使用，不参与 DashScope 测试/生产 Key 路由。
+
+`PUT /api/settings` 也可写入 `google_api_key`。这把 Key 仅供 `provider=google` 的 Nano Banana 图片模型使用，不参与 DashScope 测试/生产 Key 路由。
 
 所有 Key 字段写入前会去除首尾空白；空白字符串表示“不修改现有 Key”，不会清空已保存配置。
 
@@ -240,6 +244,14 @@ Authorization: Bearer {token}
 - 5.0 lite 专属参数：`output_format=jpeg/png`、`web_search=true` 时下发 `tools=[{"type":"web_search"}]`。
 - 固定下发 `response_format=url`、`stream=false`，结果继续走图片工作室后台生成、轮询和 OSS 持久化。
 
+#### Nano Banana / Google
+
+- `nano-banana-2` 与 `nano-banana-pro` 使用 `provider=google`，仅支持 `text_to_image` 与 `image_edit`。
+- 厂商 payload 使用 `contents[].parts[]` 与 `generationConfig.responseModalities=["IMAGE"]`，参考图会在服务端下载后转成 `inline_data`。
+- 参数使用 `generationConfig.imageConfig.aspectRatio` 与 `imageSize`，并按模型限制校验 `google_search_mode`；`thinking_level` 仅 `nano-banana-2` 支持。
+- Google 返回 inline 图片字节，平台会先持久化为 OSS 或本地回退 URL，不会把 base64 写入任务 JSON。
+- 开发者模式的 `provider_result_meta.*.grounding_source_links[]` 是从 `groundingMetadata.groundingChunks` 规范化出的来源链接，供 Google Search attribution 展示。
+
 #### 图片工作室 OSS 回退
 
 - 生成结果写入任务前会先落本地暂存，再上传当前用户 OSS；成功后删除本地暂存。
@@ -276,6 +288,8 @@ Authorization: Bearer {token}
 | POST | `/preview-cell` | 预览单个 case × model 的 canonical 请求与厂商 payload |
 
 运行接口会立即返回完整 `pending` cell 矩阵；后台执行中会增量写入 `running` / 终态 cell，`GET /runs/{id}` 可在 run 仍为 `running` 时看到已完成输出。`stats` 包含 `pending_count`、`running_count`、`completed_count`，前端通过轮询即时展示已完成结果。
+
+Google Nano Banana 的 `cell_results[].provider_result_meta.*.grounding_source_links[]` 是从 `groundingMetadata.groundingChunks` 规范化出的来源链接，供详情页和开发者模式展示 attribution。
 
 #### 测评报告导出
 
@@ -421,7 +435,12 @@ v1 固定 `task_kind=image_to_video`。数据集 item 示例：
   "request_ids": ["submit-request", "poll-request"],
   "canonical_request": {},
   "provider_payload": {},
-  "provider_result_meta": {}
+  "provider_result_meta": {
+    "request-id": {
+      "grounding_metadata": [],
+      "grounding_source_links": []
+    }
+  }
 }
 ```
 

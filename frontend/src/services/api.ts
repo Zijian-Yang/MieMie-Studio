@@ -365,6 +365,8 @@ export interface ConfigResponse {
   is_production_api_key_set: boolean
   volcengine_api_key_masked: string
   is_volcengine_api_key_set: boolean
+  google_api_key_masked: string
+  is_google_api_key_set: boolean
   wan_key_profile: 'test' | 'production'
   happyhorse_key_profile: 'test' | 'production'
   kling_key_profile: 'test' | 'production'
@@ -397,6 +399,7 @@ export interface ConfigUpdateRequest {
   test_api_key?: string
   production_api_key?: string
   volcengine_api_key?: string
+  google_api_key?: string
   wan_key_profile?: 'test' | 'production'
   happyhorse_key_profile?: 'test' | 'production'
   kling_key_profile?: 'test' | 'production'
@@ -1289,6 +1292,10 @@ export interface StudioTask {
   custom_height?: number | null
   output_format?: 'jpeg' | 'png' | null
   web_search?: boolean
+  aspect_ratio?: string | null
+  image_size?: string | null
+  google_search_mode?: 'none' | 'web' | 'image' | 'web_and_image' | string
+  thinking_level?: 'minimal' | 'high' | string | null
   // 追踪ID
   last_task_id?: string
   last_request_id?: string
@@ -1345,6 +1352,10 @@ export const studioApi = {
     custom_height?: number
     output_format?: 'jpeg' | 'png' | null
     web_search?: boolean
+    aspect_ratio?: string | null
+    image_size?: string | null
+    google_search_mode?: 'none' | 'web' | 'image' | 'web_and_image' | string
+    thinking_level?: 'minimal' | 'high' | string | null
     references?: Array<{ type: string, id: string }>
   }) => api.post<any, StudioTask>('/studio', data),
   update: (id: string, data: Partial<StudioTask>) => api.put<any, StudioTask>(`/studio/${id}`, data),
@@ -1373,6 +1384,10 @@ export const studioApi = {
     custom_height?: number
     output_format?: 'jpeg' | 'png' | null
     web_search?: boolean
+    aspect_ratio?: string | null
+    image_size?: string | null
+    google_search_mode?: 'none' | 'web' | 'image' | 'web_and_image' | string
+    thinking_level?: 'minimal' | 'high' | string | null
   }) => api.post<any, { task: StudioTask }>(`/studio/${id}/generate`, data || {}),
   previewPayload: (data: {
     project_id: string
@@ -1398,6 +1413,10 @@ export const studioApi = {
     custom_height?: number
     output_format?: 'jpeg' | 'png' | null
     web_search?: boolean
+    aspect_ratio?: string | null
+    image_size?: string | null
+    google_search_mode?: 'none' | 'web' | 'image' | 'web_and_image' | string
+    thinking_level?: 'minimal' | 'high' | string | null
     references?: Array<{ type: string, id: string }>
   }, options?: { signal?: AbortSignal }) => api.post<any, {
     canonical_request: Record<string, any>

@@ -129,6 +129,22 @@ const SettingsPage = () => {
     }
   }
 
+  const handleSaveGoogleKey = async () => {
+    const values = form.getFieldsValue()
+    const googleKey = values.google_api_key?.trim()
+    if (!googleKey) {
+      message.warning('请输入新的 Google Gemini API Key')
+      return
+    }
+
+    const saved = await saveSettingsPatch({
+      google_api_key: googleKey,
+    }, 'Google Gemini API Key 已保存')
+    if (saved) {
+      form.setFieldValue('google_api_key', '')
+    }
+  }
+
   const buildLLMConfigPayload = (overrides?: Record<string, any>) => {
     const values = form.getFieldsValue()
     return {
@@ -491,6 +507,50 @@ const SettingsPage = () => {
             loading={saving}
           >
             保存火山 Key
+          </Button>
+        </Form>
+      </Card>
+
+      <Card
+        title="Google Gemini API Key"
+        style={{ marginBottom: 24 }}
+      >
+        <Alert
+          message={
+            config?.is_google_api_key_set ? (
+              <span>
+                <CheckCircleOutlined style={{ color: token.colorSuccess, marginRight: 8 }} />
+                Google Gemini API Key 已设置：{config.google_api_key_masked}
+              </span>
+            ) : (
+              <span>
+                <CloseCircleOutlined style={{ color: token.colorError, marginRight: 8 }} />
+                Google Gemini API Key 尚未设置
+              </span>
+            )
+          }
+          description="Nano Banana 图片模型使用这把 Key；它独立于 DashScope 测试/生产 Key 与火山引擎 Ark Key。"
+          type={config?.is_google_api_key_set ? 'success' : 'warning'}
+          style={{ marginBottom: 16 }}
+        />
+        <Form form={form} layout="vertical">
+          <Form.Item
+            name="google_api_key"
+            label="Google Gemini API Key"
+            extra="留空表示不修改；可在 Google AI Studio 或 Google Cloud 控制台创建 Gemini API Key。"
+          >
+            <Input.Password
+              placeholder="输入新的 Google Gemini API Key"
+              iconRender={(visible) => (visible ? <EyeOutlined /> : <EyeInvisibleOutlined />)}
+            />
+          </Form.Item>
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            onClick={handleSaveGoogleKey}
+            loading={saving}
+          >
+            保存 Google Key
           </Button>
         </Form>
       </Card>

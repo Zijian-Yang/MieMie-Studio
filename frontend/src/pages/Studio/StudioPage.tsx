@@ -76,7 +76,7 @@ const parseCustomSizeString = (size?: string | null) => {
 }
 
 type ImageTaskKind = 'text_to_image' | 'image_edit' | 'interactive_edit' | 'sequential_generation'
-type ImageSizeUiMode = 'preset_only' | 'preset_plus_custom_with_templates'
+type ImageSizeUiMode = 'preset_only' | 'preset_plus_custom_with_templates' | 'ratio_plus_clarity'
 type SeedreamSizeMode = 'clarity' | 'fixed'
 type ImageSizeTemplate = {
   ratio: string
@@ -97,6 +97,9 @@ const WAN27_MODELS = new Set(['wan2.7-image-pro', 'wan2.7-image'])
 const SEEDREAM_5_LITE_MODEL_ID = 'doubao-seedream-5.0-lite'
 const SEEDREAM_45_MODEL_ID = 'doubao-seedream-4.5'
 const SEEDREAM_MODELS = new Set([SEEDREAM_5_LITE_MODEL_ID, SEEDREAM_45_MODEL_ID])
+const NANO_BANANA_2_MODEL_ID = 'nano-banana-2'
+const NANO_BANANA_PRO_MODEL_ID = 'nano-banana-pro'
+const NANO_BANANA_MODELS = new Set([NANO_BANANA_2_MODEL_ID, NANO_BANANA_PRO_MODEL_ID])
 const SEEDREAM_CLARITY_SIZE_VALUES = new Set(['2K', '3K', '4K'])
 const SEEDREAM_SIZE_MODE_HELP: HelpContent = {
   summary: 'Seedream 有两套互斥的 size 方案：清晰度档位或固定尺寸。',
@@ -260,6 +263,10 @@ const StudioPage = () => {
   const watchedMaxImages = Form.useWatch('max_images', form)
   const watchedOutputFormat = Form.useWatch('output_format', form)
   const watchedWebSearch = Form.useWatch('web_search', form)
+  const watchedAspectRatio = Form.useWatch('aspect_ratio', form)
+  const watchedImageSize = Form.useWatch('image_size', form)
+  const watchedGoogleSearchMode = Form.useWatch('google_search_mode', form)
+  const watchedThinkingLevel = Form.useWatch('thinking_level', form)
   const watchedStyleId = Form.useWatch('style_id', form)
   const watchedBBoxList = Form.useWatch('bbox_list', form) || []
   const watchedColorPalette = Form.useWatch('color_palette', form) || []
@@ -391,6 +398,9 @@ const StudioPage = () => {
     if (SEEDREAM_MODELS.has(modelId)) {
       return ['text_to_image', 'image_edit', 'sequential_generation']
     }
+    if (NANO_BANANA_MODELS.has(modelId)) {
+      return ['text_to_image', 'image_edit']
+    }
     if (modelId === 'wan2.6-image' || modelId === 'qwen-image-2.0-pro' || modelId === 'qwen-image-2.0') {
       return ['text_to_image', 'image_edit']
     }
@@ -443,6 +453,8 @@ const StudioPage = () => {
   const isWan27Model = WAN27_MODELS.has(activeModelId)
   const isSeedreamModel = SEEDREAM_MODELS.has(activeModelId)
   const isSeedreamLiteModel = activeModelId === SEEDREAM_5_LITE_MODEL_ID
+  const isNanoBananaModel = NANO_BANANA_MODELS.has(activeModelId)
+  const isNanoBanana2Model = activeModelId === NANO_BANANA_2_MODEL_ID
   const isWan25CustomSizeModel = activeModelId === 'wan2.5-t2i-preview' || activeModelId === 'wan2.5-i2i-preview'
   const activeSizeUiMode = (availableModels[activeModelId]?.size_ui_mode || (isWan27Model || isWan25CustomSizeModel ? 'preset_plus_custom_with_templates' : 'preset_only')) as ImageSizeUiMode
   const shouldShowReferences = activeTaskKind !== 'text_to_image'
@@ -531,6 +543,38 @@ const StudioPage = () => {
   const seedreamSubmittedSize = watchedSize || (
     effectiveSeedreamSizeMode === 'clarity' ? seedreamDefaultClaritySize : seedreamDefaultFixedSize
   )
+  const nanoAspectRatioOptions = useMemo(() => {
+    if (!isNanoBananaModel) return []
+    const param = getParamMeta(activeModelId, 'aspect_ratio') as any
+    return (param?.constraint?.options || []).map((option: any) => ({
+      value: option.value,
+      label: option.label || option.value,
+    }))
+  }, [activeModelId, getParamMeta, isNanoBananaModel])
+  const nanoImageSizeOptions = useMemo(() => {
+    if (!isNanoBananaModel) return []
+    const param = getParamMeta(activeModelId, 'image_size') as any
+    return (param?.constraint?.options || []).map((option: any) => ({
+      value: option.value,
+      label: option.label || option.value,
+    }))
+  }, [activeModelId, getParamMeta, isNanoBananaModel])
+  const nanoSearchOptions = useMemo(() => {
+    if (!isNanoBananaModel) return []
+    const param = getParamMeta(activeModelId, 'google_search_mode') as any
+    return (param?.constraint?.options || []).map((option: any) => ({
+      value: option.value,
+      label: option.label || option.value,
+    }))
+  }, [activeModelId, getParamMeta, isNanoBananaModel])
+  const nanoThinkingOptions = useMemo(() => {
+    if (!isNanoBanana2Model) return []
+    const param = getParamMeta(activeModelId, 'thinking_level') as any
+    return (param?.constraint?.options || []).map((option: any) => ({
+      value: option.value,
+      label: option.label || option.value,
+    }))
+  }, [activeModelId, getParamMeta, isNanoBanana2Model])
   const hasPreviousTaskRequest = useMemo(() => {
     if (!selectedTask) return false
     return (
@@ -609,6 +653,8 @@ const StudioPage = () => {
     })
     const effectiveSize = computeEffectiveSize(values)
     const resolvedWan27Size = resolveWan27SizeDraft(values)
+    const isNanoBanana = NANO_BANANA_MODELS.has(values.model)
+    const isNanoBanana2 = values.model === NANO_BANANA_2_MODEL_ID
     const effectiveBBoxList = WAN27_MODELS.has(values.model) && values.task_kind === 'interactive_edit'
       ? resolvePreferredBBoxList(values.bbox_list, wan27BBoxList)
       : undefined
@@ -618,13 +664,13 @@ const StudioPage = () => {
       model: values.model,
       task_kind: values.task_kind,
       prompt: options?.prompt ?? values.prompt,
-      negative_prompt: options?.negativePrompt ?? values.negative_prompt,
-      n: values.n,
+      negative_prompt: isNanoBanana ? '' : (options?.negativePrompt ?? values.negative_prompt),
+      n: isNanoBanana ? 1 : values.n,
       group_count: values.group_count || 1,
-      size: WAN27_MODELS.has(values.model) ? null : (effectiveSize || undefined),
-      prompt_extend: values.prompt_extend,
-      watermark: values.watermark,
-      seed: values.seed || undefined,
+      size: WAN27_MODELS.has(values.model) || isNanoBanana ? null : (effectiveSize || undefined),
+      prompt_extend: isNanoBanana ? undefined : values.prompt_extend,
+      watermark: isNanoBanana ? false : values.watermark,
+      seed: isNanoBanana ? undefined : (values.seed || undefined),
       enable_interleave: values.enable_interleave,
       max_images: values.max_images,
       enable_sequential: values.task_kind === 'sequential_generation',
@@ -637,6 +683,10 @@ const StudioPage = () => {
       custom_height: resolvedWan27Size.customHeight,
       output_format: values.model === SEEDREAM_5_LITE_MODEL_ID ? (values.output_format || 'jpeg') : null,
       web_search: values.model === SEEDREAM_5_LITE_MODEL_ID ? !!values.web_search : false,
+      aspect_ratio: isNanoBanana ? (values.aspect_ratio || '1:1') : null,
+      image_size: isNanoBanana ? (values.image_size || '1K') : null,
+      google_search_mode: isNanoBanana ? (values.google_search_mode || 'none') : 'none',
+      thinking_level: isNanoBanana2 ? (values.thinking_level || 'minimal') : null,
       references,
     }
   }, [computeEffectiveSize, resolveWan27SizeDraft, wan27BBoxList])
@@ -671,6 +721,36 @@ const StudioPage = () => {
     }
     if (values.model === SEEDREAM_45_MODEL_ID && values.web_search) {
       message.warning('Seedream 4.5 不支持联网搜索')
+      return false
+    }
+    return true
+  }, [])
+
+  const validateNanoBananaValues = useCallback((values: any, refCount: number) => {
+    if (!NANO_BANANA_MODELS.has(values.model)) return true
+    const taskKind = (values.task_kind || 'text_to_image') as ImageTaskKind
+    if (refCount > 14) {
+      message.warning('Nano Banana 最多支持 14 张参考图')
+      return false
+    }
+    if (taskKind === 'text_to_image' && refCount > 0) {
+      message.warning('Nano Banana 文生图不支持参考图，请移除输入图片或图片风格')
+      return false
+    }
+    if (taskKind === 'image_edit' && refCount === 0) {
+      message.warning('Nano Banana 图像编辑需要 1-14 张参考图')
+      return false
+    }
+    if (taskKind === 'sequential_generation') {
+      message.warning('Nano Banana 暂不支持组图生成，请用并发组数获取多张结果')
+      return false
+    }
+    if (Number(values.n || 1) !== 1) {
+      message.warning('Nano Banana 单次请求固定 1 组结果，请用并发组数控制总量')
+      return false
+    }
+    if (values.model === NANO_BANANA_PRO_MODEL_ID && values.google_search_mode && !['none', 'web'].includes(values.google_search_mode)) {
+      message.warning('Nano Banana Pro 仅支持 Web Search grounding')
       return false
     }
     return true
@@ -716,18 +796,19 @@ const StudioPage = () => {
       }
     }
     try {
+      const isNanoBanana = NANO_BANANA_MODELS.has(values.model)
       const result = await studioApi.previewPayload({
         project_id: projectId,
         model: values.model,
         task_kind: values.task_kind,
         prompt: finalPrompt,
-        negative_prompt: finalNegativePrompt,
-        n: values.n,
+        negative_prompt: isNanoBanana ? '' : finalNegativePrompt,
+        n: isNanoBanana ? 1 : values.n,
         group_count: values.group_count,
-        size: WAN27_MODELS.has(values.model) ? null : computeEffectiveSize(values),
-        prompt_extend: values.prompt_extend,
-        watermark: values.watermark,
-        seed: values.seed ?? null,
+        size: WAN27_MODELS.has(values.model) || isNanoBanana ? null : computeEffectiveSize(values),
+        prompt_extend: isNanoBanana ? undefined : values.prompt_extend,
+        watermark: isNanoBanana ? false : values.watermark,
+        seed: isNanoBanana ? null : (values.seed ?? null),
         enable_interleave: values.enable_interleave,
         max_images: values.max_images,
         enable_sequential: values.enable_sequential,
@@ -740,6 +821,10 @@ const StudioPage = () => {
         custom_height: resolvedWan27Size.customHeight,
         output_format: values.model === SEEDREAM_5_LITE_MODEL_ID ? (values.output_format || 'jpeg') : null,
         web_search: values.model === SEEDREAM_5_LITE_MODEL_ID ? !!values.web_search : false,
+        aspect_ratio: isNanoBanana ? (values.aspect_ratio || '1:1') : null,
+        image_size: isNanoBanana ? (values.image_size || '1K') : null,
+        google_search_mode: isNanoBanana ? (values.google_search_mode || 'none') : 'none',
+        thinking_level: values.model === NANO_BANANA_2_MODEL_ID ? (values.thinking_level || 'minimal') : null,
         references,
       }, { signal: controller.signal })
       if (
@@ -925,6 +1010,10 @@ const StudioPage = () => {
     watchedEnableSequential,
     watchedOutputFormat,
     watchedWebSearch,
+    watchedAspectRatio,
+    watchedImageSize,
+    watchedGoogleSearchMode,
+    watchedThinkingLevel,
     watchedSize,
     watchedSeedreamSizeMode,
     watchedSizeMode,
@@ -1147,6 +1236,10 @@ const StudioPage = () => {
       custom_height: undefined,
       output_format: null,
       web_search: false,
+      aspect_ratio: '1:1',
+      image_size: '1K',
+      google_search_mode: 'none',
+      thinking_level: 'minimal',
       references: [],
       style_id: null,
     })
@@ -1207,6 +1300,7 @@ const StudioPage = () => {
       const isQwenImage2 = values.model === 'qwen-image-2.0-pro' || values.model === 'qwen-image-2.0'
       const isWan27 = WAN27_MODELS.has(values.model)
       const isSeedream = SEEDREAM_MODELS.has(values.model)
+      const isNanoBanana = NANO_BANANA_MODELS.has(values.model)
       const refCount = references.length
       const effectiveBBoxList = isWan27
         ? resolvePreferredBBoxList(values.bbox_list, wan27BBoxList)
@@ -1219,7 +1313,10 @@ const StudioPage = () => {
       if (isSeedream && !validateSeedreamValues(values, refCount)) {
         return
       }
-      const needsReferences = !isTextToImage && !isWan26Image && !isQwenEditModel && !isQwenImage2 && !isSeedream
+      if (isNanoBanana && !validateNanoBananaValues(values, refCount)) {
+        return
+      }
+      const needsReferences = !isTextToImage && !isWan26Image && !isQwenEditModel && !isQwenImage2 && !isSeedream && !isNanoBanana
       if (needsReferences && refCount === 0) {
         message.warning('请先添加参考素材')
         return
@@ -1261,7 +1358,7 @@ const StudioPage = () => {
         negative_prompt: finalNegativePrompt,
       }
       
-      if (isTextToImage && !isWan27 && !isSeedream) {
+      if (isTextToImage && !isWan27 && !isSeedream && !isNanoBanana) {
         generateParams.prompt_extend = values.prompt_extend !== false
         generateParams.watermark = values.watermark || false
         if (values.seed) generateParams.seed = values.seed
@@ -1359,6 +1456,10 @@ const StudioPage = () => {
       custom_height: task.custom_height || restoredCustomSize?.height || undefined,
       output_format: task.output_format || (task.model === SEEDREAM_5_LITE_MODEL_ID ? 'jpeg' : null),
       web_search: task.web_search || false,
+      aspect_ratio: task.aspect_ratio || '1:1',
+      image_size: task.image_size || '1K',
+      google_search_mode: task.google_search_mode || 'none',
+      thinking_level: task.thinking_level || (task.model === NANO_BANANA_2_MODEL_ID ? 'minimal' : null),
       // 还原参考素材选择（编辑时显示）
       references: task.references?.map(ref => `${ref.type}:${ref.id}`) || [],
     })
@@ -1506,6 +1607,12 @@ const StudioPage = () => {
           enable_sequential: nextKind === 'sequential_generation',
         })
       }
+      if (NANO_BANANA_MODELS.has(currentModel)) {
+        form.setFieldsValue({
+          n: 1,
+          enable_sequential: false,
+        })
+      }
       if (!compatibleModels.some(model => model.id === currentModel)) {
         const preferredModel = compatibleModels.find(model => model.id === DEFAULT_MODEL_BY_TASK_KIND[nextKind]) || compatibleModels[0]
         if (preferredModel) {
@@ -1552,6 +1659,32 @@ const StudioPage = () => {
           color_palette: [],
           output_format: model === SEEDREAM_5_LITE_MODEL_ID ? 'jpeg' : null,
           web_search: false,
+        })
+      } else if (NANO_BANANA_MODELS.has(model)) {
+        form.setFieldsValue({
+          n: 1,
+          group_count: form.getFieldValue('group_count') || 1,
+          size: undefined,
+          size_mode: undefined,
+          seedream_size_mode: undefined,
+          size_preset: undefined,
+          custom_width: undefined,
+          custom_height: undefined,
+          prompt_extend: undefined,
+          watermark: false,
+          seed: undefined,
+          enable_interleave: false,
+          max_images: undefined,
+          enable_sequential: false,
+          thinking_mode: null,
+          bbox_list: [],
+          color_palette: [],
+          output_format: null,
+          web_search: false,
+          aspect_ratio: form.getFieldValue('aspect_ratio') || '1:1',
+          image_size: form.getFieldValue('image_size') || '1K',
+          google_search_mode: 'none',
+          thinking_level: model === NANO_BANANA_2_MODEL_ID ? 'minimal' : null,
         })
       } else if (model === 'qwen-image-max' || model === 'qwen-image-plus') {
         form.setFieldsValue({ n: 1, size: '1664*928', seedream_size_mode: undefined, watermark: false })
@@ -1674,6 +1807,7 @@ const StudioPage = () => {
     const isQwenImage2 = values.model === 'qwen-image-2.0-pro' || values.model === 'qwen-image-2.0'
     const isWan27 = WAN27_MODELS.has(values.model)
     const isSeedream = SEEDREAM_MODELS.has(values.model)
+    const isNanoBanana = NANO_BANANA_MODELS.has(values.model)
     const effectiveBBoxList = isWan27
       ? resolvePreferredBBoxList(values.bbox_list, wan27BBoxList)
       : normalizeBBoxList(values.bbox_list)
@@ -1689,9 +1823,13 @@ const StudioPage = () => {
       finishSubmittingTask()
       return
     }
+    if (isNanoBanana && !validateNanoBananaValues(values, refCount)) {
+      finishSubmittingTask()
+      return
+    }
 
     // 图生图模型需要参考素材（wan2.6-image、qwen-edit、qwen-image-2.0 有各自的验证）
-    const needsReferences = !isTextToImage && !isWan26Image && !isQwenEditModel && !isQwenImage2 && !isSeedream
+    const needsReferences = !isTextToImage && !isWan26Image && !isQwenEditModel && !isQwenImage2 && !isSeedream && !isNanoBanana
     if (needsReferences && refCount === 0) {
       message.warning('请先添加参考素材')
       finishSubmittingTask()
@@ -1777,7 +1915,7 @@ const StudioPage = () => {
     try {
       const generateParams: any = buildStudioRequestPayload(values)
       
-      if (isTextToImage && !isWan27 && !isSeedream) {
+      if (isTextToImage && !isWan27 && !isSeedream && !isNanoBanana) {
         generateParams.prompt_extend = values.prompt_extend !== false
         generateParams.watermark = values.watermark || false
         if (values.seed) generateParams.seed = values.seed
@@ -2148,6 +2286,28 @@ const StudioPage = () => {
     )
   }
 
+  const groundingSourceLinks = Object.values(selectedTask?.provider_result_meta || {}).flatMap((meta: any) => {
+    if (Array.isArray(meta?.grounding_source_links) && meta.grounding_source_links.length > 0) {
+      return meta.grounding_source_links
+        .map((link: any) => ({
+          uri: link?.uri,
+          title: link?.title || link?.uri,
+        }))
+        .filter((link: any) => Boolean(link.uri))
+    }
+    return (meta?.grounding_metadata || []).flatMap((grounding: any) => (
+      (grounding?.groundingChunks || grounding?.grounding_chunks || []).map((chunk: any) => {
+        const source = chunk?.web || chunk?.image || chunk?.retrievedContext || chunk?.retrieved_context || chunk || {}
+        const uri = source.uri || source.url
+        if (!uri) return null
+        return {
+          uri,
+          title: source.title || uri,
+        }
+      }).filter(Boolean)
+    ))
+  }) as Array<{ uri: string; title: string }>
+
   const renderDeveloperMode = () => (
     <Collapse
       style={{ marginTop: 16 }}
@@ -2217,6 +2377,20 @@ const StudioPage = () => {
                   <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout, marginBottom: 12 }}>
                     {JSON.stringify(selectedTask.provider_payload_snapshot || {}, null, 2)}
                   </pre>
+                  {groundingSourceLinks.length > 0 && (
+                    <>
+                      <div style={{ marginBottom: 8, fontWeight: 500 }}>Grounding 来源</div>
+                      <div style={{ marginBottom: 12 }}>
+                        <Space direction="vertical" size={4}>
+                          {groundingSourceLinks.map((link, index) => (
+                            <a key={`${link.uri}-${index}`} href={link.uri} target="_blank" rel="noreferrer">
+                              {link.title}
+                            </a>
+                          ))}
+                        </Space>
+                      </div>
+                    </>
+                  )}
                   <div style={{ marginBottom: 8, fontWeight: 500 }}>厂商结果元信息</div>
                   <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout }}>
                     {JSON.stringify(selectedTask.provider_result_meta || {}, null, 2)}
@@ -2755,6 +2929,7 @@ const StudioPage = () => {
                           ? `组图模式下为最大组图数；参考图 + 最大组图数不能超过 15，当前最多 ${getSeedreamMaxN(activeTaskKind, selectedReferenceItems.length)} 张`
                           : '非组图模式固定 1 张；需要更多结果时提高并发组数'
                       }
+                      if (NANO_BANANA_MODELS.has(model)) return '单次请求固定 1 组结果；需要更多结果时提高并发组数'
                       if (model?.startsWith('qwen-image-edit')) return '最多6张'
                       if (model === 'qwen-image-2.0-pro' || model === 'qwen-image-2.0') return '最多6张'
                       if (model === 'qwen-image-max' || model === 'qwen-image-plus') return '固定1张，用并发组数控制总量'
@@ -2768,6 +2943,7 @@ const StudioPage = () => {
                         const model = activeModelId
                         if (WAN27_MODELS.has(model)) return activeTaskKind === 'sequential_generation' ? 12 : 4
                         if (SEEDREAM_MODELS.has(model)) return getSeedreamMaxN(activeTaskKind, selectedReferenceItems.length)
+                        if (NANO_BANANA_MODELS.has(model)) return 1
                         if (model === 'qwen-image-max' || model === 'qwen-image-plus') return 1
                         if (model?.startsWith('qwen-image-edit')) return 6
                         if (model === 'qwen-image-2.0-pro' || model === 'qwen-image-2.0') return 6
@@ -2776,7 +2952,7 @@ const StudioPage = () => {
                       })()}
                       disabled={(() => {
                         const model = activeModelId
-                        return model === 'qwen-image-max' || model === 'qwen-image-plus' || (SEEDREAM_MODELS.has(model) && activeTaskKind !== 'sequential_generation')
+                        return model === 'qwen-image-max' || model === 'qwen-image-plus' || NANO_BANANA_MODELS.has(model) || (SEEDREAM_MODELS.has(model) && activeTaskKind !== 'sequential_generation')
                       })()}
                       style={{ width: '100%' }} 
                     />
@@ -2808,12 +2984,13 @@ const StudioPage = () => {
                     if (m === 'qwen-image-2.0-pro' || m === 'qwen-image-2.0') return '无参考图为文生图；有参考图为编辑模式，多图用"图1""图2"指代'
                     if (WAN27_MODELS.has(m)) return 'wan2.7 多图时按图1、图2…理解输入顺序；组图生成时建议明确写出每张图的场景。'
                     if (SEEDREAM_MODELS.has(m)) return 'Seedream 多图时按图1、图2…理解输入顺序；组图生成时建议描述连续画面与主体一致性。'
+                    if (NANO_BANANA_MODELS.has(m)) return 'Nano Banana 图像编辑多图时按图1、图2…理解输入顺序；文生图模式不发送参考图。'
                     return ''
                   })()
                 }>
                   <TextArea rows={4} />
                 </Form.Item>
-                {!isWan27Model && !isSeedreamModel && (
+                {!isWan27Model && !isSeedreamModel && !isNanoBananaModel && (
                 <Form.Item name="negative_prompt" label={renderFormLabel(activeModelId, 'negative_prompt', '负向提示词')}>
                   <TextArea rows={2} />
                 </Form.Item>
@@ -3100,6 +3277,73 @@ const StudioPage = () => {
                   </div>
                 )}
 
+                {/* Nano Banana 模型参数 */}
+                {isNanoBananaModel && (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ marginBottom: 8, color: token.colorTextSecondary, fontSize: 12 }}>
+                      Nano Banana 图像生成参数
+                    </div>
+                    <div style={{ marginBottom: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout }}>
+                      <div style={{ marginBottom: 8, color: token.colorTextSecondary }}>
+                        当前能力：{getTaskKindLabel(activeTaskKind)}
+                      </div>
+                      <div style={{ color: token.colorTextTertiary, fontSize: 12 }}>
+                        {activeTaskKind === 'text_to_image' && '文生图模式只提交提示词、输出比例和清晰度。'}
+                        {activeTaskKind === 'image_edit' && '图像编辑模式需要 1-14 张参考图，平台会把参考图转为 inline_data 提交。'}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                      <Form.Item
+                        name="aspect_ratio"
+                        label={renderFormLabel(activeModelId, 'aspect_ratio', '输出比例')}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Select
+                          placeholder="1:1"
+                          options={nanoAspectRatioOptions.length ? nanoAspectRatioOptions : [{ value: '1:1', label: '1:1' }]}
+                        />
+                      </Form.Item>
+                      <Form.Item
+                        name="image_size"
+                        label={renderFormLabel(activeModelId, 'image_size', '清晰度')}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Select
+                          placeholder="1K"
+                          options={nanoImageSizeOptions.length ? nanoImageSizeOptions : [{ value: '1K', label: '1K' }]}
+                        />
+                      </Form.Item>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: isNanoBanana2Model ? '1fr 1fr' : '1fr', gap: 12 }}>
+                      <Form.Item
+                        name="google_search_mode"
+                        label={renderFormLabel(activeModelId, 'google_search_mode', 'Google Search')}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Select
+                          options={nanoSearchOptions.length ? nanoSearchOptions : [{ value: 'none', label: '关闭' }]}
+                        />
+                      </Form.Item>
+                      {isNanoBanana2Model && (
+                        <Form.Item
+                          name="thinking_level"
+                          label={renderFormLabel(activeModelId, 'thinking_level', '思考强度')}
+                          style={{ marginBottom: 0 }}
+                        >
+                          <Select
+                            options={nanoThinkingOptions.length ? nanoThinkingOptions : [
+                              { value: 'minimal', label: 'minimal' },
+                              { value: 'high', label: 'high' },
+                            ]}
+                          />
+                        </Form.Item>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* wan2.5 文生图参数 */}
                 {(watchedModel || selectedTask?.model) === 'wan2.5-t2i-preview' && (
                   <div style={{ marginBottom: 16 }}>
@@ -3209,7 +3453,8 @@ const StudioPage = () => {
                   (watchedModel || selectedTask?.model) !== 'qwen-image-2.0-pro' &&
                   (watchedModel || selectedTask?.model) !== 'qwen-image-2.0' &&
                   !isWan27Model &&
-                  !isSeedreamModel && (
+                  !isSeedreamModel &&
+                  !isNanoBananaModel && (
                   <div style={{ 
                     marginBottom: 16
                   }}>

@@ -107,6 +107,16 @@
 - 设置页：新增独立“火山引擎 Ark API Key”模块
   - `volcengine_api_key` 独立保存，不复用 DashScope 测试/生产 Key 池
   - 设置接口返回 `volcengine_api_key_masked` 与 `is_volcengine_api_key_set`
+- 图片工作室/图片测评：接入 Google Gemini Nano Banana 图片模型
+  - 新增 `nano-banana-2` 与 `nano-banana-pro`，`provider=google`
+  - 支持文生图和 1-14 张参考图图像编辑，v1 不开放组图生成
+  - 参数按 Google 文档开放 `aspect_ratio`、`image_size`、`google_search_mode`，Nano Banana 2 额外开放 `thinking_level`
+  - 后端新增 inline 图片字节持久化路径，优先上传 OSS，失败或未启用时回退 `/assets/oss_staging/...`
+  - 开发者模式和图片测评详情保留 canonical request、provider payload、request id、usage、grounding metadata、规范化 `grounding_source_links` 与 raw response
+  - 新增 Google image search grounding 样本夹具测试，覆盖 web/image/retrieved context 来源链接归一化
+- 设置页：新增独立“Google Gemini API Key”模块
+  - `google_api_key` 独立保存，不复用 DashScope 测试/生产 Key 池
+  - 设置接口返回 `google_api_key_masked` 与 `is_google_api_key_set`
 
 ### 变更 (Changed)
 - 设置页保存交互改为模块化：

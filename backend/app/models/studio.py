@@ -75,6 +75,12 @@ class StudioTask(BaseModel):
     # 火山引擎 Seedream 专用参数
     output_format: Optional[str] = None  # jpeg / png（仅 5.0 lite）
     web_search: bool = False  # 联网搜索（仅 5.0 lite）
+
+    # Google Gemini / Nano Banana 专用参数
+    aspect_ratio: Optional[str] = None  # 1:1 / 16:9 等
+    image_size: Optional[str] = None  # 512 / 1K / 2K / 4K
+    google_search_mode: str = "none"  # none / web / image / web_and_image
+    thinking_level: Optional[str] = None  # minimal / high（仅 nano-banana-2）
     
     # 参考素材
     references: List[ReferenceItem] = []  # 参考素材列表

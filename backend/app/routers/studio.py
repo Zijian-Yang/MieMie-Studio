@@ -38,6 +38,16 @@ from app.services.model_rate_limits import (
 from app.services.oss import oss_service
 from app.services.remote_media_validation import inspect_remote_image
 from app.config import get_config, get_provider_api_key, get_provider_key_profile, set_user_config_dir, get_user_config_dir
+from app.models_registry.image.nano_banana import (
+    NANO_BANANA_2_ASPECT_RATIOS,
+    NANO_BANANA_2_IMAGE_SIZES,
+    NANO_BANANA_2_MODEL_INFO,
+    NANO_BANANA_PRO_ASPECT_RATIOS,
+    NANO_BANANA_PRO_IMAGE_SIZES,
+    NANO_BANANA_PRO_MODEL_INFO,
+    NanoBananaImageService,
+    build_google_search_tools,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -343,6 +353,8 @@ async def _ensure_generated_images_persisted(
         original_url = image.url
         if not original_url:
             continue
+        if image.storage_source == "local_fallback" and oss_service.is_local_staging_asset_url(original_url):
+            continue
         if not oss_service.should_persist_generated_url(original_url):
             image.storage_source = "oss" if oss_service.is_current_oss_url(original_url) else "remote"
             _clear_image_storage_retry_state(image)
@@ -465,6 +477,10 @@ class TaskCreateRequest(BaseModel):
     custom_height: Optional[int] = None
     output_format: Optional[str] = None
     web_search: Optional[bool] = False
+    aspect_ratio: Optional[str] = None
+    image_size: Optional[str] = None
+    google_search_mode: str = "none"
+    thinking_level: Optional[str] = None
     references: List[ReferenceItemInput] = []
 
 
@@ -498,6 +514,10 @@ class TaskUpdateRequest(BaseModel):
     custom_height: Optional[int] = None
     output_format: Optional[str] = None
     web_search: Optional[bool] = None
+    aspect_ratio: Optional[str] = None
+    image_size: Optional[str] = None
+    google_search_mode: Optional[str] = None
+    thinking_level: Optional[str] = None
 
 
 class TaskGenerateRequest(BaseModel):
@@ -526,6 +546,10 @@ class TaskGenerateRequest(BaseModel):
     custom_height: Optional[int] = None
     output_format: Optional[str] = None
     web_search: Optional[bool] = False
+    aspect_ratio: Optional[str] = None
+    image_size: Optional[str] = None
+    google_search_mode: Optional[str] = None
+    thinking_level: Optional[str] = None
 
 
 class PreviewPayloadRequest(TaskGenerateRequest):
@@ -579,6 +603,7 @@ def get_reference_url(ref_type: str, ref_id: str) -> tuple[str, str]:
 
 WAN27_MODELS = {"wan2.7-image-pro", "wan2.7-image"}
 SEEDREAM_MODELS = {"doubao-seedream-5.0-lite", "doubao-seedream-4.5"}
+NANO_BANANA_MODELS = {"nano-banana-2", "nano-banana-pro"}
 WAN_IMAGE_MODELS = {"wan2.6-t2i", "wan2.6-image", "wan2.5-t2i-preview", "wan2.5-i2i-preview", *WAN27_MODELS}
 QWEN_IMAGE_MODELS = {
     "qwen-image-max",
@@ -589,6 +614,7 @@ QWEN_IMAGE_MODELS = {
     "qwen-image-2.0",
 }
 VOLCENGINE_IMAGE_MODELS = {*SEEDREAM_MODELS}
+GOOGLE_IMAGE_MODELS = {*NANO_BANANA_MODELS}
 
 IMAGE_TEMPLATE_RATIOS: List[Tuple[str, str, float]] = [
     ("1:1", "方图", 1.0),
@@ -636,10 +662,14 @@ IMAGE_TASK_KIND_SUPPORT: Dict[str, List[str]] = {
     "qwen-image-2.0": ["text_to_image", "image_edit"],
     "doubao-seedream-5.0-lite": ["text_to_image", "image_edit", "sequential_generation"],
     "doubao-seedream-4.5": ["text_to_image", "image_edit", "sequential_generation"],
+    "nano-banana-2": ["text_to_image", "image_edit"],
+    "nano-banana-pro": ["text_to_image", "image_edit"],
 }
 
 
 def _get_image_size_ui_mode(model_id: str) -> str:
+    if model_id in NANO_BANANA_MODELS:
+        return "ratio_plus_clarity"
     if model_id in {"wan2.7-image-pro", "wan2.7-image", "wan2.5-t2i-preview", "wan2.5-i2i-preview"}:
         return "preset_plus_custom_with_templates"
     return "preset_only"
@@ -648,6 +678,8 @@ def _get_image_size_ui_mode(model_id: str) -> str:
 def _get_image_model_provider(model_name: str) -> str:
     if model_name in VOLCENGINE_IMAGE_MODELS:
         return "volcengine"
+    if model_name in GOOGLE_IMAGE_MODELS:
+        return "google"
     return "wan"
 
 
@@ -705,6 +737,8 @@ def _infer_task_kind(
         if ref_urls:
             return "image_edit"
         return "text_to_image"
+    if model_name in NANO_BANANA_MODELS:
+        return "image_edit" if ref_urls else "text_to_image"
     if model_name in WAN27_MODELS:
         if enable_sequential:
             return "sequential_generation"
@@ -880,6 +914,77 @@ def _validate_seedream_request(
     pixels = width * height
     if pixels < 2560 * 1440 or pixels > 4096 * 4096:
         raise HTTPException(status_code=400, detail="Seedream 自定义尺寸总像素必须在 2560×1440 到 4096×4096 之间")
+
+
+def _is_nano_banana_flash(model_name: str) -> bool:
+    return model_name == "nano-banana-2"
+
+
+def _normalize_nano_banana_aspect_ratio(model_name: str, aspect_ratio: Optional[str]) -> str:
+    allowed = NANO_BANANA_2_ASPECT_RATIOS if _is_nano_banana_flash(model_name) else NANO_BANANA_PRO_ASPECT_RATIOS
+    value = (aspect_ratio or "1:1").strip()
+    if value not in allowed:
+        raise HTTPException(status_code=400, detail=f"{model_name} 不支持输出比例 {value}")
+    return value
+
+
+def _normalize_nano_banana_image_size(model_name: str, image_size: Optional[str]) -> str:
+    allowed = NANO_BANANA_2_IMAGE_SIZES if _is_nano_banana_flash(model_name) else NANO_BANANA_PRO_IMAGE_SIZES
+    value = (image_size or "1K").strip()
+    if value not in allowed:
+        raise HTTPException(status_code=400, detail=f"{model_name} 不支持清晰度 {value}")
+    return value
+
+
+def _normalize_nano_banana_search_mode(model_name: str, google_search_mode: Optional[str]) -> str:
+    allowed = {"none", "web", "image", "web_and_image"} if _is_nano_banana_flash(model_name) else {"none", "web"}
+    value = (google_search_mode or "none").strip()
+    if value not in allowed:
+        raise HTTPException(status_code=400, detail=f"{model_name} 不支持 Google Search 模式 {value}")
+    return value
+
+
+def _normalize_nano_banana_thinking_level(model_name: str, thinking_level: Optional[str]) -> Optional[str]:
+    if not _is_nano_banana_flash(model_name):
+        if thinking_level:
+            raise HTTPException(status_code=400, detail=f"{model_name} 不支持 thinking_level")
+        return None
+    value = (thinking_level or "minimal").strip()
+    if value not in {"minimal", "high"}:
+        raise HTTPException(status_code=400, detail="nano-banana-2 thinking_level 仅支持 minimal / high")
+    return value
+
+
+def _validate_nano_banana_request(
+    *,
+    model_name: str,
+    task_kind: str,
+    ref_urls: List[str],
+    n: int,
+) -> None:
+    if task_kind == "text_to_image" and ref_urls:
+        raise HTTPException(status_code=400, detail="Nano Banana 文生图模式不支持输入图片")
+    if task_kind == "image_edit" and not ref_urls:
+        raise HTTPException(status_code=400, detail="Nano Banana 图像编辑模式至少需要 1 张输入图片")
+    if len(ref_urls) > 14:
+        raise HTTPException(status_code=400, detail="Nano Banana 最多支持 14 张参考图片")
+    if task_kind == "sequential_generation":
+        raise HTTPException(status_code=400, detail="Nano Banana v1 不支持组图生成，请用并发组数控制多张输出")
+    if max(1, int(n or 1)) != 1:
+        raise HTTPException(status_code=400, detail="Nano Banana 单次请求只生成 1 组结果，请用并发组数控制总量")
+
+
+def _build_nano_banana_preview_image_parts(ref_urls: List[str]) -> List[Dict[str, Any]]:
+    return [
+        {
+            "inline_data": {
+                "mime_type": "image/png",
+                "data": "<resolved at generation time>",
+                "source_url": url,
+            }
+        }
+        for url in ref_urls
+    ]
 
 
 def get_image_size_templates(
@@ -1162,6 +1267,10 @@ def _build_provider_payload(
     custom_height: Optional[int],
     output_format: Optional[str] = None,
     web_search: bool = False,
+    aspect_ratio: Optional[str] = None,
+    image_size: Optional[str] = None,
+    google_search_mode: Optional[str] = None,
+    thinking_level: Optional[str] = None,
 ) -> Tuple[NormalizedStudioRequest, Dict[str, Any], List[str]]:
     provider = _get_image_model_provider(model_name)
     task_kind_resolved = _infer_task_kind(model_name, task_kind, ref_urls, enable_sequential, bbox_list)
@@ -1172,7 +1281,56 @@ def _build_provider_payload(
     }
     warnings: List[str] = []
 
-    if model_name in SEEDREAM_MODELS:
+    if model_name in NANO_BANANA_MODELS:
+        final_aspect_ratio = _normalize_nano_banana_aspect_ratio(model_name, aspect_ratio)
+        final_image_size = _normalize_nano_banana_image_size(model_name, image_size)
+        final_search_mode = _normalize_nano_banana_search_mode(model_name, google_search_mode)
+        final_thinking_level = _normalize_nano_banana_thinking_level(model_name, thinking_level)
+        _validate_nano_banana_request(
+            model_name=model_name,
+            task_kind=task_kind_resolved,
+            ref_urls=ref_urls,
+            n=n,
+        )
+        normalized_params = {
+            "n": 1,
+            "aspect_ratio": final_aspect_ratio,
+            "image_size": final_image_size,
+            "google_search_mode": final_search_mode,
+            "thinking_level": final_thinking_level,
+        }
+        input_assets = {"images": ref_urls}
+        api_model_name = (
+            NANO_BANANA_2_MODEL_INFO.api_model_name
+            if _is_nano_banana_flash(model_name)
+            else NANO_BANANA_PRO_MODEL_INFO.api_model_name
+        )
+        generation_config: Dict[str, Any] = {
+            "responseModalities": ["IMAGE"],
+            "imageConfig": {
+                "aspectRatio": final_aspect_ratio,
+                "imageSize": final_image_size,
+            },
+        }
+        if _is_nano_banana_flash(model_name):
+            generation_config["thinkingConfig"] = {
+                "thinkingLevel": final_thinking_level or "minimal",
+                "includeThoughts": False,
+            }
+        provider_payload = {
+            "model": api_model_name,
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": prompt}] + _build_nano_banana_preview_image_parts(ref_urls),
+                }
+            ],
+            "generationConfig": generation_config,
+        }
+        tools = build_google_search_tools(final_search_mode, flash=_is_nano_banana_flash(model_name))
+        if tools:
+            provider_payload["tools"] = tools
+    elif model_name in SEEDREAM_MODELS:
         final_size = _normalize_seedream_size(size)
         final_n = max(1, int(n or 1))
         normalized_output_format = output_format or ("jpeg" if model_name == "doubao-seedream-5.0-lite" else None)
@@ -1498,7 +1656,7 @@ async def list_studio_tasks(project_id: str):
 @router.post("")
 async def create_studio_task(request: TaskCreateRequest):
     """创建图片工作室任务"""
-    references = _resolve_reference_items(request.references)
+    references = _resolve_reference_items(request.references) if request.references else []
     ref_urls = [ref.url for ref in references if ref.url]
     task_kind = _infer_task_kind(
         request.model,
@@ -1542,6 +1700,10 @@ async def create_studio_task(request: TaskCreateRequest):
         custom_height=request.custom_height,
         output_format=request.output_format,
         web_search=bool(request.web_search),
+        aspect_ratio=request.aspect_ratio,
+        image_size=request.image_size,
+        google_search_mode=request.google_search_mode or "none",
+        thinking_level=request.thinking_level,
         references=references,
         input_assets={"images": ref_urls},
         normalized_params={
@@ -1561,6 +1723,10 @@ async def create_studio_task(request: TaskCreateRequest):
             "custom_height": request.custom_height,
             "output_format": request.output_format,
             "web_search": bool(request.web_search),
+            "aspect_ratio": request.aspect_ratio,
+            "image_size": request.image_size,
+            "google_search_mode": request.google_search_mode or "none",
+            "thinking_level": request.thinking_level,
         },
         status="pending"
     )
@@ -1600,6 +1766,10 @@ async def get_studio_task(task_id: str):
                 custom_height=task.custom_height,
                 output_format=task.output_format,
                 web_search=task.web_search,
+                aspect_ratio=task.aspect_ratio,
+                image_size=task.image_size,
+                google_search_mode=task.google_search_mode,
+                thinking_level=task.thinking_level,
             )
             canonical.project_id = task.project_id
             task.provider_payload_snapshot = provider_payload
@@ -1625,7 +1795,7 @@ async def get_studio_task(task_id: str):
 @router.post("/preview-payload")
 async def preview_payload(request: PreviewPayloadRequest):
     """预览当前草稿对应的 canonical request 与厂商 payload"""
-    references = _resolve_reference_items(request.references)
+    references = _resolve_reference_items(request.references) if request.references else []
     ref_urls = [ref.url for ref in references if ref.url]
     task_kind = _infer_task_kind(
         request.model,
@@ -1662,6 +1832,10 @@ async def preview_payload(request: PreviewPayloadRequest):
         custom_height=request.custom_height,
         output_format=request.output_format,
         web_search=bool(request.web_search),
+        aspect_ratio=request.aspect_ratio,
+        image_size=request.image_size,
+        google_search_mode=request.google_search_mode,
+        thinking_level=request.thinking_level,
     )
     canonical.project_id = request.project_id
     return {
@@ -1689,6 +1863,10 @@ async def update_studio_task(task_id: str, request: TaskUpdateRequest):
         "custom_width",
         "custom_height",
         "output_format",
+        "aspect_ratio",
+        "image_size",
+        "google_search_mode",
+        "thinking_level",
     }
     
     # 如果更新了参考素材，需要重新获取URL
@@ -1741,6 +1919,10 @@ async def update_studio_task(task_id: str, request: TaskUpdateRequest):
         "custom_height": task.custom_height,
         "output_format": task.output_format,
         "web_search": task.web_search,
+        "aspect_ratio": task.aspect_ratio,
+        "image_size": task.image_size,
+        "google_search_mode": task.google_search_mode,
+        "thinking_level": task.thinking_level,
     }
 
     storage_service.save_studio_task(task)
@@ -1874,6 +2056,14 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
             task.output_format = request.output_format
         if "web_search" in provided_fields and request.web_search is not None:
             task.web_search = bool(request.web_search)
+        if "aspect_ratio" in provided_fields:
+            task.aspect_ratio = request.aspect_ratio
+        if "image_size" in provided_fields:
+            task.image_size = request.image_size
+        if "google_search_mode" in provided_fields:
+            task.google_search_mode = request.google_search_mode or "none"
+        if "thinking_level" in provided_fields:
+            task.thinking_level = request.thinking_level
 
         model_name = task.model or "wan2.5-i2i-preview"
         try:
@@ -1898,6 +2088,7 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
             "qwen-image-2.0-pro", "qwen-image-2.0",
             "wan2.7-image-pro", "wan2.7-image",
             "doubao-seedream-5.0-lite", "doubao-seedream-4.5",
+            "nano-banana-2", "nano-banana-pro",
         ) and not ref_urls:
             raise HTTPException(status_code=400, detail="该模型需要参考素材图片")
 
@@ -1925,6 +2116,10 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
             custom_height=task.custom_height,
             output_format=task.output_format,
             web_search=task.web_search,
+            aspect_ratio=task.aspect_ratio,
+            image_size=task.image_size,
+            google_search_mode=task.google_search_mode,
+            thinking_level=task.thinking_level,
         )
         canonical.project_id = task.project_id
         canonical_size = (canonical.normalized_params or {}).get("size") or (provider_payload.get("parameters") or {}).get("size") or task.size
@@ -1934,6 +2129,10 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
         task.model_id = canonical.model_id
         task.input_assets = canonical.input_assets
         task.normalized_params = canonical.normalized_params
+        task.aspect_ratio = canonical.normalized_params.get("aspect_ratio") or task.aspect_ratio
+        task.image_size = canonical.normalized_params.get("image_size") or task.image_size
+        task.google_search_mode = canonical.normalized_params.get("google_search_mode") or task.google_search_mode
+        task.thinking_level = canonical.normalized_params.get("thinking_level")
         task.bbox_list = normalized_bbox_list or []
         task.provider_payload_snapshot = provider_payload
         task.provider_result_meta = {}
@@ -2015,6 +2214,10 @@ async def _background_generate(
             custom_height=task.custom_height,
             output_format=task.output_format,
             web_search=task.web_search,
+            aspect_ratio=task.aspect_ratio,
+            image_size=task.image_size,
+            google_search_mode=task.google_search_mode,
+            thinking_level=task.thinking_level,
         )
         canonical.project_id = task.project_id
         canonical_size = (
@@ -2028,6 +2231,10 @@ async def _background_generate(
         task.model_id = canonical.model_id
         task.input_assets = canonical.input_assets
         task.normalized_params = canonical.normalized_params
+        task.aspect_ratio = canonical.normalized_params.get("aspect_ratio") or task.aspect_ratio
+        task.image_size = canonical.normalized_params.get("image_size") or task.image_size
+        task.google_search_mode = canonical.normalized_params.get("google_search_mode") or task.google_search_mode
+        task.thinking_level = canonical.normalized_params.get("thinking_level")
         task.bbox_list = normalized_bbox_list or []
         task.provider_payload_snapshot = provider_payload
         task.provider_result_meta = {}
@@ -2051,8 +2258,22 @@ async def _background_generate(
         bbox_list = normalized_bbox_list
         output_format = task.output_format
         web_search = task.web_search
+        aspect_ratio = task.aspect_ratio
+        image_size = task.image_size
+        google_search_mode = task.google_search_mode
+        thinking_level = task.thinking_level
 
-        if model_name in SEEDREAM_MODELS:
+        if model_name in NANO_BANANA_MODELS:
+            images, request_ids, provider_meta = await generate_with_nano_banana_image(
+                task=task,
+                api_key=provider_api_key,
+                ref_urls=ref_urls,
+                aspect_ratio=aspect_ratio,
+                image_size=image_size,
+                google_search_mode=google_search_mode,
+                thinking_level=thinking_level,
+            )
+        elif model_name in SEEDREAM_MODELS:
             images, request_ids, provider_meta = await generate_with_seedream_image(
                 task=task,
                 api_key=provider_api_key,
@@ -2491,6 +2712,138 @@ async def generate_with_seedream_image(
                 "usage": meta.get("usage") or {},
                 "tools": meta.get("tools") or [],
                 "item_errors": meta.get("item_errors") or [],
+                "error_code": None,
+                "error_message": "; ".join(dict.fromkeys(group_errors)) if group_errors else None,
+                "raw_response": meta.get("raw_response") or {},
+            }
+        }
+        return images, [request_id] if request_id else [], provider_meta, provider_meta[meta_key]["error_message"]
+
+    all_images: List[StudioTaskImage] = []
+    all_request_ids: List[str] = []
+    all_meta: Dict[str, Any] = {}
+    group_errors: List[str] = []
+
+    group_count = max(1, int(task.group_count or 1))
+    results = await asyncio.gather(*(generate_single_group(group_index) for group_index in range(group_count)))
+    for images, request_ids, meta, error in results:
+        all_images.extend(images)
+        all_request_ids.extend(request_ids)
+        all_meta.update(meta)
+        if error:
+            group_errors.append(error)
+
+    if group_errors:
+        task._group_errors = group_errors
+    all_images.sort(key=lambda image: image.group_index)
+    return all_images, all_request_ids, all_meta
+
+
+async def generate_with_nano_banana_image(
+    task: StudioTask,
+    api_key: str,
+    ref_urls: List[str],
+    aspect_ratio: Optional[str],
+    image_size: Optional[str],
+    google_search_mode: Optional[str],
+    thinking_level: Optional[str],
+) -> Tuple[List[StudioTaskImage], List[str], Dict[str, Any]]:
+    """使用 Google Gemini Nano Banana 图片模型生成，并持久化 inline 图片字节。"""
+
+    model_info = (
+        NANO_BANANA_2_MODEL_INFO
+        if task.model == "nano-banana-2"
+        else NANO_BANANA_PRO_MODEL_INFO
+    )
+
+    async def generate_single_group(group_index: int):
+        service = NanoBananaImageService(model_info)
+        service.configure(api_key)
+        try:
+            image_items, request_id, meta = await service.generate(
+                prompt=task.prompt,
+                images=ref_urls,
+                aspect_ratio=aspect_ratio or "1:1",
+                image_size=image_size or "1K",
+                google_search_mode=google_search_mode or "none",
+                thinking_level=thinking_level,
+            )
+        except Exception as exc:
+            error_message = str(exc)
+            error_meta = getattr(exc, "meta", {}) or {}
+            meta_key = f"submit_error_group_{group_index}"
+            request_id = error_meta.get("request_id")
+            if request_id:
+                meta_key = request_id
+            meta = {
+                meta_key: {
+                    "provider": "google",
+                    "key_profile": "google_api_key",
+                    "request_id": request_id,
+                    "usage": error_meta.get("usage") or {},
+                    "grounding_metadata": error_meta.get("grounding_metadata") or [],
+                    "grounding_source_links": error_meta.get("grounding_source_links") or [],
+                    "finish_reasons": error_meta.get("finish_reasons") or [],
+                    "text_parts": error_meta.get("text_parts") or [],
+                    "thought_count": error_meta.get("thought_count") or 0,
+                    "error_code": getattr(exc, "error_code", None) or exc.__class__.__name__,
+                    "error_message": error_message,
+                    "raw_response": error_meta.get("raw_response") or {},
+                    "stage": "submit",
+                }
+            }
+            return [], [request_id] if request_id else [], meta, error_message
+
+        images: List[StudioTaskImage] = []
+        group_errors: List[str] = []
+        current_time = datetime.now()
+        for idx, item in enumerate(image_items):
+            persisted_result = await oss_service.persist_generated_image_bytes_with_fallback_async(
+                item.get("data") or b"",
+                task.project_id,
+                mime_type=item.get("mime_type") or "image/png",
+            )
+            image = StudioTaskImage(
+                group_index=group_index * max(1, len(image_items)) + idx,
+                url=persisted_result.url,
+                storage_source=persisted_result.storage_source,
+                storage_warning=persisted_result.warning,
+                prompt_used=task.prompt,
+            )
+            if persisted_result.warning:
+                _mark_image_as_local_fallback(
+                    image,
+                    persisted_result.warning,
+                    persisted_result.error,
+                    current_time,
+                )
+                group_errors.append(persisted_result.warning)
+            else:
+                _clear_image_storage_retry_state(image)
+            images.append(image)
+
+        if not images:
+            images = [
+                StudioTaskImage(
+                    group_index=group_index,
+                    url=None,
+                    prompt_used=task.prompt,
+                )
+            ]
+            group_errors.append("Google Gemini 未返回有效图片")
+
+        meta_key = request_id or f"group_{group_index}"
+        provider_meta = {
+            meta_key: {
+                "provider": "google",
+                "key_profile": "google_api_key",
+                "request_id": request_id,
+                "usage": meta.get("usage") or {},
+                "grounding_metadata": meta.get("grounding_metadata") or [],
+                "grounding_source_links": meta.get("grounding_source_links") or [],
+                "finish_reasons": meta.get("finish_reasons") or [],
+                "text_parts": meta.get("text_parts") or [],
+                "thought_count": meta.get("thought_count") or 0,
                 "error_code": None,
                 "error_message": "; ".join(dict.fromkeys(group_errors)) if group_errors else None,
                 "raw_response": meta.get("raw_response") or {},

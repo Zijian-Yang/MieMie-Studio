@@ -707,6 +707,10 @@ async def preview_benchmark_cell(
         custom_height=effective_params.get("custom_height"),
         output_format=effective_params.get("output_format"),
         web_search=bool(effective_params.get("web_search") or False),
+        aspect_ratio=effective_params.get("aspect_ratio"),
+        image_size=effective_params.get("image_size"),
+        google_search_mode=effective_params.get("google_search_mode"),
+        thinking_level=effective_params.get("thinking_level"),
     )
     canonical.project_id = project_id
     return asdict(canonical), provider_payload, warnings
@@ -857,6 +861,10 @@ async def _execute_benchmark_cell_once(
         custom_height=effective_params.get("custom_height"),
         output_format=effective_params.get("output_format"),
         web_search=bool(effective_params.get("web_search") or False),
+        aspect_ratio=normalized_params.get("aspect_ratio") or effective_params.get("aspect_ratio"),
+        image_size=normalized_params.get("image_size") or effective_params.get("image_size"),
+        google_search_mode=normalized_params.get("google_search_mode") or effective_params.get("google_search_mode") or "none",
+        thinking_level=normalized_params.get("thinking_level") or effective_params.get("thinking_level"),
         references=[],
         input_assets=canonical_request.get("input_assets") or {},
         normalized_params=canonical_request.get("normalized_params") or {},
@@ -871,7 +879,17 @@ async def _execute_benchmark_cell_once(
     provider_result_meta: Dict[str, Any] = {}
 
     try:
-        if model_id in studio_router.SEEDREAM_MODELS:
+        if model_id in studio_router.NANO_BANANA_MODELS:
+            images, request_ids, provider_result_meta = await studio_router.generate_with_nano_banana_image(
+                task=task,
+                api_key=provider_api_key,
+                ref_urls=ref_urls,
+                aspect_ratio=task.aspect_ratio,
+                image_size=task.image_size,
+                google_search_mode=task.google_search_mode,
+                thinking_level=task.thinking_level,
+            )
+        elif model_id in studio_router.SEEDREAM_MODELS:
             images, request_ids, provider_result_meta = await studio_router.generate_with_seedream_image(
                 task=task,
                 api_key=provider_api_key,

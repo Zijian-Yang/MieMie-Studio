@@ -149,6 +149,101 @@ async def test_image_benchmark_capabilities_include_seedream_without_sequential(
     assert "sequential_generation" not in capabilities["models"]["doubao-seedream-4.5"]["supported_task_kinds"]
 
 
+@pytest.mark.asyncio
+async def test_image_benchmark_capabilities_include_nano_banana_models(auth_header):
+    capabilities = await image_benchmark_runtime.get_image_benchmark_capabilities()
+
+    assert "nano-banana-2" in capabilities["models"]
+    assert "nano-banana-pro" in capabilities["models"]
+    assert capabilities["models"]["nano-banana-2"]["provider"] == "google"
+    assert capabilities["models"]["nano-banana-pro"]["provider"] == "google"
+    assert capabilities["models"]["nano-banana-2"]["supported_task_kinds"] == [
+        "text_to_image",
+        "image_edit",
+    ]
+    assert capabilities["models"]["nano-banana-pro"]["supported_task_kinds"] == [
+        "text_to_image",
+        "image_edit",
+    ]
+    params = {
+        param["name"]
+        for param in capabilities["models"]["nano-banana-2"]["configurable_parameters"]
+    }
+    assert {"aspect_ratio", "image_size", "google_search_mode", "thinking_level"}.issubset(params)
+    assert "sequential_generation" not in capabilities["models"]["nano-banana-2"]["supported_task_kinds"]
+
+
+@pytest.mark.asyncio
+async def test_image_benchmark_executes_nano_banana_and_preserves_provider_meta(monkeypatch):
+    from app.services.image_benchmark_runtime import _execute_benchmark_cell_once
+
+    model_meta = {
+        "id": "nano-banana-2",
+        "name": "Nano Banana 2",
+        "provider": "google",
+        "supported_task_kinds": ["text_to_image", "image_edit"],
+        "parameters": [
+            {"name": "aspect_ratio", "default": "1:1"},
+            {"name": "image_size", "default": "1K"},
+            {"name": "google_search_mode", "default": "web"},
+            {"name": "thinking_level", "default": "minimal"},
+        ],
+    }
+
+    async def fake_generate_with_nano_banana_image(**kwargs):
+        return (
+            [image_benchmark_runtime.StudioTaskImage(group_index=0, url="https://oss.example.com/nano.png")],
+            ["google-req-123"],
+            {
+                "google-req-123": {
+                    "provider": "google",
+                    "usage": {"totalTokenCount": 123},
+                    "grounding_metadata": [{"groundingChunks": []}],
+                    "grounding_source_links": [
+                        {
+                            "uri": "https://example.com/source",
+                            "title": "Source",
+                            "source_type": "web",
+                            "image_uri": None,
+                        }
+                    ],
+                    "raw_response": {"ok": True},
+                }
+            },
+        )
+
+    monkeypatch.setattr(
+        "app.services.image_benchmark_runtime.studio_router.generate_with_nano_banana_image",
+        fake_generate_with_nano_banana_image,
+    )
+    monkeypatch.setattr("app.services.image_benchmark_runtime.oss_service.is_enabled", lambda: False)
+
+    result = await _execute_benchmark_cell_once(
+        project_id="p1",
+        task_kind="text_to_image",
+        model_meta=model_meta,
+        case_data={"id": "case-1", "name": "样例", "prompt": "生成海报"},
+        effective_params={
+            "aspect_ratio": "16:9",
+            "image_size": "2K",
+            "google_search_mode": "web",
+            "thinking_level": "minimal",
+        },
+    )
+
+    assert result.status == "completed"
+    assert result.request_ids == ["google-req-123"]
+    assert result.output_images[0].url == "https://oss.example.com/nano.png"
+    assert result.provider_payload["model"] == "gemini-3.1-flash-image-preview"
+    assert result.provider_payload["generationConfig"]["imageConfig"] == {
+        "aspectRatio": "16:9",
+        "imageSize": "2K",
+    }
+    assert result.provider_result_meta["google-req-123"]["provider"] == "google"
+    assert result.provider_result_meta["google-req-123"]["usage"]["totalTokenCount"] == 123
+    assert result.provider_result_meta["google-req-123"]["grounding_source_links"][0]["uri"] == "https://example.com/source"
+
+
 def test_dataset_import_migrates_legacy_input_images_schema(client, auth_header):
     project_id = _create_project(client, auth_header)
     resp = client.post(
