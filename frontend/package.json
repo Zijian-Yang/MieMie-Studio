@@ -7,6 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "test:video-capability-limits": "node scripts/test-video-studio-capability-limits.mjs",
+    "test:video-prompt-length-policy": "node scripts/test-video-studio-prompt-length-policy.mjs",
+    "test:video-reference-tokens": "node scripts/test-video-studio-reference-tokens.mjs",
+    "test:video-task-card-layout": "node scripts/test-video-studio-task-card-layout.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"

@@ -143,6 +143,67 @@ def test_video_capability_schema_exposes_structured_help_content():
     assert ratio_param["constraint"]["options"]
 
 
+def test_video_capability_schema_exposes_reference_token_policies():
+    capabilities = get_video_capabilities()
+    models = capabilities["models"]
+
+    wan26_profile = models["wan2.6-r2v-flash"]["task_profiles"]["reference_to_video"]
+    assert wan26_profile["ui_hints"]["reference_token_policy"] == {
+        "mode": "media_reference_tokens",
+        "index_base": 1,
+        "numbering_scope": "combined",
+        "reference_order": ["reference_video", "reference_image"],
+        "tokens": {
+            "reference_image": {"template": "character{index}"},
+            "reference_video": {"template": "character{index}"},
+        },
+    }
+
+    wan27_profile = models["wan2.7-r2v"]["task_profiles"]["reference_to_video"]
+    assert wan27_profile["ui_hints"]["reference_token_policy"] == {
+        "mode": "media_reference_tokens",
+        "index_base": 1,
+        "numbering_scope": "by_type",
+        "tokens": {
+            "reference_image": {
+                "template": "图{index}",
+                "variants": [{"key": "en", "label": "Image {index}", "template": "Image {index}"}],
+            },
+            "reference_video": {
+                "template": "视频{index}",
+                "variants": [{"key": "en", "label": "Video {index}", "template": "Video {index}"}],
+            },
+        },
+    }
+
+    happyhorse_profile = models["happyhorse-1.0-r2v"]["task_profiles"]["reference_to_video"]
+    assert happyhorse_profile["ui_hints"]["reference_token_policy"] == {
+        "mode": "media_reference_tokens",
+        "index_base": 1,
+        "numbering_scope": "by_type",
+        "tokens": {
+            "reference_image": {"template": "[Image {index}]"},
+        },
+    }
+
+    kling_reference_profile = models["kling/kling-v3-omni-video-generation"]["task_profiles"]["reference_to_video"]
+    assert kling_reference_profile["ui_hints"]["reference_token_policy"]["tokens"] == {
+        "reference_image": {"template": "<<<image_{index}>>>"},
+        "reference_video": {"template": "<<<video_{index}>>>"},
+    }
+
+    kling_edit_profile = models["kling/kling-v3-omni-video-generation"]["task_profiles"]["video_edit_global"]
+    assert kling_edit_profile["ui_hints"]["reference_token_policy"]["tokens"]["reference_image"] == {
+        "template": "<<<image_{index}>>>"
+    }
+
+    vidu_profile = models["vidu/viduq2-pro_reference2video"]["task_profiles"]["reference_to_video"]
+    assert vidu_profile["ui_hints"]["reference_token_policy"]["tokens"] == {
+        "reference_image": {"template": "图{index}"},
+        "reference_video": {"template": "视频{index}"},
+    }
+
+
 def test_create_task_with_canonical_kling_fields(client, auth_header, monkeypatch):
     project_id = _create_project(client, auth_header)
     _patch_async_create_task(monkeypatch)
@@ -1155,6 +1216,14 @@ def test_happyhorse_capability_schema_matches_supported_surface():
     t2v_params = {item["name"] for item in t2v_profile["parameters"]}
     assert t2v_params == {"resolution", "ratio", "duration", "watermark", "seed"}
     assert t2v_profile["ui_hints"]["prompt_help"]["summary"]
+    assert t2v_profile["ui_hints"]["prompt_length_policy"] == {
+        "mode": "cjk_weighted",
+        "max_units": 5000,
+        "cjk_unit": 2,
+        "non_cjk_unit": 1,
+        "cjk_equivalent_limit": 2500,
+        "non_cjk_equivalent_limit": 5000,
+    }
     assert t2v_profile["verification_profiles"] == {
         "smoke": ["basic_prompt"],
         "full": ["basic_prompt", "portrait_ratio", "seeded_generation"],
@@ -1182,7 +1251,8 @@ def test_happyhorse_capability_schema_matches_supported_surface():
     assert r2v_params == {"resolution", "ratio", "duration", "watermark", "seed"}
     assert r2v_profile["ui_hints"]["max_reference_images"] == 9
     assert r2v_profile["ui_hints"]["max_reference_videos"] == 0
-    assert "character1" in r2v_profile["ui_hints"]["prompt_help"]["notes"][0]
+    assert "[Image 1]" in r2v_profile["ui_hints"]["prompt_help"]["notes"][0]
+    assert "[Image 2]" in r2v_profile["ui_hints"]["prompt_help"]["how_to_choose"][0]
 
     video_edit_model = models["happyhorse-1.0-video-edit"]
     assert video_edit_model["provider"] == "happyhorse"
@@ -1272,7 +1342,7 @@ def test_happyhorse_r2v_builds_reference_image_media_payload():
             task_kind="reference_to_video",
             provider="happyhorse",
             model_id="happyhorse-1.0-r2v",
-            prompt="character1 骑着 character2 在草地上奔跑",
+            prompt="[Image 1]中的骑手骑着[Image 2]中的马在草地上奔跑",
             input_assets={
                 "reference_media": [
                     {"type": "reference_image", "url": "https://oss.example.com/rider.png"},
@@ -1294,7 +1364,7 @@ def test_happyhorse_r2v_builds_reference_image_media_payload():
     assert payload == {
         "model": "happyhorse-1.0-r2v",
         "input": {
-            "prompt": "character1 骑着 character2 在草地上奔跑",
+            "prompt": "[Image 1]中的骑手骑着[Image 2]中的马在草地上奔跑",
             "media": [
                 {"type": "reference_image", "url": "https://oss.example.com/rider.png"},
                 {"type": "reference_image", "url": "https://oss.example.com/horse.webp"},
@@ -1379,6 +1449,39 @@ async def test_happyhorse_t2v_validate_rejects_blank_prompt():
                 },
             )
         )
+
+
+@pytest.mark.asyncio
+async def test_happyhorse_prompt_length_uses_cjk_weighted_units():
+    adapter = get_video_adapter("happyhorse")
+
+    async def validate_prompt(prompt: str):
+        await adapter.validate(
+            NormalizedVideoTaskRequest(
+                project_id="p1",
+                task_kind="text_to_video",
+                provider="happyhorse",
+                model_id="happyhorse-1.0-t2v",
+                prompt=prompt,
+                normalized_params={
+                    "resolution": "1080P",
+                    "ratio": "16:9",
+                    "duration": 5,
+                    "watermark": False,
+                },
+            )
+        )
+
+    await validate_prompt("马" * 2500)
+    await validate_prompt("a" * 5000)
+    await validate_prompt(("马" * 2499) + "ab")
+
+    with pytest.raises(ValueError, match="2500个中文字符或5000个非中文字符"):
+        await validate_prompt("马" * 2501)
+    with pytest.raises(ValueError, match="2500个中文字符或5000个非中文字符"):
+        await validate_prompt("a" * 5001)
+    with pytest.raises(ValueError, match="2500个中文字符或5000个非中文字符"):
+        await validate_prompt(("马" * 2499) + "abc")
 
 
 @pytest.mark.asyncio

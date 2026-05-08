@@ -118,6 +118,40 @@ def _help(
     return {key: value for key, value in payload.items() if value}
 
 
+def _reference_token_policy(
+    *,
+    image_template: str | None = None,
+    video_template: str | None = None,
+    numbering_scope: str = "by_type",
+    reference_order: List[str] | None = None,
+    image_variants: List[Dict[str, str]] | None = None,
+    video_variants: List[Dict[str, str]] | None = None,
+) -> Dict[str, Any]:
+    tokens: Dict[str, Dict[str, Any]] = {}
+    if image_template:
+        tokens["reference_image"] = {"template": image_template}
+        if image_variants:
+            tokens["reference_image"]["variants"] = image_variants
+    if video_template:
+        tokens["reference_video"] = {"template": video_template}
+        if video_variants:
+            tokens["reference_video"]["variants"] = video_variants
+
+    payload: Dict[str, Any] = {
+        "mode": "media_reference_tokens",
+        "index_base": 1,
+        "numbering_scope": numbering_scope,
+        "tokens": tokens,
+    }
+    if reference_order:
+        payload["reference_order"] = reference_order
+    return payload
+
+
+def _reference_token_variant(key: str, label: str, template: str) -> Dict[str, str]:
+    return {"key": key, "label": label, "template": template}
+
+
 def _param(
     name: str,
     label: str,
@@ -680,6 +714,12 @@ def _wan_reference_to_video_models() -> Dict[str, Dict[str, Any]]:
                         "max_reference_images": info.get("max_reference_images", 5),
                         "max_reference_videos": info.get("max_reference_videos", 3),
                         "max_reference_total": info.get("max_reference_total", 5),
+                        "reference_token_policy": _reference_token_policy(
+                            image_template="character{index}",
+                            video_template="character{index}",
+                            numbering_scope="combined",
+                            reference_order=["reference_video", "reference_image"],
+                        ),
                         "prompt_help": _help(
                             summary="Prompt 用于说明参考素材要如何被组合、演绎或转化成新视频。",
                             how_to_choose=["写清楚主体关系、动作、镜头和氛围", "若参考素材很多，prompt 更要明确主次关系"],
@@ -1034,6 +1074,16 @@ def _wan27_video_models() -> Dict[str, Dict[str, Any]]:
                         "max_reference_videos": 5,
                         "max_reference_total": 5,
                         "supports_reference_voice": True,
+                        "reference_token_policy": _reference_token_policy(
+                            image_template="图{index}",
+                            video_template="视频{index}",
+                            image_variants=[
+                                _reference_token_variant("en", "Image {index}", "Image {index}"),
+                            ],
+                            video_variants=[
+                                _reference_token_variant("en", "Video {index}", "Video {index}"),
+                            ],
+                        ),
                         "asset_help": {
                             "first_frame": _asset_help(
                                 "首帧图可选，用于约束生成视频的初始构图和输出比例。",
@@ -1256,6 +1306,7 @@ def _wan27_video_models() -> Dict[str, Dict[str, Any]]:
                         "negative_prompt_max_length": 500,
                         "max_reference_images": 3,
                         "max_reference_videos": 0,
+                        "reference_token_policy": _reference_token_policy(image_template="图{index}"),
                         "asset_help": {
                             "base_video": _asset_help(
                                 "待编辑视频是被修改的原始视频。",
@@ -1376,6 +1427,7 @@ def _wan_vace_models() -> Dict[str, Dict[str, Any]]:
                         ),
                     ],
                     "ui_hints": {
+                        "reference_token_policy": _reference_token_policy(image_template="图{index}"),
                         "asset_help": {
                             "source_video": _asset_help(
                                 "源视频用于提供动作、结构和镜头基础，重绘会围绕它重新生成。",
@@ -1532,6 +1584,7 @@ def _wan_vace_models() -> Dict[str, Dict[str, Any]]:
                 ),
             ],
             "ui_hints": {
+                "reference_token_policy": _reference_token_policy(image_template="图{index}"),
                 "asset_help": {
                     "source_video": _asset_help(
                         "源视频用于提供局部编辑前的原始动作、镜头和空间结构。",
@@ -1922,6 +1975,10 @@ def _kling_models() -> Dict[str, Dict[str, Any]]:
                         "supports_prompt_tokens": True,
                         "max_reference_images": 7,
                         "max_reference_videos": 1,
+                        "reference_token_policy": _reference_token_policy(
+                            image_template="<<<image_{index}>>>",
+                            video_template="<<<video_{index}>>>",
+                        ),
                         "asset_help": {
                             "reference_image": _asset_help(
                                 "参考图用于引导主体造型、服饰、物体外观或风格。",
@@ -1985,6 +2042,9 @@ def _kling_models() -> Dict[str, Dict[str, Any]]:
                     "ui_hints": {
                         "prompt_max_length": 2500,
                         "max_reference_images": 4,
+                        "reference_token_policy": _reference_token_policy(
+                            image_template="<<<image_{index}>>>",
+                        ),
                         "asset_help": {
                             "base_video": _asset_help(
                                 "base video 是被编辑的原视频。",
@@ -2196,6 +2256,15 @@ def _happyhorse_models() -> Dict[str, Dict[str, Any]]:
     ]
     watermark_help = _watermark_help("HappyHorse 文档默认 watermark=true；平台会显式下发 false，避免回落到厂商默认值。")
     common_notes = ["该模型需要提前加白。首次加白通过后，还需至少登录一次百炼控制台激活后再调用。"]
+    prompt_length_policy = {
+        "mode": "cjk_weighted",
+        "max_units": 5000,
+        "cjk_unit": 2,
+        "non_cjk_unit": 1,
+        "cjk_equivalent_limit": 2500,
+        "non_cjk_equivalent_limit": 5000,
+    }
+    prompt_limit_text = "最大长度：2500 个中文字符或 5000 个非中文字符，混合文本按中文 2 单位、非中文 1 单位累计。"
 
     t2v_params = [
         _param(
@@ -2274,8 +2343,9 @@ def _happyhorse_models() -> Dict[str, Dict[str, Any]]:
                     "parameters": t2v_params,
                     "verification_profiles": {"smoke": ["basic_prompt"], "full": ["basic_prompt", "portrait_ratio", "seeded_generation"]},
                     "ui_hints": {
-                        "prompt_max_length": 2500,
-                        "prompt_help": _help(summary="Prompt 用于描述主体、动作、场景、镜头和风格。", limits=["最大长度约 2500 字符", "不能为空或纯空格"], how_to_choose=["先写主体和动作，再补镜头、氛围和风格", "需要更强可控性时直接写清运镜、速度和场景变化"], notes=common_notes),
+                        "prompt_max_length": 5000,
+                        "prompt_length_policy": prompt_length_policy,
+                        "prompt_help": _help(summary="Prompt 用于描述主体、动作、场景、镜头和风格。", limits=[prompt_limit_text, "不能为空或纯空格"], how_to_choose=["先写主体和动作，再补镜头、氛围和风格", "需要更强可控性时直接写清运镜、速度和场景变化"], notes=common_notes),
                     },
                 }
             },
@@ -2296,11 +2366,12 @@ def _happyhorse_models() -> Dict[str, Dict[str, Any]]:
                     "parameters": i2v_params,
                     "verification_profiles": {"smoke": ["single_first_frame"], "full": ["single_first_frame", "optional_prompt", "seeded_generation"]},
                     "ui_hints": {
-                        "prompt_max_length": 2500,
+                        "prompt_max_length": 5000,
+                        "prompt_length_policy": prompt_length_policy,
                         "asset_help": {
                             "first_frame": _asset_help("首帧图决定视频初始构图、主体位置和基础风格。", limits=["必须且仅支持 1 张首帧图", "支持 JPEG/JPG/PNG/WEBP", "宽高不能小于 300 像素", "宽高比需在 1:2.5 到 2.5:1 之间", "文件大小不超过 10MB"], how_to_choose=["主体尽量完整清晰", "避免裁切到关键主体边缘", "图像比例尽量接近目标出图比例"], notes=common_notes),
                         },
-                        "prompt_help": _help(summary="Prompt 为可选项，用于补充动作、镜头和节奏信息。", limits=["最大长度约 2500 字符", "留空时仅依据首帧图生成"], how_to_choose=["首帧已能表达主体时，用 prompt 补动作和镜头变化", "想保持更多首帧原貌时可先留空做 smoke"], notes=common_notes),
+                        "prompt_help": _help(summary="Prompt 为可选项，用于补充动作、镜头和节奏信息。", limits=[prompt_limit_text, "留空时仅依据首帧图生成"], how_to_choose=["首帧已能表达主体时，用 prompt 补动作和镜头变化", "想保持更多首帧原貌时可先留空做 smoke"], notes=common_notes),
                     },
                 }
             },
@@ -2316,19 +2387,21 @@ def _happyhorse_models() -> Dict[str, Dict[str, Any]]:
             task_profiles={
                 "reference_to_video": {
                     "label": "参考生视频",
-                    "description": "使用多张参考图生成视频，prompt 可通过 character1、character2 指代对应顺序的参考图。",
+                    "description": "使用多张参考图生成视频，prompt 可通过 [Image 1]、[Image 2] 指代对应顺序的参考图。",
                     "input_roles": ["reference_image"],
                     "parameters": r2v_params,
                     "verification_profiles": {"smoke": ["single_reference_image"], "full": ["single_reference_image", "multi_reference_images"]},
                     "ui_hints": {
-                        "prompt_max_length": 2500,
+                        "prompt_max_length": 5000,
+                        "prompt_length_policy": prompt_length_policy,
                         "max_reference_images": 9,
                         "max_reference_videos": 0,
                         "max_reference_total": 9,
+                        "reference_token_policy": _reference_token_policy(image_template="[Image {index}]"),
                         "asset_help": {
-                            "reference_image": _asset_help("参考图用于指定视频中的角色、物体或视觉主体。", limits=["必须提供 1 到 9 张参考图", "支持 JPEG/JPG/PNG/WEBP", "短边不能小于 400 像素", "文件大小不超过 10MB"], how_to_choose=["按照 prompt 中 character1、character2 的引用顺序添加参考图", "主体尽量清晰完整，避免强压缩和模糊"], notes=common_notes),
+                            "reference_image": _asset_help("参考图用于指定视频中的角色、物体或视觉主体。", limits=["必须提供 1 到 9 张参考图", "支持 JPEG/JPG/PNG/WEBP", "短边不能小于 400 像素", "文件大小不超过 10MB"], how_to_choose=["按照 prompt 中 [Image 1]、[Image 2] 的引用顺序添加参考图", "主体尽量清晰完整，避免强压缩和模糊"], notes=common_notes),
                         },
-                        "prompt_help": _help(summary="Prompt 描述场景、动作、镜头和参考图的融合方式。", limits=["最大长度约 2500 字符", "不能为空或纯空格"], how_to_choose=["使用 character1、character2 等词指代对应顺序的参考图", "先写主体关系，再补场景、动作和镜头"], notes=["character1 对应第 1 张参考图，character2 对应第 2 张参考图，以此类推。", *common_notes]),
+                        "prompt_help": _help(summary="Prompt 描述场景、动作、镜头和参考图的融合方式。", limits=[prompt_limit_text, "不能为空或纯空格"], how_to_choose=["使用 [Image 1]、[Image 2] 等标记指代对应顺序的参考图", "指代时写清参考图中的具体对象，例如“[Image 1]中身着红色旗袍的女性”", "先写主体关系，再补场景、动作和镜头"], notes=["[Image 1] 对应第 1 张参考图，[Image 2] 对应第 2 张参考图，以此类推。", *common_notes]),
                     },
                 }
             },
@@ -2349,15 +2422,17 @@ def _happyhorse_models() -> Dict[str, Dict[str, Any]]:
                     "parameters": video_edit_params,
                     "verification_profiles": {"smoke": ["base_only"], "full": ["base_only", "base_plus_reference_images"]},
                     "ui_hints": {
-                        "prompt_max_length": 2500,
+                        "prompt_max_length": 5000,
+                        "prompt_length_policy": prompt_length_policy,
                         "max_reference_images": 5,
                         "max_reference_videos": 0,
                         "max_reference_total": 5,
+                        "reference_token_policy": _reference_token_policy(image_template="图{index}"),
                         "asset_help": {
                             "base_video": _asset_help("待编辑视频是被修改的原始视频。", limits=["必须且仅支持 1 个视频", "支持 MP4/MOV，建议 H.264", "时长需在 3 到 60 秒之间", "长边不超过 2160 像素，短边不小于 320 像素", "宽高比需在 1:2.5 到 2.5:1 之间", "文件大小不超过 100MB", "帧率必须大于 8 FPS"], how_to_choose=["优先选择单镜头、主体清晰的视频", "输入视频超过 15 秒时，厂商会从头截取前 15 秒作为有效输出片段"], notes=common_notes),
                             "reference_image": _asset_help("参考图用于引导编辑后的外观、服饰、物体或风格。", limits=["最多 5 张参考图", "支持 JPEG/JPG/PNG/WEBP", "宽高不能小于 300 像素", "宽高比需在 1:2.5 到 2.5:1 之间", "文件大小不超过 10MB"], how_to_choose=["不传参考图时适合普通风格修改", "传参考图时适合服饰替换、物体参考和局部视觉引导"], notes=common_notes),
                         },
-                        "prompt_help": _help(summary="Prompt 描述视频编辑意图。", limits=["最大长度约 2500 字符", "不能为空或纯空格"], how_to_choose=["明确写出要改变什么，以及参考图应如何被使用", "例如服饰替换、风格变换、局部物体替换"], notes=common_notes),
+                        "prompt_help": _help(summary="Prompt 描述视频编辑意图。", limits=[prompt_limit_text, "不能为空或纯空格"], how_to_choose=["明确写出要改变什么，以及参考图应如何被使用", "例如服饰替换、风格变换、局部物体替换"], notes=common_notes),
                     },
                 }
             },
@@ -2490,7 +2565,12 @@ def _vidu_models() -> Dict[str, Dict[str, Any]]:
             duration_range=[1, 10],
             supports_audio=False,
             size_options_by_resolution=ref_size_options,
-            ui_hints={"max_reference_images": 7, "max_reference_videos": 0, "max_reference_total": 7},
+            ui_hints={
+                "max_reference_images": 7,
+                "max_reference_videos": 0,
+                "max_reference_total": 7,
+                "reference_token_policy": _reference_token_policy(image_template="图{index}"),
+            },
         ),
         "vidu/viduq2-pro_reference2video": _vidu_model(
             model_id="vidu/viduq2-pro_reference2video",
@@ -2502,7 +2582,15 @@ def _vidu_models() -> Dict[str, Dict[str, Any]]:
             supports_audio=False,
             size_options_by_resolution=ref_size_options,
             recommended=True,
-            ui_hints={"max_reference_images": 4, "max_reference_videos": 2, "max_reference_total": 5},
+            ui_hints={
+                "max_reference_images": 4,
+                "max_reference_videos": 2,
+                "max_reference_total": 5,
+                "reference_token_policy": _reference_token_policy(
+                    image_template="图{index}",
+                    video_template="视频{index}",
+                ),
+            },
         ),
     }
 

@@ -2218,6 +2218,36 @@ export interface VideoStudioInputAssets {
   [key: string]: any
 }
 
+export interface VideoPromptLengthPolicy {
+  mode: 'cjk_weighted' | string
+  max_units: number
+  cjk_unit?: number
+  non_cjk_unit?: number
+  cjk_equivalent_limit?: number
+  non_cjk_equivalent_limit?: number
+}
+
+export type VideoReferenceTokenRole = 'reference_image' | 'reference_video'
+
+export interface VideoReferenceTokenVariant {
+  key: string
+  label: string
+  template: string
+}
+
+export interface VideoReferenceTokenTemplate {
+  template: string
+  variants?: VideoReferenceTokenVariant[]
+}
+
+export interface VideoReferenceTokenPolicy {
+  mode: 'media_reference_tokens' | string
+  index_base: number
+  numbering_scope: 'by_type' | 'combined'
+  reference_order?: VideoReferenceTokenRole[]
+  tokens: Partial<Record<VideoReferenceTokenRole, VideoReferenceTokenTemplate>>
+}
+
 export interface VideoTaskProfile {
   task_kind: VideoTaskKind
   label: string
@@ -2227,6 +2257,8 @@ export interface VideoTaskProfile {
   ui_hints?: Record<string, any> & {
     asset_help?: Partial<Record<VideoInputRole, HelpContent | string>>
     prompt_help?: HelpContent | string
+    prompt_length_policy?: VideoPromptLengthPolicy
+    reference_token_policy?: VideoReferenceTokenPolicy
   }
   supported_narrative_modes: VideoNarrativeMode[]
   default_values?: Record<string, any>

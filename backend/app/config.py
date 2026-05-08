@@ -18,6 +18,10 @@ API_REGIONS = {
     "singapore": {
         "name": "新加坡",
         "base_url": "https://dashscope-intl.aliyuncs.com/api/v1"
+    },
+    "us_virginia": {
+        "name": "美国（弗吉尼亚）",
+        "base_url": "https://dashscope-us.aliyuncs.com/api/v1"
     }
 }
 
@@ -853,7 +857,7 @@ class AppConfig(BaseModel):
     vidu_key_profile: str = "production"
     video_task_notifications_enabled: bool = False
     image_task_notifications_enabled: bool = False
-    api_region: str = "beijing"  # beijing 或 singapore
+    api_region: str = "beijing"  # beijing / singapore / us_virginia
     
     # LLM 配置
     llm: LLMConfig = LLMConfig()

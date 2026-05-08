@@ -104,11 +104,30 @@ frontend/src/
 - 参数级：`parameter.help`
 - 素材位：`task_profile.ui_hints.asset_help`
 - Prompt：`task_profile.ui_hints.prompt_help`
+- Prompt 长度策略：`task_profile.ui_hints.prompt_length_policy`
 - 模型限流：`model.capabilities.api_mode`、`submit_rate_limit`、`max_concurrent`、`concurrency_scope`
 
 前端只在少数素材位上保留兜底说明，避免后端帮助缺失时完全没有提示。
 
 图片工作室与视频工作室的“生成组数”上限来自后端 capabilities。有限异步并发模型使用 `max_concurrent` 作为 `InputNumber.max`；同步接口 `max_concurrent=null` 时不设置前端并发上限，但仍展示提交频率提示，让实际提交由后端排队。
+
+### Prompt 长度计数
+
+视频工作室不直接用 Ant Design `TextArea.maxLength` 处理厂商差异化提示词限制。
+
+- HappyHorse 使用 `prompt_length_policy.mode=cjk_weighted`
+- 中文汉字按 2 单位计，非中文字符按 1 单位计
+- 前端显示 `当前单位/最大单位`，并在提交前用 `frontend/src/pages/VideoStudio/promptLengthPolicy.ts` 与后端同口径校验
+- HappyHorse 参考生视频的参考图指代文案使用 `[Image 1]`、`[Image 2]`，不再引导新任务使用 `character1` / `character2`
+
+### 参考素材 @ 指代词
+
+视频工作室新建/编辑弹窗的已选参考素材列表会为 `reference_image` 和 `reference_video` 显示 `@` 按钮。点击后通过 `frontend/src/pages/VideoStudio/referenceTokenPolicy.ts` 计算当前素材的模型指代词，并插入到提示词 `TextArea` 的当前光标或选区位置。
+
+- 指代格式来自 `currentProfile.ui_hints.reference_token_policy`
+- 缺少 policy 时参考图回退 `图{index}`，参考视频回退 `视频{index}`
+- Wan 2.7 的主按钮插入中文 `图1` / `视频1`，下拉菜单提供英文 `Image 1` / `Video 1`
+- `@` 只插入文本，不修改素材顺序、不自动改写历史 prompt、不做额外提交校验
 
 ### 参数迁移提示
 
