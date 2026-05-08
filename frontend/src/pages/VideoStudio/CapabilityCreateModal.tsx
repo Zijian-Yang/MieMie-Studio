@@ -4,6 +4,7 @@ import {
   Col,
   Collapse,
   Divider,
+  Dropdown,
   Empty,
   Input,
   InputNumber,
@@ -15,11 +16,12 @@ import {
   Spin,
   Tabs,
   Tag,
+  Tooltip,
   Typography,
   message,
   theme,
 } from 'antd'
-import { DeleteOutlined, PlusOutlined, VideoCameraOutlined } from '@ant-design/icons'
+import { DeleteOutlined, DownOutlined, PlusOutlined, VideoCameraOutlined } from '@ant-design/icons'
 import {
   AudioItem,
   GalleryImage,
@@ -27,6 +29,7 @@ import {
   VideoCapabilityModel,
   VideoInputRole,
   VideoNarrativeMode,
+  VideoReferenceTokenRole,
   VideoReferenceMediaItem,
   VideoStudioTask,
   VideoStudioCapabilitiesResponse,
@@ -40,6 +43,15 @@ import DynamicModelForm from '../../components/ModelConfig/DynamicModelForm'
 import HoverInfoPopover from '../../components/Help/HoverInfoPopover'
 import MaskEditor, { type MaskEditorHandle, type MaskEditorTool } from './MaskEditor'
 import { resolveReferenceCollectionLimits } from './capabilityLimits'
+import {
+  countPromptLengthUnits,
+  formatPromptLengthLimit,
+  getPromptLengthError,
+} from './promptLengthPolicy'
+import {
+  buildReferenceTokenOptions,
+  insertReferenceTokenAtSelection,
+} from './referenceTokenPolicy'
 
 const { Text, Paragraph } = Typography
 const { TextArea } = Input
@@ -74,6 +86,11 @@ interface MultiShotSegment {
 
 interface StructuredReferenceMediaItem extends VideoReferenceMediaItem {
   id: string
+}
+
+interface PromptSelection {
+  start: number
+  end: number
 }
 
 interface CapabilityCreateModalProps {
@@ -256,10 +273,13 @@ const CapabilityCreateModal = ({
   } | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const maskEditorRef = useRef<MaskEditorHandle | null>(null)
+  const promptTextAreaRef = useRef<any>(null)
+  const promptSelectionRef = useRef<PromptSelection | null>(null)
 
   const resetLocalState = (defaults: Record<string, any> = {}) => {
     setTaskName('')
     setPrompt('')
+    promptSelectionRef.current = null
     setNegativePrompt('')
     setGroupCount(1)
     setDynamicValues(defaults)
@@ -614,8 +634,94 @@ const CapabilityCreateModal = ({
   ].filter(Boolean).join('；')
   const isWan27ReferenceModel = taskKind === 'reference_to_video' && modelId === 'wan2.7-r2v'
   const promptRequired = isPromptRequired(taskKind, currentProvider)
+  const promptLengthPolicy = currentProfile?.ui_hints?.prompt_length_policy
+  const promptLengthUnits = countPromptLengthUnits(prompt.trim(), promptLengthPolicy)
+  const promptLengthError = getPromptLengthError(prompt.trim(), promptLengthPolicy)
+  const promptLengthLimitLabel = formatPromptLengthLimit(promptLengthPolicy)
   const narrativeMode = ((dynamicValues.narrative_mode as VideoNarrativeMode | undefined) || dynamicValues.shot_type || task?.narrative_mode || 'single') as VideoNarrativeMode
   const supportsMultiShot = currentProfile?.supported_narrative_modes?.some((mode) => mode !== 'single') || false
+
+  const getPromptTextAreaElement = () => (
+    promptTextAreaRef.current?.resizableTextArea?.textArea as HTMLTextAreaElement | undefined
+  )
+  const updatePromptSelection = (target: HTMLTextAreaElement) => {
+    promptSelectionRef.current = {
+      start: target.selectionStart,
+      end: target.selectionEnd,
+    }
+  }
+  const insertReferenceToken = (tokenText: string) => {
+    const textArea = getPromptTextAreaElement()
+    const liveSelection = promptSelectionRef.current || (
+      textArea && document.activeElement === textArea
+        ? { start: textArea.selectionStart, end: textArea.selectionEnd }
+        : null
+    )
+    const next = insertReferenceTokenAtSelection(prompt, tokenText, liveSelection?.start, liveSelection?.end)
+    setPrompt(next.value)
+    promptSelectionRef.current = { start: next.cursor, end: next.cursor }
+    window.requestAnimationFrame(() => {
+      const nextTextArea = getPromptTextAreaElement()
+      if (!nextTextArea) return
+      nextTextArea.focus()
+      nextTextArea.setSelectionRange(next.cursor, next.cursor)
+    })
+  }
+  const renderReferenceTokenButton = (
+    role: VideoReferenceTokenRole,
+    roleIndex: number,
+    roleCounts: Partial<Record<VideoReferenceTokenRole, number>>,
+  ) => {
+    const options = buildReferenceTokenOptions({
+      role,
+      roleIndex,
+      roleCounts,
+      policy: currentProfile?.ui_hints?.reference_token_policy,
+    })
+    const [primary, ...variants] = options
+    if (!primary) return null
+
+    const primaryButton = (
+      <Tooltip title={`插入指代词 ${primary.token}`}>
+        <Button
+          size="small"
+          type="text"
+          aria-label={`插入指代词 ${primary.token}`}
+          onClick={() => insertReferenceToken(primary.token)}
+        >
+          @
+        </Button>
+      </Tooltip>
+    )
+
+    if (variants.length === 0) return primaryButton
+
+    return (
+      <Space.Compact size="small">
+        {primaryButton}
+        <Dropdown
+          trigger={['click']}
+          menu={{
+            items: variants.map((option) => ({
+              key: option.key,
+              label: option.label,
+            })),
+            onClick: ({ key }) => {
+              const option = variants.find((item) => item.key === key)
+              if (option) insertReferenceToken(option.token)
+            },
+          }}
+        >
+          <Button
+            size="small"
+            type="text"
+            icon={<DownOutlined />}
+            aria-label="选择指代词格式"
+          />
+        </Dropdown>
+      </Space.Compact>
+    )
+  }
 
   useEffect(() => {
     if (!groupCountMax || groupCount <= groupCountMax) return
@@ -849,6 +955,10 @@ const CapabilityCreateModal = ({
     }
     if (promptRequired && !prompt.trim()) {
       throw new Error('请输入提示词')
+    }
+    const lengthError = getPromptLengthError(prompt.trim(), currentProfile?.ui_hints?.prompt_length_policy)
+    if (lengthError) {
+      throw new Error(lengthError)
     }
     if (currentProvider === 'kling' && taskKind === 'reference_to_video' && referenceFirstFrameUrl && referenceVideoUrls.length === 0) {
       throw new Error('可灵首帧参考模式需要同时选择参考视频')
@@ -1138,6 +1248,14 @@ const CapabilityCreateModal = ({
                   const image = galleryImages.find((entry) => entry.url === item.url)
                   const video = videoLibraryItems.find((entry) => entry.url === item.url)
                   const audio = audioItems.find((entry) => entry.url === item.reference_voice)
+                  const roleCounts = {
+                    reference_image: referenceMediaItems.filter((entry) => entry.type === 'reference_image').length,
+                    reference_video: referenceMediaItems.filter((entry) => entry.type === 'reference_video').length,
+                  }
+                  const roleIndex = referenceMediaItems
+                    .slice(0, index)
+                    .filter((entry) => entry.type === item.type)
+                    .length
                   return (
                     <div key={item.id} style={{ padding: 12, borderRadius: 8, background: token.colorBgContainer }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -1149,6 +1267,7 @@ const CapabilityCreateModal = ({
                           {audio && <Tag color="gold">音色: {audio.name}</Tag>}
                         </Space>
                         <Space size={4}>
+                          {renderReferenceTokenButton(item.type, roleIndex, roleCounts)}
                           <Button type="text" disabled={index === 0} onClick={() => moveReferenceMediaItem(item.id, -1)}>上移</Button>
                           <Button type="text" disabled={index === referenceMediaItems.length - 1} onClick={() => moveReferenceMediaItem(item.id, 1)}>下移</Button>
                           <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeReferenceMediaItem(item.id)} />
@@ -1237,15 +1356,22 @@ const CapabilityCreateModal = ({
             <List
               size="small"
               dataSource={[
-                ...referenceImageUrls.map((url) => ({ url, type: 'image' as const })),
-                ...referenceVideoUrls.map((url) => ({ url, type: 'video' as const })),
+                ...referenceImageUrls.map((url, index) => ({ url, type: 'image' as const, role: 'reference_image' as const, roleIndex: index })),
+                ...referenceVideoUrls.map((url, index) => ({ url, type: 'video' as const, role: 'reference_video' as const, roleIndex: index })),
               ]}
               renderItem={(item) => {
                 const image = galleryImages.find((entry) => entry.url === item.url)
                 const video = videoLibraryItems.find((entry) => entry.url === item.url)
+                const roleCounts = {
+                  reference_image: referenceImageUrls.length,
+                  reference_video: referenceVideoUrls.length,
+                }
                 return (
                   <List.Item
                     actions={[
+                      <span key="reference-token">
+                        {renderReferenceTokenButton(item.role, item.roleIndex, roleCounts)}
+                      </span>,
                       <Button
                         key="delete"
                         type="text"
@@ -1425,8 +1551,15 @@ const CapabilityCreateModal = ({
           <div style={{ marginBottom: 16 }}>
             <div style={{ marginBottom: 8 }}>{renderFieldLabel('提示词', promptHelp, promptRequired)}</div>
             <TextArea
+              ref={promptTextAreaRef}
               value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
+              onChange={(event) => {
+                setPrompt(event.target.value)
+                updatePromptSelection(event.currentTarget)
+              }}
+              onClick={(event) => updatePromptSelection(event.currentTarget)}
+              onKeyUp={(event) => updatePromptSelection(event.currentTarget)}
+              onSelect={(event) => updatePromptSelection(event.currentTarget)}
               rows={3}
               placeholder={taskKind === 'video_edit_local'
                 ? '描述需要替换或新增的局部内容'
@@ -1434,6 +1567,17 @@ const CapabilityCreateModal = ({
                   ? '描述重绘后的画面和风格'
                   : '描述想要生成的视频内容'}
             />
+            {promptLengthPolicy?.max_units && (
+              <div
+                style={{
+                  marginTop: 6,
+                  fontSize: 12,
+                  color: promptLengthError ? token.colorError : token.colorTextSecondary,
+                }}
+              >
+                {promptLengthUnits}/{promptLengthPolicy.max_units} 单位；上限 {promptLengthLimitLabel}
+              </div>
+            )}
           </div>
 
           {['wan'].includes(currentProvider) && !['video_edit_local', 'video_repainting'].includes(taskKind) && (

@@ -73,6 +73,9 @@ VIDU_VIDEO_FORMATS = {"mp4", "avi", "mov"}
 HAPPYHORSE_RESOLUTIONS = {"720P", "1080P"}
 HAPPYHORSE_RATIOS = {"16:9", "9:16", "1:1", "4:3", "3:4"}
 HAPPYHORSE_DURATIONS = set(range(3, 16))
+HAPPYHORSE_PROMPT_MAX_UNITS = 5000
+HAPPYHORSE_PROMPT_CJK_UNIT = 2
+HAPPYHORSE_PROMPT_NON_CJK_UNIT = 1
 HAPPYHORSE_IMAGE_FORMATS = {"JPEG", "JPG", "PNG", "WEBP"}
 HAPPYHORSE_MIN_IMAGE_SIDE = 300
 HAPPYHORSE_MIN_REFERENCE_SHORT_SIDE = 400
@@ -85,6 +88,25 @@ HAPPYHORSE_VIDEO_EDIT_MAX_VIDEO_BYTES = 100 * 1024 * 1024
 HAPPYHORSE_VIDEO_EDIT_MAX_LONG_SIDE = 2160
 HAPPYHORSE_VIDEO_EDIT_MIN_SHORT_SIDE = 320
 HAPPYHORSE_VIDEO_EDIT_MIN_FPS = 8.0
+
+
+def _is_cjk_unified_ideograph(char: str) -> bool:
+    codepoint = ord(char)
+    return (
+        0x3400 <= codepoint <= 0x4DBF
+        or 0x4E00 <= codepoint <= 0x9FFF
+        or 0xF900 <= codepoint <= 0xFAFF
+        or 0x20000 <= codepoint <= 0x2A6DF
+        or 0x2A700 <= codepoint <= 0x2B73F
+        or 0x2B740 <= codepoint <= 0x2B81F
+        or 0x2B820 <= codepoint <= 0x2CEAF
+        or 0x2CEB0 <= codepoint <= 0x2EBEF
+        or 0x30000 <= codepoint <= 0x3134F
+    )
+
+
+def _count_cjk_weighted_units(text: str, *, cjk_unit: int = 2, non_cjk_unit: int = 1) -> int:
+    return sum(cjk_unit if _is_cjk_unified_ideograph(char) else non_cjk_unit for char in text)
 
 
 def _parse_element_ids(raw_value: Any) -> List[int]:
@@ -242,8 +264,13 @@ def _normalize_happyhorse_prompt(prompt: str, *, required: bool) -> str:
         if required:
             raise ValueError("提示词不能为空")
         return ""
-    if len(normalized) > 2500:
-        raise ValueError("提示词长度不能超过2500字符")
+    unit_count = _count_cjk_weighted_units(
+        normalized,
+        cjk_unit=HAPPYHORSE_PROMPT_CJK_UNIT,
+        non_cjk_unit=HAPPYHORSE_PROMPT_NON_CJK_UNIT,
+    )
+    if unit_count > HAPPYHORSE_PROMPT_MAX_UNITS:
+        raise ValueError("提示词长度不能超过2500个中文字符或5000个非中文字符")
     return normalized
 
 

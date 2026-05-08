@@ -157,6 +157,29 @@ def test_settings_persists_happyhorse_test_profile_after_refresh(client, auth_he
     assert second_read.json()["vidu_key_profile"] == "production"
 
 
+def test_settings_exposes_us_virginia_region(client, auth_header):
+    settings = client.get("/api/settings", headers=auth_header)
+    assert settings.status_code == 200
+    data = settings.json()
+
+    assert data["available_regions"]["us_virginia"] == {
+        "name": "美国（弗吉尼亚）",
+        "base_url": "https://dashscope-us.aliyuncs.com/api/v1",
+    }
+
+    resp = client.put(
+        "/api/settings",
+        headers=auth_header,
+        json={"api_region": "us_virginia"},
+    )
+    assert resp.status_code == 200
+
+    updated = client.get("/api/settings", headers=auth_header)
+    assert updated.status_code == 200
+    assert updated.json()["api_region"] == "us_virginia"
+    assert updated.json()["base_url"] == "https://dashscope-us.aliyuncs.com/api/v1"
+
+
 def test_get_provider_api_key_respects_profiles(registered_user):
     _, user = registered_user
     user_dir = get_user_service().get_user_data_path(user["id"])

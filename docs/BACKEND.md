@@ -174,6 +174,7 @@ from app.routers import (
   - 当前模型在当前能力下支持的参数列表
 - `ui_hints`
   - 前端辅助渲染信息，例如素材位帮助、Prompt 帮助、尺寸联动
+  - HappyHorse 还会暴露 `prompt_length_policy`，用于声明中文/非中文加权计数上限
 
 ### 参数帮助结构
 
@@ -194,11 +195,35 @@ from app.routers import (
 - 参数级帮助：`parameter.help`
 - 素材位帮助：`ui_hints.asset_help`
 - Prompt 帮助：`ui_hints.prompt_help`
+- Prompt 长度策略：`ui_hints.prompt_length_policy`
+- 参考素材指代词：`ui_hints.reference_token_policy`
 
 要求：
 - 所有前端可见参数至少要有 `description` 或 `help`
 - 重要参数优先使用完整 `help`
 - 选择类参数应尽量在 `options[].description` 中补短说明，方便前端直接展示差异
+
+### HappyHorse Prompt 长度
+
+HappyHorse 系列提示词按中英文差异计数：
+- 中文汉字按 2 单位计
+- 非中文字符按 1 单位计
+- 总上限 5000 单位，等价于 2500 个中文字符或 5000 个非中文字符
+
+后端 adapter 在提交、预览和重跑前统一执行该校验；capability schema 同步暴露 `prompt_length_policy`，前端用同一规则展示计数并提前拦截超限输入。
+
+### 参考素材指代词
+
+视频工作室通过 `ui_hints.reference_token_policy` 声明参考图/参考视频在 prompt 中的指代格式。前端只消费该 schema，不按模型 ID 写死按钮逻辑。
+
+字段约定：
+- `mode=media_reference_tokens`
+- `numbering_scope=by_type` 表示图片和视频分别编号，例如 `图1` 与 `视频1`
+- `numbering_scope=combined` 表示按 `reference_order` 合并编号，例如 Wan 2.6 的 `reference_video` 在 `reference_image` 前，统一生成 `character1`、`character2`
+- `tokens.reference_image.template` 与 `tokens.reference_video.template` 使用 `{index}` 占位
+- `variants` 用于同一素材的备用写法，例如 Wan 2.7 中文主 token `图1` / `视频1`，菜单里提供 `Image 1` / `Video 1`
+
+缺少 policy 的新模型前端会回退到参考图 `图{index}`、参考视频 `视频{index}`；后端应在接入模型时尽量按厂商文档补齐精确规则。
 
 ### Wan 局部编辑为什么不暴露 `obj_or_bg`
 
@@ -469,6 +494,11 @@ response = await asyncio.to_thread(MultiModalConversation.call, api_key=key, **p
 ## 通知设置
 - `AppConfig` 新增 `video_task_notifications_enabled`
 - 设置接口同步返回与保存该开关
+
+## API 地域
+- `API_REGIONS` 目前包含北京、新加坡、美国（弗吉尼亚）
+- 美国（弗吉尼亚）地域 key 为 `us_virginia`，base URL 为 `https://dashscope-us.aliyuncs.com/api/v1`
+- 该地域作为全局 DashScope 地域选项开放，不做 HappyHorse 专用分支
 # 图片工作室更新
 
 - `/api/studio/models/available` 现在优先使用 registry 元数据，避免同名模型被旧配置覆盖

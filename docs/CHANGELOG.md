@@ -5,6 +5,11 @@
 
 ## [Unreleased]
 
+### 修复 (Fixed)
+- 视频工作室：任务卡片的类型、Provider、状态和完成进度支持换行布局，避免 HappyHorse 等较长标签把“已完成”和 `1/1` 挤出卡片。
+- 视频工作室：HappyHorse 提示词长度改为中文 2 单位、非中文 1 单位的加权检测，并在前后端保持一致。
+- 视频工作室：HappyHorse 参考生视频新建提示改为 `[Image 1]` / `[Image 2]` 指代参考图，匹配新版 API 文档。
+
 ### 安全 (Security)
 - **密码哈希**: 用户密码从明文存储改为 bcrypt 哈希，新注册用户自动使用 bcrypt，已有明文密码在首次登录时自动迁移
 - **认证中间件**: 从 Starlette `BaseHTTPMiddleware` 重写为纯 ASGI 实现，修复 `contextvars` 在并发请求间泄漏的问题
@@ -13,6 +18,8 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 视频工作室：支持在已选参考图/参考视频上点击 `@`，按模型 capability 中的 `reference_token_policy` 自动把 `[Image 1]`、`图1`、`视频1`、`<<<image_1>>>` 等指代词插入提示词光标位置。
+- 设置：DashScope API 地域新增美国（弗吉尼亚）`https://dashscope-us.aliyuncs.com/api/v1`。
 - 阿里生图/生视频同步/异步限流校准：
   - 新增统一模型限流定义，区分 `submit_rate_limit` 与 `max_concurrent`
   - Qwen 图片同步接口保留 `2/min` 或 `2/sec` 提交频率，处理中任务数量不再误套异步并发上限

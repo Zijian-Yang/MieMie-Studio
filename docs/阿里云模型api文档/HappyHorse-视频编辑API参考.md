@@ -13,7 +13,7 @@ HappyHorse 视频编辑模型支持输入视频与参考图，结合文本指令
 
 **说明**
 
-本文的示例代码适用于**北京地域**。
+本文的示例代码适用于**华北2（北京）地域**。
 
 ## HTTP调用
 
@@ -21,13 +21,17 @@ HappyHorse 视频编辑模型支持输入视频与参考图，结合文本指令
 
 ### **步骤1：创建任务获取任务ID**
 
-## **北京**
+## **华北2（北京）**
 
 `POST https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis`
 
 ## **新加坡**
 
 `POST https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis`
+
+## **美国（弗吉尼亚）**
+
+`POST https://dashscope-us.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis`
 
 **说明**
 
@@ -56,13 +60,17 @@ HappyHorse 视频编辑模型支持输入视频与参考图，结合文本指令
 
 ### **步骤2：根据任务ID查询结果**
 
-## **北京**
+## **华北2（北京）**
 
 `GET https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}`
 
 ## **新加坡**
 
 `GET https://dashscope-intl.aliyuncs.com/api/v1/tasks/{task_id}`
+
+## **美国（弗吉尼亚）**
+
+`GET https://dashscope-us.aliyuncs.com/api/v1/tasks/{task_id}`
 
 **说明**
 
