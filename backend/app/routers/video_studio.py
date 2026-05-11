@@ -26,7 +26,7 @@ from datetime import datetime
 
 from app.models.media import VideoStudioTask
 from app.models.gallery import GalleryImage
-from app.services.storage import storage_service, get_current_user_id, set_current_user
+from app.services.storage import storage_service, get_current_user_id, set_current_user, get_user_storage
 from app.services.user_service import get_user_service
 from app.services.dashscope.image_to_video import ImageToVideoService
 from app.services.dashscope.reference_to_video import ReferenceToVideoService
@@ -464,7 +464,11 @@ async def _refresh_task_provider_metadata(task: VideoStudioTask) -> bool:
     return changed
 
 
-async def _reconcile_video_task_once(task: VideoStudioTask) -> VideoStudioTask:
+def _storage_for_background_user(user_id: Optional[str]):
+    return get_user_storage(user_id) if user_id else storage_service
+
+
+async def _reconcile_video_task_once(task: VideoStudioTask, task_storage=None) -> VideoStudioTask:
     """从厂商侧刷新一次任务状态，并把结果落到平台任务记录。"""
     if task.status != "processing" or not task.task_ids:
         return task
@@ -551,7 +555,7 @@ async def _reconcile_video_task_once(task: VideoStudioTask) -> VideoStudioTask:
                 task.error_message = f"视频生成失败（{failed_count}/{len(task.task_ids)} 个失败）"
 
     task.updated_at = datetime.now()
-    storage_service.save_video_studio_task(task)
+    (task_storage or storage_service).save_video_studio_task(task)
     return task
 
 
@@ -569,10 +573,11 @@ async def _run_video_task_reconciler(
     set_current_user(user_id)
     if user_config_dir:
         set_user_config_dir(user_config_dir)
+    task_storage = _storage_for_background_user(user_id)
 
     try:
         while True:
-            task = storage_service.get_video_studio_task(task_id)
+            task = task_storage.get_video_studio_task(task_id)
             if not task:
                 logger.info(f"[视频工作室] 任务 {task_id} 已不存在，停止状态协调器")
                 return
@@ -582,17 +587,17 @@ async def _run_video_task_reconciler(
                 await asyncio.sleep(VIDEO_RECONCILE_POLL_INTERVAL_SECONDS)
                 continue
 
-            task = await _reconcile_video_task_once(task)
+            task = await _reconcile_video_task_once(task, task_storage)
             if task.status != "processing":
                 return
             await asyncio.sleep(VIDEO_RECONCILE_POLL_INTERVAL_SECONDS)
     except Exception as exc:
         logger.error(f"[视频工作室] 任务 {task_id} 状态协调器异常: {exc}", exc_info=True)
-        task = storage_service.get_video_studio_task(task_id)
+        task = task_storage.get_video_studio_task(task_id)
         if task and task.status == "processing":
             task.status = "failed"
             task.error_message = str(exc)
-            storage_service.save_video_studio_task(task)
+            task_storage.save_video_studio_task(task)
     finally:
         _active_video_reconcilers.discard(task_id)
         set_current_user(None)
@@ -622,8 +627,9 @@ async def start_pending_video_task_reconcilers() -> None:
             set_current_user(user_id)
             user_config_dir = str(user_service.get_user_data_path(user_id))
             set_user_config_dir(user_config_dir)
+            user_storage = get_user_storage(user_id)
 
-            for task in storage_service.get_all_video_studio_tasks():
+            for task in user_storage.get_all_video_studio_tasks():
                 if task.status == "processing" and task.task_ids:
                     _schedule_video_task_reconciler(task.id, user_id, user_config_dir)
                     recovered_count += 1
@@ -1483,12 +1489,13 @@ async def _background_create_video_tasks(
     set_current_user(user_id)
     if user_config_dir:
         set_user_config_dir(user_config_dir)
+    task_storage = _storage_for_background_user(user_id)
 
     try:
         task_ids = await _submit_api_tasks(task, request)
         task.task_ids = list(task_ids)
         task.updated_at = datetime.now()
-        storage_service.save_video_studio_task(task)
+        task_storage.save_video_studio_task(task)
         logger.info(f"[视频工作室] 任务 {task.id} 已提交 {len(task_ids)} 个 API 任务")
         await _run_video_task_reconciler(task.id, user_id, user_config_dir)
     except Exception as e:
@@ -1511,7 +1518,7 @@ async def _background_create_video_tasks(
                 }
             }
         task.updated_at = datetime.now()
-        storage_service.save_video_studio_task(task)
+        task_storage.save_video_studio_task(task)
 
 
 async def _submit_api_tasks(

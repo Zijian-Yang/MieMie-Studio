@@ -14,6 +14,7 @@
 - 前端多个页面重复实现的轮询逻辑收敛为同一套 hook，降低状态查询放大与清理遗漏风险。
 - 修复 Docker Compose 容器启动时 `sh -lc` 重置 `PATH`，导致找不到 venv 内 `gunicorn` 的问题。
 - 修复 OSS 未启用时 DashScope 成功视频结果被标记为失败的问题，改为保留供应商视频 URL。
+- 视频工作室后台提交与状态协调器改为显式使用目标用户存储，避免后台协程在测试或异步边界下依赖 `contextvars` 代理导致任务状态写入错误目录。
 
 ### 安全 (Security)
 - **密码哈希**: 用户密码从明文存储改为 bcrypt 哈希，新注册用户自动使用 bcrypt，已有明文密码在首次登录时自动迁移
@@ -68,6 +69,9 @@
   - 新增 k6 S1/S3 压测脚本、Linux staging 基线记录与验证包归档
   - 新增 `.dockerignore`、`Dockerfile`、`docker-compose.yml`、`compose.env.example`
   - 新增运行模式矩阵文档，明确开发 / 脚本生产 / Compose 生产边界
+- `pre` 实验分支说明：
+  - 新增 `README.pre.md` 与分支计划，明确 `main`/`pre` 并行开发、Compose 本机构建交付和反向代理用户自管边界
+  - Compose 默认绑定 `127.0.0.1:${MIEMIE_HOST_PORT}`，降低应用端口直接暴露公网的风险
 - 管理脚本运行时可观测性：
   - `GET /api/health` 新增 `git_commit`、`run_mode`、`serve_frontend`、`started_at`
   - `./run.sh status` / TUI 状态栏新增默认模式、实际模式、当前运行提交与前端服务方式

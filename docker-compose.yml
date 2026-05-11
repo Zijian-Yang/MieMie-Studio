@@ -6,7 +6,7 @@ services:
     image: miemie-studio:local
     restart: unless-stopped
     ports:
-      - "${MIEMIE_HOST_PORT:-8000}:8000"
+      - "${MIEMIE_HOST_BIND:-127.0.0.1}:${MIEMIE_HOST_PORT:-8000}:8000"
     environment:
       TZ: "${TZ:-Asia/Shanghai}"
       MIEMIE_SERVE_FRONTEND: "true"

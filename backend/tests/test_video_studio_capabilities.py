@@ -1173,7 +1173,7 @@ async def test_background_submit_failure_keeps_raw_provider_error(registered_use
 
     await video_studio_router._background_create_video_tasks(task, normalized, user["id"], None)
 
-    saved = storage_service.get_video_studio_task(task.id)
+    saved = get_user_storage(user["id"]).get_video_studio_task(task.id)
     assert saved.status == "failed"
     assert saved.error_message == "Model.AccessDenied - Model access denied."
     assert saved.request_ids == ["req-denied-1"]
@@ -1189,7 +1189,7 @@ async def test_background_submit_failure_keeps_raw_provider_error(registered_use
 def test_get_failed_submit_task_backfills_developer_error_meta(client, auth_header, registered_user):
     project_id = _create_project(client, auth_header)
     _, user = registered_user
-    set_current_user(user["id"])
+    user_storage = get_user_storage(user["id"])
     task = VideoStudioTask(
         project_id=project_id,
         name="HH 提交失败旧任务",
@@ -1209,7 +1209,7 @@ def test_get_failed_submit_task_backfills_developer_error_meta(client, auth_head
         status="failed",
         error_message="Model.AccessDenied - Model access denied.",
     )
-    storage_service.save_video_studio_task(task)
+    user_storage.save_video_studio_task(task)
 
     resp = client.get(f"/api/video-studio/{task.id}", headers=auth_header)
 

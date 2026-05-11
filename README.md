@@ -2,6 +2,17 @@
 
 基于阿里云通义万相 API 的 AI 漫剧/短剧视频生成平台，支持从剧本创作到视频生成的完整工作流程。
 
+## pre 实验分支
+
+`pre` 是高性能/生产运行时实验分支，用于在不打断 `main` 稳定功能线的前提下验证 Linux、Compose、压测与后续 Redis/PostgreSQL/Worker 改造。该分支的独立说明见 [README.pre.md](./README.pre.md)。
+
+当前 Docker 交付方式是“拉取仓库后本机构建镜像”，不是公共 registry 的 `docker pull` 预构建镜像：
+
+```bash
+cp compose.env.example compose.env
+docker compose --env-file compose.env up -d --build
+```
+
 ## 功能特性
 
 - **分镜脚本**：支持剧本输入、AI 编剧优化、多模型对比、流式输出

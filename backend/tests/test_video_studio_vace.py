@@ -227,7 +227,7 @@ class TestVideoStudioVace:
 
         monkeypatch.setattr(video_studio_router, "_extract_video_thumbnail_to_oss", fake_thumbnail)
 
-        await video_studio_router._run_video_task_reconciler(task.id, "user-1", "/tmp/user-1")
+        await video_studio_router._run_video_task_reconciler(task.id, None, None)
 
         assert task.status == "succeeded"
         assert task.video_urls == ["https://oss.example.com/result.mp4"]
@@ -265,7 +265,7 @@ class TestVideoStudioVace:
 
         monkeypatch.setattr(video_studio_router.VaceVideoEditService, "get_task_status", fake_status)
 
-        await video_studio_router._run_video_task_reconciler(task.id, "user-1", "/tmp/user-1")
+        await video_studio_router._run_video_task_reconciler(task.id, None, None)
 
         assert task.status == "failed"
         assert "obj_or_bg" in task.error_message
