@@ -14,6 +14,7 @@ import {
   AudioStudioTask, VoiceProfile, AudioItem,
 } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
+import { useTaskPolling } from '../../hooks/useTaskPolling'
 
 const { TextArea } = Input
 const { Text } = Typography
@@ -261,7 +262,6 @@ const AudioStudioPage = () => {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [activeTab, setActiveTab] = useState('tts')
-  const pollingRef = useRef<Set<string>>(new Set())
   const isMountedRef = useRef(true)
 
   const [playingId, setPlayingId] = useState<string | null>(null)
@@ -303,7 +303,6 @@ const AudioStudioPage = () => {
     }
     return () => {
       isMountedRef.current = false
-      pollingRef.current.clear()
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
     }
   }, [projectId])
@@ -322,7 +321,7 @@ const AudioStudioPage = () => {
       setAudioItems(audioRes.audios)
 
       tasksRes.tasks.forEach((t: AudioStudioTask) => {
-        if (t.status === 'processing') startPolling(t.id)
+        if (t.status === 'processing') startTaskPolling(t.id)
       })
     } catch {
       message.error('加载数据失败')
@@ -331,31 +330,29 @@ const AudioStudioPage = () => {
     }
   }, [projectId])
 
-  const startPolling = (taskId: string) => {
-    if (pollingRef.current.has(taskId)) return
-    pollingRef.current.add(taskId)
-    const poll = async () => {
-      if (!isMountedRef.current || !pollingRef.current.has(taskId)) return
-      try {
-        const res = await audioStudioApi.get(taskId)
-        const updated = res.task
-        if (!isMountedRef.current) return
-        setTasks(prev => prev.map(t => t.id === taskId ? updated : t))
-        if (updated.status === 'succeeded' || updated.status === 'failed') {
-          pollingRef.current.delete(taskId)
-          if (updated.status === 'succeeded') {
-            message.success(`任务"${updated.name}"完成`)
-            if (updated.task_type !== 'tts') loadData()
-          } else {
-            message.error(`任务"${updated.name}"失败: ${updated.error_message || '未知错误'}`)
-          }
-          return
+  const { startPolling, stopPolling } = useTaskPolling({
+    initialDelayMs: 2000,
+    intervalMs: 3000,
+  })
+
+  const startTaskPolling = useCallback((taskId: string) => {
+    startPolling(taskId, async () => {
+      const res = await audioStudioApi.get(taskId)
+      const updated = res.task
+      if (!isMountedRef.current) return false
+      setTasks(prev => prev.map(t => t.id === taskId ? updated : t))
+      if (updated.status === 'succeeded' || updated.status === 'failed') {
+        if (updated.status === 'succeeded') {
+          message.success(`任务"${updated.name}"完成`)
+          if (updated.task_type !== 'tts') loadData()
+        } else {
+          message.error(`任务"${updated.name}"失败: ${updated.error_message || '未知错误'}`)
         }
-      } catch { /* ignore */ }
-      setTimeout(poll, 3000)
-    }
-    setTimeout(poll, 2000)
-  }
+        return true
+      }
+      return false
+    })
+  }, [loadData, startPolling])
 
   const selectedVoice = Form.useWatch('voice', ttsForm)
   const voiceType = useMemo(() => getVoiceType(selectedVoice), [selectedVoice])
@@ -398,7 +395,7 @@ const AudioStudioPage = () => {
         enable_ssml: values.enable_ssml || false,
       })
       setTasks(prev => [res.task, ...prev])
-      startPolling(res.task.id)
+      startTaskPolling(res.task.id)
       message.success('TTS 任务已提交')
     } catch (e: any) {
       if (e.errorFields) return
@@ -422,7 +419,7 @@ const AudioStudioPage = () => {
         language_hints: values.language_hints || null,
       })
       setTasks(prev => [res.task, ...prev])
-      startPolling(res.task.id)
+      startTaskPolling(res.task.id)
       message.success('声音复刻任务已提交')
     } catch (e: any) {
       if (e.errorFields) return
@@ -448,7 +445,7 @@ const AudioStudioPage = () => {
         response_format: values.response_format || 'wav',
       })
       setTasks(prev => [res.task, ...prev])
-      startPolling(res.task.id)
+      startTaskPolling(res.task.id)
       message.success('声音设计任务已提交')
     } catch (e: any) {
       if (e.errorFields) return
@@ -472,7 +469,7 @@ const AudioStudioPage = () => {
     try {
       await audioStudioApi.delete(taskId)
       setTasks(prev => prev.filter(t => t.id !== taskId))
-      pollingRef.current.delete(taskId)
+      stopPolling(taskId)
     } catch {
       message.error('删除失败')
     }

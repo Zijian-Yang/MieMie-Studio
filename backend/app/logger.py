@@ -21,8 +21,9 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 # 日志文件路径（按日期命名）
 LOG_FILE = LOG_DIR / f"api_{datetime.now().strftime('%Y%m%d')}.log"
 
-# 当前用户的上下文变量（用于日志记录）
+# 当前用户/请求的上下文变量（用于日志记录）
 _log_user_context: ContextVar[Optional[str]] = ContextVar('log_user_context', default=None)
+_log_request_context: ContextVar[Optional[str]] = ContextVar('log_request_context', default=None)
 
 
 def set_log_user_context(username: Optional[str]):
@@ -35,21 +36,33 @@ def get_log_user_context() -> Optional[str]:
     return _log_user_context.get()
 
 
+def set_log_request_context(request_id: Optional[str]):
+    """设置日志的请求上下文"""
+    _log_request_context.set(request_id)
+
+
+def get_log_request_context() -> Optional[str]:
+    """获取日志的请求上下文"""
+    return _log_request_context.get()
+
+
 class UserContextFilter(logging.Filter):
     """日志过滤器：添加用户上下文到日志记录"""
     
     def filter(self, record):
         username = get_log_user_context()
+        request_id = get_log_request_context()
         record.user = f"[{username}]" if username else ""
+        record.request = f"[req:{request_id}]" if request_id else ""
         return True
 
 
 # 创建日志格式（包含用户上下文）
-LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(user)s %(name)s | %(message)s"
+LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(request)s %(user)s %(name)s | %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # 详细格式（用于文件，包含用户上下文）
-DETAILED_FORMAT = "%(asctime)s | %(levelname)-8s | %(user)s %(name)s:%(lineno)d | %(message)s"
+DETAILED_FORMAT = "%(asctime)s | %(levelname)-8s | %(request)s %(user)s %(name)s:%(lineno)d | %(message)s"
 
 
 def setup_logging(level: int = logging.INFO) -> logging.Logger:
@@ -218,4 +231,3 @@ def init_logging():
         logger = get_logger("app")
         logger.info(f"日志系统已初始化")
         logger.info(f"日志文件: {LOG_FILE}")
-

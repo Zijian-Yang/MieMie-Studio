@@ -10,12 +10,15 @@
 import json
 import logging
 import os
+import subprocess
+from uuid import uuid4
+from pathlib import Path
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.services.user_service import get_user_service
 from app.services.storage import set_current_user
 from app.config import set_user_config_dir
-from app.logger import set_log_user_context
+from app.logger import set_log_request_context, set_log_user_context
 
 
 logger = logging.getLogger(__name__)
@@ -36,6 +39,25 @@ PUBLIC_PATHS = [
 SERVE_FRONTEND = os.environ.get("MIEMIE_SERVE_FRONTEND", "").lower() in ("true", "1", "yes")
 
 
+def _resolve_deployment_version() -> str:
+    env_value = os.environ.get("MIEMIE_RUNTIME_GIT_COMMIT")
+    if env_value:
+        return env_value
+
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    try:
+        return subprocess.check_output(
+            ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except Exception:
+        return "unknown"
+
+
+DEPLOYMENT_VERSION = _resolve_deployment_version()
+
+
 def is_public_path(path: str) -> bool:
     """检查路径是否公开（不需要认证）"""
     if path == "/":
@@ -54,6 +76,11 @@ def clear_user_context():
     set_current_user(None)
     set_user_config_dir(None)
     set_log_user_context(None)
+
+
+def clear_request_context():
+    """清除当前请求上下文"""
+    set_log_request_context(None)
 
 
 def set_user_context(user_id: str, username: str, user_data_path: str):
@@ -87,57 +114,64 @@ class AuthMiddleware:
             return
 
         path = scope.get("path", "/")
-
-        # 公开路径直接通过
-        if is_public_path(path):
-            clear_user_context()
-            await self.app(scope, receive, send)
-            return
-
-        # 从 headers 中提取 Authorization
         headers = dict(
             (k.decode("latin-1"), v.decode("latin-1"))
             for k, v in scope.get("headers", [])
         )
-        auth_header = headers.get("authorization", "")
+        request_id = headers.get("x-request-id", "").strip() or uuid4().hex[:12]
+        set_log_request_context(request_id)
 
-        if not auth_header:
-            clear_user_context()
-            await self._send_json_response(send, 401, {"detail": "未登录"})
-            return
-
-        # 解析 token
-        token = auth_header.replace("Bearer ", "") if auth_header.startswith("Bearer ") else auth_header
-
-        # 验证 token
-        service = get_user_service()
-        user = service.get_user_by_token(token)
-
-        if not user:
-            clear_user_context()
-            await self._send_json_response(send, 401, {"detail": "登录已过期，请重新登录"})
-            return
-
-        # 获取用户数据路径
-        user_data_path = service.get_user_data_path(user.id)
-
-        # 设置当前用户上下文
-        set_user_context(user.id, user.username, user_data_path)
-
-        # 注入用户信息到 scope.state（供 FastAPI 的 request.state 使用）
         if "state" not in scope:
             scope["state"] = {}
-        scope["state"]["user"] = user
-        scope["state"]["user_id"] = user.id
-        scope["state"]["user_data_path"] = user_data_path
+        scope["state"]["request_id"] = request_id
+        scope["state"]["deployment_version"] = DEPLOYMENT_VERSION
 
-        logger.debug(f"[User: {user.username}] Processing request: {scope.get('method', '')} {path}")
+        async def send_with_context(message):
+            if message["type"] == "http.response.start":
+                response_headers = list(message.get("headers", []))
+                lower_header_names = {key.lower() for key, _ in response_headers}
+                if b"x-request-id" not in lower_header_names:
+                    response_headers.append([b"x-request-id", request_id.encode("latin-1")])
+                if DEPLOYMENT_VERSION and b"x-deployment-version" not in lower_header_names:
+                    response_headers.append([b"x-deployment-version", DEPLOYMENT_VERSION.encode("latin-1")])
+                message = {**message, "headers": response_headers}
+            await send(message)
 
         try:
-            await self.app(scope, receive, send)
+            # 公开路径直接通过
+            if is_public_path(path):
+                clear_user_context()
+                await self.app(scope, receive, send_with_context)
+                return
+
+            auth_header = headers.get("authorization", "")
+            if not auth_header:
+                clear_user_context()
+                await self._send_json_response(send_with_context, 401, {"detail": "未登录"})
+                return
+
+            token = auth_header.replace("Bearer ", "") if auth_header.startswith("Bearer ") else auth_header
+
+            service = get_user_service()
+            user = service.get_user_by_token(token)
+
+            if not user:
+                clear_user_context()
+                await self._send_json_response(send_with_context, 401, {"detail": "登录已过期，请重新登录"})
+                return
+
+            user_data_path = service.get_user_data_path(user.id)
+            set_user_context(user.id, user.username, user_data_path)
+
+            scope["state"]["user"] = user
+            scope["state"]["user_id"] = user.id
+            scope["state"]["user_data_path"] = user_data_path
+
+            logger.debug(f"[User: {user.username}] Processing request: {scope.get('method', '')} {path}")
+            await self.app(scope, receive, send_with_context)
         finally:
-            # 请求结束后清除用户上下文（非常重要！）
             clear_user_context()
+            clear_request_context()
 
     @staticmethod
     async def _send_json_response(send: Send, status_code: int, body: dict):

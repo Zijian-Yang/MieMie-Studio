@@ -2129,21 +2129,14 @@ rollback_version() {
 
 run_tests() {
     log_info "运行后端测试..."
-    PYTHON=$(check_python)
-    if [ -z "$PYTHON" ]; then
-        log_error "未找到 Python 环境"
+    if ! backend_deps_installed; then
+        install_backend_deps
+    fi
+
+    local PYTHON="$VENV_DIR/bin/python"
+    if [ ! -x "$PYTHON" ]; then
+        log_error "项目虚拟环境不可用，请先执行 ./run.sh install"
         return 1
-    fi
-
-    # 激活虚拟环境
-    if [ -f "$VENV_DIR/bin/activate" ]; then
-        source "$VENV_DIR/bin/activate"
-    fi
-
-    # 检查 pytest 是否安装
-    if ! "$PYTHON" -m pytest --version > /dev/null 2>&1; then
-        log_info "安装 pytest..."
-        "$PYTHON" -m pip install pytest pytest-asyncio -q
     fi
 
     cd "$BACKEND_DIR"

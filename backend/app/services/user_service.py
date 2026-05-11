@@ -337,6 +337,11 @@ class UserService:
         """获取用户数据目录路径"""
         return self.data_dir / "users" / user_id
 
+    def list_user_ids(self) -> list[str]:
+        """列出当前所有用户 ID"""
+        with self._lock:
+            return list(self._load_users().keys())
+
 
 # 全局单例（线程安全）
 _user_service: Optional[UserService] = None

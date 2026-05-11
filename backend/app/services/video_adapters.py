@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -31,6 +32,7 @@ from app.services.dashscope.vace_video_edit import VaceVideoEditService
 from app.services.oss import oss_service
 
 
+logger = logging.getLogger(__name__)
 KLANG_DOC_MAX_PROMPT = 2500
 VIDU_DOC_MAX_PROMPT = 5000
 SEED_MAX = 2147483647
@@ -445,9 +447,10 @@ class DashScopeGenericVideoService:
         request_id = result.get("request_id")
 
         if status == "SUCCEEDED" and video_url:
-            if not oss_service.is_enabled():
-                raise ValueError("OSS未启用，无法持久化生成视频")
-            video_url = await oss_service.upload_video_async(video_url, project_id)
+            if oss_service.is_enabled():
+                video_url = await oss_service.upload_video_async(video_url, project_id)
+            else:
+                logger.warning("[视频工作室] OSS 未启用，保留供应商视频 URL")
 
         return VideoStatusResult(
             status=status,

@@ -1,0 +1,198 @@
+{
+    "metrics": {
+        "http_req_connecting": {
+            "avg": 0.01573184786384161,
+            "min": 0,
+            "med": 0,
+            "max": 5.382721,
+            "p(90)": 0,
+            "p(95)": 0,
+            "p(99)": 0
+        },
+        "http_req_sending": {
+            "p(90)": 0.019353400000000003,
+            "p(95)": 0.026102399999999932,
+            "p(99)": 0.23190543999999672,
+            "avg": 0.01947152506657405,
+            "min": 0.00536,
+            "med": 0.009986,
+            "max": 2.598334
+        },
+        "http_req_waiting": {
+            "p(99)": 246.0947779199998,
+            "avg": 16.549260819729056,
+            "min": 0.480168,
+            "med": 9.650097,
+            "max": 583.133159,
+            "p(90)": 28.871889800000012,
+            "p(95)": 48.56647919999994
+        },
+        "iterations": {
+            "rate": 47.18717167300861,
+            "count": 2879
+        },
+        "checks": {
+            "passes": 25911,
+            "fails": 0,
+            "value": 1
+        },
+        "http_req_receiving": {
+            "med": 0.042991,
+            "max": 14.415475,
+            "p(90)": 0.12869440000000004,
+            "p(95)": 0.17451479999999955,
+            "p(99)": 0.7561743599999989,
+            "avg": 0.0825320367025588,
+            "min": 0.015251
+        },
+        "http_reqs": {
+            "count": 8637,
+            "rate": 141.56151501902585
+        },
+        "http_req_duration{expected_response:true}": {
+            "med": 9.751108,
+            "max": 583.200462,
+            "p(90)": 29.04832640000002,
+            "p(95)": 48.62234339999981,
+            "p(99)": 246.1838418799999,
+            "avg": 16.651264381498216,
+            "min": 0.521502
+        },
+        "http_req_tls_handshaking": {
+            "avg": 0,
+            "min": 0,
+            "med": 0,
+            "max": 0,
+            "p(90)": 0,
+            "p(95)": 0,
+            "p(99)": 0
+        },
+        "http_req_duration": {
+            "p(95)": 48.62234339999981,
+            "p(99)": 246.1838418799999,
+            "avg": 16.651264381498216,
+            "min": 0.521502,
+            "med": 9.751108,
+            "max": 583.200462,
+            "p(90)": 29.04832640000002,
+            "thresholds": {
+                "p(95)<300": false
+            }
+        },
+        "http_req_blocked": {
+            "med": 0.003297,
+            "max": 5.633537,
+            "p(90)": 0.004718,
+            "p(95)": 0.005886599999999996,
+            "p(99)": 0.02556203999999988,
+            "avg": 0.020138335764733024,
+            "min": 0.001616
+        },
+        "iteration_duration": {
+            "min": 1011.015069,
+            "med": 1023.835385,
+            "max": 1609.379972,
+            "p(90)": 1083.8501152,
+            "p(95)": 1188.0276176,
+            "p(99)": 1554.04482558,
+            "avg": 1050.9886816679384
+        },
+        "data_sent": {
+            "count": 2058307,
+            "rate": 33735.91030383999
+        },
+        "vus": {
+            "value": 3,
+            "min": 3,
+            "max": 50
+        },
+        "data_received": {
+            "count": 309132447,
+            "rate": 5066719.640946939
+        },
+        "vus_max": {
+            "value": 50,
+            "min": 50,
+            "max": 50
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 8637,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0
+        }
+    },
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {
+                "health status 200": {
+                    "id": "54cc6b20b1977b24d2246b3d411f7567",
+                    "passes": 2879,
+                    "fails": 0,
+                    "name": "health status 200",
+                    "path": "::health status 200"
+                },
+                "health has request id": {
+                    "name": "health has request id",
+                    "path": "::health has request id",
+                    "id": "fa91cad685ea895a40d2b47caeac2e63",
+                    "passes": 2879,
+                    "fails": 0
+                },
+                "health has deployment version": {
+                    "fails": 0,
+                    "name": "health has deployment version",
+                    "path": "::health has deployment version",
+                    "id": "9cb30263e789265584d0fa752b985480",
+                    "passes": 2879
+                },
+                "models status 200": {
+                    "name": "models status 200",
+                    "path": "::models status 200",
+                    "id": "6a0e9befe8e7828cedfb097ad28007c4",
+                    "passes": 2879,
+                    "fails": 0
+                },
+                "models has request id": {
+                    "name": "models has request id",
+                    "path": "::models has request id",
+                    "id": "6b62abfedbbd7ded2bd4665d76e739af",
+                    "passes": 2879,
+                    "fails": 0
+                },
+                "models has deployment version": {
+                    "passes": 2879,
+                    "fails": 0,
+                    "name": "models has deployment version",
+                    "path": "::models has deployment version",
+                    "id": "7eeae18d80c303e74ad9d9e65841c74d"
+                },
+                "projects status 200": {
+                    "fails": 0,
+                    "name": "projects status 200",
+                    "path": "::projects status 200",
+                    "id": "eea629576bcda0f890d689de8d96ce19",
+                    "passes": 2879
+                },
+                "projects has request id": {
+                    "name": "projects has request id",
+                    "path": "::projects has request id",
+                    "id": "7fa5173a6cafbbeccb58d7f5dd084a39",
+                    "passes": 2879,
+                    "fails": 0
+                },
+                "projects has deployment version": {
+                    "passes": 2879,
+                    "fails": 0,
+                    "name": "projects has deployment version",
+                    "path": "::projects has deployment version",
+                    "id": "5c27d8fb7403425cbdb93131ff6021d0"
+                }
+            }
+    }
+}

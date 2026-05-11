@@ -188,6 +188,26 @@ class TestMiddleware:
         assert isinstance(data["serve_frontend"], bool)
         assert data["started_at"]
 
+    def test_health_check_exposes_request_and_deployment_headers(self, client):
+        """Step-00: 健康检查暴露统一请求与部署标识"""
+        resp = client.get("/api/health")
+        assert resp.status_code == 200
+        assert resp.headers.get("x-request-id")
+        assert resp.headers.get("x-deployment-version")
+        assert resp.headers["x-deployment-version"] == resp.json()["git_commit"]
+
+    def test_request_id_header_is_passthrough(self, client):
+        """Step-00: 允许外部传入 request id 以便压测与对账"""
+        resp = client.get("/api/health", headers={"X-Request-ID": "loadtest-run-001"})
+        assert resp.status_code == 200
+        assert resp.headers["x-request-id"] == "loadtest-run-001"
+
+    def test_unauthorized_response_keeps_request_id_header(self, client):
+        """Step-00: 401 也返回 request id，便于排障"""
+        resp = client.get("/api/projects")
+        assert resp.status_code == 401
+        assert resp.headers.get("x-request-id")
+
     def test_public_paths_no_auth(self, client):
         """Fix-02: 公开路径不需要 token"""
         # /api/health

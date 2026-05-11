@@ -27,6 +27,7 @@ from datetime import datetime
 from app.models.media import VideoStudioTask
 from app.models.gallery import GalleryImage
 from app.services.storage import storage_service, get_current_user_id, set_current_user
+from app.services.user_service import get_user_service
 from app.services.dashscope.image_to_video import ImageToVideoService
 from app.services.dashscope.reference_to_video import ReferenceToVideoService
 from app.services.dashscope.text_to_video import TextToVideoService
@@ -69,6 +70,9 @@ async def _release_video_inflight_lease(task_id: str) -> None:
         lease = _video_studio_inflight_leases.pop(task_id, None)
     if lease:
         lease.release()
+
+VIDEO_RECONCILE_POLL_INTERVAL_SECONDS = int(os.environ.get("MIEMIE_VIDEO_RECONCILE_INTERVAL", "5"))
+_active_video_reconcilers: set[str] = set()
 
 
 class VideoStudioTaskCreateRequest(BaseModel):
@@ -432,14 +436,20 @@ async def _refresh_task_provider_metadata(task: VideoStudioTask) -> bool:
             continue
 
         existing_meta = provider_meta.get(api_task_id, {}) or {}
+        normalized_status = str(result.status).upper()
+        error_code = result.error_code
+        error_message = result.error_message
+        if normalized_status == "FAILED":
+            error_code = error_code or existing_meta.get("error_code")
+            error_message = error_message or existing_meta.get("error_message")
         merged_meta = {
             "provider": normalized.provider,
             "key_profile": result.key_profile or normalized.key_profile,
             "request_id": result.request_id or existing_meta.get("request_id"),
             "submitted_at": existing_meta.get("submitted_at"),
             "usage": result.usage or existing_meta.get("usage") or {},
-            "error_code": result.error_code or existing_meta.get("error_code"),
-            "error_message": result.error_message or existing_meta.get("error_message"),
+            "error_code": error_code,
+            "error_message": error_message,
             "raw_output": result.raw_output or existing_meta.get("raw_output") or {},
             "finished_at": existing_meta.get("finished_at") or datetime.now().isoformat(),
         }
@@ -452,6 +462,177 @@ async def _refresh_task_provider_metadata(task: VideoStudioTask) -> bool:
         _hydrate_task_developer_metadata(task)
 
     return changed
+
+
+async def _reconcile_video_task_once(task: VideoStudioTask) -> VideoStudioTask:
+    """从厂商侧刷新一次任务状态，并把结果落到平台任务记录。"""
+    if task.status != "processing" or not task.task_ids:
+        return task
+
+    normalized = _normalized_request_from_task(task)
+    adapter = get_video_adapter(normalized.provider)
+    all_succeeded = True
+    all_finished = True
+    video_urls = []
+    provider_meta = deepcopy(task.provider_result_meta or {})
+
+    for api_task_id in task.task_ids:
+        result = await adapter.fetch(normalized, api_task_id)
+        existing_meta = provider_meta.get(api_task_id, {}) or {}
+        normalized_status = str(result.status).upper()
+        error_code = result.error_code
+        error_message = result.error_message
+        if normalized_status == "FAILED":
+            error_code = error_code or existing_meta.get("error_code")
+            error_message = error_message or existing_meta.get("error_message")
+        provider_meta[api_task_id] = {
+            "provider": normalized.provider,
+            "key_profile": result.key_profile or normalized.key_profile,
+            "request_id": result.request_id or existing_meta.get("request_id"),
+            "submitted_at": existing_meta.get("submitted_at"),
+            "usage": result.usage or existing_meta.get("usage") or {},
+            "error_code": error_code,
+            "error_message": error_message,
+            "raw_output": result.raw_output or existing_meta.get("raw_output") or {},
+            "finished_at": existing_meta.get("finished_at") or (
+                datetime.now().isoformat()
+                if normalized_status not in {"PENDING", "RUNNING", "UNKNOWN"}
+                else None
+            ),
+        }
+
+        if normalized_status == "SUCCEEDED" and result.video_url:
+            try:
+                persisted_video_url = result.video_url
+                if oss_service.should_persist_generated_url(result.video_url):
+                    if oss_service.is_enabled():
+                        persisted_video_url = await oss_service.ensure_video_persisted_async(
+                            result.video_url,
+                            task.project_id,
+                            strict=True,
+                        )
+                    else:
+                        logger.warning("[视频工作室] OSS 未启用，保留供应商临时视频 URL")
+                video_urls.append(persisted_video_url)
+            except Exception as exc:
+                all_succeeded = False
+                task.error_message = str(exc)
+        elif normalized_status == "FAILED":
+            all_succeeded = False
+            if result.error_message:
+                task.error_message = result.error_message
+        elif normalized_status in {"PENDING", "RUNNING", "UNKNOWN"}:
+            all_finished = False
+        else:
+            all_succeeded = False
+            task.error_message = result.error_message or f"未知任务状态: {result.status}"
+
+    task.video_urls = video_urls
+    task.provider_result_meta = provider_meta
+    _hydrate_task_developer_metadata(task)
+
+    if all_finished:
+        if not video_urls and not task.task_ids:
+            pass
+        elif all_succeeded and video_urls and len(video_urls) == len(task.task_ids):
+            task.status = "succeeded"
+            if not task.selected_video_url:
+                task.selected_video_url = video_urls[0]
+            if not task.thumbnail_url:
+                preview_target = task.selected_video_url or video_urls[0]
+                try:
+                    task.thumbnail_url = await _extract_video_thumbnail_to_oss(preview_target, task.project_id)
+                except Exception as exc:
+                    logger.warning(f"[视频工作室] 任务 {task.id} 生成缩略图失败: {exc}")
+        else:
+            task.status = "failed"
+            if not task.error_message:
+                failed_count = len(task.task_ids) - len(video_urls)
+                task.error_message = f"视频生成失败（{failed_count}/{len(task.task_ids)} 个失败）"
+
+    task.updated_at = datetime.now()
+    storage_service.save_video_studio_task(task)
+    return task
+
+
+async def _run_video_task_reconciler(
+    task_id: str,
+    user_id: Optional[str],
+    user_config_dir: Optional[str],
+):
+    """后台推进视频任务状态，直到任务进入终态。"""
+    if task_id in _active_video_reconcilers:
+        logger.info(f"[视频工作室] 任务 {task_id} 已有状态协调器在运行，跳过重复启动")
+        return
+
+    _active_video_reconcilers.add(task_id)
+    set_current_user(user_id)
+    if user_config_dir:
+        set_user_config_dir(user_config_dir)
+
+    try:
+        while True:
+            task = storage_service.get_video_studio_task(task_id)
+            if not task:
+                logger.info(f"[视频工作室] 任务 {task_id} 已不存在，停止状态协调器")
+                return
+            if task.status != "processing":
+                return
+            if not task.task_ids:
+                await asyncio.sleep(VIDEO_RECONCILE_POLL_INTERVAL_SECONDS)
+                continue
+
+            task = await _reconcile_video_task_once(task)
+            if task.status != "processing":
+                return
+            await asyncio.sleep(VIDEO_RECONCILE_POLL_INTERVAL_SECONDS)
+    except Exception as exc:
+        logger.error(f"[视频工作室] 任务 {task_id} 状态协调器异常: {exc}", exc_info=True)
+        task = storage_service.get_video_studio_task(task_id)
+        if task and task.status == "processing":
+            task.status = "failed"
+            task.error_message = str(exc)
+            storage_service.save_video_studio_task(task)
+    finally:
+        _active_video_reconcilers.discard(task_id)
+        set_current_user(None)
+        set_user_config_dir(None)
+
+
+def _schedule_video_task_reconciler(
+    task_id: str,
+    user_id: Optional[str],
+    user_config_dir: Optional[str],
+) -> None:
+    if task_id in _active_video_reconcilers:
+        return
+    asyncio.create_task(_run_video_task_reconciler(task_id, user_id, user_config_dir))
+
+
+async def start_pending_video_task_reconcilers() -> None:
+    """在应用启动时恢复遗留的 processing 视频任务。"""
+    user_service = get_user_service()
+    recovered_count = 0
+
+    previous_user_id = get_current_user_id()
+    previous_config_dir = get_user_config_dir()
+
+    try:
+        for user_id in user_service.list_user_ids():
+            set_current_user(user_id)
+            user_config_dir = str(user_service.get_user_data_path(user_id))
+            set_user_config_dir(user_config_dir)
+
+            for task in storage_service.get_all_video_studio_tasks():
+                if task.status == "processing" and task.task_ids:
+                    _schedule_video_task_reconciler(task.id, user_id, user_config_dir)
+                    recovered_count += 1
+    finally:
+        set_current_user(previous_user_id)
+        set_user_config_dir(previous_config_dir)
+
+    if recovered_count:
+        logger.info(f"[视频工作室] 启动时恢复了 {recovered_count} 个 processing 任务的状态协调器")
 
 
 def _normalize_request(request: VideoStudioTaskCreateRequest) -> NormalizedVideoTaskRequest:
@@ -972,91 +1153,10 @@ async def create_task(request: VideoStudioTaskCreateRequest):
 
 @router.get("/{task_id}/status")
 async def get_task_status(task_id: str):
-    """查询任务状态"""
+    """查询平台侧任务状态（纯读，不直接轮询厂商）。"""
     task = storage_service.get_video_studio_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
-
-    if task.status != "processing":
-        return {"task": task}
-
-    if not task.task_ids:
-        return {"task": task}
-
-    normalized = _normalized_request_from_task(task)
-    adapter = get_video_adapter(normalized.provider)
-    all_succeeded = True
-    all_finished = True
-    video_urls = []
-    provider_meta = deepcopy(task.provider_result_meta or {})
-
-    for api_task_id in task.task_ids:
-        result = await adapter.fetch(normalized, api_task_id)
-        existing_meta = provider_meta.get(api_task_id, {}) or {}
-        provider_meta[api_task_id] = {
-            "provider": normalized.provider,
-            "key_profile": result.key_profile or normalized.key_profile,
-            "request_id": result.request_id or existing_meta.get("request_id"),
-            "submitted_at": existing_meta.get("submitted_at"),
-            "usage": result.usage or existing_meta.get("usage") or {},
-            "error_code": result.error_code or existing_meta.get("error_code"),
-            "error_message": result.error_message or existing_meta.get("error_message"),
-            "raw_output": result.raw_output or existing_meta.get("raw_output") or {},
-            "finished_at": datetime.now().isoformat(),
-        }
-        normalized_status = str(result.status).upper()
-        if normalized_status == "SUCCEEDED" and result.video_url:
-            try:
-                persisted_video_url = result.video_url
-                if oss_service.should_persist_generated_url(result.video_url):
-                    persisted_video_url = await oss_service.ensure_video_persisted_async(
-                        result.video_url,
-                        task.project_id,
-                        strict=True,
-                    )
-                video_urls.append(persisted_video_url)
-            except Exception as exc:
-                all_succeeded = False
-                task.error_message = str(exc)
-        elif normalized_status == "FAILED":
-            all_succeeded = False
-            if result.error_message:
-                task.error_message = result.error_message
-        elif normalized_status in {"PENDING", "RUNNING", "UNKNOWN"}:
-            all_finished = False
-        else:
-            all_succeeded = False
-            task.error_message = result.error_message or f"未知任务状态: {result.status}"
-        if normalized_status not in {"PENDING", "RUNNING", "UNKNOWN"}:
-            await _release_video_inflight_lease(api_task_id)
-    
-    # 更新任务状态
-    task.video_urls = video_urls
-    task.provider_result_meta = provider_meta
-    _hydrate_task_developer_metadata(task)
-    
-    if all_finished:
-        if not video_urls and not task.task_ids:
-            pass
-        elif all_succeeded and video_urls and len(video_urls) == len(task.task_ids):
-            task.status = "succeeded"
-            if not task.selected_video_url:
-                task.selected_video_url = video_urls[0]
-            if not task.thumbnail_url:
-                preview_target = task.selected_video_url or video_urls[0]
-                try:
-                    task.thumbnail_url = await _extract_video_thumbnail_to_oss(preview_target, task.project_id)
-                except Exception as exc:
-                    logger.warning(f"[视频工作室] 任务 {task.id} 生成缩略图失败: {exc}")
-        else:
-            task.status = "failed"
-            if not task.error_message:
-                failed_count = len(task.task_ids) - len(video_urls)
-                task.error_message = f"视频生成失败（{failed_count}/{len(task.task_ids)} 个失败）"
-    
-    task.updated_at = datetime.now()
-    storage_service.save_video_studio_task(task)
-    
     return {"task": task}
 
 
@@ -1390,6 +1490,7 @@ async def _background_create_video_tasks(
         task.updated_at = datetime.now()
         storage_service.save_video_studio_task(task)
         logger.info(f"[视频工作室] 任务 {task.id} 已提交 {len(task_ids)} 个 API 任务")
+        await _run_video_task_reconciler(task.id, user_id, user_config_dir)
     except Exception as e:
         logger.error(f"[视频工作室] 任务 {task.id} 提交失败: {e}")
         task.status = "failed"

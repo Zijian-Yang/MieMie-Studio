@@ -18,6 +18,7 @@ import {
 } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 import { useModelRegistry } from '../../hooks/useModelRegistry'
+import { useTaskPolling } from '../../hooks/useTaskPolling'
 import HoverInfoPopover from '../../components/Help/HoverInfoPopover'
 import BBoxEditor from './BBoxEditor'
 import ColorPaletteEditor from './ColorPaletteEditor'
@@ -279,8 +280,6 @@ const StudioPage = () => {
   const previewRequestSeqRef = useRef(0)
   const submittingTaskRef = useRef(false)
 
-  // 轮询基础设施（参照 VideoStudioPage）
-  const pollingRef = useRef<Set<string>>(new Set())
   const notifiedResultsRef = useRef<Set<string>>(new Set())
   
   // 素材选择
@@ -854,7 +853,6 @@ const StudioPage = () => {
     isMountedRef.current = true
     return () => {
       isMountedRef.current = false
-      pollingRef.current.clear()
       cancelPreviewRequest()
       if (previewTimerRef.current) {
         clearTimeout(previewTimerRef.current)
@@ -889,46 +887,40 @@ const StudioPage = () => {
     }
   }, [imageTaskNotificationsEnabled])
 
-  const startPolling = useCallback((taskId: string) => {
-    if (pollingRef.current.has(taskId)) return
-    pollingRef.current.add(taskId)
+  const { startPolling } = useTaskPolling({
+    initialDelayMs: 2000,
+    intervalMs: 3000,
+  })
 
-    const poll = async () => {
-      if (!pollingRef.current.has(taskId) || !isMountedRef.current) return
+  const startTaskPolling = useCallback((taskId: string) => {
+    startPolling(taskId, async () => {
+      const updatedTask = await studioApi.get(taskId)
+      if (!isMountedRef.current) return false
 
-      try {
-        const updatedTask = await studioApi.get(taskId)
-        if (!isMountedRef.current) return
+      setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t))
+      setSelectedTask(prev => prev?.id === taskId ? updatedTask : prev)
 
-        setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t))
-        setSelectedTask(prev => prev?.id === taskId ? updatedTask : prev)
-
-        if (updatedTask.status === 'completed' || updatedTask.status === 'failed') {
-          pollingRef.current.delete(taskId)
-          maybeNotifyTaskFinished(updatedTask)
-          if (updatedTask.status === 'completed') {
-            const validCount = updatedTask.images?.filter((img: any) => img.url).length || 0
-            if (updatedTask.error_message) {
-              message.warning(updatedTask.error_message)
-            } else {
-              message.success(`图片生成完成（${validCount} 张）`)
-            }
-            if (updatedTask.warnings?.length) {
-              message.warning(updatedTask.warnings.join('；'))
-            }
+      if (updatedTask.status === 'completed' || updatedTask.status === 'failed') {
+        maybeNotifyTaskFinished(updatedTask)
+        if (updatedTask.status === 'completed') {
+          const validCount = updatedTask.images?.filter((img: any) => img.url).length || 0
+          if (updatedTask.error_message) {
+            message.warning(updatedTask.error_message)
           } else {
-            message.error(`生成失败: ${updatedTask.error_message || '未知错误'}`)
+            message.success(`图片生成完成（${validCount} 张）`)
+          }
+          if (updatedTask.warnings?.length) {
+            message.warning(updatedTask.warnings.join('；'))
           }
         } else {
-          setTimeout(poll, 3000)
+          message.error(`生成失败: ${updatedTask.error_message || '未知错误'}`)
         }
-      } catch {
-        pollingRef.current.delete(taskId)
+        return true
       }
-    }
 
-    setTimeout(poll, 2000)
-  }, [maybeNotifyTaskFinished])
+      return false
+    })
+  }, [maybeNotifyTaskFinished, startPolling])
 
   useEffect(() => {
     const loadData = async () => {
@@ -960,7 +952,7 @@ const StudioPage = () => {
         // 恢复正在生成中的任务的轮询
         tasksRes.tasks.forEach((task: StudioTask) => {
           if (task.status === 'generating') {
-            startPolling(task.id)
+            startTaskPolling(task.id)
           }
         })
       } catch (error) {
@@ -970,7 +962,7 @@ const StudioPage = () => {
       }
     }
     loadData()
-  }, [projectId, fetchProject, safeSetState, startPolling])
+  }, [projectId, fetchProject, safeSetState])
 
   useEffect(() => {
     if (!isModalOpen || !isDeveloperModeExpanded) {
@@ -1396,7 +1388,7 @@ const StudioPage = () => {
       // 后端立即返回 generating 状态，启动轮询跟踪进度
       safeSetState(setTasks, (prev: StudioTask[]) => prev.map(t => t.id === result.task.id ? result.task : t))
       setSelectedTask(result.task)
-      startPolling(task.id)
+      startTaskPolling(task.id)
       message.info('已开始生成，可继续创建其他任务')
     } catch (error: any) {
       message.error(error?.message || '生成失败')
@@ -1954,7 +1946,7 @@ const StudioPage = () => {
       const result = await studioApi.generate(selectedTask.id, generateParams)
       safeSetState(setTasks, (prev: StudioTask[]) => prev.map(t => t.id === result.task.id ? result.task : t))
       setSelectedTask(result.task)
-      startPolling(selectedTask.id)
+      startTaskPolling(selectedTask.id)
       message.info('已开始生成')
     } catch (error: any) {
       message.error(error?.message || '图片生成失败')

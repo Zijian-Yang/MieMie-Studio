@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
-import { useParams } from 'react-router-dom'
-import { 
-  Card, Button, Modal, Form, Input, Empty, Spin, message, 
+import { useNavigate, useParams } from 'react-router-dom'
+import {
+  Alert, Card, Button, Modal, Form, Input, Empty, Spin, message,
   Image, Tag, Tooltip, Divider, Upload, Space,
   Select, Switch, InputNumber, Row, Col, theme
 } from 'antd'
@@ -21,6 +21,7 @@ const { Option } = Select
 
 const VideosPage = () => {
   const { token } = theme.useToken()
+  const navigate = useNavigate()
   const { projectId } = useParams<{ projectId: string }>()
   const { currentProject, fetchProject } = useProjectStore()
   const {
@@ -593,10 +594,22 @@ const VideosPage = () => {
 
   return (
     <div style={{ padding: 24 }}>
+      <Alert
+        type="warning"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message="旧版视频生成页已进入迁退阶段"
+        description="后续视频能力将优先收敛到“视频工作室”。建议新任务优先使用视频工作室，旧版页面仅保留兼容支持。"
+        action={
+          <Button size="small" type="primary" onClick={() => navigate(`/project/${projectId}/video-studio`)}>
+            前往视频工作室
+          </Button>
+        }
+      />
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0, color: token.colorText }}>
-            视频生成
+            旧版视频生成
           </h1>
           <p style={{ color: token.colorTextSecondary, margin: '4px 0 0', fontSize: 13 }}>
             {currentProject?.name} - 共 {shots.length} 个分镜

@@ -93,7 +93,7 @@ const MainLayout = () => {
     { key: `/project/${projectId}/scenes`, icon: <PictureOutlined />, label: '场景' },
     { key: `/project/${projectId}/props`, icon: <AppstoreOutlined />, label: '道具' },
     { key: `/project/${projectId}/frames`, icon: <PlaySquareOutlined />, label: '分镜首帧' },
-    { key: `/project/${projectId}/videos`, icon: <VideoCameraOutlined />, label: '视频生成' },
+    { key: `/project/${projectId}/videos`, icon: <VideoCameraOutlined />, label: '旧版视频生成' },
   ] : []
 
   const menuItems: MenuProps['items'] = [

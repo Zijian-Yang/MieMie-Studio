@@ -539,6 +539,15 @@ class StorageService:
             if data and data.get("project_id") == project_id:
                 tasks.append(VideoStudioTask(**data))
         return sorted(tasks, key=lambda t: t.created_at, reverse=True)
+
+    def get_all_video_studio_tasks(self) -> List[VideoStudioTask]:
+        """获取当前存储目录下所有视频工作室任务"""
+        tasks = []
+        for file_path in self.video_studio_dir.glob("*.json"):
+            data = self._read_json_with_lock(file_path)
+            if data:
+                tasks.append(VideoStudioTask(**data))
+        return sorted(tasks, key=lambda t: t.created_at, reverse=True)
     
     def delete_video_studio_task(self, task_id: str) -> None:
         """删除视频工作室任务"""

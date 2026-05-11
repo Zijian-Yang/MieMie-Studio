@@ -32,6 +32,7 @@ import {
   SaveOutlined,
   ShareAltOutlined,
 } from '@ant-design/icons'
+import { useTaskPolling } from '../../hooks/useTaskPolling'
 import DynamicModelForm from '../../components/ModelConfig/DynamicModelForm'
 import {
   ApiError,
@@ -635,6 +636,9 @@ const ImageBenchmarkPage = () => {
 
   const [detailCell, setDetailCell] = useState<ImageBenchmarkCellResult | null>(null)
   const [blockingIssues, setBlockingIssues] = useState<ImageBenchmarkDatasetIssue[]>([])
+  const { startPolling, stopPolling } = useTaskPolling({
+    intervalMs: 3000,
+  })
 
   const selectedSuite = useMemo(
     () => suites.find((suite) => suite.id === selectedSuiteId) || null,
@@ -711,21 +715,21 @@ const ImageBenchmarkPage = () => {
   }, [selectedSuite?.latest_run_id])
 
   useEffect(() => {
-    if (!currentRun || currentRun.status !== 'running') return
-    const timer = window.setInterval(async () => {
-      try {
-        const runRes = await imageBenchmarkApi.getRun(currentRun.id)
-        setCurrentRun(runRes.run)
-        if (runRes.run.status !== 'running') {
-          const suiteRes = await imageBenchmarkApi.getSuite(runRes.run.suite_id)
-          setSuites((prev) => prev.map((item) => item.id === suiteRes.suite.id ? suiteRes.suite : item))
-        }
-      } catch {
-        // ignore polling error
+    if (!currentRun || currentRun.status !== 'running') {
+      if (currentRun?.id) stopPolling(currentRun.id)
+      return
+    }
+    startPolling(currentRun.id, async () => {
+      const runRes = await imageBenchmarkApi.getRun(currentRun.id)
+      setCurrentRun(runRes.run)
+      if (runRes.run.status !== 'running') {
+        const suiteRes = await imageBenchmarkApi.getSuite(runRes.run.suite_id)
+        setSuites((prev) => prev.map((item) => item.id === suiteRes.suite.id ? suiteRes.suite : item))
+        return true
       }
-    }, 3000)
-    return () => window.clearInterval(timer)
-  }, [currentRun])
+      return false
+    })
+  }, [currentRun, startPolling, stopPolling])
 
   const refreshSuites = async (preferredId?: string | null) => {
     if (!projectId) return

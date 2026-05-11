@@ -1,31 +1,32 @@
+import { Suspense, lazy } from 'react'
+import { Spin } from 'antd'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import MainLayout from './components/Layout/MainLayout'
-import ProjectsPage from './pages/Projects/ProjectsPage'
-import SettingsPage from './pages/Settings/SettingsPage'
-import ScriptPage from './pages/Script/ScriptPage'
-import StylesPage from './pages/Styles/StylesPage'
-import CharactersPage from './pages/Characters/CharactersPage'
-import ScenesPage from './pages/Scenes/ScenesPage'
-import PropsPage from './pages/Props/PropsPage'
-import FramesPage from './pages/Frames/FramesPage'
-import VideosPage from './pages/Videos/VideosPage'
-import GalleryPage from './pages/Gallery/GalleryPage'
-import StudioPage from './pages/Studio/StudioPage'
-// 新增媒体模块
-import AudioLibraryPage from './pages/AudioLibrary/AudioLibraryPage'
-import VideoLibraryPage from './pages/VideoLibrary/VideoLibraryPage'
-import TextLibraryPage from './pages/TextLibrary/TextLibraryPage'
-import VideoStudioPage from './pages/VideoStudio/VideoStudioPage'
-import AudioStudioPage from './pages/AudioStudio/AudioStudioPage'
-import ImageBenchmarkPage from './pages/ImageBenchmark/ImageBenchmarkPage'
-import ImageBenchmarkDatasetsPage from './pages/ImageBenchmarkDatasets/ImageBenchmarkDatasetsPage'
-import ImageBenchmarkSharePage from './pages/ImageBenchmarkShare/ImageBenchmarkSharePage'
-import VideoBenchmarkPage from './pages/VideoBenchmark/VideoBenchmarkPage'
-import VideoBenchmarkDatasetsPage from './pages/VideoBenchmarkDatasets/VideoBenchmarkDatasetsPage'
-// 登录页
-import LoginPage from './pages/Login/LoginPage'
 import { useAuthStore } from './stores/authStore'
 import ErrorBoundary from './components/ErrorBoundary'
+
+const ProjectsPage = lazy(() => import('./pages/Projects/ProjectsPage'))
+const SettingsPage = lazy(() => import('./pages/Settings/SettingsPage'))
+const ScriptPage = lazy(() => import('./pages/Script/ScriptPage'))
+const StylesPage = lazy(() => import('./pages/Styles/StylesPage'))
+const CharactersPage = lazy(() => import('./pages/Characters/CharactersPage'))
+const ScenesPage = lazy(() => import('./pages/Scenes/ScenesPage'))
+const PropsPage = lazy(() => import('./pages/Props/PropsPage'))
+const FramesPage = lazy(() => import('./pages/Frames/FramesPage'))
+const VideosPage = lazy(() => import('./pages/Videos/VideosPage'))
+const GalleryPage = lazy(() => import('./pages/Gallery/GalleryPage'))
+const StudioPage = lazy(() => import('./pages/Studio/StudioPage'))
+const AudioLibraryPage = lazy(() => import('./pages/AudioLibrary/AudioLibraryPage'))
+const VideoLibraryPage = lazy(() => import('./pages/VideoLibrary/VideoLibraryPage'))
+const TextLibraryPage = lazy(() => import('./pages/TextLibrary/TextLibraryPage'))
+const VideoStudioPage = lazy(() => import('./pages/VideoStudio/VideoStudioPage'))
+const AudioStudioPage = lazy(() => import('./pages/AudioStudio/AudioStudioPage'))
+const ImageBenchmarkPage = lazy(() => import('./pages/ImageBenchmark/ImageBenchmarkPage'))
+const ImageBenchmarkDatasetsPage = lazy(() => import('./pages/ImageBenchmarkDatasets/ImageBenchmarkDatasetsPage'))
+const ImageBenchmarkSharePage = lazy(() => import('./pages/ImageBenchmarkShare/ImageBenchmarkSharePage'))
+const VideoBenchmarkPage = lazy(() => import('./pages/VideoBenchmark/VideoBenchmarkPage'))
+const VideoBenchmarkDatasetsPage = lazy(() => import('./pages/VideoBenchmarkDatasets/VideoBenchmarkDatasetsPage'))
+const LoginPage = lazy(() => import('./pages/Login/LoginPage'))
 
 // 路由保护组件
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -41,45 +42,50 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 function App() {
   return (
     <ErrorBoundary>
-    <BrowserRouter>
-      <Routes>
-        {/* 登录页 - 不需要认证 */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/image-benchmark/share/:token" element={<ImageBenchmarkSharePage />} />
-        
-        {/* 需要认证的路由 */}
-        <Route path="/" element={
-          <ProtectedRoute>
-            <MainLayout />
-          </ProtectedRoute>
+      <BrowserRouter>
+        <Suspense fallback={
+          <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Spin size="large" />
+          </div>
         }>
-          <Route index element={<Navigate to="/projects" replace />} />
-          <Route path="projects" element={<ProjectsPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="project/:projectId">
-            <Route path="script" element={<ScriptPage />} />
-            <Route path="styles" element={<StylesPage />} />
-            <Route path="characters" element={<CharactersPage />} />
-            <Route path="scenes" element={<ScenesPage />} />
-            <Route path="props" element={<PropsPage />} />
-            <Route path="frames" element={<FramesPage />} />
-            <Route path="videos" element={<VideosPage />} />
-            <Route path="gallery" element={<GalleryPage />} />
-            <Route path="studio" element={<StudioPage />} />
-            {/* 新增媒体模块 */}
-            <Route path="audio-library" element={<AudioLibraryPage />} />
-            <Route path="video-library" element={<VideoLibraryPage />} />
-            <Route path="text-library" element={<TextLibraryPage />} />
-            <Route path="video-studio" element={<VideoStudioPage />} />
-            <Route path="audio-studio" element={<AudioStudioPage />} />
-            <Route path="image-benchmark-datasets" element={<ImageBenchmarkDatasetsPage />} />
-            <Route path="image-benchmark" element={<ImageBenchmarkPage />} />
-            <Route path="video-benchmark-datasets" element={<VideoBenchmarkDatasetsPage />} />
-            <Route path="video-benchmark" element={<VideoBenchmarkPage />} />
-          </Route>
-        </Route>
-      </Routes>
-    </BrowserRouter>
+          <Routes>
+            {/* 登录页 - 不需要认证 */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/image-benchmark/share/:token" element={<ImageBenchmarkSharePage />} />
+
+            {/* 需要认证的路由 */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                <MainLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Navigate to="/projects" replace />} />
+              <Route path="projects" element={<ProjectsPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="project/:projectId">
+                <Route path="script" element={<ScriptPage />} />
+                <Route path="styles" element={<StylesPage />} />
+                <Route path="characters" element={<CharactersPage />} />
+                <Route path="scenes" element={<ScenesPage />} />
+                <Route path="props" element={<PropsPage />} />
+                <Route path="frames" element={<FramesPage />} />
+                <Route path="videos" element={<VideosPage />} />
+                <Route path="gallery" element={<GalleryPage />} />
+                <Route path="studio" element={<StudioPage />} />
+                <Route path="audio-library" element={<AudioLibraryPage />} />
+                <Route path="video-library" element={<VideoLibraryPage />} />
+                <Route path="text-library" element={<TextLibraryPage />} />
+                <Route path="video-studio" element={<VideoStudioPage />} />
+                <Route path="audio-studio" element={<AudioStudioPage />} />
+                <Route path="image-benchmark-datasets" element={<ImageBenchmarkDatasetsPage />} />
+                <Route path="image-benchmark" element={<ImageBenchmarkPage />} />
+                <Route path="video-benchmark-datasets" element={<VideoBenchmarkDatasetsPage />} />
+                <Route path="video-benchmark" element={<VideoBenchmarkPage />} />
+              </Route>
+            </Route>
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
     </ErrorBoundary>
   )
 }

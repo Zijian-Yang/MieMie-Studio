@@ -3,16 +3,18 @@ import pytest
 from app.models.media import VideoStudioTask
 from app.routers import video_studio as video_studio_router
 from app.services.video_adapters import (
+    DashScopeGenericVideoService,
     KlingVideoAdapter,
     NormalizedVideoTaskRequest,
     VideoProviderError,
+    VideoStatusResult,
     WanVideoAdapter,
     ViduVideoAdapter,
     get_video_adapter,
     infer_provider,
 )
 from app.services.video_capabilities import get_video_capabilities
-from app.services.storage import set_current_user, storage_service
+from app.services.storage import get_user_storage, set_current_user, storage_service
 
 
 def _create_project(client, auth_header):
@@ -310,6 +312,251 @@ async def test_wan_submit_result_keeps_request_id_and_provider_payload(monkeypat
     assert result.request_id == "req-wan-submit-1"
     assert result.provider_payload is not None
     assert result.provider_payload["model"] == "wan2.6-t2v"
+
+
+def test_video_studio_status_endpoint_is_pure_read(client, auth_header, registered_user, monkeypatch):
+    project_id = _create_project(client, auth_header)
+    _, user = registered_user
+    user_storage = get_user_storage(user["id"])
+    task = VideoStudioTask(
+        project_id=project_id,
+        name="处理中任务",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-t2v",
+        model="wan2.7-t2v",
+        prompt="机械臂巡视仓库",
+        status="processing",
+        task_ids=["provider-task-1"],
+        request_ids=["provider-req-1"],
+    )
+    user_storage.save_video_studio_task(task)
+
+    def fail_fetch(*args, **kwargs):
+        raise AssertionError("status 接口不应直接触发 provider fetch")
+
+    monkeypatch.setattr(video_studio_router, "get_video_adapter", fail_fetch)
+
+    resp = client.get(f"/api/video-studio/{task.id}/status", headers=auth_header)
+    assert resp.status_code == 200
+    payload = resp.json()["task"]
+    assert payload["id"] == task.id
+    assert payload["status"] == "processing"
+    assert payload["task_ids"] == ["provider-task-1"]
+
+
+@pytest.mark.asyncio
+async def test_reconcile_video_task_once_updates_terminal_state(monkeypatch):
+    task = VideoStudioTask(
+        project_id="p1",
+        name="待完成任务",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-t2v",
+        model="wan2.7-t2v",
+        prompt="机械臂巡视仓库",
+        status="processing",
+        task_ids=["provider-task-1"],
+        request_ids=["provider-req-1"],
+        provider_result_meta={
+            "provider-task-1": {
+                "submitted_at": "2026-04-21T00:00:00",
+                "error_message": "OSS未启用，无法持久化生成视频",
+            }
+        },
+    )
+
+    class FakeAdapter:
+        async def fetch(self, request, task_id):
+            assert request.task_kind == "text_to_video"
+            assert task_id == "provider-task-1"
+            return VideoStatusResult(
+                status="SUCCEEDED",
+                video_url="https://oss.example.com/video.mp4",
+                request_id="provider-req-2",
+                usage={"tokens": 1},
+                raw_output={"task_status": "SUCCEEDED"},
+            )
+
+    monkeypatch.setattr(video_studio_router, "get_video_adapter", lambda provider: FakeAdapter())
+    monkeypatch.setattr(video_studio_router.oss_service, "should_persist_generated_url", lambda url: False)
+    async def fake_extract_thumbnail(video_url, project_id):
+        return "https://oss.example.com/thumb.jpg"
+
+    monkeypatch.setattr(video_studio_router, "_extract_video_thumbnail_to_oss", fake_extract_thumbnail)
+    saved_tasks = []
+    monkeypatch.setattr(video_studio_router.storage_service, "save_video_studio_task", lambda next_task: saved_tasks.append(next_task.model_copy(deep=True)))
+
+    updated = await video_studio_router._reconcile_video_task_once(task)
+
+    assert updated.status == "succeeded"
+    assert updated.selected_video_url == "https://oss.example.com/video.mp4"
+    assert updated.thumbnail_url == "https://oss.example.com/thumb.jpg"
+    assert updated.video_urls == ["https://oss.example.com/video.mp4"]
+    assert updated.provider_result_meta["provider-task-1"]["request_id"] == "provider-req-2"
+    assert updated.provider_result_meta["provider-task-1"]["error_message"] is None
+    assert updated.provider_result_meta["provider-task-1"]["raw_output"]["task_status"] == "SUCCEEDED"
+    assert saved_tasks
+
+
+@pytest.mark.asyncio
+async def test_reconcile_video_task_once_keeps_provider_url_when_oss_disabled(monkeypatch):
+    provider_video_url = "https://dashscope-result-bj.oss-cn-beijing.aliyuncs.com/tmp/result.mp4"
+    task = VideoStudioTask(
+        project_id="p1",
+        name="无 OSS 真实供应商任务",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-t2v",
+        model="wan2.7-t2v",
+        prompt="小猫眨眼",
+        status="processing",
+        task_ids=["provider-task-1"],
+        request_ids=["provider-req-1"],
+        provider_result_meta={
+            "provider-task-1": {
+                "submitted_at": "2026-04-21T00:00:00",
+                "error_message": "OSS未启用，无法持久化生成视频",
+            }
+        },
+    )
+
+    class FakeAdapter:
+        async def fetch(self, request, task_id):
+            return VideoStatusResult(
+                status="SUCCEEDED",
+                video_url=provider_video_url,
+                request_id="provider-req-2",
+                raw_output={"task_status": "SUCCEEDED"},
+            )
+
+    async def fake_ensure_video_persisted(url, project_id="", strict=False, max_retries=3):
+        if strict:
+            raise RuntimeError("OSS未启用，无法持久化生成视频")
+        return url
+
+    async def fake_extract_thumbnail(video_url, project_id):
+        raise RuntimeError("OSS未启用，无法生成缩略图")
+
+    monkeypatch.setattr(video_studio_router, "get_video_adapter", lambda provider: FakeAdapter())
+    monkeypatch.setattr(video_studio_router.oss_service, "should_persist_generated_url", lambda url: True)
+    monkeypatch.setattr(video_studio_router.oss_service, "is_enabled", lambda: False)
+    monkeypatch.setattr(video_studio_router.oss_service, "ensure_video_persisted_async", fake_ensure_video_persisted)
+    monkeypatch.setattr(video_studio_router, "_extract_video_thumbnail_to_oss", fake_extract_thumbnail)
+
+    saved_tasks = []
+    monkeypatch.setattr(video_studio_router.storage_service, "save_video_studio_task", lambda next_task: saved_tasks.append(next_task.model_copy(deep=True)))
+
+    updated = await video_studio_router._reconcile_video_task_once(task)
+
+    assert updated.status == "succeeded"
+    assert updated.video_urls == [provider_video_url]
+    assert updated.selected_video_url == provider_video_url
+    assert updated.thumbnail_url is None
+    assert updated.error_message is None
+    assert updated.provider_result_meta["provider-task-1"]["error_message"] is None
+    assert saved_tasks
+
+
+@pytest.mark.asyncio
+async def test_dashscope_generic_video_status_keeps_provider_url_when_oss_disabled(monkeypatch):
+    provider_video_url = "https://dashscope-result-bj.oss-cn-beijing.aliyuncs.com/tmp/result.mp4"
+
+    class FakeResponse:
+        def json(self):
+            return {
+                "request_id": "provider-req-1",
+                "output": {
+                    "task_status": "SUCCEEDED",
+                    "video_url": provider_video_url,
+                },
+            }
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        async def get(self, *args, **kwargs):
+            return FakeResponse()
+
+    monkeypatch.setattr("app.services.video_adapters.httpx.AsyncClient", FakeAsyncClient)
+    monkeypatch.setattr("app.services.video_adapters.oss_service.is_enabled", lambda: False)
+
+    service = DashScopeGenericVideoService("wan")
+    result = await service.get_task_status("provider-task-1", "p1")
+
+    assert result.status == "SUCCEEDED"
+    assert result.video_url == provider_video_url
+    assert result.request_id == "provider-req-1"
+    assert result.error_message is None
+
+
+@pytest.mark.asyncio
+async def test_start_pending_video_task_reconcilers_only_recovers_processing_tasks(monkeypatch, client, registered_user, auth_header):
+    project_id = _create_project(client, auth_header)
+    _, user = registered_user
+    user_storage = get_user_storage(user["id"])
+    processing_task = VideoStudioTask(
+        project_id=project_id,
+        name="处理中任务",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-t2v",
+        model="wan2.7-t2v",
+        prompt="机械臂巡视仓库",
+        status="processing",
+        task_ids=["provider-task-1"],
+    )
+    completed_task = VideoStudioTask(
+        project_id=project_id,
+        name="已完成任务",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-t2v",
+        model="wan2.7-t2v",
+        prompt="机械臂巡视仓库",
+        status="succeeded",
+        task_ids=["provider-task-2"],
+    )
+    pending_without_provider_task = VideoStudioTask(
+        project_id=project_id,
+        name="未提交任务",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-t2v",
+        model="wan2.7-t2v",
+        prompt="机械臂巡视仓库",
+        status="processing",
+        task_ids=[],
+    )
+    user_storage.save_video_studio_task(processing_task)
+    user_storage.save_video_studio_task(completed_task)
+    user_storage.save_video_studio_task(pending_without_provider_task)
+
+    scheduled = []
+    monkeypatch.setattr(
+        video_studio_router,
+        "_schedule_video_task_reconciler",
+        lambda task_id, user_id, user_config_dir: scheduled.append((task_id, user_id, user_config_dir)),
+    )
+
+    await video_studio_router.start_pending_video_task_reconcilers()
+
+    assert len(scheduled) == 1
+    assert scheduled[0][0] == processing_task.id
+    assert scheduled[0][1] == user["id"]
 
 
 def test_wan27_t2v_builds_new_protocol_payload():
@@ -797,7 +1044,7 @@ def test_preview_payload_returns_wan27_r2v_provider_payload_with_reference_voice
 def test_update_task_round_trips_reference_media(client, auth_header, registered_user, monkeypatch):
     project_id = _create_project(client, auth_header)
     _, user = registered_user
-    set_current_user(user["id"])
+    user_storage = get_user_storage(user["id"])
 
     async def fake_validate_image(url: str, label: str):
         return {"width": 1280, "height": 720, "aspect_ratio": 16 / 9, "format": "PNG", "file_size": 1024, "has_alpha": False}
@@ -835,7 +1082,7 @@ def test_update_task_round_trips_reference_media(client, auth_header, registered
         },
         status="pending",
     )
-    storage_service.save_video_studio_task(task)
+    user_storage.save_video_studio_task(task)
 
     resp = client.put(
         f"/api/video-studio/{task.id}",
@@ -982,7 +1229,7 @@ def test_get_failed_submit_task_backfills_developer_error_meta(client, auth_head
 def test_get_task_backfills_provider_payload_snapshot(client, auth_header, registered_user):
     project_id = _create_project(client, auth_header)
     _, user = registered_user
-    set_current_user(user["id"])
+    user_storage = get_user_storage(user["id"])
     task = VideoStudioTask(
         project_id=project_id,
         name="缺少开发者快照的任务",
@@ -1009,7 +1256,7 @@ def test_get_task_backfills_provider_payload_snapshot(client, auth_header, regis
         },
         status="succeeded",
     )
-    storage_service.save_video_studio_task(task)
+    user_storage.save_video_studio_task(task)
 
     resp = client.get(f"/api/video-studio/{task.id}", headers=auth_header)
     assert resp.status_code == 200
@@ -1021,7 +1268,7 @@ def test_get_task_backfills_provider_payload_snapshot(client, auth_header, regis
 def test_regenerate_legacy_video_edit_task_uses_canonical_mapping(client, auth_header, registered_user, monkeypatch):
     project_id = _create_project(client, auth_header)
     _, user = registered_user
-    set_current_user(user["id"])
+    user_storage = get_user_storage(user["id"])
     task = VideoStudioTask(
         project_id=project_id,
         name="旧局部编辑任务",
@@ -1033,7 +1280,7 @@ def test_regenerate_legacy_video_edit_task_uses_canonical_mapping(client, auth_h
         mask_frame_id=1,
         status="failed",
     )
-    storage_service.save_video_studio_task(task)
+    user_storage.save_video_studio_task(task)
 
     _patch_async_create_task(monkeypatch)
     monkeypatch.setattr(video_studio_router.oss_service, "is_enabled", lambda: True)

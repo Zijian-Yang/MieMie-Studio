@@ -23,6 +23,7 @@
 | npm | 9+ | 随 Node.js 安装 |
 | Git | 2.0+ | 用于代码获取和自动更新 |
 | screen | - | 后台进程管理 |
+| Docker / Compose | Docker 24+ / Compose v2+ | Compose 推荐路径需要 |
 
 ### 操作系统
 
@@ -32,7 +33,63 @@
 
 ---
 
-## 二、快速部署
+## 二、当前可用路径与推荐路径
+
+### 当前可用路径
+
+当前仓库**已经可用**的生产部署路径是：
+
+- `./run.sh install`
+- `./run.sh start --prod`
+
+这条路径适合：
+
+- 不熟悉 Docker 的用户
+- 先尽快把平台部署起来的用户
+- 单机、小规模或初期验证场景
+
+### 推荐路径（Compose）
+
+当前仓库已经补齐 **Docker Compose** 的第一阶段推荐生产路径，用于统一编排当前的单应用生产形态：
+
+- API 服务（容器内 Gunicorn + UvicornWorker）
+- 前端静态资源（镜像构建阶段生成，运行时由 FastAPI 统一服务）
+- 宿主机持久化目录（`backend/data/`、`backend/logs/`）
+
+当前阶段仍然保持：
+
+- **脚本模式可继续作为兼容路径**
+- **Compose 是 Step 01 起点的推荐参考路径**
+- **Redis / PostgreSQL / Worker 暂不在本轮 Compose 中实装**
+
+### 反向代理边界
+
+无论使用脚本模式还是未来的 Compose 模式，平台的边界都保持一致：
+
+- 项目负责启动应用并提供监听端口
+- 用户自己用宝塔 / Nginx / Caddy / 云负载均衡反代到该端口
+- 仓库不托管某一种特定反向代理配置
+
+### 给不熟悉 Docker 的用户
+
+你现在可以先完全忽略 Docker，继续使用脚本模式。
+
+如果你不熟悉 Docker，可以先把它理解为：
+
+- **镜像（image）**：打包好的运行环境
+- **容器（container）**：镜像启动后的实例
+- **Compose**：一次性启动多个相关容器的编排文件
+- **volume**：持久化数据目录
+- **network**：容器之间通信的虚拟网络
+
+可以把它理解成：
+
+- 脚本模式：直接在服务器上安装并运行程序
+- Compose 模式：把当前应用先装进标准化“箱子”里统一启动，后续再逐步纳入更多服务
+
+---
+
+## 三、快速部署
 
 ### 1. 获取代码
 
@@ -80,9 +137,26 @@ chmod +x run.sh
 
 或直接在浏览器访问 `http://服务器IP:8000`，应看到登录页面。
 
+### 5. Compose 推荐路径
+
+```bash
+cp compose.env.example compose.env
+sed -i.bak "s/replace-with-git-commit/$(git rev-parse HEAD)/" compose.env
+docker compose --env-file compose.env up -d --build
+docker compose ps
+curl http://127.0.0.1:8000/api/health
+```
+
+说明：
+
+- Compose 当前只编排应用本身，不接管你的反向代理。
+- 默认宿主机 `8000` 端口映射到容器内 `8000`。
+- 如需修改宿主机端口，可调整 `compose.env` 中的 `MIEMIE_HOST_PORT`。
+- 用户数据仍落在宿主机 `backend/data/`，不会因为重建容器而丢失。
+
 ---
 
-## 三、配置说明
+## 四、配置说明
 
 ### 环境变量
 
@@ -116,89 +190,55 @@ export NODE_BUILD_MEMORY_MB=2048
 - 脚本会根据 CPU 核数、总内存和当前 Swap 推荐 `MIEMIE_WORKERS` 与 `NODE_BUILD_MEMORY_MB`
 - Linux 小内存机器会额外建议创建 Swap；只有在用户确认后才会执行
 - 应用后脚本会立即检查配置是否生效，并在 `./run.sh status` 中显示当前值
+- Compose 路径下建议同时维护一个 `compose.env`（未纳入 Git），用于记录宿主机端口、worker 数和运行 commit
 
 ---
 
-## 四、反向代理配置（推荐）
+## 五、反向代理与入口端口
 
-### Nginx
+本项目的边界是：
 
-生产环境建议使用 Nginx 作为反向代理，提供 SSL、负载均衡、静态文件缓存等能力。
+- **项目负责启动应用并提供监听端口**（默认可为 `8000`）
+- **反向代理由用户自行选择和管理**
 
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-    return 301 https://$server_name$request_uri;
-}
+你可以使用：
 
-server {
-    listen 443 ssl http2;
-    server_name your-domain.com;
+- 宝塔面板里的 Nginx
+- 自己安装的 Nginx / Caddy
+- 云厂商负载均衡 / CDN
 
-    ssl_certificate     /etc/ssl/certs/your-domain.crt;
-    ssl_certificate_key /etc/ssl/private/your-domain.key;
+仓库文档只说明“反向代理需要满足什么条件”，不把某一种代理配置作为平台交付的一部分。
 
-    # 安全头
-    add_header X-Frame-Options SAMEORIGIN;
-    add_header X-Content-Type-Options nosniff;
+### 需要满足的最小条件
 
-    # 请求体大小限制（上传图片/视频需要）
-    client_max_body_size 100M;
+- 能把外部流量反代到项目监听端口，例如 `127.0.0.1:8000`
+- 能透传 `Host`、`X-Forwarded-For`、`X-Forwarded-Proto`
+- 能配置较大的上传体积限制，覆盖图片/视频上传
+- 能配置较长的读取超时，覆盖 AI 任务提交、查询以及后续 SSE
+- 当平台后续启用 SSE 时，不能对事件流做缓冲或过早断开
 
-    # 代理到 MieMie-Studio 后端
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+### 推荐链路
 
-        # WebSocket 支持（如果将来需要）
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-
-        # 超时设置（AI 生成任务可能较慢）
-        proxy_read_timeout 300s;
-        proxy_send_timeout 300s;
-    }
-
-    # 前端静态资源缓存
-    location /_static/ {
-        proxy_pass http://127.0.0.1:8000/_static/;
-        expires 30d;
-        add_header Cache-Control "public, immutable";
-    }
-
-    # API 不缓存，避免轮询/状态接口被 CDN 或代理复用
-    location /api/ {
-        proxy_pass http://127.0.0.1:8000/api/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        add_header Cache-Control "no-store";
-    }
-}
+```text
+用户自管反向代理（宝塔 / Nginx / Caddy / ALB）
+                ↓
+        本项目提供的监听端口（如 8000）
+                ↓
+         Gunicorn / UvicornWorker
 ```
 
-### Caddy（更简单的替代方案）
+### 为什么这样划分
 
-```
-your-domain.com {
-    reverse_proxy localhost:8000
-}
-```
+- 用户环境差异很大，有人用宝塔，有人用云负载均衡，有人直接自建 Nginx。
+- 如果仓库把某一种代理配置当成官方唯一方案，后续文档和支持成本会很高。
+- 平台更应该稳定应用端口、健康检查、静态资源路径和转发头语义，而不是接管外层代理实现。
 
-Caddy 会自动处理 SSL 证书（通过 Let's Encrypt）。
-
-### Cloudflare 提速建议
+### Cloudflare / CDN 提速建议
 
 推荐链路：
 
 ```text
-Cloudflare -> Nginx/Caddy -> 127.0.0.1:8000 -> Gunicorn/UvicornWorker
+Cloudflare/CDN -> 用户自管反向代理 -> 127.0.0.1:8000 -> Gunicorn/UvicornWorker
 ```
 
 建议项：
@@ -206,12 +246,12 @@ Cloudflare -> Nginx/Caddy -> 127.0.0.1:8000 -> Gunicorn/UvicornWorker
 - 源站长期运行 `./run.sh start --prod`，不要把 Vite 开发服务直接暴露到公网
 - Cloudflare 开启 `HTTP/2`、`HTTP/3`、`Brotli`
 - 对 `/_static/*` 启用缓存；对 `/api/*` 保持绕过缓存
-- Nginx/Caddy 仅回源到 `127.0.0.1:8000`
+- 反向代理仅回源到 `127.0.0.1:8000`
 - 小内存实例先执行 `./run.sh optimize`，降低构建和重启时卡死概率
 
 ---
 
-## 五、安全加固
+## 六、安全加固
 
 ### 1. 防火墙
 
@@ -222,7 +262,7 @@ sudo ufw allow 80/tcp      # HTTP
 sudo ufw allow 443/tcp     # HTTPS
 sudo ufw enable
 
-# 不要直接暴露 8000 端口，通过 Nginx 代理
+# 建议不要直接暴露 8000 端口，通过你自己的反向代理转发
 ```
 
 ### 2. API Key 安全
@@ -249,7 +289,7 @@ cp -r backend/data /path/to/backup/$(date +%Y%m%d)
 
 ---
 
-## 六、监控与日志
+## 七、监控与日志
 
 ### 日志文件
 
@@ -282,7 +322,7 @@ curl http://localhost:8000/api/health
 
 ---
 
-## 七、常见问题
+## 八、常见问题
 
 ### 端口被占用
 

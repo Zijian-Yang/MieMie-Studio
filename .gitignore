@@ -32,6 +32,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+.pnpm-debug.log*
+frontend/test-results/
+frontend/playwright-report/
 
 # Logs
 logs/
@@ -51,6 +54,7 @@ backend/logs/
 .env
 .env.local
 .env.*.local
+compose.env
 
 # Database
 *.db

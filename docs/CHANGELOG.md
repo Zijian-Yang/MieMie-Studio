@@ -9,6 +9,11 @@
 - 视频工作室：任务卡片的类型、Provider、状态和完成进度支持换行布局，避免 HappyHorse 等较长标签把“已完成”和 `1/1` 挤出卡片。
 - 视频工作室：HappyHorse 提示词长度改为中文 2 单位、非中文 1 单位的加权检测，并在前后端保持一致。
 - 视频工作室：HappyHorse 参考生视频新建提示改为 `[Image 1]` / `[Image 2]` 指代参考图，匹配新版 API 文档。
+- `deployment_version` 与运行时 `git_commit` 统一对齐，避免健康检查和响应头口径不一致。
+- 视频工作室状态接口不再因前端轮询而直接触发厂商状态查询和副作用写入。
+- 前端多个页面重复实现的轮询逻辑收敛为同一套 hook，降低状态查询放大与清理遗漏风险。
+- 修复 Docker Compose 容器启动时 `sh -lc` 重置 `PATH`，导致找不到 venv 内 `gunicorn` 的问题。
+- 修复 OSS 未启用时 DashScope 成功视频结果被标记为失败的问题，改为保留供应商视频 URL。
 
 ### 安全 (Security)
 - **密码哈希**: 用户密码从明文存储改为 bcrypt 哈希，新注册用户自动使用 bcrypt，已有明文密码在首次登录时自动迁移
@@ -48,6 +53,21 @@
   - 导出页新增“快速导出”，可跳过内嵌、直接保留原 URL
   - 新增 `export-md-file / export-html-file` 附件接口，前端直接下载文件而非传超大 JSON
   - 响应新增 `embedded_image_count` 与 `fallback_url_count`
+- 平台最小观测闭环：
+  - 所有 HTTP API 响应统一暴露 `X-Request-ID`
+  - 所有 HTTP API 响应统一暴露 `X-Deployment-Version`
+  - 未授权响应也保留统一请求标识，便于压测与排障
+- 视频工作室后台状态协调器：
+  - `/api/video-studio/{task_id}/status` 改为纯读平台任务状态
+  - 厂商状态轮询、结果落盘、缩略图生成统一收口到后台协调器
+  - 应用启动时会恢复遗留 `processing` 视频任务的状态协调器
+- 前端统一任务轮询 hook：
+  - 图片工作室、音频工作室、视频工作室、图片测评改为复用统一轮询基础设施
+  - 统一初始延迟、轮询间隔、错误退避和组件卸载清理逻辑
+- Step 00 / Step 01 高性能实验资产：
+  - 新增 k6 S1/S3 压测脚本、Linux staging 基线记录与验证包归档
+  - 新增 `.dockerignore`、`Dockerfile`、`docker-compose.yml`、`compose.env.example`
+  - 新增运行模式矩阵文档，明确开发 / 脚本生产 / Compose 生产边界
 - 管理脚本运行时可观测性：
   - `GET /api/health` 新增 `git_commit`、`run_mode`、`serve_frontend`、`started_at`
   - `./run.sh status` / TUI 状态栏新增默认模式、实际模式、当前运行提交与前端服务方式
@@ -126,6 +146,12 @@
   - 设置接口返回 `google_api_key_masked` 与 `is_google_api_key_set`
 
 ### 变更 (Changed)
+- 扩容路线图当前正式目标固定为 **W2**。
+- 部署边界明确为“项目只提供应用端口，反向代理由用户自管”。
+- Step 03 当前规划调整为优先 `Celery + Redis`，RabbitMQ 暂不在首阶段实装。
+- 后端应用启动恢复逻辑从 FastAPI `on_event("startup")` 迁移到 `lifespan`。
+- `./run.sh test` 现在会先确认项目后端依赖，再固定使用项目根目录 `venv/bin/python` 执行测试。
+- 部署文档从“Compose 规划中”更新为“脚本兼容 + Compose 推荐”的双路径口径。
 - 设置页保存交互改为模块化：
   - 移除页面底部“保存所有设置”
   - Key、火山 Key、API 地域、文本模型、OSS 各模块各自保存

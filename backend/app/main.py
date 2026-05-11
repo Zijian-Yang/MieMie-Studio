@@ -4,11 +4,12 @@ AI 视频生成平台 - FastAPI 后端入口
 
 import os
 import subprocess
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import FileResponse
 from pathlib import Path
 
 # 初始化日志系统（必须在导入其他模块之前）
@@ -52,11 +53,20 @@ def _resolve_runtime_git_commit() -> str:
 RUNTIME_GIT_COMMIT = _resolve_runtime_git_commit()
 RUNTIME_RUN_MODE = os.environ.get("MIEMIE_RUNTIME_RUN_MODE") or ("prod" if SERVE_FRONTEND else "dev")
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期：恢复需要继续推进的后台任务。"""
+    await video_studio.start_pending_video_task_reconcilers()
+    yield
+
+
 # 创建 FastAPI 应用
 app = FastAPI(
     title="AI 视频生成平台",
     description="基于通义万相的 AI 视频生成操作平台",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.state.limiter = limiter
@@ -91,6 +101,7 @@ app.add_middleware(
     allow_credentials=_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID", "X-Deployment-Version"],
 )
 
 # 添加认证中间件

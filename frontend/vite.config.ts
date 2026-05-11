@@ -39,6 +39,54 @@ export default defineConfig({
   plugins: [react()],
   build: {
     assetsDir: '_static',
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (
+            id.includes('/react/') ||
+            id.includes('/react-dom/') ||
+            id.includes('/react-router-dom/') ||
+            id.includes('/zustand/')
+          ) {
+            return 'react-vendor'
+          }
+          if (
+            id.includes('/@ant-design/icons/') ||
+            id.includes('/@ant-design/icons-svg/') ||
+            id.includes('/@ctrl/tinycolor/')
+          ) {
+            return 'icons-vendor'
+          }
+          if (
+            id.includes('/rc-') ||
+            id.includes('/@rc-component/')
+          ) {
+            return 'rc-vendor'
+          }
+          if (
+            id.includes('/dayjs/')
+          ) {
+            return 'date-vendor'
+          }
+          if (id.includes('/antd/es/') || id.includes('/antd/lib/')) {
+            const match = id.match(/\/antd\/(?:es|lib)\/([^/]+)/)
+            return match?.[1] ? `antd-${match[1]}` : 'antd-vendor'
+          }
+          if (id.includes('/antd/')) {
+            return 'antd-vendor'
+          }
+          if (
+            id.includes('/@dnd-kit/core/') ||
+            id.includes('/@dnd-kit/sortable/') ||
+            id.includes('/@dnd-kit/utilities/')
+          ) {
+            return 'dnd-vendor'
+          }
+          return 'vendor'
+        },
+      },
+    },
   },
   server: {
     port: frontendPort,

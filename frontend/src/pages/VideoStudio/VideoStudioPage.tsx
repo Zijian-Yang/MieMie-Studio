@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { Card, Button, List, Modal, Input, Select, InputNumber, Switch, message, Popconfirm, Space, Empty, Spin, Row, Col, Tabs, Tag, Form, theme, Collapse } from 'antd'
 import { PlusOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, VideoCameraOutlined, EditOutlined, ReloadOutlined, StarFilled, FlagOutlined, FlagFilled, CheckOutlined, CloseOutlined, StarOutlined, CameraOutlined } from '@ant-design/icons'
 import { videoStudioApi, galleryApi, audioApi, videoLibraryApi, settingsApi, VideoStudioTask, GalleryImage, AudioItem, VideoLibraryItem, VideoModelInfo, RefVideoModelInfo, TextToVideoModelInfo, KeyframeToVideoModelInfo, VideoStudioTaskType, VaceVideoRepaintingModelInfo, VaceVideoEditModelInfo, VideoTaskKind } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
+import { useTaskPolling } from '../../hooks/useTaskPolling'
 import MaskEditor, { type MaskEditorHandle, type MaskEditorTool } from './MaskEditor'
 import CapabilityCreateModal from './CapabilityCreateModal'
 import {
@@ -146,9 +147,6 @@ const VideoStudioPage = () => {
   const [videoRepaintingModels, setVideoRepaintingModels] = useState<Record<string, VaceVideoRepaintingModelInfo>>({})
   const [videoEditModels, setVideoEditModels] = useState<Record<string, VaceVideoEditModelInfo>>({})
   const [videoTaskNotificationsEnabled, setVideoTaskNotificationsEnabled] = useState(false)
-
-  // 轮询
-  const pollingRef = useRef<Set<string>>(new Set())
   const isMountedRef = useRef(true)
   const maskEditorRef = useRef<MaskEditorHandle | null>(null)
   const notifiedResultsRef = useRef<Set<string>>(new Set())
@@ -161,7 +159,6 @@ const VideoStudioPage = () => {
     }
     return () => {
       isMountedRef.current = false
-      pollingRef.current.clear()
     }
   }, [projectId, fetchProject])
 
@@ -191,7 +188,7 @@ const VideoStudioPage = () => {
       // 启动轮询
       tasksRes.tasks.forEach(task => {
         if (task.status === 'processing') {
-          startPolling(task.id)
+          startTaskPolling(task.id)
         }
       })
     } catch (error) {
@@ -398,45 +395,39 @@ const VideoStudioPage = () => {
     }
   }
 
-  const startPolling = (taskId: string) => {
-    if (pollingRef.current.has(taskId)) return
-    pollingRef.current.add(taskId)
+  const { startPolling } = useTaskPolling({
+    intervalMs: 5000,
+    errorIntervalMs: 10000,
+    onError: (_taskId, error) => {
+      console.error('轮询错误:', error)
+    },
+  })
 
-    const poll = async () => {
-      if (!pollingRef.current.has(taskId) || !isMountedRef.current) return
+  const startTaskPolling = useCallback((taskId: string) => {
+    startPolling(taskId, async () => {
+      const result = await videoStudioApi.getStatus(taskId)
 
-      try {
-        const result = await videoStudioApi.getStatus(taskId)
-
-        if (isMountedRef.current) {
-          setTasks(prev => prev.map(t => t.id === taskId ? result.task : t))
-
-          // 更新详情弹窗中的任务
-          setSelectedTask(prev => {
-            if (prev?.id === taskId) return result.task
-            return prev
-          })
-        }
-
-        if (result.task.status === 'succeeded' || result.task.status === 'failed') {
-          pollingRef.current.delete(taskId)
-          maybeNotifyTaskFinished(result.task)
-          if (result.task.status === 'succeeded') {
-            message.success('视频生成完成')
-          } else {
-            message.error(`视频生成失败: ${result.task.error_message || '未知错误'}`)
-          }
-        } else {
-          setTimeout(poll, 5000)
-        }
-      } catch (error) {
-        pollingRef.current.delete(taskId)
-        console.error('轮询错误:', error)
+      if (isMountedRef.current) {
+        setTasks(prev => prev.map(t => t.id === taskId ? result.task : t))
+        setSelectedTask(prev => {
+          if (prev?.id === taskId) return result.task
+          return prev
+        })
       }
-    }
 
-    poll()
-  }
+      if (result.task.status === 'succeeded' || result.task.status === 'failed') {
+        maybeNotifyTaskFinished(result.task)
+        if (result.task.status === 'succeeded') {
+          message.success('视频生成完成')
+        } else {
+          message.error(`视频生成失败: ${result.task.error_message || '未知错误'}`)
+        }
+        return true
+      }
+
+      return false
+    })
+  }, [maybeNotifyTaskFinished, startPolling])
 
   const handleCreate = async () => {
     if (!projectId) return
@@ -579,8 +570,8 @@ const VideoStudioPage = () => {
       resetForm()
 
       // 启动轮询
-      startPolling(result.task.id)
-
+      startTaskPolling(result.task.id)
+      
       message.success('任务已创建')
     } catch (error: any) {
       message.error(error.message || '创建失败')
@@ -620,7 +611,7 @@ const VideoStudioPage = () => {
 
     // 如果正在处理，启动轮询
     if (task.status === 'processing') {
-      startPolling(task.id)
+      startTaskPolling(task.id)
     }
   }
 
@@ -848,8 +839,8 @@ const VideoStudioPage = () => {
       setSelectedTask(updatedTask)
 
       // 启动轮询（后台会异步提交 API 任务）
-      startPolling(task.id)
-
+      startTaskPolling(task.id)
+      
       message.success('已开始重新生成')
     } catch (error: any) {
       message.error(error.message || '重新生成失败')
@@ -1010,7 +1001,7 @@ const VideoStudioPage = () => {
           onSubmitted={(task) => {
             setTasks((prev) => [task, ...prev.filter((item) => item.id !== task.id)])
             if (task.status === 'processing') {
-              startPolling(task.id)
+              startTaskPolling(task.id)
             }
           }}
         />

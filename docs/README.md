@@ -17,6 +17,7 @@
 - **第一次接手仓库**：`AGENTS.md` → `docs/README.md` → `docs/ARCHITECTURE.md` → `docs/reviews/2026-04-platform-audit.md`
 - **做功能或修 bug**：对应 spec / ADR → 代码 → checklist
 - **接入新模型**：`docs/STUDIO_MODEL_INTEGRATION_GUIDE.md` → `docs/checklists/MODEL_INTEGRATION.md` → 相关 playbook
+- **做扩容/性能改造**：`docs/specs/2026-04-step-00-capacity-baseline-and-slo.md` → `docs/playbooks/CAPACITY_BASELINE_AND_LOADTEST.md` → 对应步骤 spec
 - **做发布或大改**：`docs/checklists/CHANGE_GATE.md` → `docs/checklists/RELEASE_READINESS.md`
 
 ## 文档分层
@@ -64,6 +65,11 @@
 | 文档 | 说明 |
 |------|------|
 | [架构概览](./ARCHITECTURE.md) | 系统整体结构、请求流、多用户隔离 |
+| [扩容转型路线图](./specs/2026-04-platform-scalability-transformation-roadmap.md) | 面向 1000 在线与 Linux 生产部署的渐进式改造总方案 |
+| [容量基线与压测手册](./playbooks/CAPACITY_BASELINE_AND_LOADTEST.md) | Step 00 的压测执行方法、字段要求与结果模板 |
+| [运行模式矩阵](./playbooks/RUNTIME_MODE_MATRIX.md) | 开发环境、脚本生产模式、Compose 生产模式的边界对比 |
+| [观测与轮询盘点](./reviews/2026-04-step-00-observability-and-polling-inventory.md) | 当前轮询热点、状态接口副作用与最小观测缺口 |
+| [扩容架构 ADR](./adr/ADR-0002-server-grade-scalability-architecture.md) | 为什么采用 Redis + PostgreSQL + Worker + SSE 的渐进式路线 |
 | [后端开发规范](./BACKEND.md) | FastAPI、服务层、schema/capabilities、适配器边界 |
 | [前端开发规范](./FRONTEND.md) | React 页面、状态管理、错误处理、动态表单 |
 | [UI 设计规范](./UI_GUIDELINES.md) | 主题 token、组件视觉约束 |
@@ -93,10 +99,29 @@
 ./run.sh stop
 ./run.sh status
 ./run.sh test
+python3 -m venv backend/.venv
+backend/.venv/bin/pip install -r requirements.txt
+backend/.venv/bin/pytest backend/tests/test_fixes.py backend/tests/test_video_studio_capabilities.py -q
 cd frontend && npm run typecheck
 cd frontend && npm run lint
 cd frontend && npm run build
+docker compose config
 ```
+
+### 当前验证状态
+
+- 后端全量测试：`./run.sh test`（2026-04-23，本地 130 passed）
+- 后端关键测试：`backend/.venv/bin/pytest backend/tests/test_fixes.py backend/tests/test_video_studio_capabilities.py backend/tests/test_video_studio_vace.py -q`
+- 前端验证：`npm run typecheck`、`npm run lint`、`npm run build`（2026-04-23 均通过）
+- E2E helper：`npm run test:e2e:helper`（2026-04-24，2 passed）
+- E2E smoke：`npm run test:e2e`（2026-04-24，4 passed，macOS 可自动发现本机 `ms-playwright` Chromium 缓存）
+- Compose 静态校验：`docker compose config`（2026-04-24，通过）
+- 当前已消除：
+  - FastAPI `on_event is deprecated` 警告
+  - `baseline-browser-mapping` 数据过期提示
+  - `./run.sh test` 落到系统 Python 导致依赖缺失的问题
+- 当前保留为后续治理：
+  - CI / 服务器环境仍需显式安装 Playwright Chromium；当前自动发现主要覆盖本机已有缓存的开发场景
 
 ## 文档维护规则
 
@@ -104,4 +129,4 @@ cd frontend && npm run build
 - 如果旧文档与新 spec 冲突，以 spec / ADR 为准，并尽快修正文档入口
 - 不要把聊天上下文当规范；规范必须落盘
 
-*最后更新：2026-04-30*
+*最后更新：2026-05-11*

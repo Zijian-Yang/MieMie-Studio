@@ -5,7 +5,7 @@ import pytest
 from app.models.media import VideoStudioTask
 from app.routers import video_studio as video_studio_router
 from app.services.dashscope.vace_video_edit import VaceVideoEditService
-from app.services.storage import storage_service, set_current_user
+from app.services.storage import get_user_storage, storage_service, set_current_user
 
 
 def _create_project(client, auth_header):
@@ -188,14 +188,15 @@ class TestVideoStudioVace:
         assert resp.status_code == 400
         assert "fixed模式下不支持expand_ratio" in resp.json()["detail"]
 
-    def test_get_vace_task_status_success(self, client, auth_header, registered_user, monkeypatch):
-        project_id = _create_project(client, auth_header)
-        _, user = registered_user
-        set_current_user(user["id"])
+    @pytest.mark.asyncio
+    async def test_vace_background_reconciler_updates_success(self, monkeypatch):
         task = VideoStudioTask(
-            project_id=project_id,
+            project_id="project-1",
             name="局部编辑任务",
             task_type="video_edit",
+            task_kind="video_edit_local",
+            provider="wan",
+            model_id="wanx2.1-vace-plus",
             model="wanx2.1-vace-plus",
             prompt="把招牌换成霓虹灯",
             source_video_url="https://oss.example.com/source.mp4",
@@ -205,28 +206,43 @@ class TestVideoStudioVace:
             task_ids=["api-task-1"],
             status="processing",
         )
-        storage_service.save_video_studio_task(task)
+        saved_tasks = []
+
+        monkeypatch.setattr(video_studio_router.storage_service, "get_video_studio_task", lambda task_id: task if task_id == task.id else None)
+        monkeypatch.setattr(
+            video_studio_router.storage_service,
+            "save_video_studio_task",
+            lambda next_task: saved_tasks.append(next_task.model_copy(deep=True)),
+        )
 
         async def fake_status(self, task_id: str, project_id: str = ""):
             assert task_id == "api-task-1"
             return "SUCCEEDED", "https://oss.example.com/result.mp4"
 
         monkeypatch.setattr(video_studio_router.VaceVideoEditService, "get_task_status", fake_status)
+        monkeypatch.setattr(video_studio_router.oss_service, "should_persist_generated_url", lambda url: False)
 
-        resp = client.get(f"/api/video-studio/{task.id}/status", headers=auth_header)
-        assert resp.status_code == 200
-        data = resp.json()["task"]
-        assert data["status"] == "succeeded"
-        assert data["video_urls"] == ["https://oss.example.com/result.mp4"]
+        async def fake_thumbnail(video_url: str, project_id: str):
+            return "https://oss.example.com/thumb.jpg"
 
-    def test_get_vace_task_status_failure_keeps_detail(self, client, auth_header, registered_user, monkeypatch):
-        project_id = _create_project(client, auth_header)
-        _, user = registered_user
-        set_current_user(user["id"])
+        monkeypatch.setattr(video_studio_router, "_extract_video_thumbnail_to_oss", fake_thumbnail)
+
+        await video_studio_router._run_video_task_reconciler(task.id, "user-1", "/tmp/user-1")
+
+        assert task.status == "succeeded"
+        assert task.video_urls == ["https://oss.example.com/result.mp4"]
+        assert task.thumbnail_url == "https://oss.example.com/thumb.jpg"
+        assert saved_tasks
+
+    @pytest.mark.asyncio
+    async def test_vace_background_reconciler_failure_keeps_detail(self, monkeypatch):
         task = VideoStudioTask(
-            project_id=project_id,
+            project_id="project-1",
             name="局部编辑失败任务",
             task_type="video_edit",
+            task_kind="video_edit_local",
+            provider="wan",
+            model_id="wanx2.1-vace-plus",
             model="wanx2.1-vace-plus",
             prompt="把招牌换成霓虹灯",
             source_video_url="https://oss.example.com/source.mp4",
@@ -235,15 +251,52 @@ class TestVideoStudioVace:
             task_ids=["api-task-failed"],
             status="processing",
         )
-        storage_service.save_video_studio_task(task)
+        saved_tasks = []
+
+        monkeypatch.setattr(video_studio_router.storage_service, "get_video_studio_task", lambda task_id: task if task_id == task.id else None)
+        monkeypatch.setattr(
+            video_studio_router.storage_service,
+            "save_video_studio_task",
+            lambda next_task: saved_tasks.append(next_task.model_copy(deep=True)),
+        )
 
         async def fake_status(self, task_id: str, project_id: str = ""):
             raise Exception("VACE任务失败: InvalidParameter - ref_images_url and obj_or_bg must be the same length")
 
         monkeypatch.setattr(video_studio_router.VaceVideoEditService, "get_task_status", fake_status)
 
+        await video_studio_router._run_video_task_reconciler(task.id, "user-1", "/tmp/user-1")
+
+        assert task.status == "failed"
+        assert "obj_or_bg" in task.error_message
+        assert saved_tasks
+
+    def test_get_vace_task_status_endpoint_is_pure_read(self, client, auth_header, registered_user, monkeypatch):
+        project_id = _create_project(client, auth_header)
+        task = VideoStudioTask(
+            project_id=project_id,
+            name="局部编辑任务",
+            task_type="video_edit",
+            task_kind="video_edit_local",
+            provider="wan",
+            model_id="wanx2.1-vace-plus",
+            model="wanx2.1-vace-plus",
+            prompt="把招牌换成霓虹灯",
+            source_video_url="https://oss.example.com/source.mp4",
+            mask_image_url="https://oss.example.com/mask.png",
+            mask_frame_id=1,
+            task_ids=["api-task-1"],
+            status="processing",
+        )
+        monkeypatch.setattr(video_studio_router.storage_service, "get_video_studio_task", lambda task_id: task if task_id == task.id else None)
+
+        async def fail_status(self, task_id: str, project_id: str = ""):
+            raise AssertionError("状态接口不应直接查询 VACE 厂商状态")
+
+        monkeypatch.setattr(video_studio_router.VaceVideoEditService, "get_task_status", fail_status)
+
         resp = client.get(f"/api/video-studio/{task.id}/status", headers=auth_header)
         assert resp.status_code == 200
         data = resp.json()["task"]
-        assert data["status"] == "failed"
-        assert "obj_or_bg" in data["error_message"]
+        assert data["status"] == "processing"
+        assert data["task_ids"] == ["api-task-1"]

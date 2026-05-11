@@ -1,0 +1,22 @@
+{
+  "date": "2026-05-08",
+  "runtime": "compose",
+  "base_url": "http://127.0.0.1:18000",
+  "deployment_version": "cebf8b4e49cbb963b9e8bfad16925cf9cf390936",
+  "app_task_id": "8ef32388-087c-423c-a6d6-2a7449513f11",
+  "status": "succeeded",
+  "provider": "wan",
+  "model_id": "wan2.7-t2v",
+  "task_kind": "text_to_video",
+  "task_ids_count": 1,
+  "request_ids_count": 1,
+  "video_urls_count": 1,
+  "selected_video_url_set": true,
+  "thumbnail_url_set": false,
+  "error_message": null,
+  "provider_meta_count": 1,
+  "provider_meta_has_raw_output": true,
+  "provider_meta_error_messages": [],
+  "oss_enabled": false,
+  "note": "video URLs and credentials intentionally omitted"
+}

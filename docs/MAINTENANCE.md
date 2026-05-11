@@ -43,6 +43,24 @@ MieMie-Studio 提供了交互式控制面板，运行 `./run.sh` 即可打开：
 - 脚本会推荐更稳妥的 Gunicorn workers 与前端构建内存上限，小内存 Linux 机器还会额外建议创建 Swap
 - 所有推荐都需要用户确认后才会写入 `.miemie.conf`，并在应用后立即校验是否生效
 
+### Compose 路径补充
+
+如果服务器采用 Compose 路径运行，常用命令改为：
+
+```bash
+docker compose --env-file compose.env up -d --build
+docker compose ps
+docker compose logs -f api
+docker compose restart api
+docker compose down
+```
+
+说明：
+
+- Compose 当前只负责应用容器，不管理反向代理。
+- 用户数据仍保存在宿主机 `backend/data/`。
+- `docker logs` 是 Compose 路径下的第一优先日志入口。
+
 ---
 
 ## 二、更新流程
