@@ -864,6 +864,7 @@ async def preview_payload(request: PreviewPayloadRequest):
     adapter = get_video_adapter(normalized.provider)
     validation_warnings: List[str] = []
     provider_payload: Optional[Dict[str, Any]] = None
+    provider_headers: Dict[str, Any] = {}
 
     try:
         await adapter.validate(normalized)
@@ -875,9 +876,15 @@ async def preview_payload(request: PreviewPayloadRequest):
     except Exception as exc:
         validation_warnings.append(f"构造厂商请求体失败: {str(exc)}")
 
+    try:
+        provider_headers = adapter.build_provider_headers(normalized)
+    except Exception as exc:
+        validation_warnings.append(f"构造厂商请求头失败: {str(exc)}")
+
     return {
         "canonical_request": asdict(normalized),
         "provider_payload": provider_payload,
+        "provider_headers": provider_headers,
         "validation_warnings": validation_warnings,
     }
 
@@ -1406,6 +1413,7 @@ async def _background_create_video_tasks(
                     "submitted_at": datetime.now().isoformat(),
                     "error_code": e.code,
                     "error_message": e.message,
+                    "provider_headers": e.provider_headers,
                     "raw_response": e.raw_response,
                 }
             }
@@ -1456,6 +1464,7 @@ async def _submit_api_tasks(
             "key_profile": result.key_profile or request.key_profile,
             "request_id": result.request_id,
             "submitted_at": datetime.now().isoformat(),
+            "provider_headers": getattr(result, "provider_headers", {}) or {},
         }
         for result in results
     }

@@ -269,6 +269,7 @@ const CapabilityCreateModal = ({
   const [previewPayload, setPreviewPayload] = useState<{
     canonical_request: Record<string, any>
     provider_payload: Record<string, any> | null
+    provider_headers: Record<string, string>
     validation_warnings: string[]
   } | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
@@ -1711,8 +1712,12 @@ const CapabilityCreateModal = ({
                           {JSON.stringify(previewPayload?.canonical_request || {}, null, 2)}
                         </pre>
                         <div style={{ marginBottom: 8, fontWeight: 500 }}>厂商请求体</div>
-                        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout }}>
+                        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout, marginBottom: 12 }}>
                           {JSON.stringify(previewPayload?.provider_payload || {}, null, 2)}
+                        </pre>
+                        <div style={{ marginBottom: 8, fontWeight: 500 }}>厂商请求 Header</div>
+                        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout }}>
+                          {JSON.stringify(previewPayload?.provider_headers || {}, null, 2)}
                         </pre>
                       </>
                     )}

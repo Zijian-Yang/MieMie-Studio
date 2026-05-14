@@ -3,6 +3,7 @@ import pytest
 from app.models.media import VideoStudioTask
 from app.routers import video_studio as video_studio_router
 from app.services.video_adapters import (
+    DashScopeGenericVideoService,
     KlingVideoAdapter,
     NormalizedVideoTaskRequest,
     VideoProviderError,
@@ -13,6 +14,9 @@ from app.services.video_adapters import (
 )
 from app.services.video_capabilities import get_video_capabilities
 from app.services.storage import set_current_user, storage_service
+
+
+DATA_INSPECTION_DISABLED_HEADER = '{"input":"disable","output":"disable"}'
 
 
 def _create_project(client, auth_header):
@@ -904,6 +908,7 @@ async def test_background_submit_failure_keeps_raw_provider_error(registered_use
         "input": {"prompt": task.prompt},
         "parameters": {"resolution": "1080P", "ratio": "16:9", "duration": 5, "watermark": False},
     }
+    provider_headers = {"X-DashScope-DataInspection": DATA_INSPECTION_DISABLED_HEADER}
 
     class FakeAdapter:
         async def submit(self, request, seed_offset=0):
@@ -920,6 +925,7 @@ async def test_background_submit_failure_keeps_raw_provider_error(registered_use
                 provider="happyhorse",
                 key_profile="test",
                 provider_payload=provider_payload,
+                provider_headers=provider_headers,
             )
 
     monkeypatch.setattr(video_studio_router, "get_video_adapter", lambda provider: FakeAdapter())
@@ -936,7 +942,70 @@ async def test_background_submit_failure_keeps_raw_provider_error(registered_use
     assert submit_meta["key_profile"] == "test"
     assert submit_meta["request_id"] == "req-denied-1"
     assert submit_meta["error_code"] == "Model.AccessDenied"
+    assert submit_meta["provider_headers"] == provider_headers
     assert submit_meta["raw_response"]["details"]["model"] == "happyhorse-1.0-t2v"
+
+
+@pytest.mark.asyncio
+async def test_background_submit_success_keeps_safe_provider_headers(registered_user, monkeypatch):
+    _, user = registered_user
+    set_current_user(user["id"])
+    task = VideoStudioTask(
+        project_id="p1",
+        name="HH 关闭绿网任务",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="happyhorse",
+        model_id="happyhorse-1.0-t2v",
+        model="happyhorse-1.0-t2v",
+        prompt="一只机械马在霓虹街道中奔跑",
+        normalized_params={
+            "resolution": "1080P",
+            "ratio": "16:9",
+            "duration": 5,
+            "watermark": False,
+            "disable_data_inspection": True,
+        },
+        input_assets={},
+        status="processing",
+    )
+    storage_service.save_video_studio_task(task)
+    normalized = NormalizedVideoTaskRequest(
+        project_id="p1",
+        task_kind="text_to_video",
+        provider="happyhorse",
+        model_id="happyhorse-1.0-t2v",
+        key_profile="test",
+        prompt=task.prompt,
+        normalized_params=task.normalized_params,
+    )
+    provider_payload = {
+        "model": "happyhorse-1.0-t2v",
+        "input": {"prompt": task.prompt},
+        "parameters": {"resolution": "1080P", "ratio": "16:9", "duration": 5, "watermark": False},
+    }
+    provider_headers = {"X-DashScope-DataInspection": DATA_INSPECTION_DISABLED_HEADER}
+
+    class FakeResult:
+        def __init__(self):
+            self.task_id = "task-happyhorse-header"
+            self.request_id = "req-happyhorse-header"
+            self.provider_payload = provider_payload
+            self.provider_headers = provider_headers
+            self.key_profile = "test"
+
+    class FakeAdapter:
+        async def submit(self, request, seed_offset=0):
+            return FakeResult()
+
+    monkeypatch.setattr(video_studio_router, "get_video_adapter", lambda provider: FakeAdapter())
+
+    await video_studio_router._background_create_video_tasks(task, normalized, user["id"], None)
+
+    saved = storage_service.get_video_studio_task(task.id)
+    assert saved.provider_payload_snapshot == provider_payload
+    submit_meta = saved.provider_result_meta["task-happyhorse-header"]
+    assert submit_meta["provider_headers"] == provider_headers
 
 
 def test_get_failed_submit_task_backfills_developer_error_meta(client, auth_header, registered_user):
@@ -1214,7 +1283,31 @@ def test_happyhorse_capability_schema_matches_supported_surface():
     t2v_profile = t2v_model["task_profiles"]["text_to_video"]
     assert t2v_profile["input_roles"] == []
     t2v_params = {item["name"] for item in t2v_profile["parameters"]}
-    assert t2v_params == {"resolution", "ratio", "duration", "watermark", "seed"}
+    assert t2v_params == {
+        "resolution",
+        "ratio",
+        "duration",
+        "watermark",
+        "prompt_extend",
+        "disable_data_inspection",
+        "seed",
+    }
+    t2v_prompt_extend = next(item for item in t2v_profile["parameters"] if item["name"] == "prompt_extend")
+    assert t2v_prompt_extend["default"] is True
+    assert t2v_prompt_extend["advanced"] is True
+    t2v_data_inspection = next(item for item in t2v_profile["parameters"] if item["name"] == "disable_data_inspection")
+    assert t2v_data_inspection["default"] is False
+    assert t2v_data_inspection["advanced"] is True
+    t2v_ratio = next(item for item in t2v_profile["parameters"] if item["name"] == "ratio")
+    assert {item["value"] for item in t2v_ratio["constraint"]["options"]} == {
+        "16:9",
+        "9:16",
+        "1:1",
+        "4:3",
+        "3:4",
+        "4:5",
+        "5:4",
+    }
     assert t2v_profile["ui_hints"]["prompt_help"]["summary"]
     assert t2v_profile["ui_hints"]["prompt_length_policy"] == {
         "mode": "cjk_weighted",
@@ -1235,7 +1328,11 @@ def test_happyhorse_capability_schema_matches_supported_surface():
     i2v_profile = i2v_model["task_profiles"]["image_to_video"]
     assert i2v_profile["input_roles"] == ["first_frame"]
     i2v_params = {item["name"] for item in i2v_profile["parameters"]}
-    assert i2v_params == {"resolution", "duration", "watermark", "seed"}
+    assert i2v_params == {"resolution", "duration", "watermark", "prompt_extend", "disable_data_inspection", "seed"}
+    i2v_prompt_extend = next(item for item in i2v_profile["parameters"] if item["name"] == "prompt_extend")
+    assert i2v_prompt_extend["default"] is True
+    i2v_data_inspection = next(item for item in i2v_profile["parameters"] if item["name"] == "disable_data_inspection")
+    assert i2v_data_inspection["default"] is False
     assert i2v_profile["ui_hints"]["asset_help"]["first_frame"]["limits"]
     assert i2v_profile["verification_profiles"] == {
         "smoke": ["single_first_frame"],
@@ -1248,9 +1345,33 @@ def test_happyhorse_capability_schema_matches_supported_surface():
     r2v_profile = r2v_model["task_profiles"]["reference_to_video"]
     assert r2v_profile["input_roles"] == ["reference_image"]
     r2v_params = {item["name"] for item in r2v_profile["parameters"]}
-    assert r2v_params == {"resolution", "ratio", "duration", "watermark", "seed"}
+    assert r2v_params == {
+        "resolution",
+        "ratio",
+        "duration",
+        "watermark",
+        "prompt_extend",
+        "disable_data_inspection",
+        "seed",
+    }
+    r2v_prompt_extend = next(item for item in r2v_profile["parameters"] if item["name"] == "prompt_extend")
+    assert r2v_prompt_extend["default"] is True
+    r2v_data_inspection = next(item for item in r2v_profile["parameters"] if item["name"] == "disable_data_inspection")
+    assert r2v_data_inspection["default"] is False
+    r2v_ratio = next(item for item in r2v_profile["parameters"] if item["name"] == "ratio")
+    assert {item["value"] for item in r2v_ratio["constraint"]["options"]} == {
+        "16:9",
+        "9:16",
+        "1:1",
+        "4:3",
+        "3:4",
+        "4:5",
+        "5:4",
+    }
     assert r2v_profile["ui_hints"]["max_reference_images"] == 9
     assert r2v_profile["ui_hints"]["max_reference_videos"] == 0
+    assert any("Base64" in item for item in r2v_profile["ui_hints"]["asset_help"]["reference_image"]["limits"])
+    assert any("20MB" in item for item in r2v_profile["ui_hints"]["asset_help"]["reference_image"]["limits"])
     assert "[Image 1]" in r2v_profile["ui_hints"]["prompt_help"]["notes"][0]
     assert "[Image 2]" in r2v_profile["ui_hints"]["prompt_help"]["how_to_choose"][0]
 
@@ -1260,9 +1381,22 @@ def test_happyhorse_capability_schema_matches_supported_surface():
     video_edit_profile = video_edit_model["task_profiles"]["video_edit_global"]
     assert video_edit_profile["input_roles"] == ["base_video", "reference_image"]
     video_edit_params = {item["name"] for item in video_edit_profile["parameters"]}
-    assert video_edit_params == {"resolution", "watermark", "audio_setting", "seed"}
+    assert video_edit_params == {
+        "resolution",
+        "watermark",
+        "prompt_extend",
+        "disable_data_inspection",
+        "audio_setting",
+        "seed",
+    }
+    video_edit_prompt_extend = next(item for item in video_edit_profile["parameters"] if item["name"] == "prompt_extend")
+    assert video_edit_prompt_extend["default"] is True
+    video_edit_data_inspection = next(item for item in video_edit_profile["parameters"] if item["name"] == "disable_data_inspection")
+    assert video_edit_data_inspection["default"] is False
     assert video_edit_profile["ui_hints"]["max_reference_images"] == 5
     assert video_edit_profile["ui_hints"]["max_reference_videos"] == 0
+    assert any("Base64" in item for item in video_edit_profile["ui_hints"]["asset_help"]["reference_image"]["limits"])
+    assert any("20MB" in item for item in video_edit_profile["ui_hints"]["asset_help"]["reference_image"]["limits"])
 
 
 def test_happyhorse_t2v_builds_provider_payload():
@@ -1429,6 +1563,196 @@ def test_happyhorse_video_edit_builds_video_and_reference_image_payload():
     }
 
 
+@pytest.mark.parametrize(
+    ("task_kind", "model_id", "prompt", "input_assets", "normalized_params"),
+    [
+        (
+            "text_to_video",
+            "happyhorse-1.0-t2v",
+            "一只机械马在霓虹街道中奔跑",
+            {},
+            {
+                "resolution": "1080P",
+                "ratio": "16:9",
+                "duration": 5,
+                "watermark": False,
+                "prompt_extend": False,
+            },
+        ),
+        (
+            "image_to_video",
+            "happyhorse-1.0-i2v",
+            "让首帧缓慢动起来",
+            {"first_frame": ["https://oss.example.com/first-frame.png"]},
+            {
+                "resolution": "720P",
+                "duration": 5,
+                "watermark": False,
+                "prompt_extend": False,
+            },
+        ),
+        (
+            "reference_to_video",
+            "happyhorse-1.0-r2v",
+            "[Image 1]中的角色挥手",
+            {"reference_images": ["https://oss.example.com/ref.png"]},
+            {
+                "resolution": "720P",
+                "ratio": "4:5",
+                "duration": 6,
+                "watermark": False,
+                "prompt_extend": False,
+            },
+        ),
+        (
+            "video_edit_global",
+            "happyhorse-1.0-video-edit",
+            "把视频改成水彩风格",
+            {"base_video": ["https://oss.example.com/base.mp4"]},
+            {
+                "resolution": "720P",
+                "watermark": False,
+                "audio_setting": "auto",
+                "prompt_extend": False,
+            },
+        ),
+    ],
+)
+def test_happyhorse_prompt_extend_false_is_sent_for_all_task_kinds(
+    task_kind,
+    model_id,
+    prompt,
+    input_assets,
+    normalized_params,
+):
+    adapter = get_video_adapter("happyhorse")
+    payload = adapter.build_provider_payload(
+        NormalizedVideoTaskRequest(
+            project_id="p1",
+            task_kind=task_kind,
+            provider="happyhorse",
+            model_id=model_id,
+            prompt=prompt,
+            input_assets=input_assets,
+            normalized_params=normalized_params,
+        )
+    )
+
+    assert payload["parameters"]["prompt_extend"] is False
+    assert "disable_data_inspection" not in payload["parameters"]
+
+
+def test_happyhorse_data_inspection_header_is_separate_from_payload():
+    adapter = get_video_adapter("happyhorse")
+    request = NormalizedVideoTaskRequest(
+        project_id="p1",
+        task_kind="text_to_video",
+        provider="happyhorse",
+        model_id="happyhorse-1.0-t2v",
+        prompt="一只机械马在霓虹街道中奔跑",
+        normalized_params={
+            "resolution": "1080P",
+            "ratio": "16:9",
+            "duration": 5,
+            "watermark": False,
+            "disable_data_inspection": True,
+        },
+    )
+
+    assert adapter.build_provider_headers(request) == {
+        "X-DashScope-DataInspection": DATA_INSPECTION_DISABLED_HEADER,
+    }
+    payload = adapter.build_provider_payload(request)
+    assert "disable_data_inspection" not in payload["parameters"]
+
+
+@pytest.mark.asyncio
+async def test_happyhorse_submit_passes_data_inspection_header(monkeypatch):
+    adapter = get_video_adapter("happyhorse")
+    captured = {}
+
+    async def fake_create_task(self, request_body, extra_headers=None):
+        captured["request_body"] = request_body
+        captured["extra_headers"] = extra_headers or {}
+
+        class FakeResult:
+            task_id = "task-happyhorse-header"
+            request_id = "req-happyhorse-header"
+            provider_payload = request_body
+            provider_headers = extra_headers or {}
+            key_profile = "test"
+
+        return FakeResult()
+
+    monkeypatch.setattr("app.services.video_adapters.DashScopeGenericVideoService.create_task", fake_create_task)
+
+    result = await adapter.submit(
+        NormalizedVideoTaskRequest(
+            project_id="p1",
+            task_kind="text_to_video",
+            provider="happyhorse",
+            model_id="happyhorse-1.0-t2v",
+            key_profile="test",
+            prompt="一只机械马在霓虹街道中奔跑",
+            normalized_params={
+                "resolution": "1080P",
+                "ratio": "16:9",
+                "duration": 5,
+                "watermark": False,
+                "disable_data_inspection": True,
+            },
+        )
+    )
+
+    assert captured["extra_headers"] == {
+        "X-DashScope-DataInspection": DATA_INSPECTION_DISABLED_HEADER,
+    }
+    assert result.provider_headers == captured["extra_headers"]
+    assert "disable_data_inspection" not in captured["request_body"]["parameters"]
+
+
+@pytest.mark.asyncio
+async def test_generic_dashscope_video_service_merges_extra_headers(monkeypatch):
+    captured = {}
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"output": {"task_id": "task-extra-header"}, "request_id": "req-extra-header"}
+
+    class MockAsyncClient:
+        def __init__(self, timeout):
+            self.timeout = timeout
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        async def post(self, url, headers=None, json=None):
+            captured["url"] = url
+            captured["headers"] = headers or {}
+            captured["json"] = json or {}
+            return FakeResponse()
+
+    monkeypatch.setattr("app.services.video_adapters.httpx.AsyncClient", MockAsyncClient)
+
+    service = DashScopeGenericVideoService("happyhorse", key_profile="test")
+    result = await service.create_task(
+        {"model": "happyhorse-1.0-t2v", "input": {"prompt": "test"}, "parameters": {}},
+        extra_headers={"X-DashScope-DataInspection": DATA_INSPECTION_DISABLED_HEADER},
+    )
+
+    assert captured["headers"]["X-DashScope-Async"] == "enable"
+    assert captured["headers"]["X-DashScope-DataInspection"] == DATA_INSPECTION_DISABLED_HEADER
+    assert captured["json"]["model"] == "happyhorse-1.0-t2v"
+    assert result.provider_headers == {
+        "X-DashScope-DataInspection": DATA_INSPECTION_DISABLED_HEADER,
+    }
+
+
 @pytest.mark.asyncio
 async def test_happyhorse_t2v_validate_rejects_blank_prompt():
     adapter = get_video_adapter("happyhorse")
@@ -1485,6 +1809,48 @@ async def test_happyhorse_prompt_length_uses_cjk_weighted_units():
 
 
 @pytest.mark.asyncio
+async def test_happyhorse_t2v_and_r2v_validate_accept_new_ratios(monkeypatch):
+    adapter = get_video_adapter("happyhorse")
+
+    async def fake_validate_reference_image(url: str, label: str):
+        return {"url": url, "label": label}
+
+    monkeypatch.setattr("app.services.video_adapters._validate_happyhorse_reference_image", fake_validate_reference_image)
+
+    await adapter.validate(
+        NormalizedVideoTaskRequest(
+            project_id="p1",
+            task_kind="text_to_video",
+            provider="happyhorse",
+            model_id="happyhorse-1.0-t2v",
+            prompt="一只机械马在书店门口停下",
+            normalized_params={
+                "resolution": "720P",
+                "ratio": "4:5",
+                "duration": 5,
+                "watermark": False,
+            },
+        )
+    )
+    await adapter.validate(
+        NormalizedVideoTaskRequest(
+            project_id="p1",
+            task_kind="reference_to_video",
+            provider="happyhorse",
+            model_id="happyhorse-1.0-r2v",
+            prompt="[Image 1]中的角色转身挥手",
+            input_assets={"reference_images": ["https://oss.example.com/ref.png"]},
+            normalized_params={
+                "resolution": "720P",
+                "ratio": "5:4",
+                "duration": 5,
+                "watermark": False,
+            },
+        )
+    )
+
+
+@pytest.mark.asyncio
 async def test_happyhorse_i2v_validate_rejects_multiple_first_frames():
     adapter = get_video_adapter("happyhorse")
 
@@ -1502,6 +1868,75 @@ async def test_happyhorse_i2v_validate_rejects_multiple_first_frames():
                         "https://oss.example.com/first-2.png",
                     ]
                 },
+                normalized_params={
+                    "resolution": "720P",
+                    "duration": 5,
+                    "watermark": False,
+                },
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_happyhorse_image_validation_allows_twenty_mb_data_uri(monkeypatch):
+    adapter = get_video_adapter("happyhorse")
+    data_uri = "data:image/png;base64," + ("A" * 32)
+
+    async def fake_inspect_remote_image(url: str):
+        assert url == data_uri
+        return {
+            "format": "PNG",
+            "file_size": 20 * 1024 * 1024,
+            "width": 512,
+            "height": 512,
+            "aspect_ratio": 1.0,
+            "has_alpha": False,
+        }
+
+    monkeypatch.setattr("app.services.video_adapters.inspect_remote_image", fake_inspect_remote_image)
+
+    await adapter.validate(
+        NormalizedVideoTaskRequest(
+            project_id="p1",
+            task_kind="image_to_video",
+            provider="happyhorse",
+            model_id="happyhorse-1.0-i2v",
+            prompt="让画面慢慢动起来",
+            input_assets={"first_frame": [data_uri]},
+            normalized_params={
+                "resolution": "720P",
+                "duration": 5,
+                "watermark": False,
+            },
+        )
+    )
+
+
+@pytest.mark.asyncio
+async def test_happyhorse_image_validation_rejects_over_twenty_mb(monkeypatch):
+    adapter = get_video_adapter("happyhorse")
+
+    async def fake_inspect_remote_image(url: str):
+        return {
+            "format": "PNG",
+            "file_size": (20 * 1024 * 1024) + 1,
+            "width": 512,
+            "height": 512,
+            "aspect_ratio": 1.0,
+            "has_alpha": False,
+        }
+
+    monkeypatch.setattr("app.services.video_adapters.inspect_remote_image", fake_inspect_remote_image)
+
+    with pytest.raises(ValueError, match="20MB"):
+        await adapter.validate(
+            NormalizedVideoTaskRequest(
+                project_id="p1",
+                task_kind="image_to_video",
+                provider="happyhorse",
+                model_id="happyhorse-1.0-i2v",
+                prompt="让画面慢慢动起来",
+                input_assets={"first_frame": ["https://oss.example.com/first.png"]},
                 normalized_params={
                     "resolution": "720P",
                     "duration": 5,
@@ -1674,6 +2109,8 @@ def test_preview_payload_returns_happyhorse_provider_payload(client, auth_header
                 "duration": 8,
                 "watermark": False,
                 "seed": 123,
+                "prompt_extend": False,
+                "disable_data_inspection": True,
             },
         },
     )
@@ -1689,7 +2126,11 @@ def test_preview_payload_returns_happyhorse_provider_payload(client, auth_header
             "duration": 8,
             "watermark": False,
             "seed": 123,
+            "prompt_extend": False,
         },
+    }
+    assert data["provider_headers"] == {
+        "X-DashScope-DataInspection": DATA_INSPECTION_DISABLED_HEADER,
     }
 
 

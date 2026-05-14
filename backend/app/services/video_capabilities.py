@@ -2249,6 +2249,8 @@ def _happyhorse_models() -> Dict[str, Dict[str, Any]]:
         _select_option("1:1", "1:1 方形", "适合封面与社媒方形内容"),
         _select_option("4:3", "4:3 横版", "适合传统构图与演示内容"),
         _select_option("3:4", "3:4 竖版", "适合人像与竖版展示"),
+        _select_option("4:5", "4:5 竖版", "适合社媒竖版卡片与角色展示"),
+        _select_option("5:4", "5:4 横版", "适合轻横版构图与产品展示"),
     ]
     audio_setting_options = [
         _select_option("auto", "自动", "由模型自动决定声音策略"),
@@ -2265,6 +2267,40 @@ def _happyhorse_models() -> Dict[str, Dict[str, Any]]:
         "non_cjk_equivalent_limit": 5000,
     }
     prompt_limit_text = "最大长度：2500 个中文字符或 5000 个非中文字符，混合文本按中文 2 单位、非中文 1 单位累计。"
+
+    def happyhorse_prompt_extend_param(order: int) -> Dict[str, Any]:
+        return _param(
+            "prompt_extend",
+            "提示词改写",
+            "boolean",
+            default=True,
+            description="控制 HappyHorse 隐藏提示词改写参数；关闭时下发 prompt_extend=false。",
+            help=_help(
+                summary="控制是否允许 HappyHorse 进行提示词改写。",
+                meaning="默认开启时沿用厂商默认行为且不显式下发；关闭时请求体会携带 prompt_extend=false。",
+                notes=["该参数是 HappyHorse 隐藏参数，当前厂商公开文档尚未展示。"],
+            ),
+            group="advanced",
+            advanced=True,
+            order=order,
+        )
+
+    def happyhorse_data_inspection_param(order: int) -> Dict[str, Any]:
+        return _param(
+            "disable_data_inspection",
+            "关闭绿网",
+            "boolean",
+            default=False,
+            description="关闭 DashScope 输入与输出数据检查。",
+            help=_help(
+                summary="控制是否在提交 HappyHorse 任务时关闭 DashScope 数据检查。",
+                meaning="开启后只追加 X-DashScope-DataInspection header，不进入厂商请求体 parameters。",
+                notes=["仅在确有业务需要时开启；平台不会记录 Authorization 等密钥 header。"],
+            ),
+            group="advanced",
+            advanced=True,
+            order=order,
+        )
 
     t2v_params = [
         _param(
@@ -2284,14 +2320,16 @@ def _happyhorse_models() -> Dict[str, Dict[str, Any]]:
             "select",
             default="16:9",
             description="控制输出画面的宽高比。",
-            help=_help(summary="控制输出画面的横竖构图。", limits=["仅支持 16:9 / 9:16 / 1:1 / 4:3 / 3:4"], how_to_choose=["横屏内容优先 16:9", "短视频或手机观看优先 9:16", "封面或社媒卡面可选 1:1"]),
+            help=_help(summary="控制输出画面的横竖构图。", limits=["仅支持 16:9 / 9:16 / 1:1 / 4:3 / 3:4 / 4:5 / 5:4"], how_to_choose=["横屏内容优先 16:9", "短视频或手机观看优先 9:16", "封面或社媒卡面可选 1:1"]),
             group="generation",
             order=2,
             options=ratio_options,
         ),
         _param("duration", "时长", "integer", default=5, min_value=3, max_value=15, description="输出时长，支持 3 到 15 秒。", help=_duration_help("控制 HappyHorse 文生视频输出时长。", limits=["支持 3 到 15 秒整数时长"]), group="generation", order=3),
         _bool_param("watermark", "添加水印", False, "是否保留厂商默认 AI 水印。", 4, help=watermark_help),
-        _param("seed", "随机种子", "integer", description="0 到 2147483647，留空为随机。", help=_seed_help(), group="advanced", advanced=True, order=5, min_value=0, max_value=2147483647),
+        happyhorse_prompt_extend_param(5),
+        happyhorse_data_inspection_param(6),
+        _param("seed", "随机种子", "integer", description="0 到 2147483647，留空为随机。", help=_seed_help(), group="advanced", advanced=True, order=7, min_value=0, max_value=2147483647),
     ]
 
     i2v_params = [
@@ -2308,22 +2346,28 @@ def _happyhorse_models() -> Dict[str, Dict[str, Any]]:
         ),
         _param("duration", "时长", "integer", default=5, min_value=3, max_value=15, description="输出时长，支持 3 到 15 秒。", help=_duration_help("控制 HappyHorse 图生视频输出时长。", limits=["支持 3 到 15 秒整数时长"]), group="generation", order=2),
         _bool_param("watermark", "添加水印", False, "是否保留厂商默认 AI 水印。", 3, help=watermark_help),
-        _param("seed", "随机种子", "integer", description="0 到 2147483647，留空为随机。", help=_seed_help(), group="advanced", advanced=True, order=4, min_value=0, max_value=2147483647),
+        happyhorse_prompt_extend_param(4),
+        happyhorse_data_inspection_param(5),
+        _param("seed", "随机种子", "integer", description="0 到 2147483647，留空为随机。", help=_seed_help(), group="advanced", advanced=True, order=6, min_value=0, max_value=2147483647),
     ]
 
     r2v_params = [
         _param("resolution", "分辨率档位", "select", default="1080P", description="HappyHorse 参考生视频仅支持 720P / 1080P。", help=_help(summary="控制参考生视频输出清晰度。", limits=["仅支持 720P 和 1080P"], how_to_choose=["快速验证角色引用时先用 720P", "需要看参考图融合细节时用 1080P"], notes=common_notes), group="generation", order=1, options=resolution_options),
-        _param("ratio", "画面比例", "select", default="16:9", description="控制输出视频的宽高比。", help=_help(summary="控制参考生视频横竖构图。", limits=["仅支持 16:9 / 9:16 / 1:1 / 4:3 / 3:4"], how_to_choose=["横屏叙事优先 16:9", "短视频优先 9:16", "角色展示可选 3:4"]), group="generation", order=2, options=ratio_options),
+        _param("ratio", "画面比例", "select", default="16:9", description="控制输出视频的宽高比。", help=_help(summary="控制参考生视频横竖构图。", limits=["仅支持 16:9 / 9:16 / 1:1 / 4:3 / 3:4 / 4:5 / 5:4"], how_to_choose=["横屏叙事优先 16:9", "短视频优先 9:16", "角色展示可选 3:4 或 4:5"]), group="generation", order=2, options=ratio_options),
         _param("duration", "时长", "integer", default=5, min_value=3, max_value=15, description="输出时长，支持 3 到 15 秒。", help=_duration_help("控制 HappyHorse 参考生视频输出时长。", limits=["支持 3 到 15 秒整数时长"]), group="generation", order=3),
         _bool_param("watermark", "添加水印", False, "是否保留厂商默认 AI 水印。", 4, help=watermark_help),
-        _param("seed", "随机种子", "integer", description="0 到 2147483647，留空为随机。", help=_seed_help(), group="advanced", advanced=True, order=5, min_value=0, max_value=2147483647),
+        happyhorse_prompt_extend_param(5),
+        happyhorse_data_inspection_param(6),
+        _param("seed", "随机种子", "integer", description="0 到 2147483647，留空为随机。", help=_seed_help(), group="advanced", advanced=True, order=7, min_value=0, max_value=2147483647),
     ]
 
     video_edit_params = [
         _param("resolution", "分辨率档位", "select", default="1080P", description="HappyHorse 视频编辑仅支持 720P / 1080P。", help=_help(summary="控制视频编辑输出清晰度。", limits=["仅支持 720P 和 1080P"], how_to_choose=["快速验证编辑意图时先用 720P", "需要看服饰、材质等细节时用 1080P"], notes=common_notes), group="generation", order=1, options=resolution_options),
         _bool_param("watermark", "添加水印", False, "是否保留厂商默认 AI 水印。", 2, help=watermark_help),
         _param("audio_setting", "声音设置", "select", default="auto", description="控制输出视频声音策略。", help=_help(summary="控制 HappyHorse 视频编辑的声音处理。", limits=["仅支持 auto / origin"], how_to_choose=["不确定时用 auto", "希望尽量保留输入视频原声时用 origin"]), group="generation", order=3, options=audio_setting_options),
-        _param("seed", "随机种子", "integer", description="0 到 2147483647，留空为随机。", help=_seed_help(), group="advanced", advanced=True, order=4, min_value=0, max_value=2147483647),
+        happyhorse_prompt_extend_param(4),
+        happyhorse_data_inspection_param(5),
+        _param("seed", "随机种子", "integer", description="0 到 2147483647，留空为随机。", help=_seed_help(), group="advanced", advanced=True, order=6, min_value=0, max_value=2147483647),
     ]
 
     return {
@@ -2369,7 +2413,7 @@ def _happyhorse_models() -> Dict[str, Dict[str, Any]]:
                         "prompt_max_length": 5000,
                         "prompt_length_policy": prompt_length_policy,
                         "asset_help": {
-                            "first_frame": _asset_help("首帧图决定视频初始构图、主体位置和基础风格。", limits=["必须且仅支持 1 张首帧图", "支持 JPEG/JPG/PNG/WEBP", "宽高不能小于 300 像素", "宽高比需在 1:2.5 到 2.5:1 之间", "文件大小不超过 10MB"], how_to_choose=["主体尽量完整清晰", "避免裁切到关键主体边缘", "图像比例尽量接近目标出图比例"], notes=common_notes),
+                            "first_frame": _asset_help("首帧图决定视频初始构图、主体位置和基础风格。", limits=["必须且仅支持 1 张首帧图", "支持 URL 或 Base64 data URI", "支持 JPEG/JPG/PNG/WEBP", "宽高不能小于 300 像素", "宽高比需在 1:2.5 到 2.5:1 之间", "文件大小不超过 20MB"], how_to_choose=["主体尽量完整清晰", "避免裁切到关键主体边缘", "图像比例尽量接近目标出图比例"], notes=common_notes),
                         },
                         "prompt_help": _help(summary="Prompt 为可选项，用于补充动作、镜头和节奏信息。", limits=[prompt_limit_text, "留空时仅依据首帧图生成"], how_to_choose=["首帧已能表达主体时，用 prompt 补动作和镜头变化", "想保持更多首帧原貌时可先留空做 smoke"], notes=common_notes),
                     },
@@ -2399,7 +2443,7 @@ def _happyhorse_models() -> Dict[str, Dict[str, Any]]:
                         "max_reference_total": 9,
                         "reference_token_policy": _reference_token_policy(image_template="[Image {index}]"),
                         "asset_help": {
-                            "reference_image": _asset_help("参考图用于指定视频中的角色、物体或视觉主体。", limits=["必须提供 1 到 9 张参考图", "支持 JPEG/JPG/PNG/WEBP", "短边不能小于 400 像素", "文件大小不超过 10MB"], how_to_choose=["按照 prompt 中 [Image 1]、[Image 2] 的引用顺序添加参考图", "主体尽量清晰完整，避免强压缩和模糊"], notes=common_notes),
+                            "reference_image": _asset_help("参考图用于指定视频中的角色、物体或视觉主体。", limits=["必须提供 1 到 9 张参考图", "支持 URL 或 Base64 data URI", "支持 JPEG/JPG/PNG/WEBP", "短边不能小于 400 像素", "文件大小不超过 20MB"], how_to_choose=["按照 prompt 中 [Image 1]、[Image 2] 的引用顺序添加参考图", "主体尽量清晰完整，避免强压缩和模糊"], notes=common_notes),
                         },
                         "prompt_help": _help(summary="Prompt 描述场景、动作、镜头和参考图的融合方式。", limits=[prompt_limit_text, "不能为空或纯空格"], how_to_choose=["使用 [Image 1]、[Image 2] 等标记指代对应顺序的参考图", "指代时写清参考图中的具体对象，例如“[Image 1]中身着红色旗袍的女性”", "先写主体关系，再补场景、动作和镜头"], notes=["[Image 1] 对应第 1 张参考图，[Image 2] 对应第 2 张参考图，以此类推。", *common_notes]),
                     },
@@ -2430,7 +2474,7 @@ def _happyhorse_models() -> Dict[str, Dict[str, Any]]:
                         "reference_token_policy": _reference_token_policy(image_template="图{index}"),
                         "asset_help": {
                             "base_video": _asset_help("待编辑视频是被修改的原始视频。", limits=["必须且仅支持 1 个视频", "支持 MP4/MOV，建议 H.264", "时长需在 3 到 60 秒之间", "长边不超过 2160 像素，短边不小于 320 像素", "宽高比需在 1:2.5 到 2.5:1 之间", "文件大小不超过 100MB", "帧率必须大于 8 FPS"], how_to_choose=["优先选择单镜头、主体清晰的视频", "输入视频超过 15 秒时，厂商会从头截取前 15 秒作为有效输出片段"], notes=common_notes),
-                            "reference_image": _asset_help("参考图用于引导编辑后的外观、服饰、物体或风格。", limits=["最多 5 张参考图", "支持 JPEG/JPG/PNG/WEBP", "宽高不能小于 300 像素", "宽高比需在 1:2.5 到 2.5:1 之间", "文件大小不超过 10MB"], how_to_choose=["不传参考图时适合普通风格修改", "传参考图时适合服饰替换、物体参考和局部视觉引导"], notes=common_notes),
+                            "reference_image": _asset_help("参考图用于引导编辑后的外观、服饰、物体或风格。", limits=["最多 5 张参考图", "支持 URL 或 Base64 data URI", "支持 JPEG/JPG/PNG/WEBP", "宽高不能小于 300 像素", "宽高比需在 1:2.5 到 2.5:1 之间", "文件大小不超过 20MB"], how_to_choose=["不传参考图时适合普通风格修改", "传参考图时适合服饰替换、物体参考和局部视觉引导"], notes=common_notes),
                         },
                         "prompt_help": _help(summary="Prompt 描述视频编辑意图。", limits=[prompt_limit_text, "不能为空或纯空格"], how_to_choose=["明确写出要改变什么，以及参考图应如何被使用", "例如服饰替换、风格变换、局部物体替换"], notes=common_notes),
                     },

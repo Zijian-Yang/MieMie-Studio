@@ -71,15 +71,16 @@ KLING_VIDEO_FORMATS = {"mp4", "mov"}
 VIDU_IMAGE_FORMATS = {"JPEG", "JPG", "PNG", "WEBP"}
 VIDU_VIDEO_FORMATS = {"mp4", "avi", "mov"}
 HAPPYHORSE_RESOLUTIONS = {"720P", "1080P"}
-HAPPYHORSE_RATIOS = {"16:9", "9:16", "1:1", "4:3", "3:4"}
+HAPPYHORSE_RATIOS = {"16:9", "9:16", "1:1", "4:3", "3:4", "4:5", "5:4"}
 HAPPYHORSE_DURATIONS = set(range(3, 16))
 HAPPYHORSE_PROMPT_MAX_UNITS = 5000
 HAPPYHORSE_PROMPT_CJK_UNIT = 2
 HAPPYHORSE_PROMPT_NON_CJK_UNIT = 1
 HAPPYHORSE_IMAGE_FORMATS = {"JPEG", "JPG", "PNG", "WEBP"}
 HAPPYHORSE_MIN_IMAGE_SIDE = 300
+HAPPYHORSE_DISABLE_DATA_INSPECTION_HEADER = '{"input":"disable","output":"disable"}'
 HAPPYHORSE_MIN_REFERENCE_SHORT_SIDE = 400
-HAPPYHORSE_MAX_IMAGE_BYTES = 10 * 1024 * 1024
+HAPPYHORSE_MAX_IMAGE_BYTES = 20 * 1024 * 1024
 HAPPYHORSE_MIN_ASPECT_RATIO = 1 / 2.5
 HAPPYHORSE_MAX_ASPECT_RATIO = 2.5
 HAPPYHORSE_VIDEO_EDIT_VIDEO_FORMATS = {"mp4", "mov"}
@@ -279,7 +280,7 @@ async def _validate_happyhorse_image(url: str, label: str) -> Dict[str, Any]:
     if metadata["format"] not in HAPPYHORSE_IMAGE_FORMATS:
         raise ValueError(f"{label}格式仅支持 JPEG/JPG/PNG/WEBP")
     if metadata["file_size"] > HAPPYHORSE_MAX_IMAGE_BYTES:
-        raise ValueError(f"{label}大小不能超过10MB")
+        raise ValueError(f"{label}大小不能超过20MB")
     if metadata["width"] < HAPPYHORSE_MIN_IMAGE_SIDE or metadata["height"] < HAPPYHORSE_MIN_IMAGE_SIDE:
         raise ValueError(f"{label}宽高不能小于300像素")
     aspect_ratio = metadata.get("aspect_ratio") or (metadata["width"] / metadata["height"])
@@ -293,7 +294,7 @@ async def _validate_happyhorse_reference_image(url: str, label: str) -> Dict[str
     if metadata["format"] not in HAPPYHORSE_IMAGE_FORMATS:
         raise ValueError(f"{label}格式仅支持 JPEG/JPG/PNG/WEBP")
     if metadata["file_size"] > HAPPYHORSE_MAX_IMAGE_BYTES:
-        raise ValueError(f"{label}大小不能超过10MB")
+        raise ValueError(f"{label}大小不能超过20MB")
     if min(metadata["width"], metadata["height"]) < HAPPYHORSE_MIN_REFERENCE_SHORT_SIDE:
         raise ValueError(f"{label}短边不能小于400像素")
     return metadata
@@ -344,6 +345,7 @@ class VideoSubmitResult:
     task_id: str
     request_id: Optional[str] = None
     provider_payload: Optional[Dict[str, Any]] = None
+    provider_headers: Dict[str, str] = field(default_factory=dict)
     key_profile: Optional[str] = None
 
 
@@ -360,6 +362,7 @@ class VideoProviderError(ValueError):
         provider: Optional[str] = None,
         key_profile: Optional[str] = None,
         provider_payload: Optional[Dict[str, Any]] = None,
+        provider_headers: Optional[Dict[str, str]] = None,
     ):
         super().__init__(f"{code} - {message}")
         self.code = code
@@ -369,6 +372,7 @@ class VideoProviderError(ValueError):
         self.provider = provider
         self.key_profile = key_profile
         self.provider_payload = provider_payload
+        self.provider_headers = provider_headers or {}
 
 
 @dataclass
@@ -393,15 +397,22 @@ class DashScopeGenericVideoService:
         self.api_key = get_provider_api_key(provider, override_profile=self.key_profile)
         self.base_url = config.base_url.rstrip("/")
 
-    async def create_task(self, request_body: Dict[str, Any]) -> VideoSubmitResult:
+    async def create_task(
+        self,
+        request_body: Dict[str, Any],
+        extra_headers: Optional[Dict[str, str]] = None,
+    ) -> VideoSubmitResult:
+        provider_headers = dict(extra_headers or {})
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "X-DashScope-Async": "enable",
+            **provider_headers,
+        }
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 f"{self.base_url}/services/aigc/video-generation/video-synthesis",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                    "X-DashScope-Async": "enable",
-                },
+                headers=headers,
                 json=request_body,
             )
             result = response.json()
@@ -417,6 +428,7 @@ class DashScopeGenericVideoService:
                 provider=self.provider,
                 key_profile=self.key_profile,
                 provider_payload=request_body,
+                provider_headers=provider_headers,
             )
 
         output = result.get("output", {})
@@ -428,6 +440,7 @@ class DashScopeGenericVideoService:
             task_id=task_id,
             request_id=result.get("request_id"),
             provider_payload=request_body,
+            provider_headers=provider_headers,
             key_profile=self.key_profile,
         )
 
@@ -479,6 +492,9 @@ class BaseVideoProviderAdapter(ABC):
     @abstractmethod
     def build_provider_payload(self, request: NormalizedVideoTaskRequest, seed_offset: int = 0) -> Dict[str, Any]:
         raise NotImplementedError
+
+    def build_provider_headers(self, request: NormalizedVideoTaskRequest) -> Dict[str, str]:
+        return {}
 
 
 class WanVideoAdapter(BaseVideoProviderAdapter):
@@ -1178,6 +1194,11 @@ class HappyHorseVideoAdapter(BaseVideoProviderAdapter):
         return DashScopeGenericVideoService("happyhorse", request.key_profile)
 
     @staticmethod
+    def _apply_hidden_parameters(provider_params: Dict[str, Any], params: Dict[str, Any]) -> None:
+        if params.get("prompt_extend") is False:
+            provider_params["prompt_extend"] = False
+
+    @staticmethod
     def _reference_image_urls(request: NormalizedVideoTaskRequest) -> List[str]:
         assets = request.input_assets
         reference_media = list(assets.get("reference_media") or [])
@@ -1238,7 +1259,7 @@ class HappyHorseVideoAdapter(BaseVideoProviderAdapter):
             if params.get("resolution") not in HAPPYHORSE_RESOLUTIONS:
                 raise ValueError("HappyHorse 文生视频分辨率仅支持 720P / 1080P")
             if params.get("ratio") not in HAPPYHORSE_RATIOS:
-                raise ValueError("HappyHorse 文生视频画面比例仅支持 16:9 / 9:16 / 1:1 / 4:3 / 3:4")
+                raise ValueError("HappyHorse 文生视频画面比例仅支持 16:9 / 9:16 / 1:1 / 4:3 / 3:4 / 4:5 / 5:4")
             if duration not in HAPPYHORSE_DURATIONS:
                 raise ValueError("HappyHorse 文生视频时长仅支持 3 到 15 秒")
             return
@@ -1263,7 +1284,7 @@ class HappyHorseVideoAdapter(BaseVideoProviderAdapter):
             if params.get("resolution") not in HAPPYHORSE_RESOLUTIONS:
                 raise ValueError("HappyHorse 参考生视频分辨率仅支持 720P / 1080P")
             if params.get("ratio") not in HAPPYHORSE_RATIOS:
-                raise ValueError("HappyHorse 参考生视频画面比例仅支持 16:9 / 9:16 / 1:1 / 4:3 / 3:4")
+                raise ValueError("HappyHorse 参考生视频画面比例仅支持 16:9 / 9:16 / 1:1 / 4:3 / 3:4 / 4:5 / 5:4")
             if duration not in HAPPYHORSE_DURATIONS:
                 raise ValueError("HappyHorse 参考生视频时长仅支持 3 到 15 秒")
             for index, image_url in enumerate(reference_images, start=1):
@@ -1291,7 +1312,10 @@ class HappyHorseVideoAdapter(BaseVideoProviderAdapter):
 
     async def submit(self, request: NormalizedVideoTaskRequest, seed_offset: int = 0) -> VideoSubmitResult:
         service = self._service(request)
-        return await service.create_task(self.build_provider_payload(request, seed_offset))
+        return await service.create_task(
+            self.build_provider_payload(request, seed_offset),
+            extra_headers=self.build_provider_headers(request),
+        )
 
     async def fetch(self, request: NormalizedVideoTaskRequest, task_id: str) -> VideoStatusResult:
         service = self._service(request)
@@ -1311,6 +1335,7 @@ class HappyHorseVideoAdapter(BaseVideoProviderAdapter):
             for key in ("resolution", "ratio", "duration", "seed"):
                 if params.get(key) is not None:
                     payload["parameters"][key] = params[key]
+            self._apply_hidden_parameters(payload["parameters"], params)
             return payload
 
         if request.task_kind == "image_to_video":
@@ -1327,6 +1352,7 @@ class HappyHorseVideoAdapter(BaseVideoProviderAdapter):
             for key in ("resolution", "duration", "seed"):
                 if params.get(key) is not None:
                     payload["parameters"][key] = params[key]
+            self._apply_hidden_parameters(payload["parameters"], params)
             return payload
 
         if request.task_kind == "reference_to_video":
@@ -1344,6 +1370,7 @@ class HappyHorseVideoAdapter(BaseVideoProviderAdapter):
             for key in ("resolution", "ratio", "duration", "seed"):
                 if params.get(key) is not None:
                     payload["parameters"][key] = params[key]
+            self._apply_hidden_parameters(payload["parameters"], params)
             return payload
 
         if request.task_kind == "video_edit_global":
@@ -1363,9 +1390,15 @@ class HappyHorseVideoAdapter(BaseVideoProviderAdapter):
             for key in ("resolution", "audio_setting", "seed"):
                 if params.get(key) is not None:
                     payload["parameters"][key] = params[key]
+            self._apply_hidden_parameters(payload["parameters"], params)
             return payload
 
         raise ValueError(f"HappyHorse 暂不支持任务类型: {request.task_kind}")
+
+    def build_provider_headers(self, request: NormalizedVideoTaskRequest) -> Dict[str, str]:
+        if request.normalized_params.get("disable_data_inspection") is True:
+            return {"X-DashScope-DataInspection": HAPPYHORSE_DISABLE_DATA_INSPECTION_HEADER}
+        return {}
 
 
 class KlingVideoAdapter(BaseVideoProviderAdapter):

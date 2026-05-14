@@ -5,6 +5,9 @@
 
 ## [Unreleased]
 
+### 变更 (Changed)
+- 视频工作室：同步新版 HappyHorse Markdown 文档，`happyhorse-1.0-t2v` / `happyhorse-1.0-r2v` 增加 `4:5`、`5:4` 画幅，HappyHorse 图片输入上限调整为 20MB 并支持 URL 或 Base64 data URI。
+
 ### 修复 (Fixed)
 - 视频工作室：任务卡片的类型、Provider、状态和完成进度支持换行布局，避免 HappyHorse 等较长标签把“已完成”和 `1/1` 挤出卡片。
 - 视频工作室：HappyHorse 提示词长度改为中文 2 单位、非中文 1 单位的加权检测，并在前后端保持一致。
@@ -18,6 +21,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 视频工作室：HappyHorse 4 个任务面新增高级开关“提示词改写”和“关闭绿网”；关闭提示词改写时下发隐藏参数 `prompt_extend=false`，关闭绿网时提交 `X-DashScope-DataInspection`，开发者模式新增厂商请求 Header 预览。
 - 视频工作室：支持在已选参考图/参考视频上点击 `@`，按模型 capability 中的 `reference_token_policy` 自动把 `[Image 1]`、`图1`、`视频1`、`<<<image_1>>>` 等指代词插入提示词光标位置。
 - 设置：DashScope API 地域新增美国（弗吉尼亚）`https://dashscope-us.aliyuncs.com/api/v1`。
 - 阿里生图/生视频同步/异步限流校准：

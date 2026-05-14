@@ -212,6 +212,15 @@ HappyHorse 系列提示词按中英文差异计数：
 
 后端 adapter 在提交、预览和重跑前统一执行该校验；capability schema 同步暴露 `prompt_length_policy`，前端用同一规则展示计数并提前拦截超限输入。
 
+### HappyHorse 素材和比例
+
+HappyHorse 文生视频和参考生视频的画幅比例支持 `16:9`、`9:16`、`1:1`、`4:3`、`3:4`、`4:5`、`5:4`。图生视频继续跟随首帧图比例，不开放 `ratio`。
+
+HappyHorse 图片输入支持公网 URL 或 Base64 data URI。平台侧图片预检统一复用 `remote_media_validation.inspect_remote_image()`，当前上限为 20MB：
+- 图生视频首帧图：宽高均不小于 300 像素，宽高比 `1:2.5~2.5:1`
+- 参考生视频参考图：短边不低于 400 像素
+- 视频编辑参考图：宽高均不小于 300 像素，宽高比 `1:2.5~2.5:1`
+
 ### 参考素材指代词
 
 视频工作室通过 `ui_hints.reference_token_policy` 声明参考图/参考视频在 prompt 中的指代格式。前端只消费该 schema，不按模型 ID 写死按钮逻辑。
@@ -483,8 +492,10 @@ response = await asyncio.to_thread(MultiModalConversation.call, api_key=key, **p
 - 返回：
   - `canonical_request`
   - `provider_payload`
+  - `provider_headers`
   - `validation_warnings`
 - 该接口只做规范化、校验与请求体构造，不真正提交厂商任务
+- `provider_headers` 仅用于展示非密钥类额外厂商 header；例如 HappyHorse 开启“关闭绿网”时返回 `X-DashScope-DataInspection`，不会包含 Authorization/API key。
 
 ## 任务缩略图
 - 视频工作室任务在状态查询进入 `succeeded` 后，会尝试从输出视频抽取首帧缩略图
@@ -529,6 +540,9 @@ response = await asyncio.to_thread(MultiModalConversation.call, api_key=key, **p
   - `wan2.7-i2v` / `wan2.7-i2v-2026-04-25`：支持 `first_frame`、`last_frame`、`driving_audio`、`first_clip`；两者是独立模型 ID，payload 不做别名改写
   - `wan2.7-videoedit`：支持 1 个 `video` + 最多 3 个 `reference_image`
 - `preview-payload` 与真实提交共用同一套构参逻辑，开发者模式可直接核对 `wan2.7` 请求体
+- HappyHorse 高级参数支持隐藏开关：
+  - `prompt_extend=false` 时写入 provider payload 的 `parameters.prompt_extend=false`；默认 `true` 时不显式下发，保持旧请求体
+  - `disable_data_inspection=true` 时提交 `X-DashScope-DataInspection: {"input":"disable","output":"disable"}`，并在 preview / `provider_result_meta` 中记录该非密钥 header
 
 # 图片测评运行时
 

@@ -2437,6 +2437,7 @@ export const videoStudioApi = {
   }) => api.post<any, {
     canonical_request: Record<string, any>
     provider_payload: Record<string, any> | null
+    provider_headers: Record<string, string>
     validation_warnings: string[]
   }>('/video-studio/preview-payload', data),
   prepareSourceVideo: (data: { project_id: string; video_url: string }) =>

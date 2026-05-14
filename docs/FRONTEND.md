@@ -119,6 +119,8 @@ frontend/src/
 - 中文汉字按 2 单位计，非中文字符按 1 单位计
 - 前端显示 `当前单位/最大单位`，并在提交前用 `frontend/src/pages/VideoStudio/promptLengthPolicy.ts` 与后端同口径校验
 - HappyHorse 参考生视频的参考图指代文案使用 `[Image 1]`、`[Image 2]`，不再引导新任务使用 `character1` / `character2`
+- HappyHorse 文生/参考生视频的画幅比例来自 capability schema，包含 `4:5`、`5:4`
+- HappyHorse 图片素材帮助来自后端 schema，会提示 URL/Base64 和 20MB 限制；前端仍保持图库/OSS URL 选择工作流，不新增 Base64 粘贴入口
 
 ### 参考素材 @ 指代词
 
@@ -724,9 +726,10 @@ const startPolling = useCallback((taskId: string) => {
 
 ## 开发者模式
 - 新建任务弹窗底部提供“开发者模式”折叠面板
-- 面板展示 canonical 请求体、厂商 payload 预览和验证 warning
+- 面板展示 canonical 请求体、厂商 payload 预览、厂商请求 Header 和验证 warning
 - `preview-payload` 失败时必须直接显示后端错误，不能静默清空
 - 已提交任务详情页底部展示 task ids、request ids、provider_payload_snapshot、provider_result_meta
+- HappyHorse 的“提示词改写”和“关闭绿网”开关由后端 capability schema 作为高级 boolean 参数下发，前端继续通过 `DynamicModelForm` 自动渲染。
 
 ## 通知与轮询
 - 视频工作室任务轮询不依赖页面焦点状态，页面失焦时仍继续检查任务状态
