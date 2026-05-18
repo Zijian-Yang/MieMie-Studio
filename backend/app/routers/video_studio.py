@@ -54,21 +54,148 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 _video_studio_inflight_leases: Dict[str, InflightLease] = {}
+_video_studio_inflight_task_ids: Dict[str, str] = {}
+_video_studio_background_tasks: Dict[str, asyncio.Task] = {}
 _video_studio_inflight_lock = asyncio.Lock()
 
 
-async def _remember_video_inflight_lease(task_id: str, lease: InflightLease) -> None:
+def _submit_stale_after_seconds() -> int:
+    raw_value = os.getenv("MIEMIE_VIDEO_STUDIO_SUBMIT_STALE_AFTER_SECONDS", "1800")
+    try:
+        return max(1, int(raw_value))
+    except ValueError:
+        return 1800
+
+
+def _begin_video_submit_attempt(task: VideoStudioTask) -> None:
+    task.submit_state = "submitting"
+    task.submit_started_at = datetime.now()
+    task.submit_attempt_id = uuid.uuid4().hex
+
+
+def _task_submit_reference_time(task: VideoStudioTask) -> Optional[datetime]:
+    return task.submit_started_at or task.updated_at or task.created_at
+
+
+def _mark_video_submit_timeout(task: VideoStudioTask) -> None:
+    error_message = "提交超时，未获得厂商任务 ID，请重新生成。"
+    task.status = "failed"
+    task.submit_state = "failed"
+    task.error_message = error_message
+    task.updated_at = datetime.now()
+    task.provider_result_meta = {
+        **(task.provider_result_meta or {}),
+        "submit_error": {
+            "phase": "submit",
+            "provider": task.provider,
+            "key_profile": task.key_profile,
+            "request_id": None,
+            "submitted_at": (
+                task.submit_started_at.isoformat()
+                if task.submit_started_at and hasattr(task.submit_started_at, "isoformat")
+                else None
+            ),
+            "error_code": "SubmitTimeout",
+            "error_message": error_message,
+            "raw_response": {
+                "code": "SubmitTimeout",
+                "message": error_message,
+            },
+        },
+    }
+
+
+def _reconcile_stale_video_submit(task: VideoStudioTask) -> bool:
+    if task.status != "processing" or task.task_ids:
+        return False
+    if task.submit_state not in {"submitting", "idle"}:
+        return False
+    reference_time = _task_submit_reference_time(task)
+    if not reference_time:
+        return False
+    elapsed_seconds = (datetime.now() - reference_time).total_seconds()
+    if elapsed_seconds < _submit_stale_after_seconds():
+        return False
+    _mark_video_submit_timeout(task)
+    return True
+
+
+async def _remember_video_inflight_lease(api_task_id: str, local_task_id: str, lease: InflightLease) -> None:
     if not lease.acquired:
         return
     async with _video_studio_inflight_lock:
-        _video_studio_inflight_leases[task_id] = lease
+        _video_studio_inflight_leases[api_task_id] = lease
+        _video_studio_inflight_task_ids[api_task_id] = local_task_id
 
 
-async def _release_video_inflight_lease(task_id: str) -> None:
+async def _release_video_inflight_lease(api_task_id: str) -> None:
     async with _video_studio_inflight_lock:
-        lease = _video_studio_inflight_leases.pop(task_id, None)
+        lease = _video_studio_inflight_leases.pop(api_task_id, None)
+        _video_studio_inflight_task_ids.pop(api_task_id, None)
     if lease:
         lease.release()
+
+
+async def _release_video_task_inflight_leases(task: VideoStudioTask, extra_task_ids: Optional[List[str]] = None) -> None:
+    api_task_ids = set(task.task_ids or [])
+    api_task_ids.update(extra_task_ids or [])
+    leases: List[InflightLease] = []
+    async with _video_studio_inflight_lock:
+        for api_task_id, local_task_id in list(_video_studio_inflight_task_ids.items()):
+            if local_task_id == task.id:
+                api_task_ids.add(api_task_id)
+        for api_task_id in api_task_ids:
+            lease = _video_studio_inflight_leases.pop(api_task_id, None)
+            _video_studio_inflight_task_ids.pop(api_task_id, None)
+            if lease:
+                leases.append(lease)
+    for lease in leases:
+        lease.release()
+
+
+async def _cancel_video_background_submit(task_id: str) -> None:
+    async with _video_studio_inflight_lock:
+        background_task = _video_studio_background_tasks.pop(task_id, None)
+    if background_task and not background_task.done():
+        background_task.cancel()
+
+
+async def _cleanup_video_task_runtime(task: VideoStudioTask, *, cancel_background: bool) -> None:
+    if cancel_background:
+        await _cancel_video_background_submit(task.id)
+    await _release_video_task_inflight_leases(task)
+
+
+async def _forget_video_background_task(task_id: str, background_task: asyncio.Task) -> None:
+    async with _video_studio_inflight_lock:
+        if _video_studio_background_tasks.get(task_id) is background_task:
+            _video_studio_background_tasks.pop(task_id, None)
+
+
+async def _schedule_video_background_submit(
+    task: VideoStudioTask,
+    normalized: NormalizedVideoTaskRequest,
+    user_id: Optional[str],
+    user_config_dir: Optional[str],
+) -> None:
+    background_task = asyncio.create_task(
+        _background_create_video_tasks(task, normalized, user_id, user_config_dir)
+    )
+    if not isinstance(background_task, asyncio.Task):
+        return
+    async with _video_studio_inflight_lock:
+        previous_task = _video_studio_background_tasks.pop(task.id, None)
+        _video_studio_background_tasks[task.id] = background_task
+    if previous_task and not previous_task.done():
+        previous_task.cancel()
+
+    def _done_callback(done_task: asyncio.Task) -> None:
+        try:
+            asyncio.create_task(_forget_video_background_task(task.id, done_task))
+        except RuntimeError:
+            pass
+
+    background_task.add_done_callback(_done_callback)
 
 
 class VideoStudioTaskCreateRequest(BaseModel):
@@ -832,7 +959,10 @@ async def list_tasks(project_id: str):
     """获取项目所有视频工作室任务"""
     tasks = storage_service.get_video_studio_tasks(project_id)
     for task in tasks:
+        changed = _reconcile_stale_video_submit(task)
         if _hydrate_task_developer_metadata(task):
+            changed = True
+        if changed:
             storage_service.save_video_studio_task(task)
     return {"tasks": tasks}
 
@@ -914,6 +1044,9 @@ async def get_task(task_id: str):
     task = storage_service.get_video_studio_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
+    if _reconcile_stale_video_submit(task):
+        storage_service.save_video_studio_task(task)
+        return task
     if _developer_metadata_incomplete(task):
         if await _refresh_task_provider_metadata(task):
             storage_service.save_video_studio_task(task)
@@ -961,6 +1094,7 @@ async def create_task(request: VideoStudioTaskCreateRequest):
         group_count=request.group_count,
         status="processing",
     )
+    _begin_video_submit_attempt(task)
     _apply_normalized_fields_to_task(task, normalized)
     if normalized.task_kind in {"video_repainting", "video_edit_local"}:
         task.source_video_preview_url = request.source_video_preview_url
@@ -972,7 +1106,7 @@ async def create_task(request: VideoStudioTaskCreateRequest):
     user_config_dir = get_user_config_dir()
 
     # 后台执行 API 调用，不阻塞请求
-    asyncio.create_task(_background_create_video_tasks(task, normalized, user_id, user_config_dir))
+    await _schedule_video_background_submit(task, normalized, user_id, user_config_dir)
 
     return {"task": task}
 
@@ -983,6 +1117,10 @@ async def get_task_status(task_id: str):
     task = storage_service.get_video_studio_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
+
+    if _reconcile_stale_video_submit(task):
+        storage_service.save_video_studio_task(task)
+        return {"task": task}
 
     if task.status != "processing":
         return {"task": task}
@@ -1176,6 +1314,8 @@ async def regenerate_task(task_id: str):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    await _cleanup_video_task_runtime(task, cancel_background=True)
+
     # 捕获用户上下文
     user_id = get_current_user_id()
     user_config_dir = get_user_config_dir()
@@ -1187,10 +1327,11 @@ async def regenerate_task(task_id: str):
     task.task_ids = []
     task.request_ids = []
     task.provider_result_meta = {}
+    _begin_video_submit_attempt(task)
     task.updated_at = datetime.now()
     storage_service.save_video_studio_task(task)
 
-    asyncio.create_task(_background_create_video_tasks(task, normalized, user_id, user_config_dir))
+    await _schedule_video_background_submit(task, normalized, user_id, user_config_dir)
 
     return {"task": task}
 
@@ -1362,6 +1503,7 @@ async def delete_task(task_id: str):
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
     
+    await _cleanup_video_task_runtime(task, cancel_background=True)
     storage_service.delete_video_studio_task(task_id)
     return {"message": "任务已删除"}
 
@@ -1371,6 +1513,7 @@ async def delete_all_tasks(project_id: str):
     """删除项目所有任务"""
     tasks = storage_service.get_video_studio_tasks(project_id)
     for task in tasks:
+        await _cleanup_video_task_runtime(task, cancel_background=True)
         storage_service.delete_video_studio_task(task.id)
     return {"message": f"已删除 {len(tasks)} 个任务"}
 
@@ -1386,6 +1529,7 @@ async def _background_create_video_tasks(
     user_config_dir: Optional[str],
 ):
     """后台创建视频 API 任务——由 asyncio.create_task 调度，不阻塞请求"""
+    submit_attempt_id = task.submit_attempt_id
     # 恢复用户上下文（后台协程运行在不同的上下文中）
     set_current_user(user_id)
     if user_config_dir:
@@ -1393,19 +1537,48 @@ async def _background_create_video_tasks(
 
     try:
         task_ids = await _submit_api_tasks(task, request)
-        task.task_ids = list(task_ids)
-        task.updated_at = datetime.now()
-        storage_service.save_video_studio_task(task)
+        current_task = storage_service.get_video_studio_task(task.id)
+        if not current_task and submit_attempt_id:
+            await _release_video_task_inflight_leases(task, list(task_ids))
+            logger.info(f"[视频工作室] 任务 {task.id} 提交结果已过期，丢弃 {len(task_ids)} 个 API 任务")
+            return
+        if not current_task:
+            current_task = task
+        if current_task.submit_attempt_id != submit_attempt_id:
+            await _release_video_task_inflight_leases(task, list(task_ids))
+            logger.info(f"[视频工作室] 任务 {task.id} 提交结果已过期，丢弃 {len(task_ids)} 个 API 任务")
+            return
+        current_task.task_ids = list(task_ids)
+        current_task.request_ids = list(task.request_ids or [])
+        current_task.provider_payload_snapshot = task.provider_payload_snapshot
+        current_task.provider_result_meta = deepcopy(task.provider_result_meta or {})
+        current_task.key_profile = task.key_profile or current_task.key_profile
+        current_task.submit_state = "submitted"
+        current_task.updated_at = datetime.now()
+        storage_service.save_video_studio_task(current_task)
         logger.info(f"[视频工作室] 任务 {task.id} 已提交 {len(task_ids)} 个 API 任务")
+    except asyncio.CancelledError:
+        await _release_video_task_inflight_leases(task)
+        raise
     except Exception as e:
         logger.error(f"[视频工作室] 任务 {task.id} 提交失败: {e}")
-        task.status = "failed"
-        task.error_message = str(e)
+        current_task = storage_service.get_video_studio_task(task.id)
+        if not current_task and submit_attempt_id:
+            await _release_video_task_inflight_leases(task)
+            return
+        if not current_task:
+            current_task = task
+        if current_task.submit_attempt_id != submit_attempt_id:
+            await _release_video_task_inflight_leases(task)
+            return
+        current_task.status = "failed"
+        current_task.submit_state = "failed"
+        current_task.error_message = str(e)
         if isinstance(e, VideoProviderError):
-            task.request_ids = [e.request_id] if e.request_id else []
-            task.provider_payload_snapshot = e.provider_payload
-            task.key_profile = e.key_profile or request.key_profile
-            task.provider_result_meta = {
+            current_task.request_ids = [e.request_id] if e.request_id else []
+            current_task.provider_payload_snapshot = e.provider_payload
+            current_task.key_profile = e.key_profile or request.key_profile
+            current_task.provider_result_meta = {
                 "submit_error": {
                     "provider": e.provider or request.provider,
                     "key_profile": e.key_profile or request.key_profile,
@@ -1417,8 +1590,8 @@ async def _background_create_video_tasks(
                     "raw_response": e.raw_response,
                 }
             }
-        task.updated_at = datetime.now()
-        storage_service.save_video_studio_task(task)
+        current_task.updated_at = datetime.now()
+        storage_service.save_video_studio_task(current_task)
 
 
 async def _submit_api_tasks(
@@ -1434,11 +1607,11 @@ async def _submit_api_tasks(
         try:
             await wait_for_model_submit(request.model_id)
             result = await adapter.submit(request, seed_offset=idx)
-        except Exception:
+        except BaseException:
             lease.release()
             raise
         if result.task_id:
-            await _remember_video_inflight_lease(result.task_id, lease)
+            await _remember_video_inflight_lease(result.task_id, task.id, lease)
         else:
             lease.release()
         return result
@@ -1447,8 +1620,8 @@ async def _submit_api_tasks(
         *[create_one(i) for i in range(task.group_count)],
         return_exceptions=True,
     ))
-    submit_errors = [result for result in raw_results if isinstance(result, Exception)]
-    results = [result for result in raw_results if not isinstance(result, Exception)]
+    submit_errors = [result for result in raw_results if isinstance(result, BaseException)]
+    results = [result for result in raw_results if not isinstance(result, BaseException)]
     if submit_errors:
         for result in results:
             if result.task_id:

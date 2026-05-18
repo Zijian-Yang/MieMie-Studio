@@ -37,6 +37,39 @@
 
 ---
 
+### 5. 线上 `wan2.7-videoedit` 视频编辑任务卡在运行中且无厂商 ID
+
+**状态**: 🟡 本地已修复，待线上部署验证 (2026-05-18)
+
+**问题**: 生产站 `qingshui` 账号下多个视频工作室 `wan2.7-videoedit` 任务长期显示运行中，但任务详情没有 `task_id` / `request_id`，因此状态轮询无法展示厂商侧进度。
+
+**证据**:
+- 线上 3 个卡住任务均为 `status=processing`、`task_kind=video_edit_global`、`model_id=wan2.7-videoedit`、`group_count=5`、`task_ids=[]`、`request_ids=[]`
+- 后端日志中，相关任务的 `/regenerate` 或创建接口返回 200 后，没有后续“已提交”或“提交失败”日志
+- `/status` 接口在 `task_ids=[]` 时直接返回任务对象，无法自愈，也不会释放模型并发槽
+- 日志出现已删除任务随后又由后台协程写出“已提交 3 个 API 任务”的现象，说明删除没有取消后台提交，也没有释放内存中的 inflight lease
+
+**根因**: 视频工作室创建/重新生成任务时先保存 `processing` 并清空 `task_ids/request_ids`，随后用 `asyncio.create_task` 后台批量提交。`wan2.7-videoedit` 的模型并发上限为 5，提交协程会先为每个 group 获取 inflight lease，只有全部 group 提交完成后才持久化 `task_ids/request_ids`。当任务在后台提交期间被删除或重新生成时，旧 lease 可能滞留在单 worker 内存中；后续 `group_count=5` 任务等待剩余并发槽，无法完成 `asyncio.gather`，于是长期保持无厂商 ID 的 `processing` 状态。
+
+**建议方案**:
+1. 删除和批量删除任务时，释放该任务已知 `task_ids` 的 inflight lease，并标记/取消仍在提交中的后台任务
+2. 重新生成前释放旧任务 lease，并避免在新提交成功前彻底丢弃旧的厂商元数据
+3. 提交阶段增加超时，超时后将 `processing && task_ids=[]` 标记为失败并写入可见错误
+4. 将部分已提交的 `task_id/request_id` 及时落盘，避免等待全部 group 完成后才可观测
+5. worker 启动时对 `processing && task_ids=[]` 的陈旧任务做 reconciliation，提示用户重新生成或自动失败
+
+**本地修复进展**:
+- 已实现：`VideoStudioTask` 增加 `submit_state`、`submit_started_at`、`submit_attempt_id`，用于识别当前提交尝试
+- 已实现：删除、批量删除、重新生成会取消本地后台提交并释放已知 inflight lease
+- 已实现：后台提交保存前校验任务仍存在且 `submit_attempt_id` 未变化，避免删除后的迟到提交复活任务
+- 已实现：`processing && task_ids=[]` 的陈旧提交会失败化，并写入 `SubmitTimeout` 元信息
+- 已验证：`backend/tests/test_video_studio_capabilities.py` 63 项通过，`./run.sh test` 后端全量 225 项通过
+
+**调查记录**: [Wan2.7 视频编辑线上卡死排查计划](./superpowers/plans/2026-05-18-wan27-video-edit-prod-stuck-investigation.md)
+**修复计划**: [视频工作室 inflight lease 修复计划](./superpowers/plans/2026-05-18-video-studio-inflight-lease-fix.md)
+
+---
+
 ### 1. ~~OSS 测试连接误报权限错误~~
 
 **状态**: ✅ 已修复 (2024-12-24)
@@ -217,6 +250,7 @@ for file_path in self.dir.glob("*.json"):
 
 | 日期 | 更新内容 |
 |------|----------|
+| 2026-05-18 | 新增线上 `wan2.7-videoedit` 视频编辑任务卡住且无厂商 ID 问题 |
 | 2026-04-22 | 新增线上图片工作室切页慢加载与生成按钮无响应问题 |
 | 2026-03-28 | 标记 print→logger 和单元测试为已修复 |
 | 2026-02-05 | 新增 CSS 变量统一问题（已修复） |

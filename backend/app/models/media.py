@@ -175,6 +175,9 @@ class VideoStudioTask(BaseModel):
     request_ids: List[str] = []  # 各组的请求ID（用于追踪）
     status: str = "pending"  # pending, processing, succeeded, failed
     error_message: Optional[str] = None
+    submit_state: str = "idle"  # idle, submitting, submitted, failed
+    submit_started_at: Optional[datetime] = None  # 当前提交尝试开始时间
+    submit_attempt_id: Optional[str] = None  # 当前提交尝试ID，用于丢弃迟到后台结果
     
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)

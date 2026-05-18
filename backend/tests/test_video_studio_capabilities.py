@@ -1,4 +1,6 @@
+import asyncio
 import pytest
+from datetime import datetime, timedelta
 
 from app.models.media import VideoStudioTask
 from app.routers import video_studio as video_studio_router
@@ -31,6 +33,27 @@ def _patch_async_create_task(monkeypatch):
         return None
 
     monkeypatch.setattr(video_studio_router.asyncio, "create_task", fake_create_task)
+
+
+class FakeInflightLease:
+    acquired = True
+
+    def __init__(self):
+        self.released = False
+
+    def release(self):
+        self.released = True
+
+
+def _clear_video_studio_inflight_leases():
+    for lease in list(video_studio_router._video_studio_inflight_leases.values()):
+        lease.release()
+    video_studio_router._video_studio_inflight_leases.clear()
+    video_studio_router._video_studio_inflight_task_ids.clear()
+    for background_task in list(video_studio_router._video_studio_background_tasks.values()):
+        if not background_task.done():
+            background_task.cancel()
+    video_studio_router._video_studio_background_tasks.clear()
 
 
 def test_get_capabilities_endpoint_returns_multi_provider_schema(client, auth_header):
@@ -1085,6 +1108,210 @@ def test_get_task_backfills_provider_payload_snapshot(client, auth_header, regis
     data = resp.json()
     assert data["provider_payload_snapshot"]["model"] == "wan2.6-t2v"
     assert data["request_ids"] == ["req-from-meta"]
+
+
+def test_delete_video_studio_task_releases_inflight_leases(client, auth_header, registered_user):
+    _clear_video_studio_inflight_leases()
+    project_id = _create_project(client, auth_header)
+    _, user = registered_user
+    set_current_user(user["id"])
+    task = VideoStudioTask(
+        project_id=project_id,
+        name="待删除提交任务",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-videoedit",
+        model="wan2.7-videoedit",
+        prompt="机械臂转身",
+        status="processing",
+        task_ids=["api-task-delete-1"],
+        submit_state="submitted",
+    )
+    storage_service.save_video_studio_task(task)
+    lease = FakeInflightLease()
+    video_studio_router._video_studio_inflight_leases["api-task-delete-1"] = lease
+
+    resp = client.delete(f"/api/video-studio/{task.id}", headers=auth_header)
+
+    assert resp.status_code == 200
+    assert lease.released is True
+    assert "api-task-delete-1" not in video_studio_router._video_studio_inflight_leases
+
+
+@pytest.mark.asyncio
+async def test_background_submit_does_not_resurrect_deleted_task(registered_user, monkeypatch):
+    _clear_video_studio_inflight_leases()
+    _, user = registered_user
+    set_current_user(user["id"])
+    task = VideoStudioTask(
+        project_id="p1",
+        name="迟到提交任务",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-videoedit",
+        model="wan2.7-videoedit",
+        prompt="机械臂转身",
+        status="processing",
+        group_count=1,
+        submit_state="submitting",
+        submit_started_at=datetime.now(),
+        submit_attempt_id="attempt-deleted",
+    )
+    storage_service.save_video_studio_task(task)
+    storage_service.delete_video_studio_task(task.id)
+    lease = FakeInflightLease()
+
+    async def fake_acquire(model_id):
+        return lease
+
+    async def fake_wait(model_id):
+        return None
+
+    class FakeResult:
+        task_id = "api-task-late"
+        request_id = "req-late"
+        provider_payload = {"model": "wan2.7-videoedit"}
+        provider_headers = {}
+        key_profile = "test"
+
+    class FakeAdapter:
+        async def submit(self, request, seed_offset=0):
+            return FakeResult()
+
+    monkeypatch.setattr(video_studio_router, "acquire_model_inflight_lease", fake_acquire)
+    monkeypatch.setattr(video_studio_router, "wait_for_model_submit", fake_wait)
+    monkeypatch.setattr(video_studio_router, "get_video_adapter", lambda provider: FakeAdapter())
+    normalized = NormalizedVideoTaskRequest(
+        project_id="p1",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-videoedit",
+        key_profile="test",
+        prompt=task.prompt,
+        normalized_params={},
+    )
+
+    await video_studio_router._background_create_video_tasks(task, normalized, user["id"], None)
+
+    assert storage_service.get_video_studio_task(task.id) is None
+    assert lease.released is True
+    assert "api-task-late" not in video_studio_router._video_studio_inflight_leases
+
+
+def test_regenerate_releases_old_leases_and_starts_new_attempt(client, auth_header, registered_user, monkeypatch):
+    _clear_video_studio_inflight_leases()
+    project_id = _create_project(client, auth_header)
+    _, user = registered_user
+    set_current_user(user["id"])
+    old_started_at = datetime.now() - timedelta(minutes=10)
+    task = VideoStudioTask(
+        project_id=project_id,
+        name="重新生成任务",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-videoedit",
+        model="wan2.7-videoedit",
+        prompt="机械臂转身",
+        status="processing",
+        task_ids=["api-task-old"],
+        request_ids=["req-old"],
+        submit_state="submitted",
+        submit_started_at=old_started_at,
+        submit_attempt_id="attempt-old",
+    )
+    storage_service.save_video_studio_task(task)
+    old_lease = FakeInflightLease()
+    video_studio_router._video_studio_inflight_leases["api-task-old"] = old_lease
+    _patch_async_create_task(monkeypatch)
+
+    resp = client.post(f"/api/video-studio/{task.id}/regenerate", headers=auth_header)
+
+    assert resp.status_code == 200
+    data = resp.json()["task"]
+    assert old_lease.released is True
+    assert "api-task-old" not in video_studio_router._video_studio_inflight_leases
+    assert data["status"] == "processing"
+    assert data["task_ids"] == []
+    assert data["request_ids"] == []
+    assert data["submit_state"] == "submitting"
+    assert data["submit_attempt_id"] and data["submit_attempt_id"] != "attempt-old"
+    assert data["submit_started_at"] != old_started_at.isoformat()
+
+
+def test_status_marks_stale_submit_without_provider_ids_failed(client, auth_header, registered_user, monkeypatch):
+    project_id = _create_project(client, auth_header)
+    _, user = registered_user
+    set_current_user(user["id"])
+    monkeypatch.setenv("MIEMIE_VIDEO_STUDIO_SUBMIT_STALE_AFTER_SECONDS", "60")
+    task = VideoStudioTask(
+        project_id=project_id,
+        name="陈旧提交任务",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-videoedit",
+        model="wan2.7-videoedit",
+        prompt="机械臂转身",
+        status="processing",
+        task_ids=[],
+        request_ids=[],
+        submit_state="submitting",
+        submit_started_at=datetime.now() - timedelta(minutes=5),
+        submit_attempt_id="attempt-stale",
+    )
+    storage_service.save_video_studio_task(task)
+
+    resp = client.get(f"/api/video-studio/{task.id}/status", headers=auth_header)
+
+    assert resp.status_code == 200
+    data = resp.json()["task"]
+    assert data["status"] == "failed"
+    assert data["submit_state"] == "failed"
+    assert "提交超时" in data["error_message"]
+    submit_error = data["provider_result_meta"]["submit_error"]
+    assert submit_error["error_code"] == "SubmitTimeout"
+    assert submit_error["phase"] == "submit"
+
+
+@pytest.mark.asyncio
+async def test_cancelled_background_submit_releases_acquired_lease(registered_user, monkeypatch):
+    _clear_video_studio_inflight_leases()
+    _, user = registered_user
+    set_current_user(user["id"])
+    task = VideoStudioTask(
+        project_id="p1",
+        name="取消提交任务",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-videoedit",
+        model="wan2.7-videoedit",
+        prompt="机械臂转身",
+        status="processing",
+        group_count=1,
+        submit_state="submitting",
+        submit_started_at=datetime.now(),
+        submit_attempt_id="attempt-cancel",
+    )
+    storage_service.save_video_studio_task(task)
+    lease = FakeInflightLease()
+
+    async def fake_acquire(model_id):
+        return lease
+
+    async def fake_wait(model_id):
+        raise asyncio.CancelledError()
+
+    monkeypatch.setattr(video_studio_router, "acquire_model_inflight_lease", fake_acquire)
+    monkeypatch.setattr(video_studio_router, "wait_for_model_submit", fake_wait)
+
+    with pytest.raises(asyncio.CancelledError):
+        await video_studio_router._submit_api_tasks(task, video_studio_router._normalized_request_from_task(task))
+
+    assert lease.released is True
 
 
 def test_regenerate_legacy_video_edit_task_uses_canonical_mapping(client, auth_header, registered_user, monkeypatch):
