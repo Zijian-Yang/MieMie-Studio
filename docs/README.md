@@ -18,6 +18,7 @@
 - **做功能或修 bug**：对应 spec / ADR → 代码 → checklist
 - **接入新模型**：`docs/STUDIO_MODEL_INTEGRATION_GUIDE.md` → `docs/checklists/MODEL_INTEGRATION.md` → 相关 playbook
 - **做扩容/性能改造**：`docs/specs/2026-04-step-00-capacity-baseline-and-slo.md` → `docs/playbooks/CAPACITY_BASELINE_AND_LOADTEST.md` → 对应步骤 spec
+- **验证 `pre` 实验分支服务器部署**：`docs/plans/2026-05-18-pre-server-validation-plan.md` → `docs/reports/2026-05-18-pre-server-validation.md`
 - **做发布或大改**：`docs/checklists/CHANGE_GATE.md` → `docs/checklists/RELEASE_READINESS.md`
 
 ## 文档分层
@@ -67,6 +68,8 @@
 | [架构概览](./ARCHITECTURE.md) | 系统整体结构、请求流、多用户隔离 |
 | [扩容转型路线图](./specs/2026-04-platform-scalability-transformation-roadmap.md) | 面向 1000 在线与 Linux 生产部署的渐进式改造总方案 |
 | [pre 分支与 Docker 交付计划](./plans/2026-05-11-pre-branch-docker-delivery-plan.md) | `pre` 实验分支、Compose 本机构建交付和反向代理边界 |
+| [pre 服务器优先验证计划](./plans/2026-05-18-pre-server-validation-plan.md) | `pre` 分支在 Ubuntu staging 独立 Compose 部署与验证的执行计划 |
+| [pre 服务器验证报告](./reports/2026-05-18-pre-server-validation.md) | `pre` 分支 Ubuntu staging 部署、health/frontend 证据与未完成压测阻塞记录 |
 | [容量基线与压测手册](./playbooks/CAPACITY_BASELINE_AND_LOADTEST.md) | Step 00 的压测执行方法、字段要求与结果模板 |
 | [运行模式矩阵](./playbooks/RUNTIME_MODE_MATRIX.md) | 开发环境、脚本生产模式、Compose 生产模式的边界对比 |
 | [观测与轮询盘点](./reviews/2026-04-step-00-observability-and-polling-inventory.md) | 当前轮询热点、状态接口副作用与最小观测缺口 |
@@ -117,6 +120,7 @@ docker compose config
 - E2E helper：`npm run test:e2e:helper`（2026-04-24，2 passed）
 - E2E smoke：`npm run test:e2e`（2026-04-24，4 passed，macOS 可自动发现本机 `ms-playwright` Chromium 缓存）
 - Compose 静态校验：`docker compose config`（2026-04-24，通过）
+- `pre` Ubuntu staging：独立 Compose project `miemie-pre` 构建与启动通过，`/api/health` 与 `GET /` 通过；S1/S3 k6 与 DashScope smoke 因 SSH 访问中断待补跑（2026-05-18）
 - 当前已消除：
   - FastAPI `on_event is deprecated` 警告
   - `baseline-browser-mapping` 数据过期提示
@@ -130,4 +134,4 @@ docker compose config
 - 如果旧文档与新 spec 冲突，以 spec / ADR 为准，并尽快修正文档入口
 - 不要把聊天上下文当规范；规范必须落盘
 
-*最后更新：2026-05-11*
+*最后更新：2026-05-18*

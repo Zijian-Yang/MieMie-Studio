@@ -1,0 +1,41 @@
+# 2026-05-18 pre server compose / health / frontend artifact
+
+Server: <staging-host>
+Branch: pre
+Commit: 8ed6c246991650eb6ac43b28fd43c1ba9b0d4d0b
+Compose project: miemie-pre
+Path: /opt/miemie-pre
+Bind: 127.0.0.1:18100 -> 8000
+Image: miemie-studio:pre-local
+
+Compose up:
+exit_code=0
+container=miemie-pre-api-1
+status=Up ... (healthy)
+ports=127.0.0.1:18100->8000/tcp
+
+Old service last confirmed:
+container=miemie-studio-ha-lab-api-1
+status=Up ... (healthy)
+ports=0.0.0.0:18000->8000/tcp
+
+GET /api/health:
+HTTP/1.1 200 OK
+x-request-id: 9def9922f367
+x-deployment-version: 8ed6c246991650eb6ac43b28fd43c1ba9b0d4d0b
+body.status=ok
+body.git_commit=8ed6c246991650eb6ac43b28fd43c1ba9b0d4d0b
+body.run_mode=prod
+body.serve_frontend=true
+body.started_at=2026-05-18T01:02:23Z
+
+GET /:
+HTTP/1.1 200 OK
+content-type=text/html; charset=utf-8
+x-request-id=8019438b3682
+x-deployment-version=8ed6c246991650eb6ac43b28fd43c1ba9b0d4d0b
+body_prefix=<!DOCTYPE html><html lang="zh-CN">
+
+HEAD /:
+HTTP/1.1 405 Method Not Allowed
+note=Current frontend entry validation uses GET /. HEAD support is a follow-up runtime boundary item.

@@ -1,0 +1,30 @@
+# 2026-05-18 pre server SSH access blocker
+
+After successful Compose deployment and health/frontend verification, new SSH sessions started closing before key exchange.
+
+Observed client output:
+
+kex_exchange_identification: Connection closed by remote host
+Connection closed by <staging-host> port 22
+
+Additional observations:
+
+- TCP connect to port 22 succeeded with nc.
+- ssh-keyscan -T 10 <staging-host> returned no host key.
+- Existing evidence before the SSH blocker showed miemie-pre-api-1 healthy and bound to 127.0.0.1:18100.
+
+Impact:
+
+- S1 k6 was not run.
+- S3 k6 was not run.
+- DashScope low-frequency smoke was not run.
+- Post-load docker stats snapshot was not captured.
+
+Recommended server-side checks after regaining access:
+
+systemctl status ssh
+journalctl -u ssh --since "2026-05-18 09:00:00"
+ss -tnp state established '( sport = :22 or dport = :22 )'
+grep -R "MaxStartups\\|AllowUsers\\|DenyUsers" /etc/ssh/sshd_config /etc/ssh/sshd_config.d 2>/dev/null
+
+Do not change application port exposure while recovering SSH. The pre service should remain loopback-only.

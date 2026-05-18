@@ -72,6 +72,9 @@
 - `pre` 实验分支说明：
   - 新增 `README.pre.md` 与分支计划，明确 `main`/`pre` 并行开发、Compose 本机构建交付和反向代理用户自管边界
   - Compose 默认绑定 `127.0.0.1:${MIEMIE_HOST_PORT}`，降低应用端口直接暴露公网的风险
+- `pre` Ubuntu staging 验证归档：
+  - 新增服务器优先验证计划、实际验证报告和脱敏 artifact 摘要
+  - 记录独立 Compose project、回环端口、health/frontend 证据，以及 SSH 访问中断导致 S1/S3 和供应商 smoke 待补跑的阻塞项
 - 管理脚本运行时可观测性：
   - `GET /api/health` 新增 `git_commit`、`run_mode`、`serve_frontend`、`started_at`
   - `./run.sh status` / TUI 状态栏新增默认模式、实际模式、当前运行提交与前端服务方式
