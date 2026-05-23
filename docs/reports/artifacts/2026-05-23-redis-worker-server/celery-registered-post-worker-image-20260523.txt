@@ -1,0 +1,4 @@
+->  celery@a23bc69db4b6: OK
+    * studio.generate
+
+1 node online.

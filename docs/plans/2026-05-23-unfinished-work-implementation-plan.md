@@ -10,7 +10,19 @@
 - 目标是支持约一两百人同时进行较大量图片/视频生成与查询。
 - 网站速度要持续保持快，用户之间尽量互不影响。
 - 维护要简单轻松，避免重型、运维压力大、难排障的技术栈。
-- 后续技术栈和架构选择需要再讨论再决定，本计划不提前锁定 Redis、Celery、PostgreSQL、SSE 等方案。
+- 后续技术栈和架构选择需要再讨论再决定；2026-05-23 晚间用户随后明确要求按原扩容路线先推进 Redis + Celery，PostgreSQL / SSE 后置。
+
+## 2026-05-23 执行口径更新
+
+用户后续指令已经覆盖本计划最初“暂不引入 Redis / Celery”的保守口径：本轮按原扩容路线执行，但仍保持小步可回滚。
+
+当前执行结果：
+
+- 阶段 1 `pre` 服务器验证闭环：已补齐 S1、S3、低频 DashScope smoke、资源快照和报告。
+- 阶段 2 Redis：已最小实装 Redis session、slowapi Redis storage、health Redis 状态，并在服务器验证通过。
+- 阶段 3 Worker：已最小实装 Celery + Redis broker、统一 dispatcher、图片工作室生成链路入队，并在服务器验证 API 快速返回和 worker 消费。
+- 阶段 4 PostgreSQL / SSE：仍按用户计划后置，仅保留 spec / 设计准备，不迁核心数据、不替换轮询。
+- 阶段 5 代码治理：尚未开始拆 `frontend/src/services/api.ts` 和 `VideoStudioPage.tsx`，作为下一批未完成工作。
 
 ## 总原则
 
@@ -49,6 +61,8 @@
 8. 采集压测后 `docker stats`、容器日志摘要、磁盘/内存快照。
 9. 更新 `docs/reports/2026-05-18-pre-server-validation.md`，归档 summary JSON 和脱敏 smoke 摘要。
 
+状态：已完成。
+
 验收：
 
 - `/api/health` 和 `GET /` 继续通过。
@@ -58,7 +72,70 @@
 - smoke 任务能成功落到平台状态，或失败时记录明确的供应商/配置原因。
 - 报告中不包含 API key、密码、token、真实私有 URL。
 
-## 阶段 2：线上图片工作室修复验证
+证据：
+
+- `docs/reports/2026-05-18-pre-server-validation.md`
+- `docs/reports/artifacts/2026-05-18-pre-server/`
+
+## 阶段 2：Step 02 Redis 最小接入
+
+目标：按原扩容路线先接 Redis，但只用于 session、限流和后续短缓存基础设施，保留文件 session 兜底。
+
+已完成动作：
+
+1. Compose 新增 `redis:7-alpine`，使用独立 `redis_data` volume。
+2. 新增 `RedisSessionStore`，登录写 Redis + 文件，读取 Redis 优先、文件兜底并可回填。
+3. 登出删除 Redis + 文件 session。
+4. 改密码后清理该用户所有 Redis / 文件 session。
+5. slowapi 通过 `MIEMIE_RATE_LIMIT_STORAGE_URI` 使用 Redis DB 1。
+6. `/api/health` 暴露 Redis configured / ok 状态。
+7. 服务器 `miemie-pre` 验证 Redis session、rate-limit key、登出、改密失效全部通过。
+
+状态：已完成最小可用版本。
+
+后续待评估：
+
+- Redis 不可用时当前策略是文件 session 兜底、限流回退受 slowapi storage 初始化影响；是否要做更细的运行时降级告警，留到下一轮稳定性治理。
+- 短缓存尚未接具体业务接口，需等热点接口证据明确。
+
+证据：
+
+- `backend/app/services/session_store.py`
+- `backend/app/services/rate_limit.py`
+- `docs/specs/2026-04-step-02-redis-session-cache-rate-limit.md`
+- `docs/reports/artifacts/2026-05-23-redis-worker-server/auth-redis-session-smoke-20260523.txt`
+
+## 阶段 3：Step 03 Worker 队列最小接入
+
+目标：先引入 Celery + Redis broker，让图片工作室生成不占用 API 请求路径；视频工作室、音频和测评后置。
+
+已完成动作：
+
+1. 新增 `backend/app/celery_app.py` 与 `backend/app/worker_tasks.py`。
+2. 新增 `backend/app/services/task_dispatcher.py`，router 不直接依赖 Celery API。
+3. 图片工作室 `/generate` 切到统一 dispatcher。
+4. Compose 新增 `worker` 服务，使用 Redis DB 2 作为 broker、DB 3 作为 result backend。
+5. 服务器验证 worker `ping`、`registered`，注册任务包含 `studio.generate`。
+6. 服务器验证图片工作室 API 约 157.5ms 返回 `generating`，worker 接走任务并受控写回失败状态。
+
+状态：已完成图片工作室最小可用版本。
+
+后续待完成：
+
+- 迁移视频工作室生成链路。
+- 增加统一 task envelope 的失败、重试、超时、幂等记录。
+- 真实供应商 key 下补 1 个低频图片生成队列 smoke。
+- 评估 worker 非 root 运行与容器权限硬化。
+
+证据：
+
+- `backend/app/services/task_dispatcher.py`
+- `backend/app/worker_tasks.py`
+- `docs/specs/2026-04-step-03-async-job-orchestrator.md`
+- `docs/reports/artifacts/2026-05-23-redis-worker-server/worker-dispatch-smoke-20260523.txt`
+- `docs/reports/artifacts/2026-05-23-redis-worker-server/celery-registered-post-worker-image-20260523.txt`
+
+## 阶段 4：线上图片工作室修复验证
 
 目标：确认“本地已修复”的图片工作室卡顿和生成按钮无响应问题，在线上或准线上环境真实改善。
 
@@ -78,7 +155,7 @@
 - heavy preview 不再在普通浏览中频繁触发。
 - 线上验证结论落盘。
 
-## 阶段 3：保持小而美的性能治理，不先换架构
+## 阶段 5：保持小而美的性能治理
 
 目标：在不引入新重型组件的前提下，让现有单机/Compose 路径更稳，支撑数百在线和一两百活跃生成/查询用户的体验目标。
 
@@ -113,7 +190,7 @@
 - 供应商任务受限时，页面反馈清楚，不表现为按钮无响应。
 - 形成一份“是否需要新技术栈”的证据清单，而不是凭感觉升级架构。
 
-## 阶段 4：代码治理，降低维护压力
+## 阶段 6：代码治理，降低维护压力
 
 目标：先把后续最容易出问题的大文件拆小，降低维护成本。只做行为保持型重构。
 
@@ -143,7 +220,7 @@
 - `npm run typecheck`、`npm run lint`、相关脚本测试通过。
 - 拆分后的文件边界写入对应 docs 或 report。
 
-## 阶段 5：架构选型讨论检查点
+## 阶段 7：架构选型讨论检查点
 
 本阶段只准备讨论材料，不直接实施新技术栈。
 
@@ -175,15 +252,17 @@
 
 ## 当前建议执行顺序
 
-1. 先完成阶段 1：服务器验证闭环。
-2. 再完成阶段 2：线上图片工作室体验验证。
-3. 然后做阶段 3：不换架构的性能治理和证据收集。
-4. 同步推进阶段 4 的低风险代码拆分。
-5. 最后进入阶段 5，基于真实数据讨论技术栈和架构选择。
+1. 已完成阶段 1：服务器验证闭环。
+2. 已完成阶段 2：Redis 最小接入与服务器验证。
+3. 已完成阶段 3：Worker 图片工作室最小接入与服务器验证。
+4. 下一步优先完成阶段 4：线上图片工作室体验验证。
+5. 随后推进阶段 6 的低风险代码拆分。
+6. PostgreSQL / SSE 继续留在阶段 7，基于 Redis + Worker 验证后的数据再讨论。
 
 ## 暂不做
 
-- 不直接引入 Redis / Celery / PostgreSQL / RabbitMQ / Kubernetes。
+- 不引入 RabbitMQ / Kubernetes / 微服务拆分。
+- 不立即引入 PostgreSQL / SSE。
 - 不做真实供应商高并发压测。
 - 不合并旧实验服务数据目录。
 - 不改反向代理边界。

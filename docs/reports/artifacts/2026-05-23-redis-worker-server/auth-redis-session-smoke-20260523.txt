@@ -1,0 +1,17 @@
+{
+  "register_status": 200,
+  "token_returned": true,
+  "redis_session_count_after_register": 1,
+  "redis_rate_limit_keys_after_register": 1,
+  "me_status_before_logout": 200,
+  "logout_status": 200,
+  "me_status_after_logout": 401,
+  "login_status_after_logout": 200,
+  "redis_session_count_after_login": 1,
+  "change_password_status": 200,
+  "me_status_after_change_password": 401,
+  "redis_session_count_after_change_password": 0,
+  "old_password_login_status": 401,
+  "new_password_login_status": 200,
+  "new_token_returned": true
+}

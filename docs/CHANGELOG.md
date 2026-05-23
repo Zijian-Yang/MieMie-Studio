@@ -75,6 +75,7 @@
   - slowapi 限流支持 Redis storage URI，未配置时保留内存行为
   - `/api/health` 暴露 Redis 配置与连通状态
   - Compose 新增 Celery worker，图片工作室生成可通过统一 dispatcher 入队，默认本地开发仍回退 asyncio
+  - 2026-05-23 已在 `miemie-pre` 服务器验证 Redis session、限流 Redis key、Celery worker 注册和图片工作室队列 smoke
 - `pre` 实验分支说明：
   - 新增 `README.pre.md` 与分支计划，明确 `main`/`pre` 并行开发、Compose 本机构建交付和反向代理用户自管边界
   - Compose 默认绑定 `127.0.0.1:${MIEMIE_HOST_PORT}`，降低应用端口直接暴露公网的风险

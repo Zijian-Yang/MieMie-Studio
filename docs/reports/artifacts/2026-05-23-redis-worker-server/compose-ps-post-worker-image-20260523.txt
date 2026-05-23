@@ -1,0 +1,4 @@
+NAME                  IMAGE                     COMMAND                  SERVICE   CREATED          STATUS                   PORTS
+miemie-pre-api-1      miemie-studio:pre-local   "sh -c 'export MIEMI…"   api       3 minutes ago    Up 3 minutes (healthy)   127.0.0.1:18100->8000/tcp
+miemie-pre-redis-1    redis:7-alpine            "docker-entrypoint.s…"   redis     3 minutes ago    Up 3 minutes (healthy)   6379/tcp
+miemie-pre-worker-1   miemie-studio:pre-local   "/opt/venv/bin/celer…"   worker    14 seconds ago   Up 11 seconds            8000/tcp

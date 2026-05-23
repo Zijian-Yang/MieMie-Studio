@@ -1,0 +1,13 @@
+{
+  "register_status": 200,
+  "create_task_status": 200,
+  "task_created": true,
+  "generate_status": 200,
+  "generate_elapsed_ms": 157.5,
+  "status_immediate": "generating",
+  "poll_status_code": 200,
+  "final_status": "failed",
+  "has_error_message": true,
+  "task_ids_count": 0,
+  "request_ids_count": 0
+}

@@ -207,6 +207,127 @@ k6 run --summary-export validation-artifacts/2026-05-18-pre-server/pre-server-s3
 - 内存：3.4Gi total，2.0Gi used，1.4Gi available
 - Swap：0B
 
+## 2026-05-23 Redis / Worker 服务器验证
+
+在本地提交 `c46c83db378f3c02759da44135233617673445ea` 推送到 `origin/pre` 后，已在服务器 `/opt/miemie-pre` 执行真实部署验证。本轮仍只操作 Compose project `miemie-pre`，旧实验服务未停止、未删除、未重启。
+
+部署动作摘要：
+
+```bash
+cd /opt/miemie-pre
+git fetch origin
+git pull --ff-only origin pre
+sed -i "s/^MIEMIE_RUNTIME_GIT_COMMIT=.*/MIEMIE_RUNTIME_GIT_COMMIT=$(git rev-parse HEAD)/" compose.env
+
+docker compose -p miemie-pre \
+  --env-file compose.env \
+  -f docker-compose.yml \
+  -f docker-compose.pre.override.yml \
+  config
+
+docker compose -p miemie-pre \
+  --env-file compose.env \
+  -f docker-compose.yml \
+  -f docker-compose.pre.override.yml \
+  up -d --build --force-recreate api redis worker
+```
+
+运行态隔离修正：
+
+- 初次启动后 `worker` 仍显示默认镜像名 `miemie-studio:local`。
+- 为减少与旧实验服务的镜像标签交叉，服务器本地 `docker-compose.pre.override.yml` 已补充 `worker.image: miemie-studio:pre-local`。
+- 重新 `up -d --no-build --force-recreate worker` 后，`api` 与 `worker` 均显示 `miemie-studio:pre-local`。
+
+容器状态：
+
+```text
+NAME                  IMAGE                     SERVICE   STATUS
+miemie-pre-api-1      miemie-studio:pre-local   api       Up ... (healthy)
+miemie-pre-redis-1    redis:7-alpine            redis     Up ... (healthy)
+miemie-pre-worker-1   miemie-studio:pre-local   worker    Up ...
+```
+
+`GET /api/health`：
+
+```text
+HTTP/1.1 200 OK
+x-deployment-version: c46c83db378f3c02759da44135233617673445ea
+```
+
+```json
+{
+  "status": "ok",
+  "git_commit": "c46c83db378f3c02759da44135233617673445ea",
+  "run_mode": "prod",
+  "serve_frontend": true,
+  "redis": {
+    "configured": true,
+    "ok": true
+  }
+}
+```
+
+`GET /`：
+
+- HTTP 状态：`200`
+
+Redis session / rate-limit smoke：
+
+```json
+{
+  "register_status": 200,
+  "token_returned": true,
+  "redis_session_count_after_register": 1,
+  "redis_rate_limit_keys_after_register": 1,
+  "me_status_before_logout": 200,
+  "logout_status": 200,
+  "me_status_after_logout": 401,
+  "login_status_after_logout": 200,
+  "redis_session_count_after_login": 1,
+  "change_password_status": 200,
+  "me_status_after_change_password": 401,
+  "redis_session_count_after_change_password": 0,
+  "old_password_login_status": 401,
+  "new_password_login_status": 200,
+  "new_token_returned": true
+}
+```
+
+Celery worker 验证：
+
+- `celery inspect ping`：`1 node online`
+- `celery inspect registered`：注册任务包含 `studio.generate`
+- 图片工作室 API 队列 smoke：`POST /api/studio/{task_id}/generate` 在约 `157.5ms` 返回 `generating`
+- 本轮没有再次写入真实供应商 key；任务被 worker 接走后因缺少供应商 key 受控进入 `failed`，用于证明 API 快速返回、Celery 消费和平台状态写回链路可用。
+- worker 日志包含 `Task studio.generate[...] received` 与随后成功结束 worker 函数调用。
+
+资源快照：
+
+- `api`：约 284.2MiB / 3.417GiB，CPU 0.20%
+- `worker`：约 147.6MiB / 3.417GiB，CPU 0.13%
+- `redis`：约 25.02MiB / 3.417GiB，CPU 0.40%
+- `/` 磁盘：49G total，15G used，33G free，31%
+- 宿主内存：3.4Gi total，2.1Gi used，1.3Gi available，0 swap
+
+脱敏 artifacts：
+
+- `docs/reports/artifacts/2026-05-23-redis-worker-server/compose-ps-post-worker-image-20260523.txt`
+- `docs/reports/artifacts/2026-05-23-redis-worker-server/health-post-worker-image-20260523.txt`
+- `docs/reports/artifacts/2026-05-23-redis-worker-server/get-root-redis-worker-20260523.txt`
+- `docs/reports/artifacts/2026-05-23-redis-worker-server/auth-redis-session-smoke-20260523.txt`
+- `docs/reports/artifacts/2026-05-23-redis-worker-server/worker-dispatch-smoke-20260523.txt`
+- `docs/reports/artifacts/2026-05-23-redis-worker-server/celery-ping-post-worker-image-20260523.txt`
+- `docs/reports/artifacts/2026-05-23-redis-worker-server/celery-registered-post-worker-image-20260523.txt`
+- `docs/reports/artifacts/2026-05-23-redis-worker-server/docker-stats-redis-worker-20260523.txt`
+- `docs/reports/artifacts/2026-05-23-redis-worker-server/disk-redis-worker-20260523.txt`
+- `docs/reports/artifacts/2026-05-23-redis-worker-server/memory-redis-worker-20260523.txt`
+
+边界与后续项：
+
+- 服务器 SSH 新连接仍偶发 `Connection closed by <staging-host> port 22`，但既有会话可完成部署与验证；后续仍建议排查 sshd / 云安全策略。
+- Celery 当前容器以 root 用户运行，worker 启动日志有 Celery `SecurityWarning`；本轮不改变容器用户，作为后续容器硬化项记录。
+- 本轮 worker smoke 未消耗真实供应商额度；真实图片生成队列成功率需要在确认要使用供应商 key 时再补 1 个低频任务。
+
 ## 原始阻塞记录
 
 2026-05-18 本轮尚未完成 S1/S3 k6 和 DashScope smoke。原因不是应用接口失败，而是远端 SSH 在创建验证用户后开始于握手前关闭连接：
