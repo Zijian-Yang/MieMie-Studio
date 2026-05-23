@@ -1,0 +1,9 @@
+HTTP/1.1 200 OK
+date: Sat, 23 May 2026 14:13:49 GMT
+server: uvicorn
+content-length: 147
+content-type: application/json
+x-request-id: aaa035fa31fc
+x-deployment-version: 8ed6c246991650eb6ac43b28fd43c1ba9b0d4d0b
+
+{"status":"ok","git_commit":"8ed6c246991650eb6ac43b28fd43c1ba9b0d4d0b","run_mode":"prod","serve_frontend":true,"started_at":"2026-05-18T01:02:23Z"}

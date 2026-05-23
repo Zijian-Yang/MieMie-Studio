@@ -37,6 +37,7 @@ def isolated_data_dir(tmp_path, monkeypatch):
     svc.users_file = _test_data_dir / "users.json"
     svc.sessions = {}
     svc._lock = threading.RLock()
+    svc._redis_sessions = None
     svc._ensure_data_dir()
 
     with us_mod._service_lock:

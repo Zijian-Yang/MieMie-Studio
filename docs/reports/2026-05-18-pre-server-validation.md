@@ -93,9 +93,123 @@ x-deployment-version: 8ed6c246991650eb6ac43b28fd43c1ba9b0d4d0b
 - 响应头仍包含 `X-Request-ID` 与 `X-Deployment-Version`
 - 结论：当前前端入口以 `GET /` 作为有效验证口径；是否补齐 `HEAD /` 支持留作运行边界待评估项。
 
-## 压测与供应商 smoke 状态
+## 2026-05-23 补跑状态
 
-本轮尚未完成 S1/S3 k6 和 DashScope smoke。原因不是应用接口失败，而是远端 SSH 在创建验证用户后开始于握手前关闭连接：
+SSH 于 2026-05-23 恢复可用后，按补跑清单只操作 `/opt/miemie-pre` 与 Compose project `miemie-pre`，旧实验服务未停止、未删除、未重启。
+
+补跑前状态：
+
+- `miemie-pre-api-1`：`Up 5 days (healthy)`
+- 端口映射：`127.0.0.1:18100->8000/tcp`
+- 旧服务：`miemie-studio-ha-lab-api-1` 仍在 `18000`
+- Git commit / deployment version：`8ed6c246991650eb6ac43b28fd43c1ba9b0d4d0b`
+- `/api/health`：`200 OK`
+- `GET /`：`200 OK`
+- `HEAD /`：仍为 `405 Method Not Allowed`，响应头保留 `X-Request-ID` 与 `X-Deployment-Version`
+
+### S1 纯读 k6
+
+命令摘要：
+
+```bash
+K6_VUS=50 K6_DURATION=60s K6_SLEEP_SECONDS=1 \
+MIEMIE_BASE_URL=http://127.0.0.1:18100 \
+LOADTEST_RUN_ID=pre-server-s1-20260523 \
+SCENARIO_NAME=S1-read-pre-server \
+k6 run --summary-export validation-artifacts/2026-05-18-pre-server/pre-server-s1-20260523-summary.json \
+  loadtest/k6/s1-read.js
+```
+
+结果：
+
+- HTTP requests：8,532
+- 平均请求率：约 139.83 req/s
+- checks：25,596 / 25,596 通过
+- HTTP 失败率：0.00%
+- P95 / P99：58.78ms / 142.51ms
+- 最大延迟：802.61ms
+- 阈值：通过，`http_req_failed rate<0.01`，`http_req_duration p(95)<300`
+- 数据下行：约 381MB
+
+### S3 状态观察 k6
+
+本轮创建了一个平台侧视频工作室状态观察任务。由于验证用户未配置 DashScope API key，供应商提交失败，平台任务进入 `failed`，但 `/api/video-studio/{task_id}/status` 作为纯读状态观察目标可用。
+
+命令摘要：
+
+```bash
+K6_VUS=300 K6_DURATION=60s K6_SLEEP_SECONDS=3 \
+MIEMIE_BASE_URL=http://127.0.0.1:18100 \
+LOADTEST_RUN_ID=pre-server-s3-observe-20260523 \
+SCENARIO_NAME=S3-status-observe-pre-server \
+MIEMIE_TASK_STATUS_URLS="/api/video-studio/<task-id>/status" \
+k6 run --summary-export validation-artifacts/2026-05-18-pre-server/pre-server-s3-observe-20260523-summary.json \
+  loadtest/k6/s3-task-observe.js
+```
+
+结果：
+
+- HTTP requests：6,000
+- 平均请求率：约 98.68 req/s
+- checks：18,000 / 18,000 通过
+- HTTP 失败率：0.00%
+- P95 / P99：151.62ms / 281.65ms
+- 最大延迟：325.68ms
+- 阈值：通过，`http_req_failed rate<0.01`，`http_req_duration p(95)<800`
+- 请求量符合 300 VUs / 3s 轮询间隔，未观察到轮询放大
+
+### 低频真实 DashScope smoke
+
+首次补跑时未执行真实供应商 smoke，阻塞原因是 staging 验证用户未配置 DashScope API key：
+
+```json
+{
+  "executed": false,
+  "blocked_reason": "DashScope API key is not configured for the staging validation user.",
+  "platform_status": "failed",
+  "error_class": "missing_api_key_or_empty_bearer",
+  "result_video_count": 0
+}
+```
+
+随后使用用户提供的 DashScope API key 临时写入 staging 验证用户私有配置，仅提交 1 个真实文生视频任务。任务完成后已删除 staging 验证用户中的 API key，报告与 artifact 不包含 key 或真实视频 URL。
+
+成功摘要：
+
+```json
+{
+  "executed": true,
+  "platform_status": "succeeded",
+  "result_video_count": 1,
+  "selected_video_url_set": true,
+  "thumbnail_url_set": false,
+  "request_id_count": 1,
+  "task_id_count": 1,
+  "error_message": null,
+  "oss_enabled": false
+}
+```
+
+说明：当前未启用 OSS，因此 smoke 只证明真实 DashScope 提交、平台状态协调与结果落状态可用，不证明生成视频已经转存到长期对象存储。
+
+### 资源快照
+
+压测后 `docker stats --no-stream miemie-pre-api-1` 摘要：
+
+- CPU：0.21%
+- 内存：266.1MiB / 3.417GiB，约 7.60%
+- 网络：约 7.89MB in / 398MB out
+- PIDs：13
+
+宿主机摘要：
+
+- `/` 磁盘：49G total，13G used，34G free，28%
+- 内存：3.4Gi total，2.0Gi used，1.4Gi available
+- Swap：0B
+
+## 原始阻塞记录
+
+2026-05-18 本轮尚未完成 S1/S3 k6 和 DashScope smoke。原因不是应用接口失败，而是远端 SSH 在创建验证用户后开始于握手前关闭连接：
 
 ```text
 kex_exchange_identification: Connection closed by remote host
@@ -114,13 +228,13 @@ Connection closed by <staging-host> port 22
 - 认证 token 仅保存于服务器 `/tmp/miemie-pre-auth.token`，未写入仓库或报告。
 - S3 种子任务提交命令执行时 SSH 断开，任务是否创建需要 SSH 恢复后复查。
 
-## 未完成项
+## 当前未完成项
 
-- S1 纯读 k6：未执行。
-- S3 状态观察 k6：未执行。
-- 低频真实 DashScope smoke：未执行。
-- 压测后 `docker stats` 资源快照：未执行。
-- k6 summary JSON 与 smoke summary JSON：未生成。
+- S1 纯读 k6：已于 2026-05-23 补跑通过。
+- S3 状态观察 k6：已于 2026-05-23 补跑通过。
+- 压测后 `docker stats` 资源快照：已于 2026-05-23 补采。
+- 低频真实 DashScope smoke：已于 2026-05-23 补跑成功。
+- 真实 smoke summary JSON：已生成阻塞摘要与成功摘要。
 
 ## SSH 恢复后补跑清单
 
@@ -181,5 +295,21 @@ k6 run --summary-export validation-artifacts/2026-05-18-pre-server/pre-server-s3
 ## 结论
 
 - 已验证：`pre` 分支可在 Ubuntu staging 上用独立 Compose project 构建并启动，容器健康，端口只绑定 `127.0.0.1:18100`，`/api/health` 与 `GET /` 均携带正确的请求追踪与部署版本。
-- 未完成：S1/S3 k6、DashScope smoke 和资源快照，阻塞于 SSH 服务层访问中断。
-- 下一步：先恢复 SSH，再按补跑清单完成压测和供应商 smoke，随后更新本报告为完整闭环报告。
+- 已补齐：S1 纯读 k6、S3 状态观察 k6 与压测后资源快照。
+- 已补齐：低频真实 DashScope smoke，1 个真实视频任务成功，平台记录 1 个结果视频、1 个供应商 task id 和 1 个 request id。
+- 限制项：真实 OSS 未启用，生成视频未转存到长期对象存储；本轮不代表供应商并发提交能力。
+- 下一步：阶段 1 服务器验证闭环已完成，可进入 Step 02 Redis session/cache/rate-limit 的最小实装准备。
+
+## 2026-05-23 原始结果归档
+
+- `docs/reports/artifacts/2026-05-18-pre-server/pre-server-health-20260523.txt`
+- `docs/reports/artifacts/2026-05-18-pre-server/pre-server-compose-ps-20260523.txt`
+- `docs/reports/artifacts/2026-05-18-pre-server/pre-server-docker-stats-20260523.txt`
+- `docs/reports/artifacts/2026-05-18-pre-server/pre-server-disk-20260523.txt`
+- `docs/reports/artifacts/2026-05-18-pre-server/pre-server-memory-20260523.txt`
+- `docs/reports/artifacts/2026-05-18-pre-server/pre-server-s1-20260523.log`
+- `docs/reports/artifacts/2026-05-18-pre-server/pre-server-s1-20260523-summary.json`
+- `docs/reports/artifacts/2026-05-18-pre-server/pre-server-s3-observe-20260523.log`
+- `docs/reports/artifacts/2026-05-18-pre-server/pre-server-s3-observe-20260523-summary.json`
+- `docs/reports/artifacts/2026-05-18-pre-server/pre-server-provider-smoke-20260523-summary.json`
+- `docs/reports/artifacts/2026-05-18-pre-server/pre-server-provider-smoke-20260523-success-summary.json`

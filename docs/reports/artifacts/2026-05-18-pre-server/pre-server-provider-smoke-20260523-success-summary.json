@@ -1,0 +1,15 @@
+{
+  "run_id": "pre-server-provider-smoke-20260523-success",
+  "executed": true,
+  "app_task_id": "9de35f0d-85fc-4cd1-857a-e0a7d71d7f34",
+  "project_id": "5128ea5b-0be2-4679-8f5e-2768ac341ff5",
+  "platform_status": "succeeded",
+  "result_video_count": 1,
+  "selected_video_url_set": true,
+  "thumbnail_url_set": false,
+  "request_id_count": 1,
+  "task_id_count": 1,
+  "error_message": null,
+  "oss_enabled": false,
+  "notes": "Provider smoke succeeded. URLs and API keys are intentionally omitted."
+}

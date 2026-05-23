@@ -115,6 +115,9 @@ class TestAuth:
         )
         assert resp.status_code == 200
 
+        resp_old_token = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert resp_old_token.status_code == 401
+
         # 用新密码登录
         resp2 = client.post("/api/auth/login", json={
             "username": "testuser", "password": "newpass123",
@@ -187,6 +190,7 @@ class TestMiddleware:
         assert data["run_mode"] in {"dev", "prod"}
         assert isinstance(data["serve_frontend"], bool)
         assert data["started_at"]
+        assert data["redis"] == {"configured": False, "ok": None}
 
     def test_health_check_exposes_request_and_deployment_headers(self, client):
         """Step-00: 健康检查暴露统一请求与部署标识"""

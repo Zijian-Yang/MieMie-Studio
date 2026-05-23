@@ -1,0 +1,12 @@
+{
+  "run_id": "pre-server-provider-smoke-20260523",
+  "executed": false,
+  "blocked_reason": "DashScope API key is not configured for the staging validation user.",
+  "app_task_id": "c7533d16-8ce7-4800-8e8f-e71963656fec",
+  "project_id": "5128ea5b-0be2-4679-8f5e-2768ac341ff5",
+  "platform_status": "failed",
+  "error_class": "missing_api_key_or_empty_bearer",
+  "result_video_count": 0,
+  "request_id_count": 0,
+  "task_id_count": 0
+}

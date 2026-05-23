@@ -153,6 +153,22 @@
 - 任务模型 spec
 - 运维手册
 
+## 2026-05-23 最小实装状态
+
+- 新增 Celery app 与 worker task entrypoint。
+- 新增统一 `task_dispatcher`，router 不直接依赖 Celery API。
+- Compose 新增 `worker` 服务，复用 API 镜像，默认通过 Redis broker 执行图片工作室生成任务。
+- 图片工作室 `/generate` 已从直接 `asyncio.create_task` 改为调用 dispatcher：
+  - 默认 `MIEMIE_TASK_DISPATCHER=asyncio`，适合本地开发和测试。
+  - Compose 默认 `MIEMIE_TASK_DISPATCHER=celery`，将图片生成入队 worker。
+- 视频工作室、音频工作室和测评任务仍保留现有后台协程路径，待图片工作室试点验证后再迁。
+
+当前未覆盖：
+
+- 尚未迁移视频工作室。
+- 尚未建立完整统一任务 envelope。
+- 尚未做 worker 重启恢复、取消、重试分类的全链路验证。
+
 ## 讨论重点
 
 - 你更看重：

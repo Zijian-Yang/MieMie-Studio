@@ -70,6 +70,8 @@
 | [pre 分支与 Docker 交付计划](./plans/2026-05-11-pre-branch-docker-delivery-plan.md) | `pre` 实验分支、Compose 本机构建交付和反向代理边界 |
 | [pre 服务器优先验证计划](./plans/2026-05-18-pre-server-validation-plan.md) | `pre` 分支在 Ubuntu staging 独立 Compose 部署与验证的执行计划 |
 | [pre 服务器验证报告](./reports/2026-05-18-pre-server-validation.md) | `pre` 分支 Ubuntu staging 部署、health/frontend 证据与未完成压测阻塞记录 |
+| [2026-05-23 项目进度盘点报告](./reports/2026-05-23-project-progress-review.md) | 当前 `pre` 分支仓库、文档、测试、Compose 与未完成项盘点 |
+| [未完成工作实施计划](./plans/2026-05-23-unfinished-work-implementation-plan.md) | 先补齐当前未闭环工作，并把后续架构选型延后到数据驱动讨论 |
 | [容量基线与压测手册](./playbooks/CAPACITY_BASELINE_AND_LOADTEST.md) | Step 00 的压测执行方法、字段要求与结果模板 |
 | [运行模式矩阵](./playbooks/RUNTIME_MODE_MATRIX.md) | 开发环境、脚本生产模式、Compose 生产模式的边界对比 |
 | [观测与轮询盘点](./reviews/2026-04-step-00-observability-and-polling-inventory.md) | 当前轮询热点、状态接口副作用与最小观测缺口 |
@@ -114,13 +116,13 @@ docker compose config
 
 ### 当前验证状态
 
-- 后端全量测试：`./run.sh test`（2026-04-23，本地 130 passed）
+- 后端全量测试：`./run.sh test`（2026-05-23，本地 220 passed）
 - 后端关键测试：`backend/.venv/bin/pytest backend/tests/test_fixes.py backend/tests/test_video_studio_capabilities.py backend/tests/test_video_studio_vace.py -q`
-- 前端验证：`npm run typecheck`、`npm run lint`、`npm run build`（2026-04-23 均通过）
+- 前端验证：`npm run typecheck`、`npm run lint`、`npm run build`（2026-05-23 均通过；build 提示 Browserslist/caniuse-lite 数据约 6 个月未更新）
 - E2E helper：`npm run test:e2e:helper`（2026-04-24，2 passed）
 - E2E smoke：`npm run test:e2e`（2026-04-24，4 passed，macOS 可自动发现本机 `ms-playwright` Chromium 缓存）
 - Compose 静态校验：`docker compose config`（2026-04-24，通过）
-- `pre` Ubuntu staging：独立 Compose project `miemie-pre` 构建与启动通过，`/api/health` 与 `GET /` 通过；S1/S3 k6 与 DashScope smoke 因 SSH 访问中断待补跑（2026-05-18）
+- `pre` Ubuntu staging：独立 Compose project `miemie-pre` 构建与启动通过，`/api/health` 与 `GET /` 通过；S1/S3 k6 与 1 个低频 DashScope smoke 已于 2026-05-23 补跑通过
 - 当前已消除：
   - FastAPI `on_event is deprecated` 警告
   - `baseline-browser-mapping` 数据过期提示
@@ -134,4 +136,4 @@ docker compose config
 - 如果旧文档与新 spec 冲突，以 spec / ADR 为准，并尽快修正文档入口
 - 不要把聊天上下文当规范；规范必须落盘
 
-*最后更新：2026-05-18*
+*最后更新：2026-05-23*

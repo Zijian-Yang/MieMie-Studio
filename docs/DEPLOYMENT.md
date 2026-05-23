@@ -153,6 +153,10 @@ curl http://127.0.0.1:8000/api/health
 - 默认只把宿主机 `127.0.0.1:8000` 映射到容器内 `8000`，避免应用端口直接暴露公网。
 - 如需修改监听地址或宿主机端口，可调整 `compose.env` 中的 `MIEMIE_HOST_BIND` / `MIEMIE_HOST_PORT`。
 - 用户数据仍落在宿主机 `backend/data/`，不会因为重建容器而丢失。
+- `pre` 扩容路径下 Compose 还会启动 Redis 与 Worker：
+  - Redis 用于 session、限流和后台任务 broker。
+  - Worker 先承接图片工作室生成任务。
+  - API 与 Worker 共享 `backend/data/` 和 `backend/logs/` 挂载，便于保持当前 JSON 存储兼容。
 
 ---
 
@@ -325,7 +329,7 @@ tail -f backend/logs/api_$(date +%Y%m%d).log
 
 ```bash
 curl http://localhost:8000/api/health
-# 返回 {"status":"ok"} 表示服务正常
+# 返回 status=ok 表示服务正常；redis 字段会显示 Redis 是否已配置和可达
 ```
 
 可以配合监控工具（如 UptimeRobot、Prometheus）定期检查。

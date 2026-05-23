@@ -113,6 +113,27 @@
 - 鉴权与部署文档
 - 限流策略文档
 
+## 2026-05-23 最小实装状态
+
+- Compose 新增 `redis:7-alpine` 服务，持久化到 `redis_data` volume。
+- API 容器新增：
+  - `MIEMIE_REDIS_URL`
+  - `MIEMIE_RATE_LIMIT_STORAGE_URI`
+  - `MIEMIE_REDIS_KEY_PREFIX`
+- session store 已支持 Redis 可选启用：
+  - 登录写 Redis + 文件会话兜底
+  - 鉴权读 Redis 优先，文件会话兜底
+  - 登出删除 Redis + 文件会话
+  - 改密码后清理该用户旧 session
+- slowapi limiter 支持通过 Redis storage URI 切到外部存储，未配置时保留内存限流。
+- `/api/health` 新增 `redis` 字段，显示 Redis 是否配置和是否可达。
+- 本地默认未配置 Redis 时行为保持不变。
+
+当前未覆盖：
+
+- 尚未引入复杂热点业务缓存策略。
+- Redis 高可用、密码、网络白名单仍属于部署层后续项。
+
 ## 讨论重点
 
 - 你是否需要“同账号多设备会话管理”和“后台踢人”？

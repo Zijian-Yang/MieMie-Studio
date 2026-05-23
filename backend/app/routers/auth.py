@@ -5,7 +5,6 @@
 from fastapi import APIRouter, HTTPException, Header, Request
 from typing import Optional
 
-from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.models.user import (
@@ -13,9 +12,10 @@ from app.models.user import (
     UserResponse, LoginResponse, ChangePasswordRequest
 )
 from app.services.user_service import get_user_service
+from app.services.rate_limit import create_limiter
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
+limiter = create_limiter(key_func=get_remote_address, key_prefix="miemie-auth")
 
 
 @router.post("/register", response_model=LoginResponse)
@@ -126,4 +126,3 @@ async def change_password(
         raise HTTPException(status_code=400, detail=message)
     
     return {"success": True, "message": message}
-

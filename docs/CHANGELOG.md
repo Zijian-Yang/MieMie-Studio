@@ -69,12 +69,19 @@
   - 新增 k6 S1/S3 压测脚本、Linux staging 基线记录与验证包归档
   - 新增 `.dockerignore`、`Dockerfile`、`docker-compose.yml`、`compose.env.example`
   - 新增运行模式矩阵文档，明确开发 / 脚本生产 / Compose 生产边界
+- Step 02 / Step 03 扩容最小实装：
+  - Compose 新增 Redis 服务，用于 session、限流存储和后续短缓存基础设施
+  - session 支持 Redis 优先、文件兜底，改密码后清理旧 session
+  - slowapi 限流支持 Redis storage URI，未配置时保留内存行为
+  - `/api/health` 暴露 Redis 配置与连通状态
+  - Compose 新增 Celery worker，图片工作室生成可通过统一 dispatcher 入队，默认本地开发仍回退 asyncio
 - `pre` 实验分支说明：
   - 新增 `README.pre.md` 与分支计划，明确 `main`/`pre` 并行开发、Compose 本机构建交付和反向代理用户自管边界
   - Compose 默认绑定 `127.0.0.1:${MIEMIE_HOST_PORT}`，降低应用端口直接暴露公网的风险
 - `pre` Ubuntu staging 验证归档：
   - 新增服务器优先验证计划、实际验证报告和脱敏 artifact 摘要
   - 记录独立 Compose project、回环端口、health/frontend 证据，以及 SSH 访问中断导致 S1/S3 和供应商 smoke 待补跑的阻塞项
+  - 2026-05-23 补跑 S1/S3 k6、资源快照与 1 个低频真实 DashScope smoke，S1/S3 均 0% HTTP 失败，smoke 成功落 1 个视频结果
 - 管理脚本运行时可观测性：
   - `GET /api/health` 新增 `git_commit`、`run_mode`、`serve_frontend`、`started_at`
   - `./run.sh status` / TUI 状态栏新增默认模式、实际模式、当前运行提交与前端服务方式

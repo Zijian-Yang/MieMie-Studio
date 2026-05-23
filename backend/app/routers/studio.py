@@ -7,7 +7,7 @@
 - qwen-image-2.0-pro/2.0: 千问图像2.0（文生图+图像编辑融合）
 
 架构说明：
-- /generate 端点通过 asyncio.create_task() 在后台执行生成，立即返回 generating 状态
+- /generate 端点通过任务调度器在后台执行生成，立即返回 generating 状态
 - 前端通过轮询 GET /{task_id} 获取生成进度和结果
 - 底层 API 差异由各 generate_with_* 函数内部处理
 """
@@ -37,6 +37,7 @@ from app.services.model_rate_limits import (
 )
 from app.services.oss import oss_service
 from app.services.remote_media_validation import inspect_remote_image
+from app.services.task_dispatcher import dispatch_studio_generation
 from app.config import get_config, get_provider_api_key, get_provider_key_profile, set_user_config_dir, get_user_config_dir
 from app.models_registry.image.nano_banana import (
     NANO_BANANA_2_ASPECT_RATIOS,
@@ -2151,12 +2152,12 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
         user_config_dir = get_user_config_dir()
         size = canonical_size
 
-        # 后台执行生成，立即返回
-        asyncio.create_task(_background_generate(
+        # 后台执行生成，立即返回。默认 asyncio；生产可切到 Celery worker。
+        dispatch_studio_generation(
             task_id=task.id,
             user_id=user_id,
             user_config_dir=user_config_dir,
-        ))
+        )
 
         return {"task": task}
     except Exception:

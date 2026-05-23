@@ -15,6 +15,15 @@ services:
       MIEMIE_RUNTIME_GIT_COMMIT: "${MIEMIE_RUNTIME_GIT_COMMIT:-unknown}"
       MIEMIE_RUNTIME_RUN_MODE: "prod"
       MIEMIE_CORS_ORIGINS: "${MIEMIE_CORS_ORIGINS:-}"
+      MIEMIE_REDIS_URL: "${MIEMIE_REDIS_URL:-redis://redis:6379/0}"
+      MIEMIE_RATE_LIMIT_STORAGE_URI: "${MIEMIE_RATE_LIMIT_STORAGE_URI:-redis://redis:6379/1}"
+      MIEMIE_REDIS_KEY_PREFIX: "${MIEMIE_REDIS_KEY_PREFIX:-miemie}"
+      MIEMIE_TASK_DISPATCHER: "${MIEMIE_TASK_DISPATCHER:-celery}"
+      MIEMIE_CELERY_BROKER_URL: "${MIEMIE_CELERY_BROKER_URL:-redis://redis:6379/2}"
+      MIEMIE_CELERY_RESULT_BACKEND: "${MIEMIE_CELERY_RESULT_BACKEND:-redis://redis:6379/3}"
+    depends_on:
+      redis:
+        condition: service_healthy
     volumes:
       - ./backend/data:/app/backend/data
       - ./backend/logs:/app/backend/logs
@@ -24,3 +33,43 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: miemie-studio:local
+    restart: unless-stopped
+    command: ["/opt/venv/bin/celery", "-A", "app.celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=${MIEMIE_WORKER_CONCURRENCY:-1}"]
+    working_dir: /app/backend
+    environment:
+      TZ: "${TZ:-Asia/Shanghai}"
+      MIEMIE_SERVE_FRONTEND: "true"
+      MIEMIE_RUNTIME_GIT_COMMIT: "${MIEMIE_RUNTIME_GIT_COMMIT:-unknown}"
+      MIEMIE_RUNTIME_RUN_MODE: "prod"
+      MIEMIE_REDIS_URL: "${MIEMIE_REDIS_URL:-redis://redis:6379/0}"
+      MIEMIE_REDIS_KEY_PREFIX: "${MIEMIE_REDIS_KEY_PREFIX:-miemie}"
+      MIEMIE_CELERY_BROKER_URL: "${MIEMIE_CELERY_BROKER_URL:-redis://redis:6379/2}"
+      MIEMIE_CELERY_RESULT_BACKEND: "${MIEMIE_CELERY_RESULT_BACKEND:-redis://redis:6379/3}"
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend/data:/app/backend/data
+      - ./backend/logs:/app/backend/logs
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  redis_data:

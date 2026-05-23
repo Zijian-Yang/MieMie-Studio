@@ -16,11 +16,13 @@ from datetime import datetime, timedelta
 import bcrypt
 
 from app.models.user import User, UserResponse
+from app.services.session_store import RedisSessionStore, SessionRecord
 
 logger = logging.getLogger(__name__)
 
 # Token 有效期（天）
 TOKEN_EXPIRE_DAYS = 7
+TOKEN_EXPIRE_SECONDS = TOKEN_EXPIRE_DAYS * 24 * 60 * 60
 
 
 class UserService:
@@ -31,6 +33,7 @@ class UserService:
         self.users_file = self.data_dir / "users.json"
         self.sessions: Dict[str, str] = {}  # token -> user_id
         self._lock = threading.RLock()
+        self._redis_sessions = RedisSessionStore.from_env(ttl_seconds=TOKEN_EXPIRE_SECONDS)
         self._ensure_data_dir()
         self._load_sessions()
     
@@ -112,6 +115,44 @@ class UserService:
         """保存会话到文件（原子写入）"""
         sessions_file = self.data_dir / "sessions.json"
         self._write_json_with_lock(sessions_file, self.sessions)
+
+    def _save_session(self, token: str, session: Dict[str, str]):
+        """保存单个 session：Redis 优先用于多 worker，文件保留兜底。"""
+        self.sessions[token] = session
+        if self._redis_sessions:
+            try:
+                record = SessionRecord.from_raw(session)
+                if record:
+                    self._redis_sessions.set(token, record)
+            except Exception as exc:
+                logger.warning("[会话] Redis session 写入失败，保留文件兜底: %s", exc)
+        self._save_sessions()
+
+    def _delete_session(self, token: str):
+        session = self.sessions.pop(token, None)
+        if self._redis_sessions:
+            try:
+                self._redis_sessions.delete(token)
+            except Exception as exc:
+                logger.warning("[会话] Redis session 删除失败: %s", exc)
+        if session is not None:
+            self._save_sessions()
+
+    def _delete_user_sessions(self, user_id: str):
+        tokens = []
+        for token, session in self.sessions.items():
+            record = SessionRecord.from_raw(session)
+            if record and record.user_id == user_id:
+                tokens.append(token)
+        for token in tokens:
+            self.sessions.pop(token, None)
+        if tokens:
+            self._save_sessions()
+        if self._redis_sessions:
+            try:
+                self._redis_sessions.delete_user_sessions(user_id)
+            except Exception as exc:
+                logger.warning("[会话] Redis 用户 session 清理失败: %s", exc)
     
     def _cleanup_expired_sessions(self):
         """清理过期的会话"""
@@ -209,11 +250,10 @@ class UserService:
                     
                     # 生成 token（带过期时间）
                     token = self._generate_token(user_id)
-                    self.sessions[token] = {
+                    self._save_session(token, {
                         "user_id": user_id,
                         "created_at": datetime.now().isoformat()
-                    }
-                    self._save_sessions()
+                    })
                     
                     return token, User(**user_data)
             
@@ -223,16 +263,30 @@ class UserService:
         """用户登出"""
         with self._lock:
             if token in self.sessions:
-                del self.sessions[token]
-                self._save_sessions()
+                self._delete_session(token)
                 return True
+            if self._redis_sessions:
+                try:
+                    if self._redis_sessions.get(token):
+                        self._redis_sessions.delete(token)
+                        return True
+                except Exception as exc:
+                    logger.warning("[会话] Redis logout 查询失败: %s", exc)
             return False
     
     def get_user_by_token(self, token: str) -> Optional[User]:
         """通过 token 获取用户（支持多 worker：每次从文件读取，含过期检查）"""
         with self._lock:
             self._load_sessions()
-            session = self.sessions.get(token)
+            session = None
+            if self._redis_sessions:
+                try:
+                    redis_record = self._redis_sessions.get(token)
+                    if redis_record:
+                        session = redis_record.to_dict()
+                except Exception as exc:
+                    logger.warning("[会话] Redis session 读取失败，回退文件会话: %s", exc)
+            session = session or self.sessions.get(token)
             if not session:
                 return None
             
@@ -245,8 +299,7 @@ class UserService:
                 try:
                     created_at = datetime.fromisoformat(created_str)
                     if datetime.now() - created_at > timedelta(days=TOKEN_EXPIRE_DAYS):
-                        del self.sessions[token]
-                        self._save_sessions()
+                        self._delete_session(token)
                         return None
                 except (ValueError, TypeError):
                     pass
@@ -257,6 +310,8 @@ class UserService:
             users = self._load_users()
             user_data = users.get(user_id)
             if user_data:
+                if token not in self.sessions:
+                    self._save_session(token, {"user_id": user_id, "created_at": session.get("created_at", datetime.now().isoformat())})
                 return User(**user_data)
             return None
     
@@ -313,6 +368,7 @@ class UserService:
             user_data['password'] = self._hash_password(new_password)
             users[user_id] = user_data
             self._save_users(users)
+            self._delete_user_sessions(user_id)
             
             return True, "密码修改成功"
     

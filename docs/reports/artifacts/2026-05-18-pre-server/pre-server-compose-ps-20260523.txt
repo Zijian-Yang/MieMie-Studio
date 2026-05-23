@@ -1,0 +1,2 @@
+NAME               IMAGE                     COMMAND                  SERVICE   CREATED      STATUS                PORTS
+miemie-pre-api-1   miemie-studio:pre-local   "sh -c 'export MIEMI…"   api       5 days ago   Up 5 days (healthy)   127.0.0.1:18100->8000/tcp

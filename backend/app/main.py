@@ -22,12 +22,13 @@ from app.routers import (
     audio_studio, models, auth, image_benchmark, video_benchmark
 )
 from app.middleware.auth import AuthMiddleware
+from app.services.rate_limit import create_limiter, redis_url_from_env
 
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
+limiter = create_limiter(key_func=get_remote_address, default_limits=["200/minute"])
 
 # 生产模式标志（提前定义，供 CORS 和静态文件使用）
 SERVE_FRONTEND = os.environ.get("MIEMIE_SERVE_FRONTEND", "").lower() in ("true", "1", "yes")
@@ -52,6 +53,20 @@ def _resolve_runtime_git_commit() -> str:
 
 RUNTIME_GIT_COMMIT = _resolve_runtime_git_commit()
 RUNTIME_RUN_MODE = os.environ.get("MIEMIE_RUNTIME_RUN_MODE") or ("prod" if SERVE_FRONTEND else "dev")
+
+
+def _redis_health() -> dict:
+    url = redis_url_from_env()
+    if not url:
+        return {"configured": False, "ok": None}
+    try:
+        import redis
+
+        client = redis.Redis.from_url(url, socket_connect_timeout=0.5, socket_timeout=0.5)
+        client.ping()
+        return {"configured": True, "ok": True}
+    except Exception as exc:
+        return {"configured": True, "ok": False, "error": exc.__class__.__name__}
 
 
 @asynccontextmanager
@@ -145,6 +160,7 @@ async def health_check():
         "run_mode": RUNTIME_RUN_MODE,
         "serve_frontend": SERVE_FRONTEND,
         "started_at": APP_STARTED_AT,
+        "redis": _redis_health(),
     }
 
 
