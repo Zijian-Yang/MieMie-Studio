@@ -7,7 +7,7 @@
 
 ### 5. Celery Worker 执行中断后图片工作室任务可能永久停留 `generating`
 
-**状态**: ✅ 已修复并通过 pre 验证；真实 DashScope smoke 待 key 补跑 (2026-05-24)
+**状态**: ✅ 已修复并完成 pre 验证与真实 DashScope 图片 smoke (2026-05-24)
 
 **问题**: `pre` 服务器 Redis + Worker 稳定性补强中，图片工作室任务提交后立即重启 `worker`，Celery worker 可恢复 `ping` 且 `registered` 包含 `studio.generate`，但该任务在 150 秒观察窗口后仍停留 `generating`。
 
@@ -28,10 +28,12 @@
 - 已补后端回归覆盖 attempt 写入、stale 失败、stale 后重新生成、旧 attempt 不覆盖新 attempt、worker 异常失败写回
 - pre 服务器已部署 `977457bb4aa8e1b89d7f9fcb1efac5bf32820006`，临时设置 `MIEMIE_STUDIO_GENERATION_STALE_SECONDS=90`
 - pre 验证中，同一任务连续两次 generate 复用同一 attempt；`restart worker` 后任务在约 93 秒由 GET stale 兜底标记为 `failed`，`failure_reason=stale_generating`
+- 真实 DashScope 图片队列 smoke 已补跑成功：`wan2.6-t2i` 任务快速返回 `generating`，最终 `completed`，平台记录 1 个图片结果和 1 个 request id
+- 测试用户临时 key 已删除，补充检查确认服务器用户配置中没有 DashScope / production / test key
 
-**后续补跑**:
-1. 临时提供 DashScope key 后补跑 1 个真实图片队列 smoke，成功后删除测试用户配置中的 key
-2. 补跑后再讨论视频工作室 worker 迁移
+**后续**:
+1. 视频工作室 worker 迁移需要单独计划、实施和验收
+2. worker 非 root 运行、Redis 无密码、SSH 新连接偶发关闭仍作为正式生产发布前硬化项
 
 **调查记录**: [pre 服务器验证报告](./reports/2026-05-18-pre-server-validation.md)
 

@@ -1,0 +1,134 @@
+{
+  "started_at": "2026-05-24T11:47:24+08:00",
+  "artifact_note": "No API keys, auth tokens, passwords, or generated URLs are stored.",
+  "checks": {
+    "key_file": {
+      "path": "/tmp/miemie-dashscope.key",
+      "present": true,
+      "bytes": 35
+    },
+    "health_before": {
+      "status": 200,
+      "headers": {
+        "x-request-id": "6c4f3ec06a06",
+        "x-deployment-version": "977457bb4aa8e1b89d7f9fcb1efac5bf32820006"
+      },
+      "body": {
+        "status": "ok",
+        "git_commit": "977457bb4aa8e1b89d7f9fcb1efac5bf32820006",
+        "run_mode": "prod",
+        "serve_frontend": true,
+        "started_at": "2026-05-24T03:39:59Z",
+        "redis": {
+          "configured": true,
+          "ok": true
+        }
+      }
+    },
+    "register": {
+      "status": 200,
+      "username": "dashscope_image_1779594445",
+      "token_returned": true
+    },
+    "set_api_key": {
+      "status": 200,
+      "ok": true
+    },
+    "key_after_set": {
+      "status": 200,
+      "is_set": true,
+      "api_key_masked_set": true
+    },
+    "project": {
+      "status": 200,
+      "project_id_set": true
+    },
+    "task_create": {
+      "status": 200,
+      "task_id_set": true
+    },
+    "generate": {
+      "status": 200,
+      "elapsed_ms": 167,
+      "task": {
+        "task_id": "46540a18-cd2e-49da-b0ca-bb23f3866bda",
+        "status": "generating",
+        "model": "wan2.6-t2i",
+        "provider": "wan",
+        "image_count": 0,
+        "task_id_count": 0,
+        "request_id_count": 0,
+        "error_message_set": false,
+        "error_message_summary": null,
+        "attempt": {
+          "attempt_id": "89988b5ba5b24de693821027b32c6cce",
+          "status": "queued",
+          "dispatcher": "celery",
+          "celery_task_id": "0c5e55f1-be50-4cc4-992f-9015ba802ce9",
+          "dispatched_at": "2026-05-24T11:47:25.557258",
+          "started_at": null,
+          "heartbeat_at": "2026-05-24T11:47:25.557265",
+          "stale_seconds": 1800
+        }
+      },
+      "returned_generating": true,
+      "has_attempt": true
+    },
+    "poll": {
+      "poll_count": 2,
+      "polls_tail": [
+        {
+          "at": "2026-05-24T11:47:25+08:00",
+          "http_status": 200,
+          "task_status": "generating",
+          "image_count": 0,
+          "task_id_count": 0,
+          "request_id_count": 0,
+          "attempt_status": "queued"
+        },
+        {
+          "at": "2026-05-24T11:47:35+08:00",
+          "http_status": 200,
+          "task_status": "completed",
+          "image_count": 1,
+          "task_id_count": 0,
+          "request_id_count": 1,
+          "attempt_status": "succeeded"
+        }
+      ],
+      "final_task": {
+        "task_id": "46540a18-cd2e-49da-b0ca-bb23f3866bda",
+        "status": "completed",
+        "model": "wan2.6-t2i",
+        "provider": "wan",
+        "image_count": 1,
+        "task_id_count": 0,
+        "request_id_count": 1,
+        "error_message_set": false,
+        "error_message_summary": null,
+        "attempt": {
+          "attempt_id": "89988b5ba5b24de693821027b32c6cce",
+          "status": "succeeded",
+          "dispatcher": "celery",
+          "celery_task_id": "0c5e55f1-be50-4cc4-992f-9015ba802ce9",
+          "dispatched_at": "2026-05-24T11:47:25.557258",
+          "started_at": "2026-05-24T11:47:27.174433",
+          "heartbeat_at": "2026-05-24T11:47:35.119602",
+          "stale_seconds": 1800,
+          "finished_at": "2026-05-24T11:47:35.119594"
+        }
+      }
+    },
+    "delete_api_key": {
+      "status": 200,
+      "ok": true
+    },
+    "key_after_delete": {
+      "status": 200,
+      "is_set": false
+    }
+  },
+  "failures": [],
+  "finished_at": "2026-05-24T11:47:35+08:00",
+  "passed": true
+}

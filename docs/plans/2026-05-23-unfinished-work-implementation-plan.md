@@ -21,7 +21,7 @@
 - 阶段 1 `pre` 服务器验证闭环：已补齐 S1、S3、低频 DashScope smoke、资源快照和报告。
 - 阶段 2 Redis：已最小实装 Redis session、slowapi Redis storage、health Redis 状态，并在服务器验证通过。
 - 阶段 3 Worker：已最小实装 Celery + Redis broker、统一 dispatcher、图片工作室生成链路入队，并在服务器验证 API 快速返回和 worker 消费。
-- 阶段 3.5 Redis + Worker 稳定性验收补强：Redis restart / unavailable 路径通过；worker restart 后恢复 ping / registered，但任务提交后重启 worker 会留下 `generating` 超时任务，本轮已停止真实图片 smoke 和视频迁移。
+- 阶段 3.5 Redis + Worker 稳定性验收补强：Redis restart / unavailable 路径通过；worker restart 后恢复 ping / registered。任务提交后重启 worker 留下 `generating` 超时任务的问题已用 stale 兜底修复，并已补跑 1 个真实 DashScope 图片队列 smoke。
 - 阶段 4 PostgreSQL / SSE：仍按用户计划后置，仅保留 spec / 设计准备，不迁核心数据、不替换轮询。
 - 阶段 5 代码治理：尚未开始拆 `frontend/src/services/api.ts` 和 `VideoStudioPage.tsx`，作为下一批未完成工作。
 
@@ -128,7 +128,7 @@
 - Worker 受控 `restart worker` 后可恢复 `celery inspect ping`，`registered` 包含 `studio.generate`，API health 不受影响。
 - 无供应商 key 的图片工作室失败路径可快速返回 `generating` 并最终进入 `failed`。
 - 同一任务连续触发两次 generate 均返回现有 `generating` 状态，没有观察到重复终态污染。
-- 阻塞：任务提交后立即重启 worker，该任务 150 秒后仍为 `generating`。按验收计划，本轮停止真实 DashScope 图片成功 smoke 和视频工作室迁移。
+- 原阻塞：任务提交后立即重启 worker，该任务 150 秒后仍为 `generating`。该问题已通过 stale 兜底修复，并在 pre 服务器验证通过。
 
 2026-05-24 Worker stale 修复进展：
 
@@ -138,11 +138,12 @@
 - 已补后端回归覆盖 attempt 写入、重复提交不重复 dispatch、stale GET 失败、stale 后重新生成、旧 attempt 不覆盖新 attempt、worker 异常失败写回。
 - 已部署到 pre 服务器 `977457bb4aa8e1b89d7f9fcb1efac5bf32820006`，临时设置 `MIEMIE_STUDIO_GENERATION_STALE_SECONDS=90` 并重建 `api` / `worker`。
 - pre 验证通过：同一任务连续两次 generate 复用同一个 attempt；提交后立即 `restart worker`，任务在约 93 秒后由 stale 兜底标记为 `failed`，`failure_reason=stale_generating`。
+- 真实 DashScope 图片队列 smoke 已补跑通过：恢复 `MIEMIE_STUDIO_GENERATION_STALE_SECONDS=1800` 后，`wan2.6-t2i` 任务约 `167ms` 返回 `generating`，最终 `completed`，平台记录 1 个图片结果和 1 个 request id。
+- 测试用户临时 key 已删除，补充检查确认服务器用户配置中没有 DashScope / production / test key。
 
 后续待完成：
 
-- 临时提供真实供应商 key 后补 1 个低频图片生成队列 smoke；当前 pre 服务器全局配置、用户配置和容器环境均没有 DashScope key。
-- 真实图片 smoke 补跑通过后再迁移视频工作室生成链路。
+- 视频工作室生成链路迁移到 worker 需要单独计划、实施和验收。
 - 评估 worker 非 root 运行与容器权限硬化。
 
 证据：
@@ -154,6 +155,7 @@
 - `docs/reports/artifacts/2026-05-23-redis-worker-server/celery-registered-post-worker-image-20260523.txt`
 - `docs/reports/artifacts/2026-05-24-redis-worker-stability/redis-worker-core-20260524.json`
 - `docs/reports/artifacts/2026-05-24-worker-stale-fix-server/worker-stale-fix-20260524.json`
+- `docs/reports/artifacts/2026-05-24-worker-stale-fix-server/dashscope-image-smoke-20260524.json`
 
 ## 阶段 4：线上图片工作室修复验证
 
@@ -274,10 +276,10 @@
 
 1. 已完成阶段 1：服务器验证闭环。
 2. 已完成阶段 2：Redis 最小接入与服务器验证。
-3. 阶段 3 Worker 图片工作室最小接入已完成，但 2026-05-24 稳定性补强发现 worker 重启恢复阻塞。
-4. 下一步优先修复 worker 执行中断后任务永久 `generating` 的问题，并补回 1 个真实 DashScope 图片队列 smoke。
-5. 阻塞解除后，再恢复阶段 4 线上图片工作室体验验证和阶段 6 低风险代码拆分。
-6. 视频工作室 worker 迁移、PostgreSQL / SSE 继续后置，基于 Redis + Worker 稳定基线通过后的数据再讨论。
+3. 阶段 3 Worker 图片工作室最小接入已完成。
+4. 阶段 3.5 Redis + Worker 稳定性补强已闭环：Redis restart / unavailable、worker restart stale 兜底和 1 个真实 DashScope 图片队列 smoke 均已验证。
+5. 下一步可恢复阶段 4 线上图片工作室体验验证和阶段 6 低风险代码拆分，或单独规划视频工作室 worker 迁移。
+6. PostgreSQL / SSE 继续后置，基于 Redis + Worker 图片工作室稳定基线通过后的数据再讨论。
 
 ## 暂不做
 

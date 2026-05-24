@@ -397,11 +397,20 @@ pre 服务器补跑结果：
 
 注意：验证脚本在 `restart worker` 后立刻执行的首次 `celery inspect ping` 出现一次 `No nodes replied within time constraint`，但随后的 `registered` 成功，补充稳态检查 `ping` / `registered` 均通过。因此该现象记录为重启瞬间 inspect race，不影响 stale 兜底验收结论。
 
-真实 DashScope 图片队列 smoke 未执行：服务器当前没有可用 DashScope key 来源。已做脱敏布尔检查：全局 `backend/data/config.json` 不存在，10 个用户配置中 `dashscope_api_key` / `production_api_key` / `test_api_key` 均未设置，API 容器环境变量也没有 DashScope key。该 smoke 需要后续临时提供 key 后补跑，不能伪造通过。
+真实 DashScope 图片队列 smoke 已于 2026-05-24 补跑通过：
+
+- smoke 前将 `MIEMIE_STUDIO_GENERATION_STALE_SECONDS` 从 `90` 恢复为 `1800`，只重建并重启 `api` / `worker`，未重启 Redis。
+- smoke 前预检通过：`/api/health` 返回 `200` 且 `redis.ok=true`，`GET /` 返回 `200`，Celery `ping` 返回 `pong`，`registered` 包含 `studio.generate`。
+- 使用一次性测试用户临时写入 DashScope key，创建 1 个 `wan2.6-t2i` 文生图任务，`n=1`、`group_count=1`、`size=1280*1280`。
+- `POST /api/studio/{task_id}/generate` 用时约 `167ms` 返回 `generating`，写入 `generation_attempt`，dispatcher 为 `celery`，stale 窗口为 `1800` 秒。
+- 轮询 2 次后任务进入 `completed`，平台记录 `image_count=1`、`request_id_count=1`，attempt 终态为 `succeeded`。
+- finally 路径已执行 `DELETE /api/settings/api-key`，随后 `GET /api/settings/api-key` 确认 `is_set=false`。
+- smoke 后再次脱敏检查服务器用户配置：11 个用户配置中 `dashscope_api_key` / `production_api_key` / `test_api_key` 均未设置；本地和服务器临时 key 文件均已删除。
 
 新增脱敏 artifact：
 
 - `docs/reports/artifacts/2026-05-24-worker-stale-fix-server/worker-stale-fix-20260524.json`
+- `docs/reports/artifacts/2026-05-24-worker-stale-fix-server/dashscope-image-smoke-20260524.json`
 
 本地回归：
 
@@ -502,7 +511,7 @@ k6 run --summary-export validation-artifacts/2026-05-18-pre-server/pre-server-s3
 - 已补齐：S1 纯读 k6、S3 状态观察 k6 与压测后资源快照。
 - 已补齐：低频真实 DashScope smoke，1 个真实视频任务成功，平台记录 1 个结果视频、1 个供应商 task id 和 1 个 request id。
 - 限制项：真实 OSS 未启用，生成视频未转存到长期对象存储；本轮不代表供应商并发提交能力。
-- 当前阻塞：2026-05-24 Redis / Worker 稳定性补强发现 worker 重启恢复路径会留下永久 `generating` 风险；下一步应先修复该基线问题，再补 1 个真实 DashScope 图片队列 smoke，之后才讨论视频工作室 worker 迁移。
+- 当前结论：2026-05-24 Redis / Worker 稳定性补强发现的 worker 重启永久 `generating` 风险已通过 stale 兜底修复；真实 DashScope 图片队列 smoke 已补跑成功。Redis + Worker 图片工作室试点基线可以作为下一步视频工作室 worker 迁移设计的输入，但视频迁移仍需单独计划和验收。
 
 ## 2026-05-23 原始结果归档
 
