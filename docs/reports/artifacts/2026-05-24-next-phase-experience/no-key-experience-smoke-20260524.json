@@ -1,0 +1,65 @@
+{
+  "artifact_note": "No API keys, auth tokens, passwords, prompts beyond synthetic smoke text, or generated URLs are stored.",
+  "username": "next_phase_1779605106",
+  "checks": {
+    "register": {
+      "status": 200,
+      "elapsed_ms": 561.6,
+      "token_returned": true
+    },
+    "project": {
+      "status": 200,
+      "elapsed_ms": 6.0,
+      "project_id_set": true
+    },
+    "projects_list": {
+      "status": 200,
+      "elapsed_ms": 4.4
+    },
+    "studio_list": {
+      "status": 200,
+      "elapsed_ms": 4.9
+    },
+    "video_studio_list": {
+      "status": 200,
+      "elapsed_ms": 2.1
+    },
+    "studio_create": {
+      "status": 200,
+      "elapsed_ms": 5.3,
+      "task_id_set": true
+    },
+    "studio_generate_duplicate": {
+      "first_status": 200,
+      "second_status": 200,
+      "first_elapsed_ms": 14.0,
+      "second_elapsed_ms": 3.1,
+      "first_task_status": "generating",
+      "second_task_status": "generating",
+      "same_attempt": true
+    },
+    "studio_final": {
+      "status": "failed",
+      "error_message_set": true
+    },
+    "video_create": {
+      "status": 200,
+      "elapsed_ms": 10.1,
+      "task_status": "processing",
+      "submit_state": "submitting",
+      "task_id_set": true
+    },
+    "video_final": {
+      "status": "failed",
+      "submit_state": "failed",
+      "task_ids_count": 0,
+      "video_urls_count": 0,
+      "error_message_set": true
+    },
+    "cleanup_project": {
+      "status": 200,
+      "elapsed_ms": 3.4
+    }
+  },
+  "passed": true
+}

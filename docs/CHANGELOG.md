@@ -27,6 +27,10 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 下一阶段体验与性能治理：新增 `docs/reports/2026-05-24-next-phase-experience-and-performance.md`，记录 `miemie-pre` 无 key 体验 smoke、当前运行门禁和后续浏览器验证缺口。
+- 运行态轻量观测：新增高频图片/视频工作室与测评查询路径的脱敏耗时日志，不改变公开 API，不记录 key/token/password。
+- 压测资产：新增 `loadtest/k6/s4-mixed-query-generate.js`，用于“多人查询 + 少量提交”的 Compose + Redis + Worker 路径基线采集。
+- 前端服务层治理：新增 `frontend/src/services/apiClient.ts`，先拆出 axios transport、认证 token 注入与 401 处理，`api.ts` 继续保持原业务 API 聚合入口。
 - 视频工作室 Worker 迁移 v1：视频工作室创建/重新生成任务改为通过统一 dispatcher 入队，Compose 新增独立 `worker-video` 服务消费 `video_studio` 队列，避免长视频任务阻塞图片 worker。
 - 视频工作室 Worker 迁移 v1：`VideoStudioTask` 新增 `submit_state`、`submit_started_at`、`submit_attempt_id`，并在 `provider_result_meta.worker_attempt` 中记录 dispatcher、Celery task id、heartbeat 和 stale 窗口。
 - 视频工作室 Worker 迁移 v1：新增 submit stale 兜底、worker stale 恢复、旧 attempt 丢弃、delete/regenerate 防旧 worker 复活等后端回归；pre 服务器已完成基础部署、无 key 失败路径、`worker-video` restart 基础恢复和 1 个真实 DashScope 视频 smoke 验证。

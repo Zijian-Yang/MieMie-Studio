@@ -65,7 +65,7 @@
 
 ### 4. 线上图片工作室切页慢加载与生成按钮无响应
 
-**状态**: 🟡 本地已修复，待线上验证 (2026-04-22)
+**状态**: 🟡 本地已修复，pre API 体验 smoke 已通过，仍待浏览器/线上验证 (2026-05-24)
 
 **问题**: 生产站 `https://studio.miemie.co/` 使用 `guest` 测试账号进入图片工作室时，切换页面会出现全页转圈；任务详情中点击“开始生成”后经常没有即时反馈，仍停留在“待生成”状态。
 
@@ -89,6 +89,14 @@
 - 已实现：预览请求增加取消/去重，避免旧请求覆盖新状态
 - 已实现：`/api/studio/{task_id}/generate` 不再在返回前同步探测 wan2.7 远程参考图
 - 已验证：`backend/tests/test_studio_capabilities.py` 33 项通过，前端 `npm run typecheck` 通过
+
+**pre 体验验证进展**:
+- 已验证：`miemie-pre` 项目列表、图片工作室列表、视频工作室列表均快速返回 `200`
+- 已验证：图片工作室创建任务后首次生成约 `14.0ms` 返回 `generating`
+- 已验证：同一图片任务连续两次 generate 均返回 `200/generating`，且复用同一个 attempt，未重复提交
+- 已验证：无 key 图片任务最终进入 `failed`，错误可见，不静默卡住
+- 待补：真实浏览器网络面板验证页面切换无长时间全页转圈、开发者模式未展开时不触发 heavy preview
+- 证据：`docs/reports/2026-05-24-next-phase-experience-and-performance.md`
 
 **调查记录**: [线上工作室卡顿与生成无响应调查记录](./reviews/2026-04-22-online-studio-investigation.md)
 **修复规格**: [图片工作室生产环境卡顿治理](./specs/2026-04-studio-prod-latency-hardening.md)

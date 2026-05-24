@@ -4,9 +4,11 @@ AI 视频生成平台 - FastAPI 后端入口
 
 import os
 import subprocess
+import logging
+from time import perf_counter
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -23,12 +25,14 @@ from app.routers import (
 )
 from app.middleware.auth import AuthMiddleware
 from app.services.rate_limit import create_limiter, redis_url_from_env
+from app.services.runtime_observability import build_request_observation, should_observe_request
 
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 limiter = create_limiter(key_func=get_remote_address, default_limits=["200/minute"])
+runtime_observability_logger = logging.getLogger("app.runtime_observability")
 
 # 生产模式标志（提前定义，供 CORS 和静态文件使用）
 SERVE_FRONTEND = os.environ.get("MIEMIE_SERVE_FRONTEND", "").lower() in ("true", "1", "yes")
@@ -121,6 +125,28 @@ app.add_middleware(
 
 # 添加认证中间件
 app.add_middleware(AuthMiddleware)
+
+
+@app.middleware("http")
+async def log_runtime_observation(request: Request, call_next):
+    path = request.url.path
+    should_observe = should_observe_request(request.method, path)
+    started = perf_counter()
+    response = await call_next(request)
+
+    if should_observe:
+        observation = build_request_observation(
+            method=request.method,
+            path=path,
+            query_params=dict(request.query_params),
+            status_code=response.status_code,
+            duration_ms=(perf_counter() - started) * 1000,
+            user_id=getattr(request.state, "user_id", None),
+            request_id=getattr(request.state, "request_id", None),
+        )
+        runtime_observability_logger.info("[runtime_observation] %s", observation)
+
+    return response
 
 # 静态文件服务 - 用于提供生成的素材
 data_dir = Path(__file__).parent.parent / "data"

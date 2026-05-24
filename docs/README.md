@@ -72,6 +72,7 @@
 | [pre 服务器验证报告](./reports/2026-05-18-pre-server-validation.md) | `pre` 分支 Ubuntu staging 部署、health/frontend 证据与未完成压测阻塞记录 |
 | [2026-05-23 项目进度盘点报告](./reports/2026-05-23-project-progress-review.md) | 当前 `pre` 分支仓库、文档、测试、Compose 与未完成项盘点 |
 | [未完成工作实施计划](./plans/2026-05-23-unfinished-work-implementation-plan.md) | 先补齐当前未闭环工作，并把后续架构选型延后到数据驱动讨论 |
+| [下一阶段体验与性能治理报告](./reports/2026-05-24-next-phase-experience-and-performance.md) | Redis + Worker 闭环后的 pre 体验 smoke、轻量观测与 S4 混合压测入口 |
 | [容量基线与压测手册](./playbooks/CAPACITY_BASELINE_AND_LOADTEST.md) | Step 00 的压测执行方法、字段要求与结果模板 |
 | [运行模式矩阵](./playbooks/RUNTIME_MODE_MATRIX.md) | 开发环境、脚本生产模式、Compose 生产模式的边界对比 |
 | [观测与轮询盘点](./reviews/2026-04-step-00-observability-and-polling-inventory.md) | 当前轮询热点、状态接口副作用与最小观测缺口 |
@@ -122,7 +123,8 @@ docker compose config
 - E2E helper：`npm run test:e2e:helper`（2026-04-24，2 passed）
 - E2E smoke：`npm run test:e2e`（2026-04-24，4 passed，macOS 可自动发现本机 `ms-playwright` Chromium 缓存）
 - Compose 静态校验：`docker compose config`（2026-05-24，通过）
-- `pre` Ubuntu staging：独立 Compose project `miemie-pre` 构建与启动通过，`/api/health` 与 `GET /` 通过；S1/S3 k6 与 1 个低频 DashScope 视频 smoke 已于 2026-05-23 补跑通过；Redis session / slowapi Redis storage / Celery worker 图片工作室队列 smoke 已在服务器通过；2026-05-24 Redis restart / unavailable 稳定性补强通过，worker 执行中断后任务永久 `generating` 已完成并通过 pre stale 验证；1 个真实 DashScope 图片队列 smoke 已补跑通过并删除测试用户 key；视频工作室 Worker 迁移 v1 已部署到 pre，health/首页/Celery、无 key 失败路径、`worker-video` restart 基础恢复和 1 个真实 DashScope 视频 smoke 均已通过
+- `pre` Ubuntu staging：独立 Compose project `miemie-pre` 构建与启动通过，`/api/health` 与 `GET /` 通过；S1/S3 k6 与 1 个低频 DashScope 视频 smoke 已于 2026-05-23 补跑通过；Redis session / slowapi Redis storage / Celery worker 图片工作室队列 smoke 已在服务器通过；2026-05-24 Redis restart / unavailable 稳定性补强通过，worker 执行中断后任务永久 `generating` 已完成并通过 pre stale 验证；1 个真实 DashScope 图片队列 smoke 已补跑通过并删除测试用户 key；视频工作室 Worker 迁移 v1 已部署到 pre，health/首页/Celery、无 key 失败路径、`worker-video` restart 基础恢复和 1 个真实 DashScope 视频 smoke 均已通过；下一阶段无 key 体验 smoke 已验证列表快、提交即时反馈、重复点击去重和错误可见性
+- 性能治理入口：新增高频运行路径脱敏耗时日志与 `loadtest/k6/s4-mixed-query-generate.js`，用于“多人查询 + 少量提交”的小而美容量证据采集
 - 当前已消除：
   - FastAPI `on_event is deprecated` 警告
   - `baseline-browser-mapping` 数据过期提示

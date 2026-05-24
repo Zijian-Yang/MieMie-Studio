@@ -25,6 +25,23 @@
 - 阶段 4 PostgreSQL / SSE：仍按用户计划后置，仅保留 spec / 设计准备，不迁核心数据、不替换轮询。
 - 阶段 5 代码治理：尚未开始拆 `frontend/src/services/api.ts` 和 `VideoStudioPage.tsx`，作为下一批未完成工作。
 
+## 2026-05-24 下一阶段执行口径
+
+Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 DashScope 图片/视频 smoke 均已闭环。下一阶段以“线上/准线上体验验证 + 小而美性能治理 + 代码维护性治理”为主，不进入 PostgreSQL / SSE，不扩大基础设施。
+
+当前新起点：
+
+- `miemie-pre` 服务器门禁通过：`/api/health redis.ok=true`、`GET /` 200、图片 worker 与 video worker 均可 `ping`，注册任务包含 `studio.generate` 和 `video_studio.generate`。
+- 无 key 体验 smoke 通过：图片工作室列表/创建/重复生成去重、视频工作室创建/失败路径、错误可见性与临时项目清理均通过。
+- 轻量性能治理已开始：新增高频运行路径脱敏耗时日志，新增 S4 “多人查询 + 少量提交” k6 草案。
+- 代码治理已开始第一刀：`frontend/src/services/apiClient.ts` 承载 transport，`frontend/src/services/api.ts` 保持原业务 API 聚合入口。
+
+新增证据：
+
+- `docs/reports/2026-05-24-next-phase-experience-and-performance.md`
+- `docs/reports/artifacts/2026-05-24-next-phase-experience/no-key-experience-smoke-20260524.json`
+- `loadtest/k6/s4-mixed-query-generate.js`
+
 ## 总原则
 
 1. 先补完已经承诺但未闭环的验证与文档，不急着引入新基础设施。
@@ -197,6 +214,11 @@
 - heavy preview 不再在普通浏览中频繁触发。
 - 线上验证结论落盘。
 
+状态：
+
+- API 层体验 smoke 已通过：列表接口快速返回，图片生成重复点击复用 attempt，无 key 失败可见。
+- 浏览器真实 UI 操作仍待下一轮用 Playwright 或人工走查补齐，尤其是“页面切换无长时间全页转圈”和“开发者模式未展开时不触发 heavy preview”的浏览器网络证据。
+
 ## 阶段 5：保持小而美的性能治理
 
 目标：在不引入新重型组件的前提下，让现有单机/Compose 路径更稳，支撑数百在线和一两百活跃生成/查询用户的体验目标。
@@ -232,6 +254,11 @@
 - 供应商任务受限时，页面反馈清楚，不表现为按钮无响应。
 - 形成一份“是否需要新技术栈”的证据清单，而不是凭感觉升级架构。
 
+状态：
+
+- 已新增运行态脱敏耗时日志，覆盖图片/视频工作室与测评查询高频路径。
+- 已新增 `loadtest/k6/s4-mixed-query-generate.js`，可用于下一轮只读查询或 preview/无 key 受控提交混合压测。
+
 ## 阶段 6：代码治理，降低维护压力
 
 目标：先把后续最容易出问题的大文件拆小，降低维护成本。只做行为保持型重构。
@@ -242,6 +269,8 @@
    - 先分 transport、shared types、domain API。
    - 不改接口语义。
    - 每拆一小步跑 typecheck/lint。
+
+   状态：已完成第一刀 transport 拆分，新增 `frontend/src/services/apiClient.ts`。后续继续按 domain API 分组，但保持 `api.ts` re-export，避免一次性改动所有页面 import。
 
 2. 拆 `frontend/src/pages/VideoStudio/VideoStudioPage.tsx`
    - 提取数据加载、任务列表、任务详情、能力表单、媒体预处理。
