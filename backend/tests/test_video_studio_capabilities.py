@@ -1,4 +1,5 @@
 import pytest
+from datetime import datetime, timedelta
 
 from app.models.media import VideoStudioTask
 from app.routers import video_studio as video_studio_router
@@ -545,18 +546,161 @@ async def test_start_pending_video_task_reconcilers_only_recovers_processing_tas
     user_storage.save_video_studio_task(completed_task)
     user_storage.save_video_studio_task(pending_without_provider_task)
 
-    scheduled = []
+    dispatched = []
+
+    def fake_dispatch(task, user_id, user_config_dir):
+        dispatched.append((task.id, user_id, user_config_dir, task.submit_attempt_id))
+        return {"dispatcher": "celery", "task_id": "celery-video-recovery"}
+
     monkeypatch.setattr(
         video_studio_router,
-        "_schedule_video_task_reconciler",
-        lambda task_id, user_id, user_config_dir: scheduled.append((task_id, user_id, user_config_dir)),
+        "_dispatch_video_background_submit",
+        fake_dispatch,
     )
 
     await video_studio_router.start_pending_video_task_reconcilers()
 
-    assert len(scheduled) == 1
-    assert scheduled[0][0] == processing_task.id
-    assert scheduled[0][1] == user["id"]
+    assert len(dispatched) == 1
+    assert dispatched[0][0] == processing_task.id
+    assert dispatched[0][1] == user["id"]
+    assert dispatched[0][3]
+    recovered = user_storage.get_video_studio_task(processing_task.id)
+    assert recovered.provider_result_meta["worker_attempt"]["status"] == "recovering"
+    assert recovered.provider_result_meta["worker_attempt"]["celery_task_id"] == "celery-video-recovery"
+
+
+def test_create_task_dispatches_video_worker_attempt(client, auth_header, monkeypatch):
+    project_id = _create_project(client, auth_header)
+    dispatched = []
+
+    def fake_dispatch(task, user_id, user_config_dir):
+        dispatched.append((task.id, task.submit_attempt_id, user_id, user_config_dir))
+        return {"dispatcher": "celery", "task_id": "celery-video-1"}
+
+    monkeypatch.setattr(video_studio_router, "_dispatch_video_background_submit", fake_dispatch)
+
+    resp = client.post(
+        "/api/video-studio",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "视频 worker 入队",
+            "task_kind": "text_to_video",
+            "provider": "wan",
+            "model_id": "wan2.7-t2v",
+            "model": "wan2.7-t2v",
+            "prompt": "机械臂在仓库中巡视",
+            "normalized_params": {
+                "resolution": "720P",
+                "ratio": "16:9",
+                "duration": 5,
+                "prompt_extend": False,
+            },
+            "group_count": 1,
+        },
+    )
+
+    assert resp.status_code == 200
+    task = resp.json()["task"]
+    attempt = task["provider_result_meta"]["worker_attempt"]
+    assert task["status"] == "processing"
+    assert task["submit_state"] == "submitting"
+    assert task["submit_attempt_id"]
+    assert attempt["attempt_id"] == task["submit_attempt_id"]
+    assert attempt["status"] == "queued"
+    assert attempt["dispatcher"] == "celery"
+    assert attempt["celery_task_id"] == "celery-video-1"
+    assert len(dispatched) == 1
+    assert dispatched[0][0] == task["id"]
+    assert dispatched[0][1] == task["submit_attempt_id"]
+
+
+def test_stale_video_submit_without_provider_task_is_failed_on_get(client, auth_header, registered_user, monkeypatch):
+    monkeypatch.setenv("MIEMIE_VIDEO_STUDIO_SUBMIT_STALE_AFTER_SECONDS", "30")
+    project_id = _create_project(client, auth_header)
+    _, user = registered_user
+    user_storage = get_user_storage(user["id"])
+    old_time = datetime.now() - timedelta(minutes=5)
+    task = VideoStudioTask(
+        project_id=project_id,
+        name="提交阶段 stale",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-t2v",
+        model="wan2.7-t2v",
+        prompt="机械臂巡视仓库",
+        status="processing",
+        submit_state="submitting",
+        submit_started_at=old_time,
+        submit_attempt_id="video-submit-old",
+        provider_result_meta={
+            "worker_attempt": {
+                "attempt_id": "video-submit-old",
+                "status": "running",
+                "heartbeat_at": old_time.isoformat(),
+            }
+        },
+    )
+    user_storage.save_video_studio_task(task)
+
+    resp = client.get(f"/api/video-studio/{task.id}", headers=auth_header)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "failed"
+    assert data["submit_state"] == "failed"
+    assert data["provider_result_meta"]["submit_error"]["error_code"] == "SubmitTimeout"
+    assert data["provider_result_meta"]["worker_attempt"]["failure_reason"] == "submit_timeout"
+
+
+def test_stale_video_worker_with_provider_task_dispatches_recovery(client, auth_header, registered_user, monkeypatch):
+    monkeypatch.setenv("MIEMIE_VIDEO_STUDIO_WORKER_STALE_SECONDS", "30")
+    project_id = _create_project(client, auth_header)
+    _, user = registered_user
+    user_storage = get_user_storage(user["id"])
+    old_time = (datetime.now() - timedelta(minutes=5)).isoformat()
+    task = VideoStudioTask(
+        project_id=project_id,
+        name="worker stale recovery",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-t2v",
+        model="wan2.7-t2v",
+        prompt="机械臂巡视仓库",
+        status="processing",
+        task_ids=["provider-task-1"],
+        submit_state="submitted",
+        submit_attempt_id="attempt-video-current",
+        provider_result_meta={
+            "worker_attempt": {
+                "attempt_id": "attempt-video-current",
+                "status": "running",
+                "heartbeat_at": old_time,
+            }
+        },
+    )
+    user_storage.save_video_studio_task(task)
+    dispatched = []
+
+    def fake_dispatch(task, user_id, user_config_dir):
+        dispatched.append((task.id, task.task_ids, task.submit_attempt_id, user_id, user_config_dir))
+        return {"dispatcher": "celery", "task_id": "celery-video-recover-1"}
+
+    monkeypatch.setattr(video_studio_router, "_dispatch_video_background_submit", fake_dispatch)
+
+    resp = client.get(f"/api/video-studio/{task.id}", headers=auth_header)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    attempt = data["provider_result_meta"]["worker_attempt"]
+    assert data["status"] == "processing"
+    assert data["task_ids"] == ["provider-task-1"]
+    assert len(dispatched) == 1
+    assert dispatched[0][1] == ["provider-task-1"]
+    assert attempt["status"] == "recovering"
+    assert attempt["celery_task_id"] == "celery-video-recover-1"
 
 
 def test_wan27_t2v_builds_new_protocol_payload():
@@ -1137,6 +1281,8 @@ async def test_background_submit_failure_keeps_raw_provider_error(registered_use
         input_assets={},
         status="processing",
     )
+    video_studio_router._begin_video_submit_attempt(task)
+    get_user_storage(user["id"]).save_video_studio_task(task)
     normalized = NormalizedVideoTaskRequest(
         project_id="p1",
         task_kind="text_to_video",
@@ -1179,11 +1325,103 @@ async def test_background_submit_failure_keeps_raw_provider_error(registered_use
     assert saved.request_ids == ["req-denied-1"]
     assert saved.provider_payload_snapshot == provider_payload
     submit_meta = saved.provider_result_meta["submit_error"]
+    worker_attempt = saved.provider_result_meta["worker_attempt"]
+    assert saved.submit_state == "failed"
+    assert worker_attempt["attempt_id"] == task.submit_attempt_id
+    assert worker_attempt["status"] == "failed"
     assert submit_meta["provider"] == "happyhorse"
     assert submit_meta["key_profile"] == "test"
     assert submit_meta["request_id"] == "req-denied-1"
     assert submit_meta["error_code"] == "Model.AccessDenied"
     assert submit_meta["raw_response"]["details"]["model"] == "happyhorse-1.0-t2v"
+
+
+@pytest.mark.asyncio
+async def test_background_submit_ignores_stale_attempt(registered_user, monkeypatch):
+    _, user = registered_user
+    user_storage = get_user_storage(user["id"])
+    task = VideoStudioTask(
+        project_id="p1",
+        name="旧 attempt 不覆盖",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-t2v",
+        model="wan2.7-t2v",
+        prompt="机械臂巡视仓库",
+        normalized_params={"resolution": "720P", "ratio": "16:9", "duration": 5},
+        input_assets={},
+        status="processing",
+        submit_state="submitting",
+        submit_attempt_id="current-attempt",
+        provider_result_meta={"worker_attempt": {"attempt_id": "current-attempt", "status": "queued"}},
+    )
+    user_storage.save_video_studio_task(task)
+
+    async def fail_submit(*args, **kwargs):
+        raise AssertionError("stale attempt should not submit provider task")
+
+    monkeypatch.setattr(video_studio_router, "_submit_api_tasks", fail_submit)
+
+    normalized = NormalizedVideoTaskRequest(
+        project_id="p1",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-t2v",
+        prompt=task.prompt,
+        normalized_params=task.normalized_params,
+    )
+
+    await video_studio_router._background_create_video_tasks(
+        task,
+        normalized,
+        user["id"],
+        None,
+        "old-attempt",
+    )
+
+    latest = user_storage.get_video_studio_task(task.id)
+    assert latest.status == "processing"
+    assert latest.submit_attempt_id == "current-attempt"
+    assert latest.task_ids == []
+    assert latest.provider_result_meta["worker_attempt"]["status"] == "queued"
+
+
+@pytest.mark.asyncio
+async def test_deleted_video_task_is_not_resurrected_by_worker(registered_user, monkeypatch):
+    _, user = registered_user
+    user_storage = get_user_storage(user["id"])
+    task = VideoStudioTask(
+        project_id="p1",
+        name="已删除任务",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-t2v",
+        model="wan2.7-t2v",
+        prompt="机械臂巡视仓库",
+        normalized_params={"resolution": "720P", "ratio": "16:9", "duration": 5},
+        input_assets={},
+        status="processing",
+        submit_state="submitting",
+        submit_attempt_id="deleted-attempt",
+    )
+    user_storage.save_video_studio_task(task)
+    user_storage.delete_video_studio_task(task.id)
+
+    def fail_get_adapter(provider):
+        raise AssertionError("deleted task should not reach provider adapter")
+
+    monkeypatch.setattr(video_studio_router, "get_video_adapter", fail_get_adapter)
+
+    await video_studio_router._background_create_video_tasks_by_id(
+        task.id,
+        user["id"],
+        None,
+        "deleted-attempt",
+    )
+
+    assert user_storage.get_video_studio_task(task.id) is None
 
 
 def test_get_failed_submit_task_backfills_developer_error_meta(client, auth_header, registered_user):

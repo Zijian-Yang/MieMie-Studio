@@ -141,9 +141,19 @@
 - 真实 DashScope 图片队列 smoke 已补跑通过：恢复 `MIEMIE_STUDIO_GENERATION_STALE_SECONDS=1800` 后，`wan2.6-t2i` 任务约 `167ms` 返回 `generating`，最终 `completed`，平台记录 1 个图片结果和 1 个 request id。
 - 测试用户临时 key 已删除，补充检查确认服务器用户配置中没有 DashScope / production / test key。
 
+2026-05-24 视频工作室 Worker 迁移 v1 本地进展：
+
+- 视频工作室创建/重新生成链路已从直接 `asyncio.create_task` 改为统一 dispatcher，默认仍支持本地 `asyncio`，Compose 下通过 `MIEMIE_VIDEO_STUDIO_DISPATCHER=celery` 入队。
+- Celery 新增 `video_studio.generate`，Compose 新增独立 `worker-video` 服务消费 `video_studio` 队列，图片 worker 继续只消费 `studio` 队列。
+- `VideoStudioTask` 新增 `submit_state`、`submit_started_at`、`submit_attempt_id`，并在 `provider_result_meta.worker_attempt` 记录 dispatcher、Celery task id、heartbeat、submit stale 和 worker stale 窗口。
+- 已实现 submit timeout 兜底：`processing + task_ids=[]` 超时后标记 `failed`，写入 `submit_error.error_code=SubmitTimeout`，不自动重投供应商任务。
+- 已实现 worker stale 恢复：`processing + task_ids!=[]` 且 worker heartbeat stale 时，只重新入队状态协调，不重复 submit。
+- 已补后端回归覆盖创建入队、启动恢复、submit timeout、worker stale recovery、旧 attempt 不覆盖、删除后旧 worker 不复活、provider error 元数据保留和旧 JSON 兼容读取。
+- 本地验证通过：`backend/tests/test_video_studio_capabilities.py -q`、`./run.sh test`、前端 typecheck/lint/build、`docker compose config`。
+
 后续待完成：
 
-- 视频工作室生成链路迁移到 worker 需要单独计划、实施和验收。
+- 视频工作室 Worker 迁移还需要部署到 pre 服务器，并补跑 `worker-video` restart 恢复、无 key/错误 key 失败路径和 1 个真实 DashScope 视频 smoke；通过前不得进入 PostgreSQL / SSE。
 - 评估 worker 非 root 运行与容器权限硬化。
 
 证据：
@@ -156,6 +166,7 @@
 - `docs/reports/artifacts/2026-05-24-redis-worker-stability/redis-worker-core-20260524.json`
 - `docs/reports/artifacts/2026-05-24-worker-stale-fix-server/worker-stale-fix-20260524.json`
 - `docs/reports/artifacts/2026-05-24-worker-stale-fix-server/dashscope-image-smoke-20260524.json`
+- `docs/reports/artifacts/2026-05-24-video-worker-migration/README.md`
 
 ## 阶段 4：线上图片工作室修复验证
 
@@ -278,7 +289,7 @@
 2. 已完成阶段 2：Redis 最小接入与服务器验证。
 3. 阶段 3 Worker 图片工作室最小接入已完成。
 4. 阶段 3.5 Redis + Worker 稳定性补强已闭环：Redis restart / unavailable、worker restart stale 兜底和 1 个真实 DashScope 图片队列 smoke 均已验证。
-5. 下一步可恢复阶段 4 线上图片工作室体验验证和阶段 6 低风险代码拆分，或单独规划视频工作室 worker 迁移。
+5. 视频工作室 Worker 迁移 v1 已完成本地实现和回归验证；下一步优先补 pre 服务器部署、`worker-video` restart 恢复和真实 DashScope 视频 smoke。
 6. PostgreSQL / SSE 继续后置，基于 Redis + Worker 图片工作室稳定基线通过后的数据再讨论。
 
 ## 暂不做

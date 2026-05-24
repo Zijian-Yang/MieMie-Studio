@@ -182,6 +182,21 @@
 - pre 服务器已用 `MIEMIE_STUDIO_GENERATION_STALE_SECONDS=90` 验证：提交任务后立即 `restart worker`，任务约 93 秒后由 GET stale 兜底转为 `failed`，`failure_reason=stale_generating`。
 - 该策略只覆盖图片工作室试点；真实 DashScope 图片队列 smoke 已补跑通过，视频工作室迁移仍需单独计划和验收。
 
+## 2026-05-24 视频工作室 Worker 迁移 v1
+
+视频工作室提交链路已按图片工作室试点经验迁移到统一 dispatcher，但仍只覆盖视频工作室，不扩大到音频、图片测评或视频测评。
+
+- `VideoStudioTask` 新增 `submit_state`、`submit_started_at`、`submit_attempt_id`，旧 JSON 缺字段时使用 Pydantic 默认值兼容读取。
+- 每次创建或重新生成视频任务都会生成新的 submit attempt，清空旧 `task_ids`、`request_ids`、`video_urls` 和 provider meta；worker 写回前必须校验 attempt id。
+- Celery 新增 `video_studio.generate`，并通过 `task_routes` 显式路由到 `video_studio` 队列；Compose 新增 `worker-video`，默认 `concurrency=1`，与图片 `worker` 的 `studio` 队列隔离。
+- `MIEMIE_VIDEO_STUDIO_DISPATCHER` 可单独控制视频工作室 dispatcher；未设置时继承 `MIEMIE_TASK_DISPATCHER`，本地开发仍可回退 `asyncio`。
+- `processing + task_ids=[]` 超过 `MIEMIE_VIDEO_STUDIO_SUBMIT_STALE_AFTER_SECONDS` 后标记 `failed`，并写入 `submit_error.error_code=SubmitTimeout`，不自动重投供应商任务。
+- `processing + task_ids!=[]` 且 `worker_attempt` heartbeat stale 时，只恢复状态协调任务，不重复 submit；恢复动作通过 `video_studio` 队列重新入队。
+- delete / regenerate 会释放本进程 inflight lease，并让旧 attempt 失效；旧 worker 或迟到结果不得复活已删除任务或覆盖新任务。
+- 本地回归覆盖创建入队、启动恢复、submit timeout、worker stale recovery、旧 attempt 丢弃、删除后不复活和 provider error 元数据保留。
+
+当前状态：本地验证通过，pre 服务器部署、`worker-video` restart 恢复和 1 个真实 DashScope 视频 smoke 仍需单独执行和归档。
+
 ## 讨论重点
 
 - 你更看重：

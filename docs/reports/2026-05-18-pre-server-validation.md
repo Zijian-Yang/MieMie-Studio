@@ -511,7 +511,49 @@ k6 run --summary-export validation-artifacts/2026-05-18-pre-server/pre-server-s3
 - 已补齐：S1 纯读 k6、S3 状态观察 k6 与压测后资源快照。
 - 已补齐：低频真实 DashScope smoke，1 个真实视频任务成功，平台记录 1 个结果视频、1 个供应商 task id 和 1 个 request id。
 - 限制项：真实 OSS 未启用，生成视频未转存到长期对象存储；本轮不代表供应商并发提交能力。
-- 当前结论：2026-05-24 Redis / Worker 稳定性补强发现的 worker 重启永久 `generating` 风险已通过 stale 兜底修复；真实 DashScope 图片队列 smoke 已补跑成功。Redis + Worker 图片工作室试点基线可以作为下一步视频工作室 worker 迁移设计的输入，但视频迁移仍需单独计划和验收。
+- 当前结论：2026-05-24 Redis / Worker 稳定性补强发现的 worker 重启永久 `generating` 风险已通过 stale 兜底修复；真实 DashScope 图片队列 smoke 已补跑成功。视频工作室 Worker 迁移 v1 已完成本地实现和回归验证，但 pre 服务器部署、`worker-video` restart 恢复和真实 DashScope 视频 smoke 仍未执行，不能把视频链路视为服务器已闭环。
+
+## 2026-05-24 视频工作室 Worker 迁移本地验证
+
+本轮只完成本地实现与静态/回归验证，未操作 `/opt/miemie-pre`。
+
+变更摘要：
+
+- Compose 新增 `worker-video`，消费 `video_studio` 队列；原 `worker` 显式只消费 `studio` 队列。
+- Celery 新增 `video_studio.generate`，视频任务入口使用 `dispatch_video_studio_generation`。
+- 视频任务新增 submit attempt 字段，worker 写回前校验 attempt id，delete/regenerate 后旧 worker 不得复活任务。
+- `processing + task_ids=[]` 的 submit stale 会转 `failed/SubmitTimeout`；已有 provider task id 的 worker stale 只恢复状态协调，不重复提交供应商任务。
+
+本地验证：
+
+```text
+venv/bin/pytest backend/tests/test_video_studio_capabilities.py -q
+57 passed in 10.22s
+
+./run.sh test
+230 passed in 70.81s
+
+cd frontend && npm run typecheck
+通过
+
+cd frontend && npm run lint
+通过
+
+cd frontend && npm run build
+通过；3156 modules transformed，built in 3.22s
+提示：Browserslist/caniuse-lite 数据约 6 个月未更新
+
+docker compose config
+通过；包含 worker/studio 与 worker-video/video_studio 队列隔离
+```
+
+未完成服务器验收：
+
+- 部署并重建 `api/worker/worker-video`，Redis 不重建。
+- 验证 Celery `registered` 同时包含 `studio.generate` 和 `video_studio.generate`。
+- 验证无 key/错误 key 失败路径不会永久 `processing`。
+- 验证 `worker-video` restart 后恢复或 stale 兜底。
+- 补跑 1 个低频真实 DashScope 视频 smoke，并归档脱敏 artifact。
 
 ## 2026-05-23 原始结果归档
 

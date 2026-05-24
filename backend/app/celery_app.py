@@ -29,6 +29,11 @@ celery_app = Celery(
 )
 
 celery_app.conf.update(
+    task_default_queue="studio",
+    task_routes={
+        "studio.generate": {"queue": "studio"},
+        "video_studio.generate": {"queue": "video_studio"},
+    },
     task_acks_late=True,
     worker_prefetch_multiplier=1,
     task_track_started=True,
