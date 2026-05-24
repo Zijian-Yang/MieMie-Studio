@@ -1,0 +1,267 @@
+{
+  "started_at": "2026-05-24T02:26:28+0800",
+  "checks": {
+    "precheck": {
+      "repo_head": {
+        "cmd": "git rev-parse HEAD",
+        "returncode": 0,
+        "output": "693ca8f9175d70ce02db8e93dd6c96e202d1916f\n"
+      },
+      "health": {
+        "status": 200,
+        "x_request_id": "1227efcfdbd2",
+        "x_deployment_version": "c46c83db378f3c02759da44135233617673445ea",
+        "body": {
+          "status": "ok",
+          "git_commit": "c46c83db378f3c02759da44135233617673445ea",
+          "run_mode": "prod",
+          "serve_frontend": true,
+          "started_at": "2026-05-23T14:49:33Z",
+          "redis": {
+            "configured": true,
+            "ok": true
+          }
+        }
+      },
+      "root": {
+        "status": 200,
+        "x_request_id": "b98f5fa7e96b",
+        "x_deployment_version": "c46c83db378f3c02759da44135233617673445ea"
+      },
+      "compose_ps": {
+        "cmd": "docker compose -p miemie-pre --env-file compose.env -f docker-compose.yml -f docker-compose.pre.override.yml ps",
+        "returncode": 0,
+        "output": "NAME                  IMAGE                     COMMAND                  SERVICE   CREATED       STATUS                 PORTS\nmiemie-pre-api-1      miemie-studio:pre-local   \"sh -c 'export MIEMI…\"   api       4 hours ago   Up 4 hours (healthy)   127.0.0.1:18100->8000/tcp\nmiemie-pre-redis-1    redis:7-alpine            \"docker-entrypoint.s…\"   redis     4 hours ago   Up 3 hours (healthy)   6379/tcp\nmiemie-pre-worker-1   miemie-studio:pre-local   \"/opt/venv/bin/celer…\"   worker    4 hours ago   Up 3 hours             8000/tcp\n"
+      },
+      "redis_db0": {
+        "cmd": "docker compose -p miemie-pre --env-file compose.env -f docker-compose.yml -f docker-compose.pre.override.yml exec -T redis redis-cli -n 0 DBSIZE",
+        "returncode": 0,
+        "output": "16\n",
+        "dbsize": 16
+      },
+      "redis_db1": {
+        "cmd": "docker compose -p miemie-pre --env-file compose.env -f docker-compose.yml -f docker-compose.pre.override.yml exec -T redis redis-cli -n 1 DBSIZE",
+        "returncode": 0,
+        "output": "0\n",
+        "dbsize": 0
+      },
+      "stats": {
+        "cmd": "docker stats --no-stream miemie-pre-api-1 miemie-pre-redis-1 miemie-pre-worker-1",
+        "returncode": 0,
+        "output": "CONTAINER ID   NAME                  CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O         PIDS\ndd8a671fea0c   miemie-pre-api-1      0.17%     285.8MiB / 3.417GiB   8.17%     427kB / 852kB     87MB / 369kB      10\nf6a4dd058e1b   miemie-pre-redis-1    0.40%     3.629MiB / 3.417GiB   0.10%     6.84MB / 6.39MB   1.08MB / 1.06MB   6\na23bc69db4b6   miemie-pre-worker-1   0.03%     137.7MiB / 3.417GiB   3.93%     5.64MB / 5.91MB   8.9MB / 16.4kB    4\n"
+      }
+    },
+    "register": {
+      "status": 200,
+      "token_returned": true,
+      "user_id_set": true,
+      "username": "rw_stable_05d2ce78cb"
+    },
+    "auth_normal_path": {
+      "me_status_before_logout": 200,
+      "logout_status": 200,
+      "me_status_after_logout": 401,
+      "login_status_after_logout": 200,
+      "change_password_status": 200,
+      "me_status_after_change_password": 401,
+      "old_password_login_status": 401,
+      "new_password_login_status": 200,
+      "new_token_returned": true,
+      "redis_db0_after": 18,
+      "redis_db1_after": 2
+    },
+    "redis_restart": {
+      "restart": {
+        "cmd": "docker compose -p miemie-pre --env-file compose.env -f docker-compose.yml -f docker-compose.pre.override.yml restart redis",
+        "returncode": 0,
+        "output": " Container miemie-pre-redis-1  Restarting\n Container miemie-pre-redis-1  Started\n"
+      },
+      "health_after_restart": {
+        "status": 200,
+        "x_request_id": "d8952377c066",
+        "x_deployment_version": "c46c83db378f3c02759da44135233617673445ea",
+        "body": {
+          "status": "ok",
+          "git_commit": "c46c83db378f3c02759da44135233617673445ea",
+          "run_mode": "prod",
+          "serve_frontend": true,
+          "started_at": "2026-05-23T14:49:33Z",
+          "redis": {
+            "configured": true,
+            "ok": true
+          }
+        }
+      },
+      "me_with_existing_token": {
+        "status": 200,
+        "x_request_id": "5e65c80c0fe4",
+        "x_deployment_version": "c46c83db378f3c02759da44135233617673445ea"
+      },
+      "change_password_after_restart": {
+        "status": 200,
+        "x_request_id": "29834c3943c5",
+        "x_deployment_version": "c46c83db378f3c02759da44135233617673445ea"
+      },
+      "login_after_restart_change_status": 200
+    },
+    "redis_unavailable": {
+      "stop": {
+        "cmd": "docker compose -p miemie-pre --env-file compose.env -f docker-compose.yml -f docker-compose.pre.override.yml stop redis",
+        "returncode": 0,
+        "output": " Container miemie-pre-redis-1  Stopping\n Container miemie-pre-redis-1  Stopped\n"
+      },
+      "health_down": {
+        "status": 200,
+        "x_request_id": "2deb6e483476",
+        "x_deployment_version": "c46c83db378f3c02759da44135233617673445ea",
+        "body": {
+          "status": "ok",
+          "git_commit": "c46c83db378f3c02759da44135233617673445ea",
+          "run_mode": "prod",
+          "serve_frontend": true,
+          "started_at": "2026-05-23T14:49:33Z",
+          "redis": {
+            "configured": true,
+            "ok": false,
+            "error": "ConnectionError"
+          }
+        }
+      },
+      "me_with_file_fallback": {
+        "status": 200,
+        "x_request_id": "f95347f95cd2",
+        "x_deployment_version": "c46c83db378f3c02759da44135233617673445ea"
+      },
+      "login_while_down": {
+        "status": 200,
+        "x_request_id": "93e74f42ccbf",
+        "x_deployment_version": "c46c83db378f3c02759da44135233617673445ea"
+      },
+      "start": {
+        "cmd": "docker compose -p miemie-pre --env-file compose.env -f docker-compose.yml -f docker-compose.pre.override.yml start redis",
+        "returncode": 0,
+        "output": " Container miemie-pre-redis-1  Starting\n Container miemie-pre-redis-1  Started\n"
+      },
+      "health_after_restore": {
+        "status": 200,
+        "x_request_id": "0754370bb521",
+        "x_deployment_version": "c46c83db378f3c02759da44135233617673445ea",
+        "body": {
+          "status": "ok",
+          "git_commit": "c46c83db378f3c02759da44135233617673445ea",
+          "run_mode": "prod",
+          "serve_frontend": true,
+          "started_at": "2026-05-23T14:49:33Z",
+          "redis": {
+            "configured": true,
+            "ok": true
+          }
+        }
+      },
+      "me_after_restore": {
+        "status": 200,
+        "x_request_id": "1e2d99aa9deb",
+        "x_deployment_version": "c46c83db378f3c02759da44135233617673445ea"
+      },
+      "redis_db0_after_restore": 18,
+      "redis_db1_after_restore": 2
+    },
+    "worker_precheck": {
+      "ping": {
+        "cmd": "docker compose -p miemie-pre --env-file compose.env -f docker-compose.yml -f docker-compose.pre.override.yml exec -T worker celery -A app.celery_app:celery_app inspect ping",
+        "returncode": 69,
+        "output": "Error: No nodes replied within time constraint\n"
+      },
+      "registered": {
+        "cmd": "docker compose -p miemie-pre --env-file compose.env -f docker-compose.yml -f docker-compose.pre.override.yml exec -T worker celery -A app.celery_app:celery_app inspect registered",
+        "returncode": 69,
+        "output": "Error: No nodes replied within time constraint\n"
+      }
+    },
+    "worker_restart": {
+      "restart": {
+        "cmd": "docker compose -p miemie-pre --env-file compose.env -f docker-compose.yml -f docker-compose.pre.override.yml restart worker",
+        "returncode": 0,
+        "output": " Container miemie-pre-worker-1  Restarting\n Container miemie-pre-worker-1  Started\n"
+      },
+      "ping": {
+        "cmd": "docker compose -p miemie-pre --env-file compose.env -f docker-compose.yml -f docker-compose.pre.override.yml exec -T worker celery -A app.celery_app:celery_app inspect ping",
+        "returncode": 0,
+        "output": "->  celery@a23bc69db4b6: OK\n        pong\n\n1 node online.\n"
+      },
+      "registered": {
+        "cmd": "docker compose -p miemie-pre --env-file compose.env -f docker-compose.yml -f docker-compose.pre.override.yml exec -T worker celery -A app.celery_app:celery_app inspect registered",
+        "returncode": 0,
+        "output": "->  celery@a23bc69db4b6: OK\n    * studio.generate\n\n1 node online.\n"
+      },
+      "health_after_worker_restart": {
+        "status": 200,
+        "x_request_id": "4b32131112eb",
+        "x_deployment_version": "c46c83db378f3c02759da44135233617673445ea",
+        "body": {
+          "status": "ok",
+          "git_commit": "c46c83db378f3c02759da44135233617673445ea",
+          "run_mode": "prod",
+          "serve_frontend": true,
+          "started_at": "2026-05-23T14:49:33Z",
+          "redis": {
+            "configured": true,
+            "ok": true
+          }
+        }
+      },
+      "logs_tail": {
+        "cmd": "docker compose -p miemie-pre --env-file compose.env -f docker-compose.yml -f docker-compose.pre.override.yml logs --tail 80 worker",
+        "returncode": 0,
+        "output": "elf.retry.call_with_retry(\nworker-1  |   File \"/opt/venv/lib/python3.12/site-packages/redis/retry.py\", line 132, in call_with_retry\nworker-1  |     raise error\nworker-1  |   File \"/opt/venv/lib/python3.12/site-packages/redis/retry.py\", line 120, in call_with_retry\nworker-1  |     return do()\nworker-1  |            ^^^^\nworker-1  |   File \"/opt/venv/lib/python3.12/site-packages/redis/connection.py\", line 977, in <lambda>\nworker-1  |     lambda: self.connect_check_health(\nworker-1  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^\nworker-1  |   File \"/opt/venv/lib/python3.12/site-packages/redis/connection.py\", line 1025, in connect_check_health\nworker-1  |     raise e\nworker-1  | redis.exceptions.ConnectionError: Error 111 connecting to redis:6379. Connection refused.\nworker-1  | [2026-05-24 02:26:32,694: WARNING/MainProcess] /opt/venv/lib/python3.12/site-packages/celery/worker/consumer/consumer.py:397: CPendingDeprecationWarning: \nworker-1  | In Celery 5.1 we introduced an optional breaking change which\nworker-1  | on connection loss cancels all currently executed tasks with late acknowledgement enabled.\nworker-1  | These tasks cannot be acknowledged as the connection is gone, and the tasks are automatically redelivered\nworker-1  | back to the queue. You can enable this behavior using the worker_cancel_long_running_tasks_on_connection_loss\nworker-1  | setting. In Celery 5.1 it is set to False by default. The setting will be set to True by default in Celery 6.0.\nworker-1  | \nworker-1  |   warnings.warn(CANCEL_TASKS_BY_DEFAULT, CPendingDeprecationWarning)\nworker-1  | \nworker-1  | [2026-05-24 02:26:32,702: ERROR/MainProcess] consumer: Cannot connect to redis://redis:6379/2: Error 111 connecting to redis:6379. Connection refused..\nworker-1  | Trying again in 2.00 seconds... (1/100)\nworker-1  | \nworker-1  | [2026-05-24 02:26:34,705: ERROR/MainProcess] consumer: Cannot connect to redis://redis:6379/2: Error -3 connecting to redis:6379. Temporary failure in name resolution..\nworker-1  | Trying again in 4.00 seconds... (2/100)\nworker-1  | \nworker-1  | [2026-05-24 02:26:38,712: INFO/MainProcess] Connected to redis://redis:6379/2\nworker-1  | [2026-05-24 02:26:38,719: INFO/MainProcess] mingle: searching for neighbors\nworker-1  | [2026-05-24 02:26:39,726: INFO/MainProcess] mingle: all alone\nworker-1  | \nworker-1  | worker: Warm shutdown (MainProcess)\nworker-1  | /opt/venv/lib/python3.12/site-packages/celery/platforms.py:841: SecurityWarning: You're running the worker with superuser privileges: this is\nworker-1  | absolutely not recommended!\nworker-1  | \nworker-1  | Please specify a different user using the --uid option.\nworker-1  | \nworker-1  | User information: uid=0 euid=0 gid=0 egid=0\nworker-1  | \nworker-1  |   warnings.warn(SecurityWarning(ROOT_DISCOURAGED.format(\nworker-1  |  \nworker-1  |  -------------- celery@a23bc69db4b6 v5.6.3 (recovery)\nworker-1  | --- ***** ----- \nworker-1  | -- ******* ---- Linux-6.8.0-63-generic-x86_64-with-glibc2.41 2026-05-24 02:26:43\nworker-1  | - *** --- * --- \nworker-1  | - ** ---------- [config]\nworker-1  | - ** ---------- .> app:         miemie:0x7f2470afeba0\nworker-1  | - ** ---------- .> transport:   redis://redis:6379/2\nworker-1  | - ** ---------- .> results:     redis://redis:6379/3\nworker-1  | - *** --- * --- .> concurrency: 1 (prefork)\nworker-1  | -- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)\nworker-1  | --- ***** ----- \nworker-1  |  -------------- [queues]\nworker-1  |                 .> celery           exchange=celery(direct) key=celery\nworker-1  |                 \nworker-1  | \nworker-1  | [tasks]\nworker-1  |   . studio.generate\nworker-1  | \nworker-1  | [2026-05-24 02:26:43,366: INFO/MainProcess] Connected to redis://redis:6379/2\nworker-1  | [2026-05-24 02:26:43,374: INFO/MainProcess] mingle: searching for neighbors\nworker-1  | [2026-05-24 02:26:44,382: INFO/MainProcess] mingle: all alone\nworker-1  | [2026-05-24 02:26:44,392: INFO/MainProcess] celery@a23bc69db4b6 ready.\n"
+      }
+    },
+    "worker_failed_duplicate_path": {
+      "project_create_status": 200,
+      "task_create_status": 200,
+      "generate_first_status": 200,
+      "generate_first_task_status": "generating",
+      "generate_second_status": 200,
+      "generate_second_task_status": "generating",
+      "final": {
+        "http_status": 200,
+        "task_status": "failed",
+        "error_message_set": true,
+        "image_count": 1,
+        "task_id_count": 0,
+        "request_id_count": 0
+      }
+    },
+    "worker_restart_recovery": {
+      "task_create_status": 200,
+      "generate_status": 200,
+      "generate_task_status": "generating",
+      "restart": {
+        "cmd": "docker compose -p miemie-pre --env-file compose.env -f docker-compose.yml -f docker-compose.pre.override.yml restart worker",
+        "returncode": 0,
+        "output": " Container miemie-pre-worker-1  Restarting\n Container miemie-pre-worker-1  Started\n"
+      },
+      "ping_after_restart": {
+        "cmd": "docker compose -p miemie-pre --env-file compose.env -f docker-compose.yml -f docker-compose.pre.override.yml exec -T worker celery -A app.celery_app:celery_app inspect ping",
+        "returncode": 0,
+        "output": "->  celery@a23bc69db4b6: OK\n        pong\n\n1 node online.\n"
+      },
+      "registered_after_restart_contains_studio_generate": true,
+      "final": {
+        "http_status": 200,
+        "task_status": "generating",
+        "timed_out": true,
+        "image_count": 0
+      }
+    }
+  },
+  "summary": {
+    "passed": false,
+    "failures": [
+      "celery ping failed before restart",
+      "studio.generate not registered before restart",
+      "worker restart recovery left task generating"
+    ],
+    "finished_at": "2026-05-24T02:30:05+0800"
+  }
+}

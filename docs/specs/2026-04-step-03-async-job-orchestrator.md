@@ -166,8 +166,20 @@
 当前未覆盖：
 
 - 尚未迁移视频工作室。
-- 尚未建立完整统一任务 envelope。
-- 尚未做 worker 重启恢复、取消、重试分类的全链路验证。
+- 尚未建立跨业务的完整统一任务 envelope。
+- 取消、自动重试分类仍未覆盖。
+
+## 2026-05-24 图片工作室恢复兜底
+
+2026-05-24 Redis + Worker 稳定性验收发现：图片工作室任务提交后立即重启 worker 时，worker 可恢复 `ping` 与 `registered`，但被中断的任务可能永久停留 `generating`。
+
+本轮修复采用最小可控策略：
+
+- 图片工作室每次生成写入 `provider_result_meta.generation_attempt`，记录 `attempt_id`、dispatcher、Celery task id、dispatch/start/heartbeat/finish 时间和 stale 超时。
+- `dispatch_studio_generation` 与 Celery task entrypoint 传递 `attempt_id`，worker 开始和最终写回前校验 attempt，避免旧执行覆盖新执行。
+- `GET /api/studio/{task_id}`、任务列表和再次 generate 前检测 stale `generating`；默认 `MIEMIE_STUDIO_GENERATION_STALE_SECONDS=1800`。
+- stale 策略为标记 `failed`，不自动重投递，避免重复消耗供应商额度；用户可重新点击生成。
+- 该策略只覆盖图片工作室试点，不代表视频工作室已可迁移。
 
 ## 讨论重点
 

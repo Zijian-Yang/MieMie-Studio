@@ -1,0 +1,8 @@
+[2026-05-24T02:26:28+0800] precheck
+[2026-05-24T02:26:30+0800] auth normal path
+[2026-05-24T02:26:32+0800] redis restart
+[2026-05-24T02:26:33+0800] redis unavailable window
+[2026-05-24T02:26:36+0800] worker ping and restart
+[2026-05-24T02:26:54+0800] worker failed path and duplicate submit
+[2026-05-24T02:27:12+0800] worker restart recovery path
+[2026-05-24T02:30:05+0800] finished: {"passed": false, "failures": ["celery ping failed before restart", "studio.generate not registered before restart", "worker restart recovery left task generating"], "finished_at": "2026-05-24T02:30:05+0800"}

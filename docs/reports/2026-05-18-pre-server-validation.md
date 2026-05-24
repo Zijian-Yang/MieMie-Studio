@@ -328,6 +328,69 @@ Celery worker 验证：
 - Celery 当前容器以 root 用户运行，worker 启动日志有 Celery `SecurityWarning`；本轮不改变容器用户，作为后续容器硬化项记录。
 - 本轮 worker smoke 未消耗真实供应商额度；真实图片生成队列成功率需要在确认要使用供应商 key 时再补 1 个低频任务。
 
+## 2026-05-24 Redis / Worker 稳定性验收补强
+
+本轮按 Redis + Worker 稳定性验收计划执行，只操作服务器 `/opt/miemie-pre` 与 Compose project `miemie-pre`。服务器仓库已同步到 `origin/pre@693ca8f9175d70ce02db8e93dd6c96e202d1916f`，但未重建 API、未更新 `compose.env` 的运行版本，当前运行容器仍报告 `deployment_version / git_commit = c46c83db378f3c02759da44135233617673445ea`。该分离状态符合本轮计划，避免把文档提交误读成运行镜像已更新。
+
+预检摘要：
+
+- `miemie-pre-api-1`：`Up ... (healthy)`，端口仍为 `127.0.0.1:18100->8000/tcp`
+- `miemie-pre-redis-1`：`Up ... (healthy)`
+- `miemie-pre-worker-1`：`Up ...`
+- `/api/health`：`200`，`redis.configured=true`，`redis.ok=true`
+- `GET /`：`200`
+- Redis DB 0 / DB 1 初始 key 数：`16 / 0`
+
+Redis 验收结果：
+
+- 正常认证路径通过：注册、`/api/auth/me`、logout、logout 后旧 token `401`、重新登录、change-password、改密后旧 token `401`、旧密码 `401`、新密码登录 `200`。
+- `docker compose restart redis` 后通过：health 恢复 `redis.ok=true`，既有 token 仍可用，改密与重新登录正常。
+- Redis 短暂停机窗口通过：health 明确返回 `redis.ok=false` 且错误类型为 `ConnectionError`；已有 session 通过文件兜底访问 `/api/auth/me` 返回 `200`；Redis 停机期间登录返回 `200`，未出现未捕获 `500`；Redis 恢复后 health 回到 `redis.ok=true`。
+
+Worker 验收结果：
+
+- Redis 短暂停机恢复后，首次 `celery inspect ping` 与 `registered` 返回 `No nodes replied within time constraint`。随后受控 `docker compose restart worker` 后恢复正常：`1 node online`，`registered` 包含 `studio.generate`，`/api/health` 不受影响。
+- 无供应商 key 的图片工作室失败路径通过：`POST /api/studio/{task_id}/generate` 快速返回 `generating`；同一任务连续触发两次 generate 均返回 `200/generating`；最终任务进入 `failed`，未永久卡在 `generating`。
+- Worker 重启恢复路径未通过：任务提交后立即 `docker compose restart worker`，worker 重启后 `ping` 正常且 `registered` 包含 `studio.generate`，但该任务在 150 秒观察窗口后仍为 `generating`。该项按计划标记为进入视频工作室 worker 迁移前必须修复的阻塞项。
+
+因此，本轮未继续执行 1 个真实 DashScope 图片成功 smoke。原因不是供应商 key 不可用，而是 Redis / Worker 基线验收已经发现阻塞，按计划应先停止下一阶段，避免在已知恢复缺口上继续扩大验证范围。
+
+新增脱敏 artifacts：
+
+- `docs/reports/artifacts/2026-05-24-redis-worker-stability/redis-worker-core-20260524.json`
+- `docs/reports/artifacts/2026-05-24-redis-worker-stability/redis-worker-core-20260524.log`
+- `docs/reports/artifacts/2026-05-24-redis-worker-stability/nohup-core.log`
+
+本地回归：
+
+- `./run.sh test`：`220 passed in 61.96s`
+- `cd frontend && npm run typecheck`：通过
+- `cd frontend && npm run lint`：通过
+- `cd frontend && npm run build`：通过，保留既有 Browserslist/caniuse-lite 数据过期提示
+- `docker compose config`：通过
+
+后续阻塞修复要求：
+
+- 明确 Celery worker 在 Redis broker 短暂不可用后的自恢复口径，避免 inspect 在恢复后短时间不可用而被误判。
+- 修复图片工作室任务在 worker 被重启或执行中断后永久 `generating` 的问题；候选方向包括 task envelope、入队记录、lease/attempt id、启动/查询时的 stale generating 兜底失败或重投递策略。
+- 修复后必须补跑本轮未执行的 1 个真实 DashScope 图片生成队列 smoke，成功后再讨论视频工作室 worker 迁移。
+
+## 2026-05-24 Worker stale `generating` 本地修复
+
+本地已实现图片工作室 Worker 试点的最小恢复兜底：
+
+- 每次图片工作室生成写入 `provider_result_meta.generation_attempt`，记录 `attempt_id`、dispatcher、Celery task id、dispatch/start/heartbeat/finish 时间和 stale 超时。
+- `dispatch_studio_generation` 与 Celery task entrypoint 传递 `attempt_id`。
+- Worker 开始执行和最终写回前校验当前任务 attempt id；旧 attempt 不再覆盖新 attempt。
+- `GET /api/studio/{task_id}`、任务列表和再次 generate 前会检测 stale `generating`；默认 `MIEMIE_STUDIO_GENERATION_STALE_SECONDS=1800`，超时后标记 `failed`，不自动重投递。
+- 后端回归已覆盖 attempt 写入、重复提交不重复 dispatch、stale GET 失败、stale 后重新生成、旧 attempt 不覆盖新 attempt、worker 异常失败写回。
+
+待 pre 服务器补跑：
+
+- 部署本地修复到 `/opt/miemie-pre`，临时设置 `MIEMIE_STUDIO_GENERATION_STALE_SECONDS=90`。
+- 复测任务提交后立即 `docker compose restart worker`，确认任务不会永久 `generating`，应在 stale 窗口后进入 `failed`。
+- 补跑 1 个真实 DashScope 图片生成队列 smoke；成功后删除测试用户配置中的 key，并只归档脱敏摘要。
+
 ## 原始阻塞记录
 
 2026-05-18 本轮尚未完成 S1/S3 k6 和 DashScope smoke。原因不是应用接口失败，而是远端 SSH 在创建验证用户后开始于握手前关闭连接：
@@ -419,7 +482,7 @@ k6 run --summary-export validation-artifacts/2026-05-18-pre-server/pre-server-s3
 - 已补齐：S1 纯读 k6、S3 状态观察 k6 与压测后资源快照。
 - 已补齐：低频真实 DashScope smoke，1 个真实视频任务成功，平台记录 1 个结果视频、1 个供应商 task id 和 1 个 request id。
 - 限制项：真实 OSS 未启用，生成视频未转存到长期对象存储；本轮不代表供应商并发提交能力。
-- 下一步：阶段 1 服务器验证闭环已完成，可进入 Step 02 Redis session/cache/rate-limit 的最小实装准备。
+- 当前阻塞：2026-05-24 Redis / Worker 稳定性补强发现 worker 重启恢复路径会留下永久 `generating` 风险；下一步应先修复该基线问题，再补 1 个真实 DashScope 图片队列 smoke，之后才讨论视频工作室 worker 迁移。
 
 ## 2026-05-23 原始结果归档
 

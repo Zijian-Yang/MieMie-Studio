@@ -6,6 +6,7 @@
 ## [Unreleased]
 
 ### 修复 (Fixed)
+- 图片工作室 Worker 试点：生成任务新增 `generation_attempt` 元数据和 stale `generating` 兜底；worker 中断或重启后，超时任务会被标记失败，旧 attempt 不再覆盖新 attempt。
 - 视频工作室：任务卡片的类型、Provider、状态和完成进度支持换行布局，避免 HappyHorse 等较长标签把“已完成”和 `1/1` 挤出卡片。
 - 视频工作室：HappyHorse 提示词长度改为中文 2 单位、非中文 1 单位的加权检测，并在前后端保持一致。
 - 视频工作室：HappyHorse 参考生视频新建提示改为 `[Image 1]` / `[Image 2]` 指代参考图，匹配新版 API 文档。
@@ -76,6 +77,7 @@
   - `/api/health` 暴露 Redis 配置与连通状态
   - Compose 新增 Celery worker，图片工作室生成可通过统一 dispatcher 入队，默认本地开发仍回退 asyncio
   - 2026-05-23 已在 `miemie-pre` 服务器验证 Redis session、限流 Redis key、Celery worker 注册和图片工作室队列 smoke
+  - 2026-05-24 稳定性补强验证 Redis restart / unavailable 路径可受控恢复，且文件 session 兜底未出现未捕获 500；同时发现 worker 执行中断后图片工作室任务可能永久停留 `generating`，已作为视频工作室 worker 迁移前阻塞项归档
 - `pre` 实验分支说明：
   - 新增 `README.pre.md` 与分支计划，明确 `main`/`pre` 并行开发、Compose 本机构建交付和反向代理用户自管边界
   - Compose 默认绑定 `127.0.0.1:${MIEMIE_HOST_PORT}`，降低应用端口直接暴露公网的风险

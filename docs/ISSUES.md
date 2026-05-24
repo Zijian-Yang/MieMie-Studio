@@ -5,6 +5,38 @@
 
 ## 🔴 待修复 Bug
 
+### 5. Celery Worker 执行中断后图片工作室任务可能永久停留 `generating`
+
+**状态**: 🟡 本地已修复，待 pre 服务器验证 (2026-05-24)
+
+**问题**: `pre` 服务器 Redis + Worker 稳定性补强中，图片工作室任务提交后立即重启 `worker`，Celery worker 可恢复 `ping` 且 `registered` 包含 `studio.generate`，但该任务在 150 秒观察窗口后仍停留 `generating`。
+
+**证据**:
+- `docker compose restart worker` 返回成功
+- 重启后 `celery inspect ping` 返回 `1 node online`
+- 重启后 `registered` 包含 `studio.generate`
+- 对应图片工作室任务最终状态：`generating`，`timed_out=true`
+- 脱敏 artifact：`docs/reports/artifacts/2026-05-24-redis-worker-stability/redis-worker-core-20260524.json`
+
+**影响**: 阻塞视频工作室生成链路迁移到 worker。若不先修复，执行中断、worker 重启或 broker 抖动可能留下用户侧永久生成中任务。
+
+**本地修复进展**:
+- 图片工作室生成请求新增 `provider_result_meta.generation_attempt`，记录 attempt id、dispatcher、Celery task id、dispatch/start/heartbeat/finish 时间和 stale 超时
+- `dispatch_studio_generation` 与 Celery task entrypoint 传递 `attempt_id`
+- Worker 开始执行和最终写回前校验 attempt id，避免旧执行覆盖新执行
+- `GET /api/studio/{task_id}`、任务列表和再次 generate 前识别 stale `generating`，默认 30 分钟后标记 `failed`
+- 已补后端回归覆盖 attempt 写入、stale 失败、stale 后重新生成、旧 attempt 不覆盖新 attempt、worker 异常失败写回
+
+**后续验证**:
+1. 在 pre 服务器部署本修复，并临时设置 `MIEMIE_STUDIO_GENERATION_STALE_SECONDS=90`
+2. 复测任务提交后立即重启 worker，确认任务不会永久 `generating`
+3. 补跑 1 个真实 DashScope 图片队列 smoke
+4. 验证通过后再讨论视频工作室 worker 迁移
+
+**调查记录**: [pre 服务器验证报告](./reports/2026-05-18-pre-server-validation.md)
+
+---
+
 ### 4. 线上图片工作室切页慢加载与生成按钮无响应
 
 **状态**: 🟡 本地已修复，待线上验证 (2026-04-22)

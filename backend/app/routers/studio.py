@@ -16,8 +16,10 @@ import asyncio
 import copy
 import logging
 import math
+import os
 import re
 import threading
+import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import Optional, List, Any, Tuple, Dict
@@ -66,6 +68,8 @@ _studio_retrying_task_ids: set[str] = set()
 _studio_retrying_lock = threading.Lock()
 _studio_generating_task_ids: set[str] = set()
 _studio_generating_lock = threading.Lock()
+GENERATION_ATTEMPT_META_KEY = "generation_attempt"
+DEFAULT_STUDIO_GENERATION_STALE_SECONDS = 30 * 60
 
 
 def _try_acquire_generation_slot(task_id: str) -> bool:
@@ -79,6 +83,111 @@ def _try_acquire_generation_slot(task_id: str) -> bool:
 def _release_generation_slot(task_id: str) -> None:
     with _studio_generating_lock:
         _studio_generating_task_ids.discard(task_id)
+
+
+def _studio_generation_stale_seconds() -> int:
+    raw = os.environ.get("MIEMIE_STUDIO_GENERATION_STALE_SECONDS", "").strip()
+    if not raw:
+        return DEFAULT_STUDIO_GENERATION_STALE_SECONDS
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning("无效的 MIEMIE_STUDIO_GENERATION_STALE_SECONDS=%s，使用默认值", raw)
+        return DEFAULT_STUDIO_GENERATION_STALE_SECONDS
+    return max(30, value)
+
+
+def _now_iso() -> str:
+    return datetime.now().isoformat()
+
+
+def _parse_iso_datetime(value: Any) -> Optional[datetime]:
+    if isinstance(value, datetime):
+        return value
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def _generation_attempt(task: StudioTask) -> Dict[str, Any]:
+    meta = task.provider_result_meta if isinstance(task.provider_result_meta, dict) else {}
+    attempt = meta.get(GENERATION_ATTEMPT_META_KEY)
+    return copy.deepcopy(attempt) if isinstance(attempt, dict) else {}
+
+
+def _set_generation_attempt(task: StudioTask, attempt: Dict[str, Any]) -> None:
+    meta = task.provider_result_meta if isinstance(task.provider_result_meta, dict) else {}
+    next_meta = dict(meta)
+    next_meta[GENERATION_ATTEMPT_META_KEY] = attempt
+    task.provider_result_meta = next_meta
+
+
+def _update_generation_attempt(task: StudioTask, **updates: Any) -> Dict[str, Any]:
+    attempt = _generation_attempt(task)
+    attempt.update({key: value for key, value in updates.items() if value is not None})
+    _set_generation_attempt(task, attempt)
+    return attempt
+
+
+def _current_attempt_id(task: StudioTask) -> Optional[str]:
+    attempt_id = _generation_attempt(task).get("attempt_id")
+    return str(attempt_id) if attempt_id else None
+
+
+def _is_current_generation_attempt(task: StudioTask, attempt_id: Optional[str]) -> bool:
+    return not attempt_id or _current_attempt_id(task) == attempt_id
+
+
+def _merge_provider_meta_with_attempt(task: StudioTask, provider_meta: Dict[str, Any]) -> None:
+    attempt = _generation_attempt(task)
+    task.provider_result_meta = dict(provider_meta or {})
+    if attempt:
+        _set_generation_attempt(task, attempt)
+
+
+def _mark_stale_generation_if_needed(
+    task: StudioTask,
+    *,
+    now: Optional[datetime] = None,
+    reason: str = "read",
+) -> bool:
+    if task.status != "generating":
+        return False
+
+    stale_seconds = _studio_generation_stale_seconds()
+    attempt = _generation_attempt(task)
+    started_at = (
+        _parse_iso_datetime(attempt.get("heartbeat_at"))
+        or _parse_iso_datetime(attempt.get("started_at"))
+        or _parse_iso_datetime(attempt.get("dispatched_at"))
+        or task.updated_at
+    )
+    if not started_at:
+        return False
+
+    current_time = now or datetime.now()
+    elapsed_seconds = (current_time - started_at).total_seconds()
+    if elapsed_seconds < stale_seconds:
+        return False
+
+    task.status = "failed"
+    task.error_message = "生成任务已超时，可能是 worker 中断或重启导致，请重新生成"
+    _update_generation_attempt(
+        task,
+        attempt_id=attempt.get("attempt_id") or f"legacy-{task.id}",
+        status="failed",
+        failure_reason="stale_generating",
+        stale_detected_at=current_time.isoformat(),
+        stale_reason=reason,
+        stale_seconds=stale_seconds,
+        elapsed_seconds=int(elapsed_seconds),
+        missing_attempt=not bool(attempt),
+    )
+    _release_generation_slot(task.id)
+    return True
 
 
 def _summarize_media_url(url: str) -> str:
@@ -1642,6 +1751,8 @@ async def list_studio_tasks(project_id: str):
     tasks = storage_service.get_studio_tasks_by_project(project_id)
     changed_tasks: List[StudioTask] = []
     for task in tasks:
+        if _mark_stale_generation_if_needed(task, reason="list"):
+            changed_tasks.append(task)
         if _expire_local_fallback_images(task):
             changed_tasks.append(task)
         next_warnings = _build_task_storage_warnings(task)
@@ -1741,6 +1852,9 @@ async def get_studio_task(task_id: str):
     task = storage_service.get_studio_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
+    if _mark_stale_generation_if_needed(task, reason="get"):
+        storage_service.save_studio_task(task)
+        return task
     if not task.provider_payload_snapshot:
         try:
             ref_urls = [ref.url for ref in task.references if ref.url]
@@ -2005,6 +2119,8 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
     task = storage_service.get_studio_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
+    if _mark_stale_generation_if_needed(task, reason="generate"):
+        storage_service.save_studio_task(task)
     if task.status == "generating":
         return {"task": task}
     if not _try_acquire_generation_slot(task_id):
@@ -2139,12 +2255,24 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
         task.provider_result_meta = {}
         task.task_ids = []
         task.request_ids = []
+        attempt_id = uuid.uuid4().hex
+        stale_seconds = _studio_generation_stale_seconds()
 
         # 设置生成状态
         task.status = "generating"
         task.images = []
         task.error_message = "；".join(validation_warnings) if validation_warnings else None
         task.warnings = []
+        _set_generation_attempt(task, {
+            "attempt_id": attempt_id,
+            "status": "dispatching",
+            "dispatcher": None,
+            "celery_task_id": None,
+            "dispatched_at": _now_iso(),
+            "started_at": None,
+            "heartbeat_at": _now_iso(),
+            "stale_seconds": stale_seconds,
+        })
         storage_service.save_studio_task(task)
 
         # 捕获用户上下文（后台任务需要）
@@ -2153,11 +2281,20 @@ async def generate_task_images(task_id: str, request: TaskGenerateRequest):
         size = canonical_size
 
         # 后台执行生成，立即返回。默认 asyncio；生产可切到 Celery worker。
-        dispatch_studio_generation(
+        dispatch_result = dispatch_studio_generation(
             task_id=task.id,
+            attempt_id=attempt_id,
             user_id=user_id,
             user_config_dir=user_config_dir,
         )
+        _update_generation_attempt(
+            task,
+            status="queued",
+            dispatcher=dispatch_result.get("dispatcher"),
+            celery_task_id=dispatch_result.get("task_id") if dispatch_result.get("dispatcher") == "celery" else None,
+            dispatch_result=dispatch_result.get("task_id"),
+        )
+        storage_service.save_studio_task(task)
 
         return {"task": task}
     except Exception:
@@ -2169,12 +2306,17 @@ async def _background_generate(
     task_id: str,
     user_id: Optional[str],
     user_config_dir: Optional[str],
+    attempt_id: Optional[str] = None,
 ):
     """后台生成任务——由 asyncio.create_task 调度，不阻塞请求。"""
     # 恢复用户上下文，使 storage_service / get_config 使用正确的用户目录
     set_current_user(user_id)
     set_user_config_dir(user_config_dir)
 
+    task: Optional[StudioTask] = None
+    should_save_task = False
+    release_slot_on_exit = True
+    error_class: Optional[str] = None
     try:
         from app.config import IMAGE_MODELS
 
@@ -2182,6 +2324,21 @@ async def _background_generate(
         if not task:
             logger.warning("后台生成任务已不存在，跳过 task_id=%s", task_id)
             return
+        if not _is_current_generation_attempt(task, attempt_id):
+            logger.info("后台生成 attempt 已过期，跳过 task_id=%s attempt_id=%s", task_id, attempt_id)
+            release_slot_on_exit = False
+            return
+        if task.status != "generating":
+            logger.info("后台生成任务已非 generating，跳过 task_id=%s status=%s", task_id, task.status)
+            return
+        _update_generation_attempt(
+            task,
+            status="running",
+            started_at=_generation_attempt(task).get("started_at") or _now_iso(),
+            heartbeat_at=_now_iso(),
+        )
+        storage_service.save_studio_task(task)
+        should_save_task = True
 
         model_name = task.model or "wan2.5-i2i-preview"
         is_text_to_image = model_name in IMAGE_MODELS
@@ -2238,7 +2395,10 @@ async def _background_generate(
         task.thinking_level = canonical.normalized_params.get("thinking_level")
         task.bbox_list = normalized_bbox_list or []
         task.provider_payload_snapshot = provider_payload
+        current_attempt = _generation_attempt(task)
         task.provider_result_meta = {}
+        if current_attempt:
+            _set_generation_attempt(task, current_attempt)
         task.error_message = "；".join(validation_warnings) if validation_warnings else None
         storage_service.save_studio_task(task)
 
@@ -2381,7 +2541,7 @@ async def _background_generate(
         task.request_ids = request_ids
         task.provider_payload_snapshot = provider_payload
         if provider_meta:
-            task.provider_result_meta = provider_meta
+            _merge_provider_meta_with_attempt(task, provider_meta)
 
         valid_images = [img for img in images if img.url]
         group_errors = getattr(task, '_group_errors', [])
@@ -2408,13 +2568,36 @@ async def _background_generate(
             task.error_message = None
 
     except Exception as e:
-        logger.error(f"后台生成失败 [{task.id}]: {e}", exc_info=True)
-        task.status = "failed"
-        task.error_message = str(e)
-        task.warnings = []
+        error_class = e.__class__.__name__
+        logger.error("后台生成失败 [%s]: %s", task.id if task else task_id, e, exc_info=True)
+        if task:
+            task.status = "failed"
+            task.error_message = str(e)
+            task.warnings = []
+            should_save_task = True
     finally:
-        storage_service.save_studio_task(task)
-        _release_generation_slot(task_id)
+        should_release_slot = release_slot_on_exit
+        if task and should_save_task:
+            if attempt_id:
+                latest_task = storage_service.get_studio_task(task_id)
+                if (
+                    not latest_task
+                    or not _is_current_generation_attempt(latest_task, attempt_id)
+                    or latest_task.status != "generating"
+                ):
+                    logger.info("后台生成最终写回已跳过，attempt 不再有效 task_id=%s attempt_id=%s", task_id, attempt_id)
+                    should_release_slot = False
+                    return
+            _update_generation_attempt(
+                task,
+                status="succeeded" if task.status == "completed" else task.status,
+                finished_at=_now_iso() if task.status in ("completed", "failed") else None,
+                heartbeat_at=_now_iso(),
+                error_class=error_class,
+            )
+            storage_service.save_studio_task(task)
+        if should_release_slot:
+            _release_generation_slot(task_id)
 
 
 async def generate_with_wan27_image(

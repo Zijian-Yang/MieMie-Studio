@@ -17,17 +17,18 @@ def task_dispatcher_mode() -> str:
 def dispatch_studio_generation(
     *,
     task_id: str,
+    attempt_id: str,
     user_id: Optional[str],
     user_config_dir: Optional[str],
-) -> str:
+) -> dict:
     mode = task_dispatcher_mode()
     if mode == "celery":
         try:
             from app.worker_tasks import run_studio_generation
 
-            result = run_studio_generation.delay(task_id, user_id, user_config_dir)
+            result = run_studio_generation.delay(task_id, user_id, user_config_dir, attempt_id)
             logger.info("[任务调度] 图片工作室任务 %s 已入队 Celery: %s", task_id, result.id)
-            return str(result.id)
+            return {"dispatcher": "celery", "task_id": str(result.id)}
         except Exception as exc:
             logger.error("[任务调度] Celery 入队失败，回退 asyncio: %s", exc)
 
@@ -38,7 +39,8 @@ def dispatch_studio_generation(
             task_id=task_id,
             user_id=user_id,
             user_config_dir=user_config_dir,
+            attempt_id=attempt_id,
         )
     )
     logger.info("[任务调度] 图片工作室任务 %s 已使用 asyncio 后台执行", task_id)
-    return "asyncio"
+    return {"dispatcher": "asyncio", "task_id": "asyncio"}

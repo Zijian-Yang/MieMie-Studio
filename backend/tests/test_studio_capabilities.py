@@ -814,6 +814,233 @@ def test_generate_returns_existing_task_when_same_task_is_already_generating(cli
     assert scheduled["count"] == 1
 
 
+def test_generate_records_generation_attempt_and_dispatch_result(client, auth_header, monkeypatch):
+    project_id = _create_project(client, auth_header)
+    captured = {}
+
+    def fake_dispatch_studio_generation(**kwargs):
+        captured.update(kwargs)
+        return {"dispatcher": "celery", "task_id": "celery-task-1"}
+
+    monkeypatch.setattr(studio_router, "dispatch_studio_generation", fake_dispatch_studio_generation)
+
+    create_resp = client.post(
+        "/api/studio",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "attempt 元数据",
+            "model": "wan2.6-t2i",
+            "task_kind": "text_to_image",
+            "prompt": "生成测试图",
+            "n": 1,
+            "group_count": 1,
+            "size": "1280*1280",
+        },
+    )
+    assert create_resp.status_code == 200
+    task_id = create_resp.json()["id"]
+
+    generate_resp = client.post(
+        f"/api/studio/{task_id}/generate",
+        headers=auth_header,
+        json={"prompt": "生成测试图", "n": 1, "group_count": 1, "size": "1280*1280"},
+    )
+
+    assert generate_resp.status_code == 200
+    task = generate_resp.json()["task"]
+    attempt = task["provider_result_meta"]["generation_attempt"]
+    assert task["status"] == "generating"
+    assert captured["task_id"] == task_id
+    assert captured["attempt_id"] == attempt["attempt_id"]
+    assert attempt["dispatcher"] == "celery"
+    assert attempt["celery_task_id"] == "celery-task-1"
+    assert attempt["status"] == "queued"
+    assert attempt["stale_seconds"] >= 30
+
+
+def test_stale_generating_task_is_failed_on_get(client, auth_header, registered_user, monkeypatch):
+    from app.services.storage import set_current_user, storage_service
+
+    monkeypatch.setenv("MIEMIE_STUDIO_GENERATION_STALE_SECONDS", "30")
+    _, user = registered_user
+    set_current_user(user["id"])
+    project_id = _create_project(client, auth_header)
+    create_resp = client.post(
+        "/api/studio",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "stale generating",
+            "model": "wan2.6-t2i",
+            "task_kind": "text_to_image",
+            "prompt": "生成测试图",
+            "n": 1,
+            "group_count": 1,
+            "size": "1280*1280",
+        },
+    )
+    assert create_resp.status_code == 200
+    task_id = create_resp.json()["id"]
+    task = storage_service.get_studio_task(task_id)
+    task.status = "generating"
+    old_time = (datetime.now() - timedelta(minutes=5)).isoformat()
+    task.provider_result_meta = {
+        "generation_attempt": {
+            "attempt_id": "attempt-old",
+            "status": "running",
+            "dispatched_at": old_time,
+            "started_at": old_time,
+            "heartbeat_at": old_time,
+            "stale_seconds": 30,
+        }
+    }
+    storage_service.save_studio_task(task)
+    set_current_user(None)
+
+    resp = client.get(f"/api/studio/{task_id}", headers=auth_header)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "failed"
+    assert "worker 中断或重启" in data["error_message"]
+    attempt = data["provider_result_meta"]["generation_attempt"]
+    assert attempt["attempt_id"] == "attempt-old"
+    assert attempt["status"] == "failed"
+    assert attempt["failure_reason"] == "stale_generating"
+
+
+def test_stale_generating_task_can_generate_again(client, auth_header, registered_user, monkeypatch):
+    from app.services.storage import set_current_user, storage_service
+
+    monkeypatch.setenv("MIEMIE_STUDIO_GENERATION_STALE_SECONDS", "30")
+    _, user = registered_user
+    set_current_user(user["id"])
+    dispatched = []
+
+    def fake_dispatch_studio_generation(**kwargs):
+        dispatched.append(kwargs)
+        return {"dispatcher": "asyncio", "task_id": "asyncio"}
+
+    monkeypatch.setattr(studio_router, "dispatch_studio_generation", fake_dispatch_studio_generation)
+    project_id = _create_project(client, auth_header)
+    create_resp = client.post(
+        "/api/studio",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "name": "stale retry",
+            "model": "wan2.6-t2i",
+            "task_kind": "text_to_image",
+            "prompt": "生成测试图",
+            "n": 1,
+            "group_count": 1,
+            "size": "1280*1280",
+        },
+    )
+    assert create_resp.status_code == 200
+    task_id = create_resp.json()["id"]
+    task = storage_service.get_studio_task(task_id)
+    task.status = "generating"
+    old_time = (datetime.now() - timedelta(minutes=5)).isoformat()
+    task.provider_result_meta = {
+        "generation_attempt": {
+            "attempt_id": "attempt-stale",
+            "status": "running",
+            "dispatched_at": old_time,
+            "heartbeat_at": old_time,
+            "stale_seconds": 30,
+        }
+    }
+    storage_service.save_studio_task(task)
+    set_current_user(None)
+
+    resp = client.post(
+        f"/api/studio/{task_id}/generate",
+        headers=auth_header,
+        json={"prompt": "重新生成", "n": 1, "group_count": 1, "size": "1280*1280"},
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()["task"]
+    attempt = data["provider_result_meta"]["generation_attempt"]
+    assert data["status"] == "generating"
+    assert attempt["attempt_id"] != "attempt-stale"
+    assert attempt["status"] == "queued"
+    assert len(dispatched) == 1
+    assert dispatched[0]["attempt_id"] == attempt["attempt_id"]
+
+
+def test_background_generate_ignores_stale_attempt(monkeypatch):
+    from app.models.studio import StudioTask
+    from app.services.storage import set_current_user, storage_service
+
+    set_current_user(None)
+
+    task = StudioTask(
+        project_id="p1",
+        name="旧 attempt 不覆盖",
+        model="wan2.6-t2i",
+        task_kind="text_to_image",
+        prompt="生成测试图",
+        n=1,
+        group_count=1,
+        size="1280*1280",
+        status="generating",
+        provider_result_meta={"generation_attempt": {"attempt_id": "new-attempt"}},
+    )
+    storage_service.save_studio_task(task)
+
+    async def fail_if_called(*args, **kwargs):
+        raise AssertionError("old attempt should not execute provider call")
+
+    monkeypatch.setattr(studio_router, "generate_with_text_to_image", fail_if_called)
+
+    asyncio.run(studio_router._background_generate(task.id, None, None, "old-attempt"))
+
+    latest = storage_service.get_studio_task(task.id)
+    assert latest.status == "generating"
+    assert latest.provider_result_meta["generation_attempt"]["attempt_id"] == "new-attempt"
+    assert latest.images == []
+
+
+def test_background_generate_exception_marks_current_attempt_failed(monkeypatch):
+    from app.models.studio import StudioTask
+    from app.services.storage import set_current_user, storage_service
+
+    set_current_user(None)
+
+    task = StudioTask(
+        project_id="p1",
+        name="异常失败",
+        model="wan2.6-t2i",
+        task_kind="text_to_image",
+        prompt="生成测试图",
+        n=1,
+        group_count=1,
+        size="1280*1280",
+        status="generating",
+        provider_result_meta={"generation_attempt": {"attempt_id": "attempt-error"}},
+    )
+    storage_service.save_studio_task(task)
+
+    async def raise_provider_error(*args, **kwargs):
+        raise RuntimeError("provider boom")
+
+    monkeypatch.setattr(studio_router, "generate_with_text_to_image", raise_provider_error)
+
+    asyncio.run(studio_router._background_generate(task.id, None, None, "attempt-error"))
+
+    latest = storage_service.get_studio_task(task.id)
+    attempt = latest.provider_result_meta["generation_attempt"]
+    assert latest.status == "failed"
+    assert latest.error_message == "provider boom"
+    assert attempt["attempt_id"] == "attempt-error"
+    assert attempt["status"] == "failed"
+    assert attempt["error_class"] == "RuntimeError"
+    assert attempt["finished_at"]
+
+
 def test_preview_payload_normalizes_wan27_bbox_and_warns_thinking_mode(client, auth_header, monkeypatch):
     async def mock_inspect_remote_image(_url):
         return {
