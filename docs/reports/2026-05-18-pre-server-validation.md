@@ -387,7 +387,8 @@ Worker 验收结果：
 
 pre 服务器补跑结果：
 
-- `/opt/miemie-pre` 已快进到 `origin/pre@977457bb4aa8e1b89d7f9fcb1efac5bf32820006`，`compose.env` 的 `MIEMIE_RUNTIME_GIT_COMMIT` 已同步到同一提交。
+- 运行代码部署提交为 `977457bb4aa8e1b89d7f9fcb1efac5bf32820006`，`compose.env` 的 `MIEMIE_RUNTIME_GIT_COMMIT` 已同步到同一提交。
+- 后续 artifact / 文档归档提交可让服务器仓库 HEAD 继续快进，但不重建容器；运行版本仍以 `/api/health.git_commit` 与 `x-deployment-version` 为准。
 - 临时设置 `MIEMIE_STUDIO_GENERATION_STALE_SECONDS=90`，只重建并重启 `api` / `worker`，未重启 Redis。
 - `/api/health` 返回 `200`，`git_commit` 与 `x-deployment-version` 均为 `977457bb4aa8e1b89d7f9fcb1efac5bf32820006`，`redis.ok=true`；`GET /` 返回 `200`。
 - Celery 稳态 `ping` 返回 `pong`，`registered` 包含 `studio.generate`。
