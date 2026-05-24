@@ -569,6 +569,20 @@ pre 服务器基础验收：
 - `docs/reports/artifacts/2026-05-24-video-worker-migration/worker-video-image-aligned-20260524.txt`
 - `docs/reports/artifacts/2026-05-24-video-worker-migration/real-video-smoke-20260524.json`
 
+## 2026-05-24 Codex SSH 远程连接配置
+
+操作摘要：
+
+- 本机 `~/.ssh/config` 已新增 `Host Miemie-pre`，指向 `root@47.79.99.190:22`。
+- 本机 `~/.codex/codex-app/config.json` 已新增 Codex app 远程连接配置：`remoteConnections[0].sshAlias=Miemie-pre`。
+- 已通过 `codex://codex-app/apply-config` 触发 Codex 桌面端导入配置。
+
+验证结果：
+
+- `ssh -G Miemie-pre` 可解析到 `hostname=47.79.99.190`、`user=root`、`port=22`。
+- Codex 全局状态已出现 `remote-ssh-discovered:Miemie-pre`，并成为当前选中的 remote host。
+- 本次只保存 SSH host/user/port 和 Codex alias，不保存密码、API key、token 或供应商生成 URL。
+
 ## 2026-05-23 原始结果归档
 
 - `docs/reports/artifacts/2026-05-18-pre-server/pre-server-health-20260523.txt`
