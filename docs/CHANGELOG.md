@@ -7,6 +7,7 @@
 
 ### 修复 (Fixed)
 - 图片工作室 Worker 试点：生成任务新增 `generation_attempt` 元数据和 stale `generating` 兜底；worker 中断或重启后，超时任务会被标记失败，旧 attempt 不再覆盖新 attempt。
+- 图片工作室 Worker 试点：pre 服务器已验证 `restart worker` 后任务不会永久停留 `generating`，90 秒测试窗口后会进入 `failed` 并记录 `failure_reason=stale_generating`。
 - 视频工作室：任务卡片的类型、Provider、状态和完成进度支持换行布局，避免 HappyHorse 等较长标签把“已完成”和 `1/1` 挤出卡片。
 - 视频工作室：HappyHorse 提示词长度改为中文 2 单位、非中文 1 单位的加权检测，并在前后端保持一致。
 - 视频工作室：HappyHorse 参考生视频新建提示改为 `[Image 1]` / `[Image 2]` 指代参考图，匹配新版 API 文档。

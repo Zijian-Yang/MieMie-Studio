@@ -130,18 +130,19 @@
 - 同一任务连续触发两次 generate 均返回现有 `generating` 状态，没有观察到重复终态污染。
 - 阻塞：任务提交后立即重启 worker，该任务 150 秒后仍为 `generating`。按验收计划，本轮停止真实 DashScope 图片成功 smoke 和视频工作室迁移。
 
-2026-05-24 本地修复进展：
+2026-05-24 Worker stale 修复进展：
 
 - 图片工作室生成请求新增 `generation_attempt` 元数据，包含 attempt id、dispatcher、Celery task id、dispatch/start/heartbeat/finish 时间和 stale 超时。
 - Worker 开始执行和最终写回前校验 attempt id，旧 attempt 不再覆盖新 attempt。
 - `GET /api/studio/{task_id}`、任务列表和再次 generate 前会检测 stale `generating`；默认 30 分钟后标记 `failed`，不自动重投递。
 - 已补后端回归覆盖 attempt 写入、重复提交不重复 dispatch、stale GET 失败、stale 后重新生成、旧 attempt 不覆盖新 attempt、worker 异常失败写回。
+- 已部署到 pre 服务器 `977457bb4aa8e1b89d7f9fcb1efac5bf32820006`，临时设置 `MIEMIE_STUDIO_GENERATION_STALE_SECONDS=90` 并重建 `api` / `worker`。
+- pre 验证通过：同一任务连续两次 generate 复用同一个 attempt；提交后立即 `restart worker`，任务在约 93 秒后由 stale 兜底标记为 `failed`，`failure_reason=stale_generating`。
 
 后续待完成：
 
-- 在 pre 服务器部署本修复，并用 `MIEMIE_STUDIO_GENERATION_STALE_SECONDS=90` 补跑 worker 重启恢复验收。
-- pre 验证通过后，在真实供应商 key 下补 1 个低频图片生成队列 smoke。
-- 阻塞解除后再迁移视频工作室生成链路。
+- 临时提供真实供应商 key 后补 1 个低频图片生成队列 smoke；当前 pre 服务器全局配置、用户配置和容器环境均没有 DashScope key。
+- 真实图片 smoke 补跑通过后再迁移视频工作室生成链路。
 - 评估 worker 非 root 运行与容器权限硬化。
 
 证据：
@@ -152,6 +153,7 @@
 - `docs/reports/artifacts/2026-05-23-redis-worker-server/worker-dispatch-smoke-20260523.txt`
 - `docs/reports/artifacts/2026-05-23-redis-worker-server/celery-registered-post-worker-image-20260523.txt`
 - `docs/reports/artifacts/2026-05-24-redis-worker-stability/redis-worker-core-20260524.json`
+- `docs/reports/artifacts/2026-05-24-worker-stale-fix-server/worker-stale-fix-20260524.json`
 
 ## 阶段 4：线上图片工作室修复验证
 

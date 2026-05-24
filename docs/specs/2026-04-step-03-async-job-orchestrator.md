@@ -179,7 +179,8 @@
 - `dispatch_studio_generation` 与 Celery task entrypoint 传递 `attempt_id`，worker 开始和最终写回前校验 attempt，避免旧执行覆盖新执行。
 - `GET /api/studio/{task_id}`、任务列表和再次 generate 前检测 stale `generating`；默认 `MIEMIE_STUDIO_GENERATION_STALE_SECONDS=1800`。
 - stale 策略为标记 `failed`，不自动重投递，避免重复消耗供应商额度；用户可重新点击生成。
-- 该策略只覆盖图片工作室试点，不代表视频工作室已可迁移。
+- pre 服务器已用 `MIEMIE_STUDIO_GENERATION_STALE_SECONDS=90` 验证：提交任务后立即 `restart worker`，任务约 93 秒后由 GET stale 兜底转为 `failed`，`failure_reason=stale_generating`。
+- 该策略只覆盖图片工作室试点；真实 DashScope 图片队列 smoke 仍需临时 key 补跑，通过后再讨论视频工作室迁移。
 
 ## 讨论重点
 

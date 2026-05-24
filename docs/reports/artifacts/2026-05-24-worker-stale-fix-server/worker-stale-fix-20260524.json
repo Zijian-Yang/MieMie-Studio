@@ -1,0 +1,215 @@
+{
+  "started_at": "2026-05-24T11:20:09+08:00",
+  "artifact_note": "No API keys, auth tokens, passwords, or generated URLs are stored.",
+  "checks": {
+    "health_before": {
+      "status": 200,
+      "headers": {
+        "x-request-id": "2697983c25db",
+        "x-deployment-version": "977457bb4aa8e1b89d7f9fcb1efac5bf32820006"
+      },
+      "body": {
+        "status": "ok",
+        "git_commit": "977457bb4aa8e1b89d7f9fcb1efac5bf32820006",
+        "run_mode": "prod",
+        "serve_frontend": true,
+        "started_at": "2026-05-24T03:09:11Z",
+        "redis": {
+          "configured": true,
+          "ok": true
+        }
+      }
+    },
+    "register": {
+      "status": 200,
+      "username": "worker_stale_1779592809",
+      "token_returned": true
+    },
+    "project": {
+      "status": 200,
+      "project_id_set": true
+    },
+    "task_create": {
+      "status": 200,
+      "task_id": "44cda361-718c-4e49-aa63-c363b7907e61"
+    },
+    "generate_duplicate": {
+      "first_status": 200,
+      "first_task_status": "generating",
+      "first_attempt": {
+        "attempt_id": "bc0143375c7e432ba0099e57adf6d64c",
+        "status": "queued",
+        "dispatcher": "celery",
+        "celery_task_id": "a642445d-1c34-4173-8945-b1f43b1c7a6a",
+        "dispatched_at": "2026-05-24T11:20:09.926482",
+        "started_at": null,
+        "heartbeat_at": "2026-05-24T11:20:09.926491",
+        "stale_seconds": 90
+      },
+      "second_status": 200,
+      "second_task_status": "generating",
+      "second_attempt": {
+        "attempt_id": "bc0143375c7e432ba0099e57adf6d64c",
+        "status": "queued",
+        "dispatcher": "celery",
+        "celery_task_id": "a642445d-1c34-4173-8945-b1f43b1c7a6a",
+        "dispatched_at": "2026-05-24T11:20:09.926482",
+        "started_at": null,
+        "heartbeat_at": "2026-05-24T11:20:09.926491",
+        "stale_seconds": 90
+      },
+      "same_attempt": true
+    },
+    "worker_restart": {
+      "returncode": 0,
+      "output": " Container miemie-pre-worker-1  Restarting\n Container miemie-pre-worker-1  Started\n"
+    },
+    "worker_ping_after_restart": {
+      "returncode": 69,
+      "output": "Error: No nodes replied within time constraint\n"
+    },
+    "worker_registered_after_restart": {
+      "returncode": 0,
+      "output": "->  celery@e693340af2af: OK\n    * studio.generate\n\n1 node online.\n"
+    },
+    "stale_poll": {
+      "poll_count": 17,
+      "polls_tail": [
+        {
+          "at": "2026-05-24T11:20:49+08:00",
+          "http_status": 200,
+          "task_status": "generating",
+          "attempt_status": "running",
+          "failure_reason": null,
+          "elapsed_seconds": null
+        },
+        {
+          "at": "2026-05-24T11:20:54+08:00",
+          "http_status": 200,
+          "task_status": "generating",
+          "attempt_status": "running",
+          "failure_reason": null,
+          "elapsed_seconds": null
+        },
+        {
+          "at": "2026-05-24T11:20:59+08:00",
+          "http_status": 200,
+          "task_status": "generating",
+          "attempt_status": "running",
+          "failure_reason": null,
+          "elapsed_seconds": null
+        },
+        {
+          "at": "2026-05-24T11:21:04+08:00",
+          "http_status": 200,
+          "task_status": "generating",
+          "attempt_status": "running",
+          "failure_reason": null,
+          "elapsed_seconds": null
+        },
+        {
+          "at": "2026-05-24T11:21:09+08:00",
+          "http_status": 200,
+          "task_status": "generating",
+          "attempt_status": "running",
+          "failure_reason": null,
+          "elapsed_seconds": null
+        },
+        {
+          "at": "2026-05-24T11:21:14+08:00",
+          "http_status": 200,
+          "task_status": "generating",
+          "attempt_status": "running",
+          "failure_reason": null,
+          "elapsed_seconds": null
+        },
+        {
+          "at": "2026-05-24T11:21:19+08:00",
+          "http_status": 200,
+          "task_status": "generating",
+          "attempt_status": "running",
+          "failure_reason": null,
+          "elapsed_seconds": null
+        },
+        {
+          "at": "2026-05-24T11:21:24+08:00",
+          "http_status": 200,
+          "task_status": "generating",
+          "attempt_status": "running",
+          "failure_reason": null,
+          "elapsed_seconds": null
+        },
+        {
+          "at": "2026-05-24T11:21:29+08:00",
+          "http_status": 200,
+          "task_status": "generating",
+          "attempt_status": "running",
+          "failure_reason": null,
+          "elapsed_seconds": null
+        },
+        {
+          "at": "2026-05-24T11:21:34+08:00",
+          "http_status": 200,
+          "task_status": "generating",
+          "attempt_status": "running",
+          "failure_reason": null,
+          "elapsed_seconds": null
+        },
+        {
+          "at": "2026-05-24T11:21:39+08:00",
+          "http_status": 200,
+          "task_status": "generating",
+          "attempt_status": "running",
+          "failure_reason": null,
+          "elapsed_seconds": null
+        },
+        {
+          "at": "2026-05-24T11:21:44+08:00",
+          "http_status": 200,
+          "task_status": "failed",
+          "attempt_status": "failed",
+          "failure_reason": "stale_generating",
+          "elapsed_seconds": 93
+        }
+      ],
+      "final_status": "failed",
+      "final_error_message_set": true,
+      "final_error_message_summary": "生成任务已超时，可能是 worker 中断或重启导致，请重新生成",
+      "final_attempt": {
+        "attempt_id": "bc0143375c7e432ba0099e57adf6d64c",
+        "status": "failed",
+        "dispatcher": "celery",
+        "celery_task_id": "a642445d-1c34-4173-8945-b1f43b1c7a6a",
+        "dispatched_at": "2026-05-24T11:20:09.926482",
+        "started_at": "2026-05-24T11:20:11.686541",
+        "heartbeat_at": "2026-05-24T11:20:11.686549",
+        "stale_seconds": 90,
+        "failure_reason": "stale_generating",
+        "stale_detected_at": "2026-05-24T11:21:44.863981",
+        "stale_reason": "get",
+        "elapsed_seconds": 93
+      }
+    },
+    "health_after": {
+      "status": 200,
+      "headers": {
+        "x-request-id": "07fd75342118",
+        "x-deployment-version": "977457bb4aa8e1b89d7f9fcb1efac5bf32820006"
+      },
+      "body": {
+        "status": "ok",
+        "git_commit": "977457bb4aa8e1b89d7f9fcb1efac5bf32820006",
+        "run_mode": "prod",
+        "serve_frontend": true,
+        "started_at": "2026-05-24T03:09:11Z",
+        "redis": {
+          "configured": true,
+          "ok": true
+        }
+      }
+    }
+  },
+  "failures": [],
+  "finished_at": "2026-05-24T11:21:44+08:00",
+  "passed": true
+}

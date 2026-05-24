@@ -385,11 +385,30 @@ Worker 验收结果：
 - `GET /api/studio/{task_id}`、任务列表和再次 generate 前会检测 stale `generating`；默认 `MIEMIE_STUDIO_GENERATION_STALE_SECONDS=1800`，超时后标记 `failed`，不自动重投递。
 - 后端回归已覆盖 attempt 写入、重复提交不重复 dispatch、stale GET 失败、stale 后重新生成、旧 attempt 不覆盖新 attempt、worker 异常失败写回。
 
-待 pre 服务器补跑：
+pre 服务器补跑结果：
 
-- 部署本地修复到 `/opt/miemie-pre`，临时设置 `MIEMIE_STUDIO_GENERATION_STALE_SECONDS=90`。
-- 复测任务提交后立即 `docker compose restart worker`，确认任务不会永久 `generating`，应在 stale 窗口后进入 `failed`。
-- 补跑 1 个真实 DashScope 图片生成队列 smoke；成功后删除测试用户配置中的 key，并只归档脱敏摘要。
+- `/opt/miemie-pre` 已快进到 `origin/pre@977457bb4aa8e1b89d7f9fcb1efac5bf32820006`，`compose.env` 的 `MIEMIE_RUNTIME_GIT_COMMIT` 已同步到同一提交。
+- 临时设置 `MIEMIE_STUDIO_GENERATION_STALE_SECONDS=90`，只重建并重启 `api` / `worker`，未重启 Redis。
+- `/api/health` 返回 `200`，`git_commit` 与 `x-deployment-version` 均为 `977457bb4aa8e1b89d7f9fcb1efac5bf32820006`，`redis.ok=true`；`GET /` 返回 `200`。
+- Celery 稳态 `ping` 返回 `pong`，`registered` 包含 `studio.generate`。
+- 任务提交后连续两次 `POST /api/studio/{task_id}/generate` 均返回 `generating`，且 `provider_result_meta.generation_attempt.attempt_id` 相同，未重复 dispatch。
+- 随后立即 `docker compose restart worker`，轮询 `GET /api/studio/{task_id}`；任务在约 93 秒后从 `generating` 转为 `failed`，`failure_reason=stale_generating`，错误信息明确提示 worker 中断或超时。
+
+注意：验证脚本在 `restart worker` 后立刻执行的首次 `celery inspect ping` 出现一次 `No nodes replied within time constraint`，但随后的 `registered` 成功，补充稳态检查 `ping` / `registered` 均通过。因此该现象记录为重启瞬间 inspect race，不影响 stale 兜底验收结论。
+
+真实 DashScope 图片队列 smoke 未执行：服务器当前没有可用 DashScope key 来源。已做脱敏布尔检查：全局 `backend/data/config.json` 不存在，10 个用户配置中 `dashscope_api_key` / `production_api_key` / `test_api_key` 均未设置，API 容器环境变量也没有 DashScope key。该 smoke 需要后续临时提供 key 后补跑，不能伪造通过。
+
+新增脱敏 artifact：
+
+- `docs/reports/artifacts/2026-05-24-worker-stale-fix-server/worker-stale-fix-20260524.json`
+
+本地回归：
+
+- `./run.sh test`：`225 passed in 66.43s`
+- `cd frontend && npm run typecheck`：通过
+- `cd frontend && npm run lint`：通过
+- `cd frontend && npm run build`：通过，保留既有 Browserslist/caniuse-lite 数据过期提示
+- `docker compose config`：通过
 
 ## 原始阻塞记录
 
