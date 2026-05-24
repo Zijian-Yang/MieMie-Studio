@@ -1,0 +1,29 @@
+{
+  "started_at": "2026-05-24T13:44:00+08:00",
+  "finished_at": "2026-05-24T13:55:34.513377+08:00",
+  "artifact_note": "Recovered after SSH disconnected. No API keys, auth tokens, passwords, or generated video URLs are stored.",
+  "recovery": {
+    "outer_ssh_interrupted": true,
+    "recovered_from_task_file": true,
+    "temporary_key_files_removed": true,
+    "temporary_script_removed": true,
+    "test_user_key_set_after_cleanup": false
+  },
+  "checks": {
+    "runtime_git_commit": "7f736affd91a503dd007580af335b0254f3cceb4",
+    "task_id_set": true,
+    "status": "succeeded",
+    "submit_state": "submitted",
+    "model": "wan2.7-t2v",
+    "provider": "wan",
+    "task_ids_count": 1,
+    "request_ids_count": 1,
+    "video_urls_count": 1,
+    "selected_video_url_set": true,
+    "error_message_set": false,
+    "attempt_status": "succeeded",
+    "attempt_has_attempt_id": false,
+    "attempt_has_celery_task_id": false
+  },
+  "passed": true
+}

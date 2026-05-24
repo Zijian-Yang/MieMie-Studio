@@ -29,7 +29,7 @@
 ### 新增 (Added)
 - 视频工作室 Worker 迁移 v1：视频工作室创建/重新生成任务改为通过统一 dispatcher 入队，Compose 新增独立 `worker-video` 服务消费 `video_studio` 队列，避免长视频任务阻塞图片 worker。
 - 视频工作室 Worker 迁移 v1：`VideoStudioTask` 新增 `submit_state`、`submit_started_at`、`submit_attempt_id`，并在 `provider_result_meta.worker_attempt` 中记录 dispatcher、Celery task id、heartbeat 和 stale 窗口。
-- 视频工作室 Worker 迁移 v1：新增 submit stale 兜底、worker stale 恢复、旧 attempt 丢弃、delete/regenerate 防旧 worker 复活等后端回归；pre 服务器已完成基础部署、无 key 失败路径和 `worker-video` restart 基础恢复验证，真实 DashScope 视频 smoke 待新临时 key 后执行。
+- 视频工作室 Worker 迁移 v1：新增 submit stale 兜底、worker stale 恢复、旧 attempt 丢弃、delete/regenerate 防旧 worker 复活等后端回归；pre 服务器已完成基础部署、无 key 失败路径、`worker-video` restart 基础恢复和 1 个真实 DashScope 视频 smoke 验证。
 - 视频工作室：支持在已选参考图/参考视频上点击 `@`，按模型 capability 中的 `reference_token_policy` 自动把 `[Image 1]`、`图1`、`视频1`、`<<<image_1>>>` 等指代词插入提示词光标位置。
 - 设置：DashScope API 地域新增美国（弗吉尼亚）`https://dashscope-us.aliyuncs.com/api/v1`。
 - 阿里生图/生视频同步/异步限流校准：

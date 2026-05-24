@@ -154,10 +154,10 @@
 - pre 基础验收通过：`/api/health redis.ok=true`、`GET /` 200、Celery `ping` 2 nodes online，`registered` 包含 `studio.generate` 和 `video_studio.generate`。
 - pre 无 key 失败路径通过：视频任务创建约 `157.8ms` 返回 `processing`，dispatcher 为 `celery`，最终进入 `failed`，未永久卡住。
 - pre `worker-video restart` 基础恢复通过：restart 后 `worker-video` 恢复 online，`ping` 2 nodes online；server override 已补 `worker-video: image: miemie-studio:pre-local`，避免新增服务使用默认 `local` 镜像名。
+- pre 真实 DashScope 视频 smoke 已补跑通过：1 个 `wan2.7-t2v` 文生视频任务最终 `succeeded`，供应商 task id / request id / video URL 各 1 个；SSH 外层连接中断后从服务器任务文件恢复核验，测试用户 key 与 `/tmp` 临时 key 均已清理，artifact 脱敏。
 
 后续待完成：
 
-- 视频工作室 Worker 迁移还需要补跑 1 个真实 DashScope 视频 smoke；需要新的临时 DashScope key，旧聊天中出现过的 key 不应复用。通过前不得进入 PostgreSQL / SSE。
 - 评估 worker 非 root 运行与容器权限硬化。
 
 证据：
@@ -175,6 +175,7 @@
 - `docs/reports/artifacts/2026-05-24-video-worker-migration/no-key-failure-20260524.json`
 - `docs/reports/artifacts/2026-05-24-video-worker-migration/worker-video-restart-20260524.txt`
 - `docs/reports/artifacts/2026-05-24-video-worker-migration/worker-video-image-aligned-20260524.txt`
+- `docs/reports/artifacts/2026-05-24-video-worker-migration/real-video-smoke-20260524.json`
 
 ## 阶段 4：线上图片工作室修复验证
 
@@ -297,7 +298,7 @@
 2. 已完成阶段 2：Redis 最小接入与服务器验证。
 3. 阶段 3 Worker 图片工作室最小接入已完成。
 4. 阶段 3.5 Redis + Worker 稳定性补强已闭环：Redis restart / unavailable、worker restart stale 兜底和 1 个真实 DashScope 图片队列 smoke 均已验证。
-5. 视频工作室 Worker 迁移 v1 已完成本地实现、pre 基础部署、无 key 失败路径和 `worker-video` restart 基础恢复；下一步只剩 1 个真实 DashScope 视频 smoke。
+5. 视频工作室 Worker 迁移 v1 已完成本地实现、pre 基础部署、无 key 失败路径、`worker-video` restart 基础恢复和 1 个真实 DashScope 视频 smoke；视频 worker v1 服务器验收已闭环。
 6. PostgreSQL / SSE 继续后置，基于 Redis + Worker 图片工作室稳定基线通过后的数据再讨论。
 
 ## 暂不做

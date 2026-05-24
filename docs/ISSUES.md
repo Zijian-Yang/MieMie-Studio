@@ -7,9 +7,9 @@
 
 ### 6. 视频工作室 Worker 迁移 pre 服务器验收未闭环
 
-**状态**: 🟡 pre 基础验证通过，待真实 DashScope 视频 smoke (2026-05-24)
+**状态**: ✅ 已完成 pre 服务器验收与真实 DashScope 视频 smoke (2026-05-24)
 
-**问题**: 视频工作室创建/重新生成链路已迁移到 Celery dispatcher 与独立 `worker-video` 队列，且已在 `/opt/miemie-pre` 完成基础部署验证；真实 DashScope 视频 smoke 尚未补跑。
+**问题**: 视频工作室创建/重新生成链路已迁移到 Celery dispatcher 与独立 `worker-video` 队列，需要证明 pre 服务器上真实供应商视频任务也能完成，而不只是不带 key 的失败路径。
 
 **本地进展**:
 - `VideoStudioTask` 新增 `submit_state`、`submit_started_at`、`submit_attempt_id`，并在 `provider_result_meta.worker_attempt` 记录 worker attempt。
@@ -19,11 +19,11 @@
 - pre 已部署 `7f736affd91a503dd007580af335b0254f3cceb4`，`/api/health redis.ok=true`、`GET /` 200，Celery `ping` 2 nodes online，`registered` 包含 `studio.generate` 和 `video_studio.generate`。
 - pre 无 key 失败路径通过：视频任务快速返回 `processing`，worker 写回 `failed`，未永久卡住。
 - pre `worker-video restart` 基础恢复通过；server override 已补 `worker-video: image: miemie-studio:pre-local`。
+- pre 真实 DashScope 视频 smoke 通过：1 个 `wan2.7-t2v` 文生视频任务最终 `succeeded`，供应商 task id / request id / video URL 各 1 个；SSH 外层连接中断后从服务器任务文件恢复核验，测试用户 key 与 `/tmp` 临时 key 文件均已清理。
 
-**后续验收**:
-1. 使用新的临时 DashScope key，只跑 1 个低频真实 DashScope 视频 smoke。
-2. 测试用户 key 用后删除，artifact 仅记录脱敏摘要，不记录 key、token、密码或真实生成视频 URL。
-3. smoke 通过后更新本 issue、Step 03 spec、pre 验证报告和 artifacts。
+**后续治理**:
+1. worker 容器当前仍以 root 运行，Celery 启动日志保留 `SecurityWarning`，正式生产发布前需要做非 root hardening。
+2. 本轮未启用 OSS，真实视频 smoke 只证明供应商提交、worker 状态协调和平台结果落盘，不证明生成视频已转存到长期对象存储。
 
 **调查记录**: [Step 03 Async Job Orchestrator](./specs/2026-04-step-03-async-job-orchestrator.md)
 

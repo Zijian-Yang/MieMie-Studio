@@ -25,13 +25,13 @@ docker compose config
 通过；包含 worker/studio 与 worker-video/video_studio 队列隔离
 ```
 
-## 待补服务器 artifact
+## 服务器 artifact
 
 - 已归档：`precheck-20260524.txt`，部署前后 Compose / health / root 摘要。
 - 已归档：`runtime-gates-20260524.txt`，health / root / Celery ping / registered 摘要。
 - 已归档：`no-key-failure-20260524.json`，无 key 视频 worker 失败路径摘要。
 - 已归档：`worker-video-restart-20260524.txt`，`worker-video` restart 基础恢复摘要。
 - 已归档：`worker-video-image-aligned-20260524.txt`，server override 镜像名对齐后 `worker-video` 恢复摘要。
-- 待补：1 个低频真实 DashScope 视频 smoke 摘要。
+- 已归档：`real-video-smoke-20260524.json`，1 个低频真实 DashScope 视频 smoke 摘要；SSH 外层连接中断后从服务器任务文件恢复核验，平台最终 `succeeded`，供应商 task / request / video URL 均为 1 个，测试用户 key 和临时 key 文件均已清理。
 
 所有后续 artifact 必须脱敏，不记录 API key、token、密码或真实生成视频 URL。

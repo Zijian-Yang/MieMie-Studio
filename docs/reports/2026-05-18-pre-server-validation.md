@@ -511,7 +511,7 @@ k6 run --summary-export validation-artifacts/2026-05-18-pre-server/pre-server-s3
 - 已补齐：S1 纯读 k6、S3 状态观察 k6 与压测后资源快照。
 - 已补齐：低频真实 DashScope smoke，1 个真实视频任务成功，平台记录 1 个结果视频、1 个供应商 task id 和 1 个 request id。
 - 限制项：真实 OSS 未启用，生成视频未转存到长期对象存储；本轮不代表供应商并发提交能力。
-- 当前结论：2026-05-24 Redis / Worker 稳定性补强发现的 worker 重启永久 `generating` 风险已通过 stale 兜底修复；真实 DashScope 图片队列 smoke 已补跑成功。视频工作室 Worker 迁移 v1 已完成本地实现和回归验证，但 pre 服务器部署、`worker-video` restart 恢复和真实 DashScope 视频 smoke 仍未执行，不能把视频链路视为服务器已闭环。
+- 当前结论：2026-05-24 Redis / Worker 稳定性补强发现的 worker 重启永久 `generating` 风险已通过 stale 兜底修复；真实 DashScope 图片队列 smoke 已补跑成功。视频工作室 Worker 迁移 v1 已完成本地实现、回归验证、pre 基础部署、`worker-video` restart 基础恢复和 1 个真实 DashScope 视频 smoke，视频 worker v1 服务器验收已闭环。
 
 ## 2026-05-24 视频工作室 Worker 迁移本地验证
 
@@ -558,11 +558,7 @@ pre 服务器基础验收：
 - 无 key 视频任务失败路径通过：`POST /api/video-studio` 约 `157.8ms` 返回 `processing`，dispatcher 为 `celery`，最终进入 `failed`，`task_ids_count=0`，`video_urls_count=0`，未永久卡住。
 - `worker-video restart` 基础恢复通过：restart 后 `worker-video` 恢复 Up，Celery `ping` 返回 2 nodes online。
 - `worker-video` 日志仍有 Celery root 运行 `SecurityWarning`，继续作为正式生产发布前硬化项。
-
-未完成服务器验收：
-
-- 补跑 1 个低频真实 DashScope 视频 smoke，并归档脱敏 artifact。
-- 该 smoke 需要新的临时 DashScope key；旧聊天中出现过的 key 不应复用。
+- 真实 DashScope 视频 smoke 已补跑通过：任务提交后 SSH 外层连接中断，但 `worker-video` 已成功提交供应商任务并持续轮询；恢复后从服务器任务文件核验最终 `status=succeeded`、供应商 task id / request id / video URL 各 1 个，测试用户 key 和 `/tmp` 临时 key 文件均已清理。脱敏 artifact 不记录 key、token、密码或真实生成视频 URL。
 
 新增证据：
 
@@ -571,6 +567,7 @@ pre 服务器基础验收：
 - `docs/reports/artifacts/2026-05-24-video-worker-migration/no-key-failure-20260524.json`
 - `docs/reports/artifacts/2026-05-24-video-worker-migration/worker-video-restart-20260524.txt`
 - `docs/reports/artifacts/2026-05-24-video-worker-migration/worker-video-image-aligned-20260524.txt`
+- `docs/reports/artifacts/2026-05-24-video-worker-migration/real-video-smoke-20260524.json`
 
 ## 2026-05-23 原始结果归档
 
