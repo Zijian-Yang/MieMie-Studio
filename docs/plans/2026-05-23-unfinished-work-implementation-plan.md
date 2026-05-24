@@ -217,7 +217,9 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 状态：
 
 - API 层体验 smoke 已通过：列表接口快速返回，图片生成重复点击复用 attempt，无 key 失败可见。
-- 浏览器真实 UI 操作仍待下一轮用 Playwright 或人工走查补齐，尤其是“页面切换无长时间全页转圈”和“开发者模式未展开时不触发 heavy preview”的浏览器网络证据。
+- 浏览器真实 UI 操作开始补齐时发现生产前端白屏：`react-vendor` / `vendor` 与 AntD 子 chunk 之间存在初始化循环，登录页 body 为空并出现 `createContext` / `Cannot access before initialization` 控制台错误。
+- 已收敛 Vite 手动分包策略：React 生态依赖保持在 `react-vendor`，Ant Design 主包统一进入 `antd-vendor`，不再按组件生成 `antd-button`、`antd-form`、`antd-_util` 等子 chunk。
+- 已新增 `npm run test:vite-chunks` 回归脚本，防止后续重新引入 AntD 子 chunk 循环。后续仍需部署到 `miemie-pre` 并复验真实浏览器登录页、页面切换和开发者模式 preview 网络行为。
 
 ## 阶段 5：保持小而美的性能治理
 

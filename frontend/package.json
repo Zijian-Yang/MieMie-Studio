@@ -10,6 +10,7 @@
     "test:video-prompt-length-policy": "node scripts/test-video-studio-prompt-length-policy.mjs",
     "test:video-reference-tokens": "node scripts/test-video-studio-reference-tokens.mjs",
     "test:video-task-card-layout": "node scripts/test-video-studio-task-card-layout.mjs",
+    "test:vite-chunks": "node scripts/test-vite-manual-chunks.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test:e2e:helper": "node --test tests/playwrightChromium.test.js",

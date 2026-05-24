@@ -95,6 +95,7 @@
 - 已验证：图片工作室创建任务后首次生成约 `14.0ms` 返回 `generating`
 - 已验证：同一图片任务连续两次 generate 均返回 `200/generating`，且复用同一个 attempt，未重复提交
 - 已验证：无 key 图片任务最终进入 `failed`，错误可见，不静默卡住
+- 真实浏览器验证发现生产 bundle 白屏，根因为 Vite 手动分包把 React 生态依赖和 AntD 子模块拆出初始化循环；已将 AntD 主包收敛到单一 `antd-vendor` 并新增 `npm run test:vite-chunks` 回归。
 - 待补：真实浏览器网络面板验证页面切换无长时间全页转圈、开发者模式未展开时不触发 heavy preview
 - 证据：`docs/reports/2026-05-24-next-phase-experience-and-performance.md`
 

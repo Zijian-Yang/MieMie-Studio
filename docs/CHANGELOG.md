@@ -6,6 +6,7 @@
 ## [Unreleased]
 
 ### 修复 (Fixed)
+- 前端生产构建：Ant Design 主包不再按组件强拆为多个 `antd-*` 子 chunk，避免生产环境出现 `createContext` / `Cannot access before initialization` 循环依赖白屏。
 - 图片工作室 Worker 试点：生成任务新增 `generation_attempt` 元数据和 stale `generating` 兜底；worker 中断或重启后，超时任务会被标记失败，旧 attempt 不再覆盖新 attempt。
 - 图片工作室 Worker 试点：pre 服务器已验证 `restart worker` 后任务不会永久停留 `generating`，90 秒测试窗口后会进入 `failed` 并记录 `failure_reason=stale_generating`。
 - 图片工作室 Worker 试点：pre 服务器已补跑 1 个真实 DashScope 图片队列 smoke，任务快速返回 `generating` 并最终 `completed`，测试用户临时 key 已删除。

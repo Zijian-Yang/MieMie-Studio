@@ -76,10 +76,6 @@ export default defineConfig({
           ) {
             return 'date-vendor'
           }
-          if (id.includes('/antd/es/') || id.includes('/antd/lib/')) {
-            const match = id.match(/\/antd\/(?:es|lib)\/([^/]+)/)
-            return match?.[1] ? `antd-${match[1]}` : 'antd-vendor'
-          }
           if (id.includes('/antd/')) {
             return 'antd-vendor'
           }

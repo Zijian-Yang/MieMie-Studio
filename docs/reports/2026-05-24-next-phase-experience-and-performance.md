@@ -42,6 +42,26 @@
 
 - `docs/reports/artifacts/2026-05-24-next-phase-experience/no-key-experience-smoke-20260524.json`
 
+## 浏览器验证补充
+
+真实浏览器通过本地 SSH 隧道访问 `http://127.0.0.1:18100/login` 时，曾发现生产 bundle 白屏：
+
+- 页面 title 为 `MieMie Studio`，但 body 无有效文本。
+- 控制台先后出现 `Cannot read properties of undefined (reading 'createContext')` 与 `Cannot access 'G' before initialization`。
+- 根因定位为 Vite 手动分包过细：React 生态依赖与 Ant Design 子 chunk 存在反向 import，导致生产初始化顺序不稳定。
+
+修复方向：
+
+- React、React Router、Scheduler、Zustand 与 CommonJS helper 归入 `react-vendor`。
+- Ant Design 主包统一归入 `antd-vendor`，不再按 `antd/es/{component}` 生成子 chunk。
+- 新增 `npm run test:vite-chunks`，断言 AntD 主包保持单 chunk，保留 icons / rc / dayjs / dnd 等独立 vendor 分组。
+
+本地验证：
+
+- `npm run test:vite-chunks`
+- `npm run build`
+- 构建产物只剩 `antd-vendor-*.js`，未再生成 `antd-button`、`antd-form`、`antd-_util` 等子 chunk。
+
 ## 轻量性能治理
 
 本轮新增后端运行态观测：
