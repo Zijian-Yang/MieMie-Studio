@@ -42,11 +42,18 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (id.includes('commonjsHelpers')) {
+            return 'react-vendor'
+          }
           if (!id.includes('node_modules')) return undefined
           if (
             id.includes('/react/') ||
             id.includes('/react-dom/') ||
+            id.includes('/react-router/') ||
             id.includes('/react-router-dom/') ||
+            id.includes('/@remix-run/router/') ||
+            id.includes('/scheduler/') ||
+            id.includes('/use-sync-external-store/') ||
             id.includes('/zustand/')
           ) {
             return 'react-vendor'
