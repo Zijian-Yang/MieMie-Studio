@@ -62,6 +62,16 @@
 - `npm run build`
 - 构建产物只剩 `antd-vendor-*.js`，未再生成 `antd-button`、`antd-form`、`antd-_util` 等子 chunk。
 
+pre 部署复验：
+
+- 已部署运行版本：`32ff189a57ca13cafcc73f7dd6e956ca1d8ce1e9`
+- `/api/health`：`200`，`redis.ok=true`
+- `GET /`：`200`
+- 首页 HTML 仅引用 `/_static/antd-vendor-Nuu71fug.js` 这一类 AntD chunk。
+- 真实浏览器访问 `/login`：页面不再白屏，`#root` 有有效内容，登录页截图正常。
+- 交互验证：点击“立即注册”后出现注册表单与“立即登录”入口。
+- 浏览器控制台：error `0`，warn `0`。
+
 ## 轻量性能治理
 
 本轮新增后端运行态观测：

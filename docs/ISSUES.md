@@ -96,7 +96,8 @@
 - 已验证：同一图片任务连续两次 generate 均返回 `200/generating`，且复用同一个 attempt，未重复提交
 - 已验证：无 key 图片任务最终进入 `failed`，错误可见，不静默卡住
 - 真实浏览器验证发现生产 bundle 白屏，根因为 Vite 手动分包把 React 生态依赖和 AntD 子模块拆出初始化循环；已将 AntD 主包收敛到单一 `antd-vendor` 并新增 `npm run test:vite-chunks` 回归。
-- 待补：真实浏览器网络面板验证页面切换无长时间全页转圈、开发者模式未展开时不触发 heavy preview
+- 已验证：`miemie-pre` 运行 `32ff189a57ca13cafcc73f7dd6e956ca1d8ce1e9` 后，真实浏览器登录页不再白屏，登录/注册切换可交互，控制台 error/warn 为 `0`。
+- 待补：真实浏览器网络面板验证工作室页面切换无长时间全页转圈、开发者模式未展开时不触发 heavy preview
 - 证据：`docs/reports/2026-05-24-next-phase-experience-and-performance.md`
 
 **调查记录**: [线上工作室卡顿与生成无响应调查记录](./reviews/2026-04-22-online-studio-investigation.md)
