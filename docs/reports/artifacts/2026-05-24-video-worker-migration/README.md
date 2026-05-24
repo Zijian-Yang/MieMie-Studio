@@ -27,9 +27,11 @@ docker compose config
 
 ## 待补服务器 artifact
 
-- `pre` 部署后 health / root / celery registered 摘要。
-- 无 key或错误 key 视频 worker 失败路径摘要。
-- `worker-video` restart 恢复或 stale 兜底摘要。
-- 1 个低频真实 DashScope 视频 smoke 摘要。
+- 已归档：`precheck-20260524.txt`，部署前后 Compose / health / root 摘要。
+- 已归档：`runtime-gates-20260524.txt`，health / root / Celery ping / registered 摘要。
+- 已归档：`no-key-failure-20260524.json`，无 key 视频 worker 失败路径摘要。
+- 已归档：`worker-video-restart-20260524.txt`，`worker-video` restart 基础恢复摘要。
+- 已归档：`worker-video-image-aligned-20260524.txt`，server override 镜像名对齐后 `worker-video` 恢复摘要。
+- 待补：1 个低频真实 DashScope 视频 smoke 摘要。
 
 所有后续 artifact 必须脱敏，不记录 API key、token、密码或真实生成视频 URL。

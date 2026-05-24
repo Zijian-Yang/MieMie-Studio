@@ -1,0 +1,8 @@
+NAME                        IMAGE                     COMMAND                  SERVICE        CREATED          STATUS          PORTS
+miemie-pre-worker-video-1   miemie-studio:pre-local   "/opt/venv/bin/celer…"   worker-video   31 seconds ago   Up 27 seconds   8000/tcp
+->  celery@765e3708237f: OK
+        pong
+->  video@1fbc59242657: OK
+        pong
+
+2 nodes online.

@@ -515,8 +515,6 @@ k6 run --summary-export validation-artifacts/2026-05-18-pre-server/pre-server-s3
 
 ## 2026-05-24 视频工作室 Worker 迁移本地验证
 
-本轮只完成本地实现与静态/回归验证，未操作 `/opt/miemie-pre`。
-
 变更摘要：
 
 - Compose 新增 `worker-video`，消费 `video_studio` 队列；原 `worker` 显式只消费 `studio` 队列。
@@ -547,13 +545,32 @@ docker compose config
 通过；包含 worker/studio 与 worker-video/video_studio 队列隔离
 ```
 
+pre 服务器基础验收：
+
+- 服务器仓库已快进到 `7f736affd91a503dd007580af335b0254f3cceb4`。
+- `compose.env` 的 `MIEMIE_RUNTIME_GIT_COMMIT` 已从旧值 `977457bb4aa8e1b89d7f9fcb1efac5bf32820006` 对齐到 `7f736affd91a503dd007580af335b0254f3cceb4`。
+- 只重建 / 重启 `api`、`worker`、`worker-video`，Redis 未重建。
+- `docker-compose.pre.override.yml` 已补 `worker-video: image: miemie-studio:pre-local`，避免新增服务使用默认 `miemie-studio:local` 镜像名。
+- `/api/health` 返回 `status=ok`、`git_commit=7f736affd91a503dd007580af335b0254f3cceb4`、`redis.ok=true`。
+- `GET /` 返回 200。
+- Celery `inspect ping` 返回 2 nodes online。
+- Celery `inspect registered` 包含 `studio.generate` 和 `video_studio.generate`。
+- 无 key 视频任务失败路径通过：`POST /api/video-studio` 约 `157.8ms` 返回 `processing`，dispatcher 为 `celery`，最终进入 `failed`，`task_ids_count=0`，`video_urls_count=0`，未永久卡住。
+- `worker-video restart` 基础恢复通过：restart 后 `worker-video` 恢复 Up，Celery `ping` 返回 2 nodes online。
+- `worker-video` 日志仍有 Celery root 运行 `SecurityWarning`，继续作为正式生产发布前硬化项。
+
 未完成服务器验收：
 
-- 部署并重建 `api/worker/worker-video`，Redis 不重建。
-- 验证 Celery `registered` 同时包含 `studio.generate` 和 `video_studio.generate`。
-- 验证无 key/错误 key 失败路径不会永久 `processing`。
-- 验证 `worker-video` restart 后恢复或 stale 兜底。
 - 补跑 1 个低频真实 DashScope 视频 smoke，并归档脱敏 artifact。
+- 该 smoke 需要新的临时 DashScope key；旧聊天中出现过的 key 不应复用。
+
+新增证据：
+
+- `docs/reports/artifacts/2026-05-24-video-worker-migration/precheck-20260524.txt`
+- `docs/reports/artifacts/2026-05-24-video-worker-migration/runtime-gates-20260524.txt`
+- `docs/reports/artifacts/2026-05-24-video-worker-migration/no-key-failure-20260524.json`
+- `docs/reports/artifacts/2026-05-24-video-worker-migration/worker-video-restart-20260524.txt`
+- `docs/reports/artifacts/2026-05-24-video-worker-migration/worker-video-image-aligned-20260524.txt`
 
 ## 2026-05-23 原始结果归档
 

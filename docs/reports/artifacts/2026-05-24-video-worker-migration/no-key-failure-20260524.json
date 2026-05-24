@@ -1,0 +1,29 @@
+{
+  "started_at": "2026-05-24T13:07:09.750044",
+  "username": "video_worker_no_key_1779599229",
+  "checks": [],
+  "register_status": 200,
+  "project_status": 200,
+  "create": {
+    "status": 200,
+    "elapsed_ms": 157.8,
+    "task_status": "processing",
+    "submit_state": "submitting",
+    "has_submit_attempt_id": true,
+    "attempt_status": "queued",
+    "dispatcher": "celery",
+    "has_celery_task_id": true
+  },
+  "final": {
+    "status": "failed",
+    "submit_state": "failed",
+    "task_ids_count": 0,
+    "request_ids_count": 0,
+    "video_urls_count": 0,
+    "error_code": "SubmitFailed",
+    "attempt_status": "failed",
+    "attempt_error_class": "LocalProtocolError"
+  },
+  "passed": true,
+  "finished_at": "2026-05-24T13:07:14.485492"
+}

@@ -1,0 +1,16 @@
+NAME                        IMAGE                     COMMAND                  SERVICE        CREATED          STATUS                    PORTS
+miemie-pre-api-1            miemie-studio:pre-local   "sh -c 'export MIEMI…"   api            22 seconds ago   Up 19 seconds (healthy)   127.0.0.1:18100->8000/tcp
+miemie-pre-redis-1          redis:7-alpine            "docker-entrypoint.s…"   redis          14 hours ago     Up 11 hours (healthy)     6379/tcp
+miemie-pre-worker-1         miemie-studio:pre-local   "/opt/venv/bin/celer…"   worker         22 seconds ago   Up 19 seconds             8000/tcp
+miemie-pre-worker-video-1   miemie-studio:local       "/opt/venv/bin/celer…"   worker-video   22 seconds ago   Up 19 seconds             8000/tcp
+{"status":"ok","git_commit":"977457bb4aa8e1b89d7f9fcb1efac5bf32820006","run_mode":"prod","serve_frontend":true,"started_at":"2026-05-24T05:04:00Z","redis":{"configured":true,"ok":true}}
+---root---
+HTTP/1.1 405 Method Not Allowed
+date: Sun, 24 May 2026 05:04:18 GMT
+server: uvicorn
+allow: GET
+content-length: 31
+content-type: application/json
+x-request-id: 051d10996acd
+x-deployment-version: 977457bb4aa8e1b89d7f9fcb1efac5bf32820006
+

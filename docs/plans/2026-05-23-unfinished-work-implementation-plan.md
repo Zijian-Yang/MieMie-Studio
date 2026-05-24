@@ -150,10 +150,14 @@
 - 已实现 worker stale 恢复：`processing + task_ids!=[]` 且 worker heartbeat stale 时，只重新入队状态协调，不重复 submit。
 - 已补后端回归覆盖创建入队、启动恢复、submit timeout、worker stale recovery、旧 attempt 不覆盖、删除后旧 worker 不复活、provider error 元数据保留和旧 JSON 兼容读取。
 - 本地验证通过：`backend/tests/test_video_studio_capabilities.py -q`、`./run.sh test`、前端 typecheck/lint/build、`docker compose config`。
+- 已部署到 pre 服务器 `7f736affd91a503dd007580af335b0254f3cceb4`；`compose.env` 的 `MIEMIE_RUNTIME_GIT_COMMIT` 已对齐，`api/worker/worker-video` 已重建，Redis 未重建。
+- pre 基础验收通过：`/api/health redis.ok=true`、`GET /` 200、Celery `ping` 2 nodes online，`registered` 包含 `studio.generate` 和 `video_studio.generate`。
+- pre 无 key 失败路径通过：视频任务创建约 `157.8ms` 返回 `processing`，dispatcher 为 `celery`，最终进入 `failed`，未永久卡住。
+- pre `worker-video restart` 基础恢复通过：restart 后 `worker-video` 恢复 online，`ping` 2 nodes online；server override 已补 `worker-video: image: miemie-studio:pre-local`，避免新增服务使用默认 `local` 镜像名。
 
 后续待完成：
 
-- 视频工作室 Worker 迁移还需要部署到 pre 服务器，并补跑 `worker-video` restart 恢复、无 key/错误 key 失败路径和 1 个真实 DashScope 视频 smoke；通过前不得进入 PostgreSQL / SSE。
+- 视频工作室 Worker 迁移还需要补跑 1 个真实 DashScope 视频 smoke；需要新的临时 DashScope key，旧聊天中出现过的 key 不应复用。通过前不得进入 PostgreSQL / SSE。
 - 评估 worker 非 root 运行与容器权限硬化。
 
 证据：
@@ -167,6 +171,10 @@
 - `docs/reports/artifacts/2026-05-24-worker-stale-fix-server/worker-stale-fix-20260524.json`
 - `docs/reports/artifacts/2026-05-24-worker-stale-fix-server/dashscope-image-smoke-20260524.json`
 - `docs/reports/artifacts/2026-05-24-video-worker-migration/README.md`
+- `docs/reports/artifacts/2026-05-24-video-worker-migration/runtime-gates-20260524.txt`
+- `docs/reports/artifacts/2026-05-24-video-worker-migration/no-key-failure-20260524.json`
+- `docs/reports/artifacts/2026-05-24-video-worker-migration/worker-video-restart-20260524.txt`
+- `docs/reports/artifacts/2026-05-24-video-worker-migration/worker-video-image-aligned-20260524.txt`
 
 ## 阶段 4：线上图片工作室修复验证
 
@@ -289,7 +297,7 @@
 2. 已完成阶段 2：Redis 最小接入与服务器验证。
 3. 阶段 3 Worker 图片工作室最小接入已完成。
 4. 阶段 3.5 Redis + Worker 稳定性补强已闭环：Redis restart / unavailable、worker restart stale 兜底和 1 个真实 DashScope 图片队列 smoke 均已验证。
-5. 视频工作室 Worker 迁移 v1 已完成本地实现和回归验证；下一步优先补 pre 服务器部署、`worker-video` restart 恢复和真实 DashScope 视频 smoke。
+5. 视频工作室 Worker 迁移 v1 已完成本地实现、pre 基础部署、无 key 失败路径和 `worker-video` restart 基础恢复；下一步只剩 1 个真实 DashScope 视频 smoke。
 6. PostgreSQL / SSE 继续后置，基于 Redis + Worker 图片工作室稳定基线通过后的数据再讨论。
 
 ## 暂不做

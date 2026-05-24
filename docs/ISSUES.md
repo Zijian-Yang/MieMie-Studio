@@ -7,22 +7,23 @@
 
 ### 6. 视频工作室 Worker 迁移 pre 服务器验收未闭环
 
-**状态**: 🟡 本地已实现并通过回归，待 pre 服务器验证 (2026-05-24)
+**状态**: 🟡 pre 基础验证通过，待真实 DashScope 视频 smoke (2026-05-24)
 
-**问题**: 视频工作室创建/重新生成链路已迁移到 Celery dispatcher 与独立 `worker-video` 队列，但尚未在 `/opt/miemie-pre` 完成部署后验证、worker-video 中断恢复和真实 DashScope 视频 smoke。
+**问题**: 视频工作室创建/重新生成链路已迁移到 Celery dispatcher 与独立 `worker-video` 队列，且已在 `/opt/miemie-pre` 完成基础部署验证；真实 DashScope 视频 smoke 尚未补跑。
 
 **本地进展**:
 - `VideoStudioTask` 新增 `submit_state`、`submit_started_at`、`submit_attempt_id`，并在 `provider_result_meta.worker_attempt` 记录 worker attempt。
 - Celery 新增 `video_studio.generate`，Compose 新增 `worker-video`，图片 `worker` 只消费 `studio` 队列，视频 `worker-video` 只消费 `video_studio` 队列。
 - submit stale 会转 `failed/SubmitTimeout`，worker stale 有 provider task id 时只恢复状态协调，不重复提交供应商任务。
 - 后端回归覆盖创建入队、启动恢复、submit timeout、worker stale recovery、旧 attempt 丢弃、删除后不复活和 provider error 元数据保留。
+- pre 已部署 `7f736affd91a503dd007580af335b0254f3cceb4`，`/api/health redis.ok=true`、`GET /` 200，Celery `ping` 2 nodes online，`registered` 包含 `studio.generate` 和 `video_studio.generate`。
+- pre 无 key 失败路径通过：视频任务快速返回 `processing`，worker 写回 `failed`，未永久卡住。
+- pre `worker-video restart` 基础恢复通过；server override 已补 `worker-video: image: miemie-studio:pre-local`。
 
 **后续验收**:
-1. 只操作 `/opt/miemie-pre` 和 Compose project `miemie-pre`，重建 `api/worker/worker-video`，Redis 不重建。
-2. 验证 `/api/health redis.ok=true`、`GET /` 200，Celery `registered` 同时包含 `studio.generate` 和 `video_studio.generate`。
-3. 无 key/错误 key 路径下视频任务必须快速返回 `processing`，worker 写回 `failed`，不能永久卡住。
-4. `worker-video` restart 恢复路径不能留下永久 `processing`；有 provider task id 时应恢复轮询，无 provider task id 时应在 stale 窗口后 `SubmitTimeout`。
-5. 只跑 1 个低频真实 DashScope 视频 smoke；测试用户 key 用后删除，artifact 仅记录脱敏摘要。
+1. 使用新的临时 DashScope key，只跑 1 个低频真实 DashScope 视频 smoke。
+2. 测试用户 key 用后删除，artifact 仅记录脱敏摘要，不记录 key、token、密码或真实生成视频 URL。
+3. smoke 通过后更新本 issue、Step 03 spec、pre 验证报告和 artifacts。
 
 **调查记录**: [Step 03 Async Job Orchestrator](./specs/2026-04-step-03-async-job-orchestrator.md)
 

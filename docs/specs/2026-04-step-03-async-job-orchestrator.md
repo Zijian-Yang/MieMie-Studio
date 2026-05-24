@@ -195,7 +195,7 @@
 - delete / regenerate 会释放本进程 inflight lease，并让旧 attempt 失效；旧 worker 或迟到结果不得复活已删除任务或覆盖新任务。
 - 本地回归覆盖创建入队、启动恢复、submit timeout、worker stale recovery、旧 attempt 丢弃、删除后不复活和 provider error 元数据保留。
 
-当前状态：本地验证通过，pre 服务器部署、`worker-video` restart 恢复和 1 个真实 DashScope 视频 smoke 仍需单独执行和归档。
+当前状态：本地验证通过；pre 服务器已部署到 `7f736affd91a503dd007580af335b0254f3cceb4`，health/首页/Celery、无 key 失败路径和 `worker-video` restart 基础恢复已归档。真实 DashScope 视频 smoke 仍需新的临时 key 后单独执行和归档。
 
 ## 讨论重点
 

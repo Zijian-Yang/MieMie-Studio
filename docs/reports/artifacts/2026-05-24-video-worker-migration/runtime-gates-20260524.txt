@@ -1,0 +1,22 @@
+NAME                        IMAGE                     COMMAND                  SERVICE        CREATED          STATUS                    PORTS
+miemie-pre-api-1            miemie-studio:pre-local   "sh -c 'export MIEMI…"   api            18 seconds ago   Up 15 seconds (healthy)   127.0.0.1:18100->8000/tcp
+miemie-pre-redis-1          redis:7-alpine            "docker-entrypoint.s…"   redis          14 hours ago     Up 11 hours (healthy)     6379/tcp
+miemie-pre-worker-1         miemie-studio:pre-local   "/opt/venv/bin/celer…"   worker         18 seconds ago   Up 15 seconds             8000/tcp
+miemie-pre-worker-video-1   miemie-studio:local       "/opt/venv/bin/celer…"   worker-video   18 seconds ago   Up 15 seconds             8000/tcp
+{"status":"ok","git_commit":"7f736affd91a503dd007580af335b0254f3cceb4","run_mode":"prod","serve_frontend":true,"started_at":"2026-05-24T05:05:00Z","redis":{"configured":true,"ok":true}}
+---root-get---
+200
+->  video@ea24441be1dc: OK
+        pong
+->  celery@765e3708237f: OK
+        pong
+
+2 nodes online.
+->  celery@765e3708237f: OK
+    * studio.generate
+    * video_studio.generate
+->  video@ea24441be1dc: OK
+    * studio.generate
+    * video_studio.generate
+
+2 nodes online.
