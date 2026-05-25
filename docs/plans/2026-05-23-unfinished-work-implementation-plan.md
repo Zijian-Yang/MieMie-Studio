@@ -221,7 +221,9 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 - 已收敛 Vite 手动分包策略：React 生态依赖保持在 `react-vendor`，Ant Design 主包统一进入 `antd-vendor`，不再按组件生成 `antd-button`、`antd-form`、`antd-_util` 等子 chunk。
 - 已新增 `npm run test:vite-chunks` 回归脚本，防止后续重新引入 AntD 子 chunk 循环。
 - 已部署到 `miemie-pre` 运行版本 `32ff189a57ca13cafcc73f7dd6e956ca1d8ce1e9`；真实浏览器验证登录页不再白屏，登录/注册切换可交互，控制台无 error/warn，页面只预加载单一 `antd-vendor`。
-- 后续仍需继续复验工作室页面切换和开发者模式 preview 网络行为。
+- 2026-05-25 已补齐工作室真实浏览器门禁：测试用户创建临时项目后进入图片工作室，任务列表/详情可渲染，无长时间全页转圈；普通模式下创建图片任务并点击生成，页面约 3.4 秒内出现“提交中...”，随后无 key 路径进入 `failed / API key 未配置`，错误可见。
+- 2026-05-25 已用服务器日志复核：本轮浏览器验证窗口内 `/api/studio/preview-payload` 命中数为 `0`，`/api/studio/{id}/generate` 返回 `200` 且运行态观测耗时约 `235.27ms`；临时项目已清理。
+- 验证噪声：SSH 隧道在首次 lazy chunk 加载时被远端关闭，导致一次 `Failed to fetch dynamically imported module`；重建隧道后 `/_static/StudioPage-kkK5922i.js` 可 `200` 获取，刷新同一路由后工作室正常渲染，记录为隧道稳定性问题，不作为前端发布缺陷。
 
 ## 阶段 5：保持小而美的性能治理
 

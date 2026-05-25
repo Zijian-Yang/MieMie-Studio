@@ -65,7 +65,7 @@
 
 ### 4. 线上图片工作室切页慢加载与生成按钮无响应
 
-**状态**: 🟡 本地已修复，pre API 体验 smoke 已通过，仍待浏览器/线上验证 (2026-05-24)
+**状态**: ✅ 已完成 pre API 与真实浏览器验证，生产站 Cloudflare 日志抽查仍可作为发布后观察项 (2026-05-25)
 
 **问题**: 生产站 `https://studio.miemie.co/` 使用 `guest` 测试账号进入图片工作室时，切换页面会出现全页转圈；任务详情中点击“开始生成”后经常没有即时反馈，仍停留在“待生成”状态。
 
@@ -97,7 +97,10 @@
 - 已验证：无 key 图片任务最终进入 `failed`，错误可见，不静默卡住
 - 真实浏览器验证发现生产 bundle 白屏，根因为 Vite 手动分包把 React 生态依赖和 AntD 子模块拆出初始化循环；已将 AntD 主包收敛到单一 `antd-vendor` 并新增 `npm run test:vite-chunks` 回归。
 - 已验证：`miemie-pre` 运行 `32ff189a57ca13cafcc73f7dd6e956ca1d8ce1e9` 后，真实浏览器登录页不再白屏，登录/注册切换可交互，控制台 error/warn 为 `0`。
-- 待补：真实浏览器网络面板验证工作室页面切换无长时间全页转圈、开发者模式未展开时不触发 heavy preview
+- 已验证：2026-05-25 通过真实浏览器访问 `miemie-pre`，创建临时项目并进入图片工作室，页面可正常渲染任务列表和详情，没有长时间全页转圈；首次通过 SSH 隧道加载 lazy chunk 时因隧道被远端关闭出现一次 `Failed to fetch dynamically imported module`，重建隧道后同一 chunk 可直接 `200` 获取，刷新后工作室正常渲染，判定为隧道中断造成的验证噪声。
+- 已验证：普通模式下创建图片任务并点击“开始生成”，页面约 3.4 秒内显示“提交中...”，随后无 key 路径转为 `failed / API key 未配置`，错误在任务卡和详情中可见。
+- 已验证：服务器 API 日志从本轮浏览器验证开始到清理结束，`/api/studio/preview-payload` 命中数为 `0`；`POST /api/studio/{id}/generate` 返回 `200`，运行态观测记录耗时约 `235.27ms`。
+- 已清理：本轮浏览器验证创建的临时项目已通过服务器本机 API 删除。
 - 证据：`docs/reports/2026-05-24-next-phase-experience-and-performance.md`
 
 **调查记录**: [线上工作室卡顿与生成无响应调查记录](./reviews/2026-04-22-online-studio-investigation.md)

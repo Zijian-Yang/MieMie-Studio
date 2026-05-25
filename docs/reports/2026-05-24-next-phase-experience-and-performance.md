@@ -72,6 +72,14 @@ pre 部署复验：
 - 交互验证：点击“立即注册”后出现注册表单与“立即登录”入口。
 - 浏览器控制台：error `0`，warn `0`。
 
+2026-05-25 工作室浏览器门禁补充：
+
+- 通过本地 SSH 隧道访问 `miemie-pre`，注册一次性测试用户并创建临时项目，进入图片工作室后任务列表和详情正常渲染，没有长时间全页转圈。
+- 首次点击图片工作室时隧道被远端关闭，浏览器记录一次 `Failed to fetch dynamically imported module: /_static/StudioPage-kkK5922i.js`；随后本地 `curl` 也无法连接隧道。重建隧道后同一 chunk 返回 `200`、`content-length=89747`，刷新同一路由后页面恢复正常，判定为 SSH 隧道中断噪声。
+- 普通模式下新建图片任务并点击“开始生成”，页面约 3.4 秒内显示“提交中...”；无 key 路径随后进入 `failed / API key 未配置`，任务卡片、详情和错误提示均可见。
+- 服务器 API 日志显示本轮浏览器验证窗口内 `/api/studio/preview-payload` 命中数为 `0`，`POST /api/studio/{id}/generate` 返回 `200`，运行态观测耗时约 `235.27ms`。
+- 本轮临时项目已通过服务器本机 API 删除。截图保存在本机临时路径 `/private/tmp/miemie-pre-studio-browser-gate-20260525.png` 和 `/private/tmp/miemie-pre-studio-browser-gate-full-20260525.png`，未写入仓库。
+
 ## 轻量性能治理
 
 本轮新增后端运行态观测：
