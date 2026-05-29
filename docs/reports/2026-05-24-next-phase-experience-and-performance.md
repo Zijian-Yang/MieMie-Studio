@@ -104,12 +104,13 @@ pre 部署复验：
 - 少量提交必须显式传入 `MIEMIE_SUBMIT_URL`、`MIEMIE_SUBMIT_BODY` 和 `MIEMIE_SUBMIT_EVERY`。
 - 推荐先使用 preview 或无 key 受控失败路径，不做真实供应商并发压测。
 
-2026-05-29 S4 公网反代后基线执行预检：
+2026-05-29 S4 公网反代后基线：
 
 - 计划按“两段式 / 保守门禁 / 一次性测试账号项目”执行，先对比服务器本机 `http://127.0.0.1:18100` 与公网 `https://pre-studio.miemie.co` 的只读查询，再执行少量 `preview-payload` 受控提交。
-- 公网 `/api/health` 仍为 `200`，运行版本 `32ff189a57ca13cafcc73f7dd6e956ca1d8ce1e9`，`run_mode=prod`、`serve_frontend=true`、`redis.ok=true`。
-- 阻塞：SSH 到 `47.79.99.190:22` 的 TCP 端口可达，但服务端在交换 banner 前关闭连接，`ssh-keyscan` 也无法拿到 host key；因此未能进入服务器确认 `k6 version`、Compose 状态、Docker stats，也未创建测试用户/项目或运行 k6。
-- 证据与补跑清单见 `docs/reports/artifacts/2026-05-29-s4-public-baseline/README.md`。
+- 四组保守基线均通过：本机只读 P95 `22.58ms` / P99 `47.93ms`，公网只读 P95 `29.99ms` / P99 `77.32ms`；本机 preview P95 `22.79ms` / P99 `30.41ms`，公网 preview P95 `38.33ms` / P99 `86.22ms`。
+- 四组 `http_req_failed=0`、checks failed `0`，响应头 `X-Request-ID` 与 `X-Deployment-Version` 均通过检查。
+- 本轮未触发真实 DashScope 供应商调用；少量提交仅使用 `/api/video-studio/preview-payload`。测试项目已删除，session 已登出；测试用户未删除，作为低风险残留账号记录。
+- 证据见 `docs/reports/artifacts/2026-05-29-s4-public-baseline/README.md`。
 
 ## 代码治理
 
@@ -128,6 +129,6 @@ pre 部署复验：
 
 - 当前 `miemie-pre` 运行态基础门禁通过。
 - 公网域名 `pre-studio.miemie.co` 的 Cloudflare -> aaPanel/Nginx -> `127.0.0.1:18100` 反代门禁通过，可作为下一轮 S4 混合查询基线的真实入口。
-- S4 k6 基线执行当前被 SSH 入口阻塞；恢复 SSH 后应从服务器预检继续，不需要改变应用架构。
+- S4 保守基线通过：公网链路相比本机链路有可见但很小的额外延迟，本轮未观察到 5xx 或 header 缺失。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
 - 下一步仍不需要进入 PostgreSQL / SSE；应先基于 S4 混合查询数据判断 JSON 扫描、轮询或状态查询是否成为真实瓶颈。

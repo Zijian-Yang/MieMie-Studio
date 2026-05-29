@@ -266,7 +266,7 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 - 已新增运行态脱敏耗时日志，覆盖图片/视频工作室与测评查询高频路径。
 - 已新增 `loadtest/k6/s4-mixed-query-generate.js`，可用于下一轮只读查询或 preview/无 key 受控提交混合压测。
 - 公网反代入口 `https://pre-studio.miemie.co` 已通过基础门禁，下一轮 S4 建议同时采集公网入口与服务器本机 `127.0.0.1:18100` 的对照数据。
-- 2026-05-29 尝试执行 S4 两段式保守基线时，SSH 到 `47.79.99.190:22` 在服务端 banner 前被关闭，`ssh-keyscan` 无 host key；因此 k6、本机回环入口、Compose 和 Docker stats 预检未开始。公网 `/api/health` 仍正常。恢复 SSH 后从 `docs/reports/artifacts/2026-05-29-s4-public-baseline/README.md` 的补跑清单继续。
+- 2026-05-29 已完成 S4 两段式保守基线：本机/公网只读查询和本机/公网 preview 受控提交四组均失败率 `0`、P95 `<800ms`；公网 preview P95 `38.33ms`、P99 `86.22ms`。证据归档于 `docs/reports/artifacts/2026-05-29-s4-public-baseline/`。
 
 ## 阶段 6：代码治理，降低维护压力
 

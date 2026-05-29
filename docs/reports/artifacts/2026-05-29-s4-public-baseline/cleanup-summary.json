@@ -1,0 +1,16 @@
+{
+  "project_id": "67949802-2bb1-4e7e-a943-90c22e6c74bd",
+  "delete_status": 200,
+  "delete_body": {
+    "message": "项目已删除"
+  },
+  "logout_status": 200,
+  "logout_body": {
+    "success": true
+  },
+  "verify_deleted_status": 401,
+  "verify_deleted_body": {
+    "error": "{\"detail\": \"登录已过期，请重新登录\"}"
+  },
+  "note": "测试用户未删除；公开 API 仅清理项目和 session。"
+}
