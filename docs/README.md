@@ -123,7 +123,7 @@ docker compose config
 - E2E helper：`npm run test:e2e:helper`（2026-04-24，2 passed）
 - E2E smoke：`npm run test:e2e`（2026-04-24，4 passed，macOS 可自动发现本机 `ms-playwright` Chromium 缓存）
 - Compose 静态校验：`docker compose config`（2026-05-24，通过）
-- `pre` Ubuntu staging：独立 Compose project `miemie-pre` 构建与启动通过，`/api/health` 与 `GET /` 通过；S1/S3 k6 与 1 个低频 DashScope 视频 smoke 已于 2026-05-23 补跑通过；Redis session / slowapi Redis storage / Celery worker 图片工作室队列 smoke 已在服务器通过；2026-05-24 Redis restart / unavailable 稳定性补强通过，worker 执行中断后任务永久 `generating` 已完成并通过 pre stale 验证；1 个真实 DashScope 图片队列 smoke 已补跑通过并删除测试用户 key；视频工作室 Worker 迁移 v1 已部署到 pre，health/首页/Celery、无 key 失败路径、`worker-video` restart 基础恢复和 1 个真实 DashScope 视频 smoke 均已通过；下一阶段无 key 体验 smoke 已验证列表快、提交即时反馈、重复点击去重和错误可见性；2026-05-25 真实浏览器补齐图片工作室门禁，普通模式未触发 `/api/studio/preview-payload`，生成点击有“提交中...”即时反馈，临时项目已清理
+- `pre` Ubuntu staging：独立 Compose project `miemie-pre` 构建与启动通过，`/api/health` 与 `GET /` 通过；S1/S3 k6 与 1 个低频 DashScope 视频 smoke 已于 2026-05-23 补跑通过；Redis session / slowapi Redis storage / Celery worker 图片工作室队列 smoke 已在服务器通过；2026-05-24 Redis restart / unavailable 稳定性补强通过，worker 执行中断后任务永久 `generating` 已完成并通过 pre stale 验证；1 个真实 DashScope 图片队列 smoke 已补跑通过并删除测试用户 key；视频工作室 Worker 迁移 v1 已部署到 pre，health/首页/Celery、无 key 失败路径、`worker-video` restart 基础恢复和 1 个真实 DashScope 视频 smoke 均已通过；下一阶段无 key 体验 smoke 已验证列表快、提交即时反馈、重复点击去重和错误可见性；2026-05-25 真实浏览器补齐图片工作室门禁，普通模式未触发 `/api/studio/preview-payload`，生成点击有“提交中...”即时反馈，临时项目已清理；2026-05-29 `pre-studio.miemie.co` 公网反代门禁通过，Cloudflare / aaPanel Nginx 可稳定回源到 `127.0.0.1:18100`，登录页真实浏览器可渲染和切换注册表单
 - 性能治理入口：新增高频运行路径脱敏耗时日志与 `loadtest/k6/s4-mixed-query-generate.js`，用于“多人查询 + 少量提交”的小而美容量证据采集
 - 当前已消除：
   - FastAPI `on_event is deprecated` 警告

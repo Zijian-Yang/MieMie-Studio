@@ -80,6 +80,14 @@ pre 部署复验：
 - 服务器 API 日志显示本轮浏览器验证窗口内 `/api/studio/preview-payload` 命中数为 `0`，`POST /api/studio/{id}/generate` 返回 `200`，运行态观测耗时约 `235.27ms`。
 - 本轮临时项目已通过服务器本机 API 删除。截图保存在本机临时路径 `/private/tmp/miemie-pre-studio-browser-gate-20260525.png` 和 `/private/tmp/miemie-pre-studio-browser-gate-full-20260525.png`，未写入仓库。
 
+2026-05-29 公网反代门禁补充：
+
+- `pre-studio.miemie.co` 修正 DNS 解析后，Cloudflare 公网入口恢复；`GET https://pre-studio.miemie.co/api/health` 返回 `200`，响应包含 `status=ok`、`run_mode=prod`、`serve_frontend=true`、`redis.ok=true`，运行版本仍为 `32ff189a57ca13cafcc73f7dd6e956ca1d8ce1e9`。
+- `GET /` 与 `GET /login` 均返回 `200`；首页 HTML 引用的主入口 `/_static/index-CiWzNZJv.js` 与样式 `/_static/index-CAz34CPn.css` 均返回 `200`。
+- aaPanel / Nginx 自定义 `/_static/` 缓存规则已命中：静态资源响应带 `Cache-Control: public, max-age=604800, immutable`，主入口 JS 二次请求观察到 `cf-cache-status: HIT`。
+- 真实浏览器访问 `https://pre-studio.miemie.co/login`，登录页可完整渲染，控制台 error/warn 为 `0`；点击“立即注册”后切换到注册表单，未创建用户、未提交敏感数据。
+- 截图保存在本机临时路径 `/private/tmp/pre-studio-public-login-loading-20260529.png` 与 `/private/tmp/pre-studio-public-register-20260529.png`，未写入仓库。
+
 ## 轻量性能治理
 
 本轮新增后端运行态观测：
@@ -112,5 +120,6 @@ pre 部署复验：
 ## 结论
 
 - 当前 `miemie-pre` 运行态基础门禁通过。
+- 公网域名 `pre-studio.miemie.co` 的 Cloudflare -> aaPanel/Nginx -> `127.0.0.1:18100` 反代门禁通过，可作为下一轮 S4 混合查询基线的真实入口。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
 - 下一步仍不需要进入 PostgreSQL / SSE；应先基于 S4 混合查询数据判断 JSON 扫描、轮询或状态查询是否成为真实瓶颈。

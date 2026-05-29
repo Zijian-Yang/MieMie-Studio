@@ -224,6 +224,7 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 - 2026-05-25 已补齐工作室真实浏览器门禁：测试用户创建临时项目后进入图片工作室，任务列表/详情可渲染，无长时间全页转圈；普通模式下创建图片任务并点击生成，页面约 3.4 秒内出现“提交中...”，随后无 key 路径进入 `failed / API key 未配置`，错误可见。
 - 2026-05-25 已用服务器日志复核：本轮浏览器验证窗口内 `/api/studio/preview-payload` 命中数为 `0`，`/api/studio/{id}/generate` 返回 `200` 且运行态观测耗时约 `235.27ms`；临时项目已清理。
 - 验证噪声：SSH 隧道在首次 lazy chunk 加载时被远端关闭，导致一次 `Failed to fetch dynamically imported module`；重建隧道后 `/_static/StudioPage-kkK5922i.js` 可 `200` 获取，刷新同一路由后工作室正常渲染，记录为隧道稳定性问题，不作为前端发布缺陷。
+- 2026-05-29 已补齐公网反代门禁：`pre-studio.miemie.co` 经 Cloudflare / aaPanel Nginx 反代到 `127.0.0.1:18100`，`/api/health`、`/`、`/login` 与主静态资源均返回 `200`；`/_static/index-CiWzNZJv.js` 二次请求出现 `cf-cache-status: HIT`，真实浏览器登录页与注册切换可交互，控制台无 error/warn。
 
 ## 阶段 5：保持小而美的性能治理
 
@@ -264,6 +265,7 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 
 - 已新增运行态脱敏耗时日志，覆盖图片/视频工作室与测评查询高频路径。
 - 已新增 `loadtest/k6/s4-mixed-query-generate.js`，可用于下一轮只读查询或 preview/无 key 受控提交混合压测。
+- 公网反代入口 `https://pre-studio.miemie.co` 已通过基础门禁，下一轮 S4 建议同时采集公网入口与服务器本机 `127.0.0.1:18100` 的对照数据。
 
 ## 阶段 6：代码治理，降低维护压力
 
