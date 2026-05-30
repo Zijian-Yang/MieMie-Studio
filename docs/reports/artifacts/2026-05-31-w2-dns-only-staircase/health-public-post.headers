@@ -1,0 +1,8 @@
+HTTP/2 200
+server: nginx
+date: Sat, 30 May 2026 17:01:55 GMT
+content-type: application/json
+content-length: 185
+x-request-id: 41c2881b3c68
+x-deployment-version: 26e3824928a6d4deb86c830183e92310400e107e
+cache-control: no-store

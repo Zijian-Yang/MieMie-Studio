@@ -1,0 +1,11 @@
+2026-05-31T00:57:42+08:00 run start
+2026-05-31T00:57:42+08:00 precheck start
+2026-05-31T00:57:44+08:00 precheck ok
+2026-05-31T00:57:44+08:00 prepare data start
+2026-05-31T00:57:48+08:00 prepare data ok project=254eb9c5-15b4-41ac-89b6-7dbae45d6984 task=b5bba6c0-4d6d-456a-86de-009c93ebe2e9
+2026-05-31T00:57:48+08:00 stage dns-only-status-100 start
+2026-05-31T00:59:50+08:00 stage dns-only-status-100 ok
+2026-05-31T00:59:50+08:00 stage dns-only-status-300 start
+2026-05-31T01:01:53+08:00 FAIL dns-only-status-300: p95 307.78ms >= 300ms
+2026-05-31T01:01:55+08:00 cleanup done
+2026-05-31T01:01:58+08:00 run failed dns-only-status-300: p95 307.78ms >= 300ms

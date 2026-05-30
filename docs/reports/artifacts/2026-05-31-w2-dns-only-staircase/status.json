@@ -1,0 +1,6 @@
+{
+  "state": "failed",
+  "stage": "done",
+  "reason": "dns-only-status-300: p95 307.78ms >= 300ms",
+  "updated_at": "2026-05-31T01:01:58+0800"
+}

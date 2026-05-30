@@ -1,0 +1,3 @@
+label	vus	duration	http_req_failed	p95_ms	p99_ms	http_reqs	checks_fails	ok	reason
+dns-only-status-100	100	120s	0.000000000	45.924684	215.692574	23536	0	1
+dns-only-status-300	300	120s	0.000000000	307.777895	666.393035	52000	0	0	p95 307.78ms >= 300ms

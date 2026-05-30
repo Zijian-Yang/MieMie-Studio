@@ -1,0 +1,13 @@
+{
+  "label": "dns-only-status-300",
+  "vus": 300,
+  "duration": "120s",
+  "http_req_failed": 0.0,
+  "http_req_duration_p95_ms": 307.7778949,
+  "http_req_duration_p99_ms": 666.3930353400004,
+  "http_reqs": 52000,
+  "checks_fails": 0,
+  "k6_exit_code": 99,
+  "ok": false,
+  "reason": "p95 307.78ms >= 300ms"
+}

@@ -142,6 +142,13 @@ pre 部署复验：
 - Cloudflare 公网域名复测失败：`17414` 个 GET，失败率 `0.029%`，P95 `409.26ms`，P99 `2119.39ms`，出现 5 个 k6 `request timeout`，触发 15 个响应 check 失败。
 - API 日志窗口内观察类 GET 状态码汇总为 `200 88423`；本轮将公网 timeout 收窄到 Cloudflare/公网代理链路，应用、Redis/JSON 读路径和 Nginx 源站不是主要瓶颈。证据见 `docs/reports/artifacts/2026-05-30-w2-link-comparison/README.md`。
 
+2026-05-31 W2 DNS only 状态观察阶梯：
+
+- `pre-studio.miemie.co` 已切到 DNS only，服务器侧解析为 `47.79.99.190`，响应头为 `server: nginx`，未经过 Cloudflare；源站证书链在服务器 curl/k6 环境仍有校验问题，本轮 k6 使用 `insecureSkipTLSVerify: true`，证书链作为独立运维项。
+- DNS only 公网 `100 VU / 120s` 通过：`23536` 个 GET、失败率 `0`、P95 `45.92ms`、P99 `215.69ms`、check 失败 `0`。
+- DNS only 公网 `300 VU / 120s` 无 4xx/5xx、无 timeout、无 header check 失败：`52000` 个 GET、失败率 `0`、P99 `666.39ms`；但 P95 `307.78ms` 略超 `300ms` 保守门槛，按规则停止，未进入 500 VU。
+- API 日志窗口内观察类 GET 状态码汇总为 `200 75537`。证据见 `docs/reports/artifacts/2026-05-31-w2-dns-only-staircase/README.md`。
+
 ## 代码治理
 
 已完成第一刀行为保持型拆分：
@@ -161,6 +168,6 @@ pre 部署复验：
 - 公网域名 `pre-studio.miemie.co` 的 Cloudflare -> aaPanel/Nginx -> `127.0.0.1:18100` 反代门禁通过，可作为下一轮 S4 混合查询基线的真实入口。
 - S4 保守基线通过：公网链路相比本机链路有可见但很小的额外延迟，本轮未观察到 5xx 或 header 缺失。
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
-- W2 状态观察本机 100 VU 通过；公网 100 VU 两轮均出现 k6 request timeout。链路对照显示应用直连、Nginx 本机源站、Nginx 源站公网 IP 均通过，仅 Cloudflare 公网域名失败。
+- W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步仍不需要进入 PostgreSQL / SSE；应先处理 Cloudflare/公网代理链路尾部 timeout，再恢复公网 300/500 状态观察阶梯。
+- 下一步仍不需要进入 PostgreSQL / SSE；应先修复源站证书链，然后复跑 DNS only 300 VU，若仍略超再分析列表/任务详情读路径热点。
