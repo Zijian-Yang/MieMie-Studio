@@ -892,6 +892,7 @@ import logging
 import threading
 import fcntl
 from contextvars import ContextVar
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -1010,7 +1011,9 @@ class ConfigManager:
     
     def _write_with_lock(self, data: dict):
         """原子写入配置文件：写临时文件 → fsync → os.replace"""
-        tmp_path = self.config_file.with_suffix('.tmp')
+        tmp_path = self.config_file.with_name(
+            f".{self.config_file.name}.{os.getpid()}.{threading.get_ident()}.{uuid4().hex}.tmp"
+        )
         try:
             with open(tmp_path, 'w', encoding='utf-8') as f:
                 fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # 排他锁
