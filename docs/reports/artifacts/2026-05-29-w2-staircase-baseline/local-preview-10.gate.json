@@ -1,0 +1,11 @@
+{
+  "label": "local-preview-10",
+  "kind": "preview",
+  "k6_status": 0,
+  "http_req_failed": 0.001639344262295082,
+  "http_req_duration_p95_ms": 13.10484904999998,
+  "http_req_duration_p99_ms": 17.23314417,
+  "checks_rate": 0.9983606557377049,
+  "p95_limit_ms": 800.0,
+  "pass": true
+}

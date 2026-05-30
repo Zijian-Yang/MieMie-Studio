@@ -1,0 +1,33 @@
+2026-05-30T14:09:54+08:00 precheck start
+2026-05-30T14:09:57+08:00 precheck ok
+2026-05-30T14:09:57+08:00 prepare data start
+2026-05-30T14:09:58+08:00 prepare data ok user=w2_0530140957-18159 project=1d28d27e-4fc5-4edb-afa1-a71a5cc31d2c
+2026-05-30T14:09:58+08:00 stage start local-read-50 kind=read base=http://127.0.0.1:18100 vus=50 duration=120s
+2026-05-30T14:12:00+08:00 stage pass local-read-50 failed=0 p95=13.102854099999968 p99=42.48233219000002
+2026-05-30T14:12:00+08:00 stage start public-read-50 kind=read base=https://pre-studio.miemie.co vus=50 duration=120s
+2026-05-30T14:14:24+08:00 stage pass public-read-50 failed=0.0003803727653100038 p95=107.4389723 p99=1532.955002260011
+2026-05-30T14:14:24+08:00 stage start local-read-100 kind=read base=http://127.0.0.1:18100 vus=100 duration=180s
+2026-05-30T14:17:27+08:00 stage pass local-read-100 failed=0 p95=15.421154199999933 p99=70.43285178999992
+2026-05-30T14:17:27+08:00 stage start public-read-100 kind=read base=https://pre-studio.miemie.co vus=100 duration=180s
+2026-05-30T14:20:57+08:00 stage pass public-read-100 failed=0.00012703252032520327 p95=126.662293 p99=1433.3967215499958
+2026-05-30T14:20:57+08:00 stage start local-read-200 kind=read base=http://127.0.0.1:18100 vus=200 duration=180s
+2026-05-30T14:24:00+08:00 stage pass local-read-200 failed=0 p95=18.526071399999992 p99=60.164150120000045
+2026-05-30T14:24:00+08:00 stage start public-read-200 kind=read base=https://pre-studio.miemie.co vus=200 duration=180s
+2026-05-30T14:27:30+08:00 stage pass public-read-200 failed=0.0001695346274476562 p95=177.43584450000006 p99=1459.1837185099764
+2026-05-30T14:27:30+08:00 stage start local-preview-10 kind=preview base=http://127.0.0.1:18100 vus=10 duration=60s
+2026-05-30T14:28:31+08:00 stage pass local-preview-10 failed=0.001639344262295082 p95=13.10484904999998 p99=17.23314417
+2026-05-30T14:28:31+08:00 stage start public-preview-10 kind=preview base=https://pre-studio.miemie.co vus=10 duration=60s
+2026-05-30T14:29:45+08:00 stage pass public-preview-10 failed=0.001984126984126984 p95=41.15012809999996 p99=604.2623946999936
+2026-05-30T14:29:46+08:00 stage start local-preview-20 kind=preview base=http://127.0.0.1:18100 vus=20 duration=60s
+2026-05-30T14:30:46+08:00 stage pass local-preview-20 failed=0 p95=23.08781279999999 p99=30.751684459999975
+2026-05-30T14:30:46+08:00 stage start public-preview-20 kind=preview base=https://pre-studio.miemie.co vus=20 duration=60s
+2026-05-30T14:31:54+08:00 stage pass public-preview-20 failed=0 p95=64.3226384999999 p99=1237.3813393300034
+2026-05-30T14:31:54+08:00 stage start local-preview-30 kind=preview base=http://127.0.0.1:18100 vus=30 duration=60s
+2026-05-30T14:32:55+08:00 stage pass local-preview-30 failed=0 p95=30.476527799999996 p99=51.32587981
+2026-05-30T14:32:55+08:00 stage start public-preview-30 kind=preview base=https://pre-studio.miemie.co vus=30 duration=60s
+2026-05-30T14:34:02+08:00 stage pass public-preview-30 failed=0 p95=88.8863144999996 p99=1277.1252318499842
+2026-05-30T14:34:02+08:00 cleanup start
+2026-05-30T14:34:02+08:00 cleanup done
+2026-05-30T14:34:02+08:00 postcheck start
+2026-05-30T14:34:05+08:00 postcheck done
+2026-05-30T14:34:05+08:00 run passed

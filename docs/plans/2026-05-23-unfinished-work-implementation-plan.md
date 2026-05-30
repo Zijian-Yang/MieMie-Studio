@@ -267,6 +267,12 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 - 已新增 `loadtest/k6/s4-mixed-query-generate.js`，可用于下一轮只读查询或 preview/无 key 受控提交混合压测。
 - 公网反代入口 `https://pre-studio.miemie.co` 已通过基础门禁，下一轮 S4 建议同时采集公网入口与服务器本机 `127.0.0.1:18100` 的对照数据。
 - 2026-05-29 已完成 S4 两段式保守基线：本机/公网只读查询和本机/公网 preview 受控提交四组均失败率 `0`、P95 `<800ms`；公网 preview P95 `38.33ms`、P99 `86.22ms`。证据归档于 `docs/reports/artifacts/2026-05-29-s4-public-baseline/`。
+- 2026-05-30 已执行 W2 阶梯压测 v1：只读 `50/100/200 VU` 和 preview `10/20/30 VU` 的本机/公网 P95 均达到门槛；公网读 200 VU P95 `177.44ms`，公网 preview 30 VU P95 `88.89ms`。但日志分类发现 `preview-payload` 共 `120` 次提交中有 `1` 次 `500`，traceback 指向 per-user `config.json` 首次并发初始化写入竞态，因此严格结论为 W2 v1 **不完全通过**。证据归档于 `docs/reports/artifacts/2026-05-29-w2-staircase-baseline/`。
+
+下一步补跑前置：
+
+- 先修复 per-user config 首次并发初始化写入竞态，避免多个请求同时使用同一个 `config.tmp` 进行 `os.replace`。
+- 修复后优先复跑 preview 阶梯 `10/20/30 VU` 本机与公网；确认 `api-preview-status-summary.txt` 中 `5xx=0` 后，再考虑更接近 W2 的状态观察请求阶梯。
 
 ## 阶段 6：代码治理，降低维护压力
 

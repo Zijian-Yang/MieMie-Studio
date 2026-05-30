@@ -1,0 +1,6 @@
+{
+  "state": "failed",
+  "stage": "local-read-50",
+  "reason": "local-read-50 gate failed: failed=0, p95=, k6_status=0",
+  "updated_at": "2026-05-29T15:37:21+0800"
+}

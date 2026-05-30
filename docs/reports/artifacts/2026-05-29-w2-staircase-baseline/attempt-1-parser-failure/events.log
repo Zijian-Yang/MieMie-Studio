@@ -1,0 +1,11 @@
+2026-05-29T15:35:14+08:00 precheck start
+2026-05-29T15:35:16+08:00 precheck ok
+2026-05-29T15:35:16+08:00 prepare data start
+2026-05-29T15:35:17+08:00 prepare data ok user=w2_0529153516-27493 project=e21b5043-9e01-4d14-b7a3-cf851caa893b
+2026-05-29T15:35:17+08:00 stage start local-read-50 kind=read base=http://127.0.0.1:18100 vus=50 duration=120s
+2026-05-29T15:37:19+08:00 FAIL local-read-50 gate failed: failed=0, p95=, k6_status=0
+2026-05-29T15:37:19+08:00 cleanup start
+2026-05-29T15:37:19+08:00 cleanup done
+2026-05-29T15:37:19+08:00 postcheck start
+2026-05-29T15:37:21+08:00 postcheck done
+2026-05-29T15:37:21+08:00 run failed status=1 reason=local-read-50 gate failed: failed=0, p95=, k6_status=0

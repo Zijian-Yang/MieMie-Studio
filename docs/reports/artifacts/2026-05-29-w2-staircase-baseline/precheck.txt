@@ -1,0 +1,37 @@
+# precheck
+run_id=w2-staircase-baseline-20260529-rerun
+app_dir=/opt/miemie-pre
+date=2026-05-30T14:09:54+08:00
+
+## git
+d19db8e400fbd68d6106d6bd6a335a6c9b447dfc
+## pre...origin/pre
+?? compose.env.bak-video-worker-20260524
+?? docker-compose.pre.override.yml
+?? docker-compose.pre.override.yml.bak-video-worker-20260524
+?? validation-artifacts/
+
+## health local
+200
+
+## health public
+200
+
+## k6
+k6 v2.0.0-rc1 (commit/fb943a6a80, go1.26.2, linux/amd64)
+
+## compose ps
+open /opt/miemie-pre/docker-compose.pre.yml: no such file or directory
+NAME                        IMAGE                     COMMAND                  SERVICE        CREATED      STATUS                PORTS
+miemie-pre-api-1            miemie-studio:pre-local   "sh -c 'export MIEMI…"   api            5 days ago   Up 5 days (healthy)   127.0.0.1:18100->8000/tcp
+miemie-pre-redis-1          redis:7-alpine            "docker-entrypoint.s…"   redis          6 days ago   Up 6 days (healthy)   6379/tcp
+miemie-pre-worker-1         miemie-studio:pre-local   "/opt/venv/bin/celer…"   worker         5 days ago   Up 5 days             8000/tcp
+miemie-pre-worker-video-1   miemie-studio:pre-local   "/opt/venv/bin/celer…"   worker-video   5 days ago   Up 5 days             8000/tcp
+
+## docker stats
+CONTAINER ID   NAME                         CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O         PIDS
+d8d5855906ee   miemie-pre-worker-1          0.03%     134.3MiB / 3.417GiB   3.84%     519MB / 333MB     49.9MB / 20.5kB   4
+ec88ef2339b2   miemie-pre-api-1             0.17%     236.1MiB / 3.417GiB   6.75%     25.7MB / 35.8MB   224MB / 5.01MB    10
+096bab6ebdde   miemie-pre-worker-video-1    0.03%     54.65MiB / 3.417GiB   1.56%     518MB / 333MB     9.78MB / 4.1kB    2
+f6a4dd058e1b   miemie-pre-redis-1           2.44%     10.22MiB / 3.417GiB   0.29%     731MB / 1.11GB    126MB / 50.6MB    6
+665effbc902e   miemie-studio-ha-lab-api-1   0.20%     196.3MiB / 3.417GiB   5.61%     69kB / 10.6kB     173MB / 12.3kB    8

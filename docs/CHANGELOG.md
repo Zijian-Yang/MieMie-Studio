@@ -29,6 +29,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- W2 阶梯压测 v1：在 `miemie-pre` 上完成本机/公网 `50/100/200 VU` 只读阶梯与 `10/20/30 VU` preview 受控提交阶梯；性能 P95 均达标，但发现 `1` 次 per-user config 首次并发初始化写入竞态导致的 `500`，严格门禁不完全通过，证据归档到 `docs/reports/artifacts/2026-05-29-w2-staircase-baseline/`。
 - S4 公网反代后性能基线：在 `miemie-pre` 上完成本机/公网只读查询与 preview 受控提交四组 k6 保守门禁，失败率均为 `0`，P95 均低于 `800ms`，证据归档到 `docs/reports/artifacts/2026-05-29-s4-public-baseline/`。
 - 下一阶段体验与性能治理：新增 `docs/reports/2026-05-24-next-phase-experience-and-performance.md`，记录 `miemie-pre` 无 key 体验 smoke、当前运行门禁和后续浏览器验证缺口。
 - 运行态轻量观测：新增高频图片/视频工作室与测评查询路径的脱敏耗时日志，不改变公开 API，不记录 key/token/password。

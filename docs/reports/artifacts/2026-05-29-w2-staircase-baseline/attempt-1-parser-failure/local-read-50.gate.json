@@ -1,0 +1,11 @@
+{
+  "label": "local-read-50",
+  "kind": "read",
+  "k6_status": 0,
+  "http_req_failed": 0,
+  "http_req_duration_p95_ms": null,
+  "http_req_duration_p99_ms": null,
+  "checks_rate": null,
+  "p95_limit_ms": 300.0,
+  "pass": false
+}

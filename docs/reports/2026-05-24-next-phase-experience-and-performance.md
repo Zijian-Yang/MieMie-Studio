@@ -112,6 +112,14 @@ pre 部署复验：
 - 本轮未触发真实 DashScope 供应商调用；少量提交仅使用 `/api/video-studio/preview-payload`。测试项目已删除，session 已登出；测试用户未删除，作为低风险残留账号记录。
 - 证据见 `docs/reports/artifacts/2026-05-29-s4-public-baseline/README.md`。
 
+2026-05-30 W2 阶梯压测 v1：
+
+- 执行计划为 `50 -> 100 -> 200 VU` 只读阶梯，随后 `10 -> 20 -> 30 VU` preview 受控提交阶梯；每档均先本机 `http://127.0.0.1:18100`，再公网 `https://pre-studio.miemie.co`。
+- 性能指标达到 W2 v1 保守目标：只读本机 200 VU P95 `18.53ms` / P99 `60.16ms`，公网 200 VU P95 `177.44ms` / P99 `1459.18ms`；preview 本机 30 VU P95 `30.48ms` / P99 `51.33ms`，公网 30 VU P95 `88.89ms` / P99 `1277.13ms`。
+- 严格门禁结论为“不完全通过”：`preview-payload` 日志分类显示 `120` 次提交中 `119` 次 `200`、`1` 次 `500`。该 500 出现在 `local-preview-10` 首轮并发提交，traceback 指向 per-user `config.json` 首次初始化写入竞态：`config.tmp -> config.json` 的 `os.replace` 发生 `FileNotFoundError`。
+- 压测后测试项目删除 `200`、logout `200`，本机与公网 `/api/health` 均为 `200` 且 `redis.ok=true`，`api`、`redis`、`worker`、`worker-video` 均保持运行。
+- 结论：当前单机 Compose 对 W2 平台侧读流量和受控 preview 提交的 P95 性能有明显余量；下一步不应先上 PostgreSQL/SSE/RabbitMQ，而应先修复 per-user config 首次并发写入竞态，并复跑 preview 阶梯确认 5xx 清零。证据见 `docs/reports/artifacts/2026-05-29-w2-staircase-baseline/README.md`。
+
 ## 代码治理
 
 已完成第一刀行为保持型拆分：
@@ -130,5 +138,6 @@ pre 部署复验：
 - 当前 `miemie-pre` 运行态基础门禁通过。
 - 公网域名 `pre-studio.miemie.co` 的 Cloudflare -> aaPanel/Nginx -> `127.0.0.1:18100` 反代门禁通过，可作为下一轮 S4 混合查询基线的真实入口。
 - S4 保守基线通过：公网链路相比本机链路有可见但很小的额外延迟，本轮未观察到 5xx 或 header 缺失。
+- W2 阶梯压测 v1 显示平台侧 P95 余量充足，但发现一次 `preview-payload` 500；W2 不能宣告完全通过，下一步先修 per-user config 首次并发初始化竞态并复跑 preview 阶梯。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步仍不需要进入 PostgreSQL / SSE；应先基于 S4 混合查询数据判断 JSON 扫描、轮询或状态查询是否成为真实瓶颈。
+- 下一步仍不需要进入 PostgreSQL / SSE；应先基于 W2 阶梯证据修复现有文件配置写入竞态，再判断 JSON 扫描、轮询或状态查询是否成为真实瓶颈。

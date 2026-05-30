@@ -1,0 +1,11 @@
+{
+  "label": "public-read-50",
+  "kind": "read",
+  "k6_status": 0,
+  "http_req_failed": 0.0003803727653100038,
+  "http_req_duration_p95_ms": 107.4389723,
+  "http_req_duration_p99_ms": 1532.955002260011,
+  "checks_rate": 0.99961962723469,
+  "p95_limit_ms": 300.0,
+  "pass": true
+}

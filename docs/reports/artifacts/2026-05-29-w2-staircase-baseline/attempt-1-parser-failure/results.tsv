@@ -1,0 +1,2 @@
+label	kind	base_url	vus	duration	http_req_failed	http_req_duration_p95_ms	http_req_duration_p99_ms
+local-read-50	read	http://127.0.0.1:18100	50	120s	0

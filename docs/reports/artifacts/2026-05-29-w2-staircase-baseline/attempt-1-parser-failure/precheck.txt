@@ -1,0 +1,37 @@
+# precheck
+run_id=w2-staircase-baseline-20260529
+app_dir=/opt/miemie-pre
+date=2026-05-29T15:35:14+08:00
+
+## git
+d19db8e400fbd68d6106d6bd6a335a6c9b447dfc
+## pre...origin/pre
+?? compose.env.bak-video-worker-20260524
+?? docker-compose.pre.override.yml
+?? docker-compose.pre.override.yml.bak-video-worker-20260524
+?? validation-artifacts/
+
+## health local
+200
+
+## health public
+200
+
+## k6
+k6 v2.0.0-rc1 (commit/fb943a6a80, go1.26.2, linux/amd64)
+
+## compose ps
+open /opt/miemie-pre/docker-compose.pre.yml: no such file or directory
+NAME                        IMAGE                     COMMAND                  SERVICE        CREATED      STATUS                PORTS
+miemie-pre-api-1            miemie-studio:pre-local   "sh -c 'export MIEMI…"   api            4 days ago   Up 4 days (healthy)   127.0.0.1:18100->8000/tcp
+miemie-pre-redis-1          redis:7-alpine            "docker-entrypoint.s…"   redis          5 days ago   Up 5 days (healthy)   6379/tcp
+miemie-pre-worker-1         miemie-studio:pre-local   "/opt/venv/bin/celer…"   worker         4 days ago   Up 4 days             8000/tcp
+miemie-pre-worker-video-1   miemie-studio:pre-local   "/opt/venv/bin/celer…"   worker-video   4 days ago   Up 4 days             8000/tcp
+
+## docker stats
+CONTAINER ID   NAME                         CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O         PIDS
+d8d5855906ee   miemie-pre-worker-1          0.16%     134.3MiB / 3.417GiB   3.84%     435MB / 280MB     49.9MB / 20.5kB   4
+ec88ef2339b2   miemie-pre-api-1             0.18%     237.8MiB / 3.417GiB   6.80%     17.8MB / 23.6MB   205MB / 2.76MB    10
+096bab6ebdde   miemie-pre-worker-video-1    0.16%     54.61MiB / 3.417GiB   1.56%     435MB / 280MB     9.78MB / 4.1kB    2
+f6a4dd058e1b   miemie-pre-redis-1           2.45%     8.059MiB / 3.417GiB   0.23%     620MB / 937MB     113MB / 43.5MB    6
+665effbc902e   miemie-studio-ha-lab-api-1   0.17%     194.3MiB / 3.417GiB   5.55%     67.4kB / 10.6kB   165MB / 12.3kB    8
