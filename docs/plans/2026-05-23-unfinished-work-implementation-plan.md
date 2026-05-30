@@ -269,11 +269,13 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 - 2026-05-29 已完成 S4 两段式保守基线：本机/公网只读查询和本机/公网 preview 受控提交四组均失败率 `0`、P95 `<800ms`；公网 preview P95 `38.33ms`、P99 `86.22ms`。证据归档于 `docs/reports/artifacts/2026-05-29-s4-public-baseline/`。
 - 2026-05-30 已执行 W2 阶梯压测 v1：只读 `50/100/200 VU` 和 preview `10/20/30 VU` 的本机/公网 P95 均达到门槛；公网读 200 VU P95 `177.44ms`，公网 preview 30 VU P95 `88.89ms`。但日志分类发现 `preview-payload` 共 `120` 次提交中有 `1` 次 `500`，traceback 指向 per-user `config.json` 首次并发初始化写入竞态，因此严格结论为 W2 v1 **不完全通过**。证据归档于 `docs/reports/artifacts/2026-05-29-w2-staircase-baseline/`。
 - 2026-05-30 已修复 per-user config 首次并发初始化竞态并复跑 preview 阶梯：本机/公网 `10/20/30 VU` 均通过，服务端 `preview-payload` 状态码为 `200 120`、无 5xx；公网 preview 30 VU P95 `71.63ms`。证据归档于 `docs/reports/artifacts/2026-05-30-w2-preview-config-fix/`。
+- 2026-05-30 已补跑 W2 状态观察阶梯：本机 `100 VU / 120s` 通过，`23872` 个 GET 失败率 `0`、P95 `17.37ms`；公网 `100 VU / 120s` P95 `138.40ms`、失败率 `0.020%`，但出现 4 个 k6 `request timeout`，导致 12 个响应 check 失败并按保守门禁停止。API 侧观察类 GET 状态码汇总为 `200 43785`，未观察到应用 4xx/5xx。证据归档于 `docs/reports/artifacts/2026-05-30-w2-status-observation/`。
 
 下一步补跑前置：
 
 - W2 preview 5xx 阻塞项已解除。
-- 下一轮建议补状态观察请求阶梯，覆盖 `300-500` 个状态观察请求；仍不触发真实 DashScope 并发生成。
+- W2 状态观察公网 100 VU 已暴露尾部 timeout；下一轮先做公网链路对照组，不直接进入 300/500 档。
+- 对照优先级：公网域名绕过 Cloudflare 或直连源站 Nginx、采集 Nginx access/error log、必要时小流量 `--http-debug` 样本；仍不触发真实 DashScope 并发生成。
 
 ## 阶段 6：代码治理，降低维护压力
 

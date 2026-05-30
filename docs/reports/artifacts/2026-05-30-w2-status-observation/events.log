@@ -1,0 +1,15 @@
+2026-05-30T18:28:30+08:00 run start
+2026-05-30T18:28:30+08:00 precheck start
+2026-05-30T18:28:32+08:00 precheck ok
+2026-05-30T18:28:32+08:00 prepare data start
+2026-05-30T18:28:36+08:00 prepare data ok project=afbc3362-d777-4f4c-b8d2-cb6efa52de85 task=bb9d39a7-db6c-4754-83f4-c6cd186811b9
+2026-05-30T18:28:36+08:00 stage local-status-100 start
+2026-05-30T18:30:39+08:00 stage local-status-100 ok
+2026-05-30T18:30:39+08:00 stage public-status-100 start
+2026-05-30T18:33:09+08:00 FAIL public-status-100: checks_fails 12
+2026-05-30T18:33:09+08:00 capture logs
+2026-05-30T18:33:10+08:00 cleanup start
+2026-05-30T18:33:10+08:00 cleanup done
+2026-05-30T18:33:10+08:00 postcheck start
+2026-05-30T18:33:12+08:00 postcheck done
+2026-05-30T18:33:12+08:00 run failed public-status-100: checks_fails 12

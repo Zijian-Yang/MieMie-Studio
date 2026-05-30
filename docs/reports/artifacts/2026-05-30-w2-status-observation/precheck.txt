@@ -1,0 +1,31 @@
+# precheck
+run_id=w2-status-observation-20260530
+date=2026-05-30T18:28:30+08:00
+start_iso=2026-05-30T18:28:30+08:00
+
+## git
+26e3824928a6d4deb86c830183e92310400e107e
+
+## k6
+k6 v2.0.0-rc1 (commit/fb943a6a80, go1.26.2, linux/amd64)
+
+## health local
+200
+
+## health public
+200
+
+## compose ps
+NAME                        IMAGE                     COMMAND                  SERVICE        CREATED          STATUS                    PORTS
+miemie-pre-api-1            miemie-studio:pre-local   "sh -c 'export MIEMI…"   api            38 minutes ago   Up 38 minutes (healthy)   127.0.0.1:18100->8000/tcp
+miemie-pre-redis-1          redis:7-alpine            "docker-entrypoint.s…"   redis          6 days ago       Up 6 days (healthy)       6379/tcp
+miemie-pre-worker-1         miemie-studio:pre-local   "/opt/venv/bin/celer…"   worker         38 minutes ago   Up 38 minutes             8000/tcp
+miemie-pre-worker-video-1   miemie-studio:pre-local   "/opt/venv/bin/celer…"   worker-video   38 minutes ago   Up 38 minutes             8000/tcp
+
+## docker stats
+CONTAINER ID   NAME                         CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O        PIDS
+a96779044777   miemie-pre-worker-video-1    0.05%     55.59MiB / 3.417GiB   1.59%     2.38MB / 1.6MB    7.71MB / 4.1kB   2
+b326349d04a9   miemie-pre-worker-1          0.18%     58.46MiB / 3.417GiB   1.67%     2.39MB / 1.54MB   10.1MB / 4.1kB   2
+ac431d1fdc50   miemie-pre-api-1             0.21%     366.4MiB / 3.417GiB   10.47%    7.17MB / 6.74MB   187MB / 1.54MB   9
+f6a4dd058e1b   miemie-pre-redis-1           0.43%     7.492MiB / 3.417GiB   0.21%     783MB / 1.17GB    135MB / 52MB     6
+665effbc902e   miemie-studio-ha-lab-api-1   0.21%     196.5MiB / 3.417GiB   5.62%     69.3kB / 10.6kB   181MB / 12.3kB   8

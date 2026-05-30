@@ -128,6 +128,13 @@ pre 部署复验：
 - 复跑 preview 阶梯 `10/20/30 VU` 本机与公网六档均通过：本机 30 VU P95 `29.89ms` / P99 `52.07ms`，公网 30 VU P95 `71.63ms` / P99 `1429.53ms`。
 - 服务端日志分类显示 `POST /api/video-studio/preview-payload` 为 `200 120`，无 4xx/5xx；测试项目删除 `200`，logout `200`。证据见 `docs/reports/artifacts/2026-05-30-w2-preview-config-fix/README.md`。
 
+2026-05-30 W2 状态观察阶梯：
+
+- 本轮创建一次性用户、项目和 1 个无 key 视频任务，只读压测 `/api/projects`、`/api/video-studio?project_id=<id>`、`/api/video-studio/{task_id}` 与 `/api/video-studio/{task_id}/status`，不触发真实 DashScope 生成。
+- 本机 `100 VU / 120s` 通过：`23872` 个 GET、失败率 `0`、P95 `17.37ms`、P99 `68.23ms`、check 失败 `0`。
+- 公网 `100 VU / 120s` 按保守门禁停止：`19911` 个 GET、失败率 `0.020%`、P95 `138.40ms`、P99 `1603.56ms`，但 k6 记录 4 个 `request timeout`，导致状态码、`X-Request-ID`、`X-Deployment-Version` 三类 check 各失败 4 次。
+- API 日志窗口内观察类 GET 状态码汇总为 `200 43785`，未观察到应用 4xx/5xx 放大；问题更像公网入口链路尾部抖动，而不是应用或 Redis/JSON 读路径瓶颈。证据见 `docs/reports/artifacts/2026-05-30-w2-status-observation/README.md`。
+
 ## 代码治理
 
 已完成第一刀行为保持型拆分：
@@ -147,5 +154,6 @@ pre 部署复验：
 - 公网域名 `pre-studio.miemie.co` 的 Cloudflare -> aaPanel/Nginx -> `127.0.0.1:18100` 反代门禁通过，可作为下一轮 S4 混合查询基线的真实入口。
 - S4 保守基线通过：公网链路相比本机链路有可见但很小的额外延迟，本轮未观察到 5xx 或 header 缺失。
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
+- W2 状态观察本机 100 VU 通过，公网 100 VU 因 4 个 k6 request timeout 触发严格门禁停止；API 侧相关 GET 均为 200，下一步应先拆公网入口尾部超时，再考虑更高状态观察档位。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步仍不需要进入 PostgreSQL / SSE；应继续基于 W2 阶梯证据补状态观察请求阶梯，再判断 JSON 扫描、轮询或状态查询是否成为真实瓶颈。
+- 下一步仍不需要进入 PostgreSQL / SSE；应先做公网链路对照组，再判断 JSON 扫描、轮询或状态查询是否成为真实瓶颈。

@@ -1,0 +1,13 @@
+{
+  "label": "public-status-100",
+  "vus": 100,
+  "duration": "120s",
+  "http_req_failed": 0.00020089397820300336,
+  "http_req_duration_p95_ms": 138.397096,
+  "http_req_duration_p99_ms": 1603.5562413000216,
+  "http_reqs": 19911,
+  "checks_fails": 12,
+  "k6_exit_code": 0,
+  "ok": false,
+  "reason": "checks_fails 12"
+}

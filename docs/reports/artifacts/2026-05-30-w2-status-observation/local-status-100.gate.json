@@ -1,0 +1,13 @@
+{
+  "label": "local-status-100",
+  "vus": 100,
+  "duration": "120s",
+  "http_req_failed": 0.0,
+  "http_req_duration_p95_ms": 17.371633250000002,
+  "http_req_duration_p99_ms": 68.2278668600001,
+  "http_reqs": 23872,
+  "checks_fails": 0,
+  "k6_exit_code": 0,
+  "ok": true,
+  "reason": ""
+}
