@@ -1,0 +1,9 @@
+{
+  "label": "public-preview-20",
+  "k6_status": 0,
+  "http_req_failed": 0,
+  "http_req_duration_p95_ms": 61.64387034999985,
+  "http_req_duration_p99_ms": 1147.1123024800022,
+  "p95_limit_ms": 800,
+  "pass": true
+}

@@ -1,0 +1,7 @@
+label	base_url	vus	http_req_failed	http_req_duration_p95_ms	http_req_duration_p99_ms
+local-preview-10	http://127.0.0.1:18100	10	0	12.696526199999997	18.589802739999996
+public-preview-10	https://pre-studio.miemie.co	10	0.0017605633802816902	34.92238945	567.9660843500012
+local-preview-20	http://127.0.0.1:18100	20	0	21.94236749999999	32.52866851999999
+public-preview-20	https://pre-studio.miemie.co	20	0	61.64387034999985	1147.1123024800022
+local-preview-30	http://127.0.0.1:18100	30	0	29.89373915	52.06577666
+public-preview-30	https://pre-studio.miemie.co	30	0	71.62958864999993	1429.532139960002

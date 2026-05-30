@@ -1,0 +1,21 @@
+2026-05-30T17:54:44+08:00 precheck start
+2026-05-30T17:54:52+08:00 precheck ok
+2026-05-30T17:54:52+08:00 prepare data start
+2026-05-30T17:54:53+08:00 prepare data ok user=w2fix_0530175452-15555 project=b058293d-d9c6-41bc-89f5-d39858de3e39
+2026-05-30T17:54:53+08:00 stage start local-preview-10 base=http://127.0.0.1:18100 vus=10
+2026-05-30T17:55:54+08:00 stage pass local-preview-10 failed=0 p95=12.696526199999997 p99=18.589802739999996
+2026-05-30T17:55:54+08:00 stage start public-preview-10 base=https://pre-studio.miemie.co vus=10
+2026-05-30T17:57:22+08:00 stage pass public-preview-10 failed=0.0017605633802816902 p95=34.92238945 p99=567.9660843500012
+2026-05-30T17:57:22+08:00 stage start local-preview-20 base=http://127.0.0.1:18100 vus=20
+2026-05-30T17:58:23+08:00 stage pass local-preview-20 failed=0 p95=21.94236749999999 p99=32.52866851999999
+2026-05-30T17:58:23+08:00 stage start public-preview-20 base=https://pre-studio.miemie.co vus=20
+2026-05-30T17:59:27+08:00 stage pass public-preview-20 failed=0 p95=61.64387034999985 p99=1147.1123024800022
+2026-05-30T17:59:27+08:00 stage start local-preview-30 base=http://127.0.0.1:18100 vus=30
+2026-05-30T18:00:28+08:00 stage pass local-preview-30 failed=0 p95=29.89373915 p99=52.06577666
+2026-05-30T18:00:28+08:00 stage start public-preview-30 base=https://pre-studio.miemie.co vus=30
+2026-05-30T18:01:30+08:00 stage pass public-preview-30 failed=0 p95=71.62958864999993 p99=1429.532139960002
+2026-05-30T18:01:30+08:00 cleanup start
+2026-05-30T18:01:30+08:00 cleanup done
+2026-05-30T18:01:30+08:00 postcheck start
+2026-05-30T18:01:33+08:00 postcheck done
+2026-05-30T18:01:33+08:00 run passed

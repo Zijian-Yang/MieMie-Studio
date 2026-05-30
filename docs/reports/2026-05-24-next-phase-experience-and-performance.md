@@ -120,6 +120,14 @@ pre 部署复验：
 - 压测后测试项目删除 `200`、logout `200`，本机与公网 `/api/health` 均为 `200` 且 `redis.ok=true`，`api`、`redis`、`worker`、`worker-video` 均保持运行。
 - 结论：当前单机 Compose 对 W2 平台侧读流量和受控 preview 提交的 P95 性能有明显余量；下一步不应先上 PostgreSQL/SSE/RabbitMQ，而应先修复 per-user config 首次并发写入竞态，并复跑 preview 阶梯确认 5xx 清零。证据见 `docs/reports/artifacts/2026-05-29-w2-staircase-baseline/README.md`。
 
+2026-05-30 W2 preview 阻塞修复与复跑：
+
+- 已修复 per-user `config.json` 首次并发初始化竞态：配置写入临时文件从固定 `config.tmp` 改为 pid/thread/uuid 唯一临时文件，避免多个 worker 进程争用同一个 tmp。
+- 本地回归：新增 `backend/tests/test_config_manager.py`，旧实现可复现 `FileNotFoundError`；修复后 `venv/bin/pytest backend/tests -q` 为 `234 passed`。
+- 已部署到 `miemie-pre` 运行版本 `26e3824928a6d4deb86c830183e92310400e107e`，Compose config 通过，`api`、`worker`、`worker-video` 重建，Redis 未重建；本机与公网 `/api/health` 均为 `200` 且 `redis.ok=true`。
+- 复跑 preview 阶梯 `10/20/30 VU` 本机与公网六档均通过：本机 30 VU P95 `29.89ms` / P99 `52.07ms`，公网 30 VU P95 `71.63ms` / P99 `1429.53ms`。
+- 服务端日志分类显示 `POST /api/video-studio/preview-payload` 为 `200 120`，无 4xx/5xx；测试项目删除 `200`，logout `200`。证据见 `docs/reports/artifacts/2026-05-30-w2-preview-config-fix/README.md`。
+
 ## 代码治理
 
 已完成第一刀行为保持型拆分：
@@ -138,6 +146,6 @@ pre 部署复验：
 - 当前 `miemie-pre` 运行态基础门禁通过。
 - 公网域名 `pre-studio.miemie.co` 的 Cloudflare -> aaPanel/Nginx -> `127.0.0.1:18100` 反代门禁通过，可作为下一轮 S4 混合查询基线的真实入口。
 - S4 保守基线通过：公网链路相比本机链路有可见但很小的额外延迟，本轮未观察到 5xx 或 header 缺失。
-- W2 阶梯压测 v1 显示平台侧 P95 余量充足，但发现一次 `preview-payload` 500；W2 不能宣告完全通过，下一步先修 per-user config 首次并发初始化竞态并复跑 preview 阶梯。
+- W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步仍不需要进入 PostgreSQL / SSE；应先基于 W2 阶梯证据修复现有文件配置写入竞态，再判断 JSON 扫描、轮询或状态查询是否成为真实瓶颈。
+- 下一步仍不需要进入 PostgreSQL / SSE；应继续基于 W2 阶梯证据补状态观察请求阶梯，再判断 JSON 扫描、轮询或状态查询是否成为真实瓶颈。
