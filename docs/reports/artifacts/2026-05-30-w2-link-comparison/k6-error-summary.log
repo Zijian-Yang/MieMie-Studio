@@ -1,0 +1,5 @@
+/tmp/w2-link-comparison-20260530/public-cloudflare-100.log:time="2026-05-31T00:04:55+08:00" level=warning msg="Request Failed" error="Get \"https://pre-studio.miemie.co/api/projects\": request timeout"
+/tmp/w2-link-comparison-20260530/public-cloudflare-100.log:time="2026-05-31T00:05:04+08:00" level=warning msg="Request Failed" error="Get \"https://pre-studio.miemie.co/api/video-studio/72d9eec1-022c-4222-a4fd-065d5648938a\": request timeout"
+/tmp/w2-link-comparison-20260530/public-cloudflare-100.log:time="2026-05-31T00:05:06+08:00" level=warning msg="Request Failed" error="Get \"https://pre-studio.miemie.co/api/projects\": request timeout"
+/tmp/w2-link-comparison-20260530/public-cloudflare-100.log:time="2026-05-31T00:05:20+08:00" level=warning msg="Request Failed" error="Get \"https://pre-studio.miemie.co/api/video-studio/72d9eec1-022c-4222-a4fd-065d5648938a/status\": request timeout"
+/tmp/w2-link-comparison-20260530/public-cloudflare-100.log:time="2026-05-31T00:05:22+08:00" level=warning msg="Request Failed" error="Get \"https://pre-studio.miemie.co/api/video-studio?project_id=fb3c396d-581d-473f-a870-9b4cf814de72\": request timeout"

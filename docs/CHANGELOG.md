@@ -30,6 +30,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- W2 公网链路对照：应用直连、Nginx 本机源站、Nginx 源站公网 IP 三组 `100 VU / 120s` 状态观察均通过，Cloudflare 公网域名复测因 P95 `409.26ms` 与 5 个 k6 `request timeout` 失败，证据归档到 `docs/reports/artifacts/2026-05-30-w2-link-comparison/`。
 - W2 状态观察阶梯：在 `miemie-pre` 上补跑平台侧状态观察读路径，本机 `100 VU / 120s` 通过，公网 `100 VU / 120s` 因 4 个 k6 `request timeout` 触发严格门禁停止；API 侧观察类 GET 汇总为 `200 43785`，证据归档到 `docs/reports/artifacts/2026-05-30-w2-status-observation/`。
 - W2 阶梯压测 v1：在 `miemie-pre` 上完成本机/公网 `50/100/200 VU` 只读阶梯与 `10/20/30 VU` preview 受控提交阶梯；性能 P95 均达标，但发现 `1` 次 per-user config 首次并发初始化写入竞态导致的 `500`，严格门禁不完全通过，证据归档到 `docs/reports/artifacts/2026-05-29-w2-staircase-baseline/`。
 - S4 公网反代后性能基线：在 `miemie-pre` 上完成本机/公网只读查询与 preview 受控提交四组 k6 保守门禁，失败率均为 `0`，P95 均低于 `800ms`，证据归档到 `docs/reports/artifacts/2026-05-29-s4-public-baseline/`。

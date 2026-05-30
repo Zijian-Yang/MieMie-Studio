@@ -270,12 +270,13 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 - 2026-05-30 已执行 W2 阶梯压测 v1：只读 `50/100/200 VU` 和 preview `10/20/30 VU` 的本机/公网 P95 均达到门槛；公网读 200 VU P95 `177.44ms`，公网 preview 30 VU P95 `88.89ms`。但日志分类发现 `preview-payload` 共 `120` 次提交中有 `1` 次 `500`，traceback 指向 per-user `config.json` 首次并发初始化写入竞态，因此严格结论为 W2 v1 **不完全通过**。证据归档于 `docs/reports/artifacts/2026-05-29-w2-staircase-baseline/`。
 - 2026-05-30 已修复 per-user config 首次并发初始化竞态并复跑 preview 阶梯：本机/公网 `10/20/30 VU` 均通过，服务端 `preview-payload` 状态码为 `200 120`、无 5xx；公网 preview 30 VU P95 `71.63ms`。证据归档于 `docs/reports/artifacts/2026-05-30-w2-preview-config-fix/`。
 - 2026-05-30 已补跑 W2 状态观察阶梯：本机 `100 VU / 120s` 通过，`23872` 个 GET 失败率 `0`、P95 `17.37ms`；公网 `100 VU / 120s` P95 `138.40ms`、失败率 `0.020%`，但出现 4 个 k6 `request timeout`，导致 12 个响应 check 失败并按保守门禁停止。API 侧观察类 GET 状态码汇总为 `200 43785`，未观察到应用 4xx/5xx。证据归档于 `docs/reports/artifacts/2026-05-30-w2-status-observation/`。
+- 2026-05-30 已补跑 W2 公网链路对照：应用直连、Nginx 本机源站、Nginx 源站公网 IP 三组 `100 VU / 120s` 均通过；Cloudflare 公网域名复测 P95 `409.26ms`，出现 5 个 k6 `request timeout`，API 侧观察类 GET 汇总为 `200 88423`。瓶颈已收窄到 Cloudflare/公网代理链路。证据归档于 `docs/reports/artifacts/2026-05-30-w2-link-comparison/`。
 
 下一步补跑前置：
 
 - W2 preview 5xx 阻塞项已解除。
-- W2 状态观察公网 100 VU 已暴露尾部 timeout；下一轮先做公网链路对照组，不直接进入 300/500 档。
-- 对照优先级：公网域名绕过 Cloudflare 或直连源站 Nginx、采集 Nginx access/error log、必要时小流量 `--http-debug` 样本；仍不触发真实 DashScope 并发生成。
+- W2 状态观察公网 100 VU 已连续暴露尾部 timeout；公网链路对照已确认源站 Nginx 直连正常。
+- 下一轮先处理 Cloudflare/公网代理链路：建议临时 DNS only 或新增源站直连测试域名、A/B 关闭 HTTP/3/QUIC、采集 Cloudflare analytics 与 Nginx request_time/upstream_response_time；通过后再进入 300/500 档。
 
 ## 阶段 6：代码治理，降低维护压力
 

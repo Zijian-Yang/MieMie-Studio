@@ -1,0 +1,15 @@
+2026-05-30T23:56:55+08:00 run start
+2026-05-30T23:56:55+08:00 precheck start
+2026-05-30T23:56:58+08:00 precheck ok
+2026-05-30T23:56:58+08:00 prepare data start
+2026-05-30T23:57:02+08:00 prepare data ok project=fb3c396d-581d-473f-a870-9b4cf814de72 task=72d9eec1-022c-4222-a4fd-065d5648938a
+2026-05-30T23:57:02+08:00 stage app-direct-100 start
+2026-05-30T23:59:04+08:00 stage app-direct-100 ok
+2026-05-30T23:59:04+08:00 stage nginx-local-100 start
+2026-05-31T00:01:07+08:00 stage nginx-local-100 ok
+2026-05-31T00:01:07+08:00 stage nginx-origin-ip-100 start
+2026-05-31T00:03:09+08:00 stage nginx-origin-ip-100 ok
+2026-05-31T00:03:09+08:00 stage public-cloudflare-100 start
+2026-05-31T00:05:40+08:00 FAIL public-cloudflare-100: p95 409.26ms >= 300ms
+2026-05-31T00:05:41+08:00 cleanup done
+2026-05-31T00:05:44+08:00 run failed public-cloudflare-100: p95 409.26ms >= 300ms
