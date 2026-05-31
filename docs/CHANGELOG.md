@@ -30,6 +30,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- W2 Cloudflare 入口复验：恢复 Cloudflare 代理后真实入口 `100 VU / 120s` P95 `207.86ms`，但出现 9 个 k6 `request timeout` 并触发 27 个响应 check 失败，证据归档到 `docs/reports/artifacts/2026-05-31-w2-cloudflare-entry-retune/`。
 - W2 DNS only 状态观察阶梯：Cloudflare DNS only 后公网 `100 VU / 120s` 通过，`300 VU / 120s` 无失败、无 timeout、无 header check 失败，但 P95 `307.78ms` 略超保守门槛，证据归档到 `docs/reports/artifacts/2026-05-31-w2-dns-only-staircase/`。
 - W2 公网链路对照：应用直连、Nginx 本机源站、Nginx 源站公网 IP 三组 `100 VU / 120s` 状态观察均通过，Cloudflare 公网域名复测因 P95 `409.26ms` 与 5 个 k6 `request timeout` 失败，证据归档到 `docs/reports/artifacts/2026-05-30-w2-link-comparison/`。
 - W2 状态观察阶梯：在 `miemie-pre` 上补跑平台侧状态观察读路径，本机 `100 VU / 120s` 通过，公网 `100 VU / 120s` 因 4 个 k6 `request timeout` 触发严格门禁停止；API 侧观察类 GET 汇总为 `200 43785`，证据归档到 `docs/reports/artifacts/2026-05-30-w2-status-observation/`。
