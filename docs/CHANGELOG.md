@@ -6,6 +6,7 @@
 ## [Unreleased]
 
 ### 修复 (Fixed)
+- `miemie-pre` StorageService 修复部署：运行版本 `00091f21f5ee207f78a1092e7e5e164ab4567c7f` 复跑 Cloudflare `100 VU / 120s` 后 API 侧观察类 GET 为 `200 19263`、无 500；Cloudflare timeout 仍独立存在，证据归档到 `docs/reports/artifacts/2026-06-01-w2-storage-fix-cloudflare-rerun/`。
 - JSON 文件存储：`StorageService._write_json_with_lock()` 原子写入改用唯一临时文件，避免多个 worker 进程并发保存同一目标 JSON 时共享 `<name>.tmp` 触发 `FileNotFoundError`；新增并发回归覆盖该场景。
 - 用户配置写入：per-user `config.json` 原子写入改用唯一临时文件，避免多个 worker 进程首次并发初始化同一用户配置时共享 `config.tmp` 触发 `FileNotFoundError`；pre 复跑 preview 阶梯后 `preview-payload` 状态码为 `200 120`、无 5xx。
 - 图片工作室 pre 体验门禁：真实浏览器验证工作室页面可渲染、生成点击有“提交中...”即时反馈，普通模式未自动触发 heavy `/api/studio/preview-payload`。

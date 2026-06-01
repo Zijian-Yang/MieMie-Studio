@@ -170,6 +170,14 @@ pre 部署复验：
 - API 日志窗口内观察类 GET 状态码汇总为 `200 17906`、`500 1`；1 个 500 traceback 指向 `backend/app/services/storage.py` 的 `_write_json_with_lock()` 固定 `<task_id>.tmp` 在并发 `list_tasks` 保存视频任务时发生 `FileNotFoundError`。证据见 `docs/reports/artifacts/2026-06-01-w2-cloudflare-skip-rule/README.md`。
 - 结论：临时 Skip 规则不是 Cloudflare timeout 的解法；应暂停或删除该临时规则。下一步先修复 StorageService 通用 JSON 写入的固定 tmp 文件竞态，再复跑入口对照，避免应用 500 与 Cloudflare timeout 混在一起判断。
 
+2026-06-01 StorageService 修复部署与 Cloudflare 复跑：
+
+- 已修复 `StorageService._write_json_with_lock()` 固定 `<name>.tmp` 竞态：通用 JSON 写入临时文件改为 pid/thread/uuid 唯一路径；本地按 TDD 确认旧实现复现 `FileNotFoundError`，修复后 `venv/bin/pytest backend/tests -q` 为 `235 passed`。
+- 已部署到 `miemie-pre` 运行版本 `00091f21f5ee207f78a1092e7e5e164ab4567c7f`，Compose config 通过，`api`、`worker`、`worker-video` 重建，Redis 未重建；容器内 `pytest backend/tests/test_storage_service.py backend/tests/test_config_manager.py -q` 为 `2 passed`。
+- Cloudflare 真实入口 `100 VU / 120s` 复跑仍未通过：`19256` 个 GET、失败率 `0.0364%`、P95 `170.64ms`、P99 `1978.19ms`，出现 7 个 k6 `request timeout`，导致 21 个响应 check 失败。
+- API 日志窗口内观察类 GET 状态码汇总为 `200 19263`，未再出现应用 500；测试视频任务删除 `200`、项目删除 `200`、logout `200`，服务器 `/tmp` token env 已删除，压测后 `/api/health` 仍为 `200` 且容器保持运行。证据见 `docs/reports/artifacts/2026-06-01-w2-storage-fix-cloudflare-rerun/README.md`。
+- 结论：应用侧 JSON 写入竞态已解除；Cloudflare/公网边缘链路 timeout 仍独立存在，下一步继续聚焦 Cloudflare 入口尾部 timeout。
+
 ## 代码治理
 
 已完成第一刀行为保持型拆分：
@@ -189,6 +197,6 @@ pre 部署复验：
 - 公网域名 `pre-studio.miemie.co` 的 Cloudflare -> aaPanel/Nginx -> `127.0.0.1:18100` 反代门禁通过，可作为下一轮 S4 混合查询基线的真实入口。
 - S4 保守基线通过：公网链路相比本机链路有可见但很小的额外延迟，本轮未观察到 5xx 或 header 缺失。
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
-- W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 再次出现 9 个 timeout，关闭 HTTP/3/QUIC 后降到 5 个 timeout 但仍未通过，临时 Skip 规则复验仍出现 15 个 timeout。
+- W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 再次出现 9 个 timeout，关闭 HTTP/3/QUIC 后降到 5 个 timeout 但仍未通过，临时 Skip 规则复验仍出现 15 个 timeout；修复 StorageService 竞态后应用 500 清零，但 Cloudflare 仍有 7 个 timeout。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步仍不需要进入 PostgreSQL / SSE；先暂停 Cloudflare 临时 Skip 规则并修复 StorageService 固定 tmp 文件竞态，再复跑入口对照，Cloudflare timeout 与应用 500 都清零后再进入 300/500。
+- 下一步仍不需要进入 PostgreSQL / SSE；应用 500 已清零，继续聚焦 Cloudflare/公网边缘链路 timeout，Cloudflare timeout 清零后再进入 300/500。

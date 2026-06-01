@@ -1,0 +1,6 @@
+{
+  "state": "failed",
+  "stage": "done",
+  "reason": "cloudflare-status-100: checks_fails 21",
+  "updated_at": "2026-06-01T15:53:08+0800"
+}

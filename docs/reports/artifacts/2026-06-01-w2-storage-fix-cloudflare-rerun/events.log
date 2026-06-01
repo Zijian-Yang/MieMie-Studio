@@ -1,0 +1,9 @@
+2026-06-01T15:50:28+08:00 run start
+2026-06-01T15:50:28+08:00 precheck start
+2026-06-01T15:50:31+08:00 precheck ok
+2026-06-01T15:50:31+08:00 prepare data start
+2026-06-01T15:50:34+08:00 prepare data ok project=3583ab69-4ae2-466c-88df-1c028a36fce7 task=9319a7a9-b95f-45c3-8044-8511d152dcf4
+2026-06-01T15:50:34+08:00 stage cloudflare-status-100 start
+2026-06-01T15:53:05+08:00 FAIL cloudflare-status-100: checks_fails 21
+2026-06-01T15:53:05+08:00 cleanup done
+2026-06-01T15:53:08+08:00 run failed cloudflare-status-100: checks_fails 21

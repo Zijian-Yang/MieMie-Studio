@@ -1,0 +1,2 @@
+label	vus	duration	http_req_failed	p95_ms	p99_ms	http_reqs	checks_fails	ok	reason
+cloudflare-status-100	100	120s	0.000363523	170.636643	1978.186196	19256	21	0	checks_fails 21

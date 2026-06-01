@@ -276,12 +276,14 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 - 2026-06-01 已在关闭 Cloudflare `HTTP/3 (with QUIC)` 后复验真实入口：Cloudflare `100 VU / 120s` P95 `190.14ms`，timeout 从 9 个降到 5 个，check failures 从 27 降到 15，但仍未清零；API 侧观察类 GET 汇总为 `200 19451`，压测后 health 和 Compose 仍健康。证据归档于 `docs/reports/artifacts/2026-06-01-w2-cloudflare-http3off/`。
 - 2026-06-01 已在 Cloudflare 为压测来源 IP 与 `/api/*` 部署临时 Skip 规则后复验真实入口：Cloudflare `100 VU / 120s` P95 `195.03ms`，出现 15 个 timeout，check failures 为 45；同时发现 `GET /api/video-studio?project_id=<id>` 1 个 500，traceback 指向 `StorageService._write_json_with_lock()` 固定 `<task_id>.tmp` 并发写入竞态。证据归档于 `docs/reports/artifacts/2026-06-01-w2-cloudflare-skip-rule/`。
 - 2026-06-01 已本地修复 `StorageService._write_json_with_lock()` 固定 tmp 文件竞态：临时文件改为 pid/thread/uuid 唯一路径；新增 `backend/tests/test_storage_service.py` 并按 TDD 确认旧实现复现 `FileNotFoundError`、修复后通过；`venv/bin/pytest backend/tests -q` 为 `235 passed`。
+- 2026-06-01 已部署 StorageService 修复到 pre：运行版本 `00091f21f5ee207f78a1092e7e5e164ab4567c7f`，容器内并发回归 `2 passed`，Cloudflare `100 VU / 120s` 复跑后 API 侧观察类 GET 汇总为 `200 19263`、无 500；Cloudflare 仍有 7 个 timeout，check failures 为 21。证据归档于 `docs/reports/artifacts/2026-06-01-w2-storage-fix-cloudflare-rerun/`。
 
 下一步补跑前置：
 
 - W2 preview 5xx 阻塞项已解除。
 - Cloudflare 代理路径 timeout 已通过 DNS only 对照确认；DNS only 下公网 100 VU 已通过，300 VU 稳定性通过但 P95 略超；关闭 HTTP/3/QUIC 后 Cloudflare timeout 有改善但未清零；临时 Skip 规则未能清零 timeout。
-- 下一轮部署 `backend/app/services/storage.py` 修复到 pre，复跑本机/DNS only/Cloudflare 入口对照；Cloudflare timeout 与应用 500 都清零后再进 300/500。
+- StorageService 固定 tmp 文件竞态已部署并确认应用 500 清零。
+- 下一轮继续聚焦 Cloudflare/公网边缘链路 timeout：优先采集 Ray ID、Cloudflare Analytics/Events、Nginx `request_time` / `upstream_response_time` 对照，必要时用非源站第三方压测点排除“源站自打 Cloudflare”路径偏差；Cloudflare timeout 清零后再进 300/500。
 
 ## 阶段 6：代码治理，降低维护压力
 
