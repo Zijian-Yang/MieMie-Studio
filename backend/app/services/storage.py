@@ -13,6 +13,7 @@ import os
 import logging
 import fcntl
 import threading
+from uuid import uuid4
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -118,7 +119,9 @@ class StorageService:
     
     def _write_json_with_lock(self, file_path: Path, data: dict):
         """原子写入 JSON 文件：写临时文件 → fsync → os.replace"""
-        tmp_path = file_path.with_suffix('.tmp')
+        tmp_path = file_path.with_name(
+            f".{file_path.name}.{os.getpid()}.{threading.get_ident()}.{uuid4().hex}.tmp"
+        )
         try:
             with open(tmp_path, 'w', encoding='utf-8') as f:
                 fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # 排他锁

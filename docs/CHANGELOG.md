@@ -6,6 +6,7 @@
 ## [Unreleased]
 
 ### 修复 (Fixed)
+- JSON 文件存储：`StorageService._write_json_with_lock()` 原子写入改用唯一临时文件，避免多个 worker 进程并发保存同一目标 JSON 时共享 `<name>.tmp` 触发 `FileNotFoundError`；新增并发回归覆盖该场景。
 - 用户配置写入：per-user `config.json` 原子写入改用唯一临时文件，避免多个 worker 进程首次并发初始化同一用户配置时共享 `config.tmp` 触发 `FileNotFoundError`；pre 复跑 preview 阶梯后 `preview-payload` 状态码为 `200 120`、无 5xx。
 - 图片工作室 pre 体验门禁：真实浏览器验证工作室页面可渲染、生成点击有“提交中...”即时反馈，普通模式未自动触发 heavy `/api/studio/preview-payload`。
 - 前端生产构建：Ant Design 主包不再按组件强拆为多个 `antd-*` 子 chunk，避免生产环境出现 `createContext` / `Cannot access before initialization` 循环依赖白屏。
