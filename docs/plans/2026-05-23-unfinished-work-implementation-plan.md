@@ -274,12 +274,13 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 - 2026-05-31 已在 Cloudflare DNS only 后复跑公网状态观察阶梯：DNS 解析为 `47.79.99.190`，响应头 `server: nginx`；公网 `100 VU / 120s` 通过，P95 `45.92ms`；公网 `300 VU / 120s` 无失败、无 timeout、无 header check 失败，但 P95 `307.78ms` 略超 `300ms` 门槛，按规则停止。证据归档于 `docs/reports/artifacts/2026-05-31-w2-dns-only-staircase/`。
 - 2026-05-31 已恢复 Cloudflare 代理并复验真实入口：Cloudflare `100 VU / 120s` P95 `207.86ms`，但出现 9 个 k6 `request timeout`，导致 27 个响应 check 失败并按规则停止；API 侧观察类 GET 汇总为 `200 18253`。证据归档于 `docs/reports/artifacts/2026-05-31-w2-cloudflare-entry-retune/`。
 - 2026-06-01 已在关闭 Cloudflare `HTTP/3 (with QUIC)` 后复验真实入口：Cloudflare `100 VU / 120s` P95 `190.14ms`，timeout 从 9 个降到 5 个，check failures 从 27 降到 15，但仍未清零；API 侧观察类 GET 汇总为 `200 19451`，压测后 health 和 Compose 仍健康。证据归档于 `docs/reports/artifacts/2026-06-01-w2-cloudflare-http3off/`。
+- 2026-06-01 已在 Cloudflare 为压测来源 IP 与 `/api/*` 部署临时 Skip 规则后复验真实入口：Cloudflare `100 VU / 120s` P95 `195.03ms`，出现 15 个 timeout，check failures 为 45；同时发现 `GET /api/video-studio?project_id=<id>` 1 个 500，traceback 指向 `StorageService._write_json_with_lock()` 固定 `<task_id>.tmp` 并发写入竞态。证据归档于 `docs/reports/artifacts/2026-06-01-w2-cloudflare-skip-rule/`。
 
 下一步补跑前置：
 
 - W2 preview 5xx 阻塞项已解除。
-- Cloudflare 代理路径 timeout 已通过 DNS only 对照确认；DNS only 下公网 100 VU 已通过，300 VU 稳定性通过但 P95 略超；关闭 HTTP/3/QUIC 后 Cloudflare timeout 有改善但未清零。
-- 下一轮先查 Cloudflare 真实入口 `/api/*`：检查 Security Events、WAF、Bot Fight / Super Bot Fight、Rate Limiting、缓存规则命中，并采集 Ray ID 与 Nginx request_time/upstream_response_time 对照；Cloudflare 100 VU timeout 清零后再进 300/500。
+- Cloudflare 代理路径 timeout 已通过 DNS only 对照确认；DNS only 下公网 100 VU 已通过，300 VU 稳定性通过但 P95 略超；关闭 HTTP/3/QUIC 后 Cloudflare timeout 有改善但未清零；临时 Skip 规则未能清零 timeout。
+- 下一轮先暂停或删除 Cloudflare 临时 Skip 规则，再修复 `backend/app/services/storage.py` 通用 JSON 写入固定 tmp 文件竞态，补本地并发回归、部署 pre 后复跑本机/DNS only/Cloudflare 入口对照；Cloudflare timeout 与应用 500 都清零后再进 300/500。
 
 ## 阶段 6：代码治理，降低维护压力
 

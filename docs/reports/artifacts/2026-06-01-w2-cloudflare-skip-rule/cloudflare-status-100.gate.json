@@ -1,0 +1,13 @@
+{
+  "label": "cloudflare-status-100",
+  "vus": 100,
+  "duration": "120s",
+  "http_req_failed": 0.0008378952072394146,
+  "http_req_duration_p95_ms": 195.0338875000002,
+  "http_req_duration_p99_ms": 2179.3126044600035,
+  "http_reqs": 17902,
+  "checks_fails": 45,
+  "k6_exit_code": 0,
+  "ok": false,
+  "reason": "checks_fails 45"
+}
