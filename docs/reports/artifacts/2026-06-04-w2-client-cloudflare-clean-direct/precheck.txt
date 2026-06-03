@@ -1,0 +1,27 @@
+# precheck
+run_id=w2-client-cloudflare-clean-direct-20260604
+date=2026-06-03T16:49:01Z
+start_iso=2026-06-03T16:49:00Z
+
+## local
+Darwin Zanes-MBA.local 25.3.0 Darwin Kernel Version 25.3.0: Wed Jan 28 20:54:55 PST 2026; root:xnu-12377.91.3~2/RELEASE_ARM64_T8132 arm64
+
+## k6
+k6 v2.0.0 (commit/devel, go1.26.3, darwin/arm64)
+
+## dns
+172.67.201.59
+104.21.85.29
+
+## route
+   route to: 172.67.201.59
+destination: default
+       mask: default
+    gateway: 192.168.50.1
+  interface: en0
+      flags: <UP,GATEWAY,DONE,STATIC,PRCLONING,GLOBAL>
+ recvpipe  sendpipe  ssthresh  rtt,msec    rttvar  hopcount      mtu     expire
+       0         0         0         0         0         0      1500         0
+
+## public health
+200

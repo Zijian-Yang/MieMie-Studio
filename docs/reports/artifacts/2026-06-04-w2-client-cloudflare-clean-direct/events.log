@@ -1,0 +1,18 @@
+2026-06-03T16:38:36Z run start
+2026-06-03T16:38:36Z precheck start
+2026-06-03T16:38:41Z precheck ok
+2026-06-03T16:38:41Z prepare data start
+2026-06-03T16:38:53Z prepare data ok project=e1fc4745-094c-498c-905c-42cd432af71c task=d68ad6e3-10af-4b36-b031-97af6ddfdbfd
+2026-06-03T16:38:53Z stage client-cloudflare-100 start
+2026-06-03T16:38:54Z FAIL client-cloudflare-100:
+2026-06-03T16:38:59Z cleanup done
+2026-06-03T16:39:02Z run failed client-cloudflare-100:
+2026-06-03T16:49:01Z run start
+2026-06-03T16:49:01Z precheck start
+2026-06-03T16:49:04Z precheck ok
+2026-06-03T16:49:04Z prepare data start
+2026-06-03T16:49:18Z prepare data ok project=aa0f86ca-9d5b-4ff1-a208-f3685ba21dd3 task=a7b7c813-4753-4eb6-8ab7-91c1db566d5c
+2026-06-03T16:49:18Z stage client-cloudflare-100 start
+2026-06-03T16:51:23Z FAIL client-cloudflare-100: p95 734.57ms >= 300ms
+2026-06-03T16:51:27Z cleanup done
+2026-06-03T16:51:28Z run failed client-cloudflare-100: p95 734.57ms >= 300ms

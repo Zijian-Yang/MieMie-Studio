@@ -1,0 +1,6 @@
+{
+  "state": "failed",
+  "stage": "done",
+  "reason": "client-cloudflare-100: p95 734.57ms >= 300ms",
+  "updated_at": "2026-06-04T00:51:28+0800"
+}
