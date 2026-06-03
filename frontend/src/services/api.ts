@@ -1,4 +1,5 @@
 import { api } from './apiClient'
+import type { VideoCapabilityModel } from './videoStudioApi'
 export { type ApiError } from './apiClient'
 
 // ============ 设置 API ============
@@ -508,18 +509,18 @@ export const scriptsApi = {
   }) => api.post('/scripts/save', data),
   parseShots: (projectId: string) => api.post(`/scripts/${projectId}/parse-shots`),
   updateShots: (projectId: string, shots: Shot[]) => api.put(`/scripts/${projectId}/shots`, { shots }),
-  updateShot: (projectId: string, shotId: string, data: Partial<Shot>) => 
+  updateShot: (projectId: string, shotId: string, data: Partial<Shot>) =>
     api.put<any, { shot: Shot }>(`/scripts/${projectId}/shots/${shotId}`, data),
-  reorderShots: (projectId: string, shotIds: string[]) => 
+  reorderShots: (projectId: string, shotIds: string[]) =>
     api.put<any, { shots: Shot[] }>(`/scripts/${projectId}/shots-reorder`, { shot_ids: shotIds }),
-  createShot: (projectId: string, data: ShotCreateRequest) => 
+  createShot: (projectId: string, data: ShotCreateRequest) =>
     api.post<any, { shot: Shot; shots: Shot[] }>(`/scripts/${projectId}/shots`, data),
-  deleteShot: (projectId: string, shotId: string) => 
+  deleteShot: (projectId: string, shotId: string) =>
     api.delete<any, { message: string; shots: Shot[] }>(`/scripts/${projectId}/shots/${shotId}`),
   getDefaultPrompt: () => api.get<any, { prompt: string }>('/scripts/prompts/default'),
-  
+
   // 版本管理
-  getScriptVersions: (projectId: string) => 
+  getScriptVersions: (projectId: string) =>
     api.get<any, { versions: ScriptVersion[] }>(`/scripts/${projectId}/script-versions`),
   createScriptVersion: (projectId: string, data: {
     name: string
@@ -529,16 +530,16 @@ export const scriptsApi = {
     model_used?: string
     prompt_used?: string
   }) => api.post<any, { version: ScriptVersion; versions: ScriptVersion[] }>(`/scripts/${projectId}/script-versions`, data),
-  
-  getPromptVersions: (projectId: string) => 
+
+  getPromptVersions: (projectId: string) =>
     api.get<any, { versions: PromptVersion[] }>(`/scripts/${projectId}/prompt-versions`),
   createPromptVersion: (projectId: string, data: {
     name: string
     description?: string
     prompt: string
   }) => api.post<any, { version: PromptVersion; versions: PromptVersion[] }>(`/scripts/${projectId}/prompt-versions`, data),
-  
-  saveCustomPrompt: (projectId: string, customPrompt: string) => 
+
+  saveCustomPrompt: (projectId: string, customPrompt: string) =>
     api.put(`/scripts/${projectId}/custom-prompt`, { custom_prompt: customPrompt }),
 }
 
@@ -572,7 +573,7 @@ export const generateScriptStream = (
   onError: (error: string) => void = () => {}
 ) => {
   const controller = new AbortController()
-  
+
   fetch('/api/scripts/generate', {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -585,16 +586,16 @@ export const generateScriptStream = (
         onError('未登录或登录已过期，请重新登录')
         return
       }
-      
+
       if (!response.ok) {
         const errorText = await response.text()
         onError(`请求失败: ${response.status} - ${errorText}`)
         return
       }
-      
+
       const reader = response.body?.getReader()
       const decoder = new TextDecoder()
-      
+
       if (!reader) {
         onError('无法读取响应')
         return
@@ -632,7 +633,7 @@ export const generateScriptStream = (
         onError(error.message)
       }
     })
-  
+
   return () => controller.abort()
 }
 
@@ -934,7 +935,7 @@ export const framesApi = {
     gallery_image_url: string
     group_index?: number
   }) => api.post<any, { frame: Frame; message: string }>('/frames/set-from-gallery', data),
-  saveToGallery: (frameId: string, data: { name?: string; description?: string; group_index?: number }) => 
+  saveToGallery: (frameId: string, data: { name?: string; description?: string; group_index?: number }) =>
     api.post<any, { gallery_image: GalleryImage; message: string }>(`/frames/${frameId}/save-to-gallery`, data),
   setFromVideoLastFrame: (data: {
     project_id: string
@@ -1005,7 +1006,7 @@ export const videosApi = {
   }) => api.post<any, { videos: Video[]; errors: Array<{ shot_id: string; error: string }>; success_count: number; error_count: number }>('/videos/generate-batch', { project_id: projectId, ...options }),
   getStatus: (taskId: string) => api.get<any, { task_id: string; status: string; video_url?: string }>(`/videos/status/${taskId}`),
   delete: (id: string) => api.delete(`/videos/${id}`),
-  select: (data: { project_id: string; shot_id: string; video_id: string }) => 
+  select: (data: { project_id: string; shot_id: string; video_id: string }) =>
     api.post<any, { message: string; shot_id: string; video_url: string }>('/videos/select', data),
   selectFromLibrary: (data: { project_id: string; shot_id: string; video_library_id: string }) =>
     api.post<any, { message: string; shot_id: string; video_url: string; video_name: string }>('/videos/select-from-library', data),
@@ -1065,9 +1066,9 @@ export interface Style {
 }
 
 export const stylesApi = {
-  getPresets: () => api.get<any, { 
+  getPresets: () => api.get<any, {
     image_presets: Record<string, ImageStylePreset>,
-    text_presets: Record<string, TextStylePreset> 
+    text_presets: Record<string, TextStylePreset>
   }>('/styles/presets'),
   list: (projectId: string) => api.get<any, { styles: Style[] }>('/styles', { params: { project_id: projectId } }),
   get: (id: string) => api.get<any, Style>(`/styles/${id}`),
@@ -1151,7 +1152,7 @@ export const galleryApi = {
     const formData = new FormData()
     formData.append('project_id', projectId)
     files.forEach(file => formData.append('files', file))
-    return api.post<any, { 
+    return api.post<any, {
       images: GalleryImage[]
       success_count: number
       error_count: number
@@ -1161,8 +1162,8 @@ export const galleryApi = {
     })
   },
   // 从URL上传
-  uploadFromUrls: (projectId: string, urls: string[]) => 
-    api.post<any, { 
+  uploadFromUrls: (projectId: string, urls: string[]) =>
+    api.post<any, {
       images: GalleryImage[]
       success_count: number
       error_count: number
@@ -1172,240 +1173,14 @@ export const galleryApi = {
 
 // ============ 图片工作室 API ============
 
-export interface ReferenceItem {
-  type: 'character' | 'scene' | 'prop' | 'gallery' | 'style'
-  id: string
-  name: string
-  url?: string
-}
-
-export interface ColorPaletteItem {
-  hex: string
-  ratio: string
-}
-
-export interface StudioTaskImage {
-  id: string
-  group_index: number
-  url?: string
-  storage_source?: 'remote' | 'oss' | 'local_fallback' | 'local_expired'
-  storage_warning?: string | null
-  retry_count?: number
-  last_retry_error?: string | null
-  last_retry_at?: string | null
-  next_retry_at?: string | null
-  fallback_created_at?: string | null
-  prompt_used?: string
-  is_selected: boolean
-  markers?: string[]  // star, flag, check, cross
-  created_at: string
-}
-
-export interface StudioTask {
-  id: string
-  project_id: string
-  name: string
-  description: string
-  model: string
-  model_id?: string
-  provider?: string
-  task_kind?: 'text_to_image' | 'image_edit' | 'interactive_edit' | 'sequential_generation'
-  prompt: string
-  negative_prompt: string
-  n: number  // 每次请求生成的图片数量
-  group_count: number  // 并发请求数（总图片数 = n * group_count）
-  // 高级生成参数（持久化保存）
-  size?: string  // 输出尺寸
-  prompt_extend?: boolean  // 智能改写
-  watermark?: boolean  // 水印
-  seed?: number  // 随机种子
-  // wan2.6-image 专用参数
-  enable_interleave?: boolean  // 图文混合模式
-  max_images?: number  // 图文混合模式下最大生成图数
-  // wan2.7 专用参数
-  enable_sequential?: boolean
-  thinking_mode?: boolean | null
-  bbox_list?: number[][][]
-  color_palette?: ColorPaletteItem[]
-  size_mode?: 'preset' | 'custom' | null
-  size_preset?: string | null
-  custom_width?: number | null
-  custom_height?: number | null
-  output_format?: 'jpeg' | 'png' | null
-  web_search?: boolean
-  aspect_ratio?: string | null
-  image_size?: string | null
-  google_search_mode?: 'none' | 'web' | 'image' | 'web_and_image' | string
-  thinking_level?: 'minimal' | 'high' | string | null
-  // 追踪ID
-  last_task_id?: string
-  last_request_id?: string
-  task_ids?: string[]
-  request_ids?: string[]
-  input_assets?: Record<string, any>
-  normalized_params?: Record<string, any>
-  provider_payload_snapshot?: Record<string, any> | null
-  provider_result_meta?: Record<string, any>
-  references: ReferenceItem[]
-  images: StudioTaskImage[]
-  status: 'pending' | 'generating' | 'completed' | 'failed'
-  error_message?: string
-  warnings?: string[]
-  created_at: string
-  updated_at: string
-}
-
-export interface StudioOSSRetrySummary {
-  retried_task_count?: number
-  retried_image_count: number
-  success_count: number
-  failed_count: number
-  paused_count: number
-  expired_count: number
-}
-
-export const studioApi = {
-  list: (projectId: string) => api.get<any, { tasks: StudioTask[] }>('/studio', { params: { project_id: projectId } }),
-  get: (id: string) => api.get<any, StudioTask>(`/studio/${id}`),
-  create: (data: {
-    project_id: string
-    name: string
-    description?: string
-    model?: string
-    prompt?: string
-    negative_prompt?: string
-    n?: number
-    group_count?: number
-    size?: string
-    prompt_extend?: boolean
-    watermark?: boolean
-    seed?: number
-    enable_interleave?: boolean
-    max_images?: number
-    task_kind?: 'text_to_image' | 'image_edit' | 'interactive_edit' | 'sequential_generation'
-    enable_sequential?: boolean
-    thinking_mode?: boolean | null
-    bbox_list?: number[][][]
-    color_palette?: ColorPaletteItem[]
-    size_mode?: 'preset' | 'custom'
-    size_preset?: string
-    custom_width?: number
-    custom_height?: number
-    output_format?: 'jpeg' | 'png' | null
-    web_search?: boolean
-    aspect_ratio?: string | null
-    image_size?: string | null
-    google_search_mode?: 'none' | 'web' | 'image' | 'web_and_image' | string
-    thinking_level?: 'minimal' | 'high' | string | null
-    references?: Array<{ type: string, id: string }>
-  }) => api.post<any, StudioTask>('/studio', data),
-  update: (id: string, data: Partial<StudioTask>) => api.put<any, StudioTask>(`/studio/${id}`, data),
-  generate: (id: string, data?: {
-    prompt?: string
-    negative_prompt?: string
-    n?: number  // 每次请求生成的图片数量
-    group_count?: number  // 并发请求数（总图片数 = n * group_count）
-    task_kind?: 'text_to_image' | 'image_edit' | 'interactive_edit' | 'sequential_generation'
-    // 通用参数
-    size?: string  // 输出尺寸
-    prompt_extend?: boolean  // 智能改写
-    watermark?: boolean  // 水印
-    seed?: number | null  // 随机种子
-    // wan2.6-image 专用参数
-    enable_interleave?: boolean  // 图文混合模式
-    max_images?: number  // 图文混合模式下最大图片数 (1-5)
-    // wan2.7 专用参数
-    enable_sequential?: boolean
-    thinking_mode?: boolean | null
-    bbox_list?: number[][][]
-    color_palette?: ColorPaletteItem[]
-    size_mode?: 'preset' | 'custom'
-    size_preset?: string
-    custom_width?: number
-    custom_height?: number
-    output_format?: 'jpeg' | 'png' | null
-    web_search?: boolean
-    aspect_ratio?: string | null
-    image_size?: string | null
-    google_search_mode?: 'none' | 'web' | 'image' | 'web_and_image' | string
-    thinking_level?: 'minimal' | 'high' | string | null
-  }) => api.post<any, { task: StudioTask }>(`/studio/${id}/generate`, data || {}),
-  previewPayload: (data: {
-    project_id: string
-    model: string
-    task_kind?: 'text_to_image' | 'image_edit' | 'interactive_edit' | 'sequential_generation'
-    prompt?: string
-    negative_prompt?: string
-    n?: number
-    group_count?: number
-    size?: string
-    prompt_extend?: boolean
-    watermark?: boolean
-    seed?: number | null
-    enable_interleave?: boolean
-    max_images?: number
-    enable_sequential?: boolean
-    thinking_mode?: boolean | null
-    bbox_list?: number[][][]
-    color_palette?: ColorPaletteItem[]
-    size_mode?: 'preset' | 'custom'
-    size_preset?: string
-    custom_width?: number
-    custom_height?: number
-    output_format?: 'jpeg' | 'png' | null
-    web_search?: boolean
-    aspect_ratio?: string | null
-    image_size?: string | null
-    google_search_mode?: 'none' | 'web' | 'image' | 'web_and_image' | string
-    thinking_level?: 'minimal' | 'high' | string | null
-    references?: Array<{ type: string, id: string }>
-  }, options?: { signal?: AbortSignal }) => api.post<any, {
-    canonical_request: Record<string, any>
-    provider_payload: Record<string, any>
-    validation_warnings: string[]
-  }>('/studio/preview-payload', data, { signal: options?.signal }),
-  saveToGallery: (id: string, imageIds: string[]) => api.post<any, { saved_images: GalleryImage[] }>(`/studio/${id}/save-to-gallery`, { image_ids: imageIds }),
-  updateImageMarkers: (taskId: string, imageId: string, markers: string[]) =>
-    api.post<any, { success: boolean; markers: string[] }>(`/studio/${taskId}/markers`, { image_id: imageId, markers }),
-  retryTaskOSS: (id: string) => api.post<any, { task: StudioTask; summary: StudioOSSRetrySummary }>(`/studio/${id}/retry-oss`),
-  retryProjectOSS: (projectId: string) => api.post<any, { tasks: StudioTask[]; summary: StudioOSSRetrySummary }>(`/studio/project/${projectId}/retry-oss`),
-  delete: (id: string) => api.delete(`/studio/${id}`),
-  deleteAll: (projectId: string) => api.delete(`/studio/project/${projectId}/all`),
-  // 获取可用模型列表（带详情）
-  getAvailableModels: () => api.get<any, { 
-    models: Record<string, {
-      id: string
-      name: string
-      provider?: string
-      description?: string
-      supported_task_kinds?: Array<'text_to_image' | 'image_edit' | 'interactive_edit' | 'sequential_generation'>
-      size_ui_mode?: 'preset_only' | 'preset_plus_custom_with_templates'
-      capabilities?: {
-        supports_batch?: boolean
-        supports_async?: boolean
-        supports_negative_prompt?: boolean
-        max_concurrent?: number | null
-        api_mode?: 'sync' | 'async'
-        submit_rate_limit?: { count: number; period_seconds: number }
-        concurrency_scope?: 'model' | 'shared_pool' | 'unlimited' | 'unknown'
-        concurrency_pool_id?: string
-        rate_limit_note?: string
-      }
-      parameters?: Array<{
-        name: string
-        label: string
-        type: string
-        description?: string
-        default?: any
-        constraint?: {
-          min_value?: number
-          max_value?: number
-          options?: Array<{ value: any; label: string }>
-        }
-      }>
-    }> 
-  }>('/studio/models/available'),
-}
+export { studioApi } from './studioApi'
+export type {
+  ReferenceItem,
+  ColorPaletteItem,
+  StudioTaskImage,
+  StudioTask,
+  StudioOSSRetrySummary,
+} from './studioApi'
 
 // ============ 图片测评 API ============
 
@@ -2030,7 +1805,7 @@ export const audioApi = {
       { headers: { 'Content-Type': 'multipart/form-data' } }
     )
   },
-  uploadUrls: (projectId: string, urls: string[], names?: string[]) => 
+  uploadUrls: (projectId: string, urls: string[], names?: string[]) =>
     api.post<any, { audios: AudioItem[]; errors: any[]; success_count: number; error_count: number }>(
       '/audio/upload-urls',
       { project_id: projectId, urls, names }
@@ -2070,7 +1845,7 @@ export const videoLibraryApi = {
       { headers: { 'Content-Type': 'multipart/form-data' } }
     )
   },
-  uploadUrls: (projectId: string, urls: string[], names?: string[]) => 
+  uploadUrls: (projectId: string, urls: string[], names?: string[]) =>
     api.post<any, { videos: VideoLibraryItem[]; errors: any[]; success_count: number; error_count: number }>(
       '/video-library/upload-urls',
       { project_id: projectId, urls, names }
@@ -2078,7 +1853,7 @@ export const videoLibraryApi = {
   update: (id: string, data: { name?: string; description?: string }) => api.put<any, VideoLibraryItem>(`/video-library/${id}`, data),
   delete: (id: string) => api.delete(`/video-library/${id}`),
   deleteAll: (projectId: string) => api.delete(`/video-library?project_id=${projectId}`),
-  extractLastFrame: (id: string, name?: string) => 
+  extractLastFrame: (id: string, name?: string) =>
     api.post<any, { message: string; image: GalleryImage }>(`/video-library/${id}/extract-last-frame`, null, { params: { name } }),
 }
 
@@ -2102,410 +1877,44 @@ export interface TextLibraryItem {
 }
 
 export const textLibraryApi = {
-  list: (projectId: string, category?: string) => 
+  list: (projectId: string, category?: string) =>
     api.get<any, { texts: TextLibraryItem[] }>('/text-library', { params: { project_id: projectId, category } }),
   get: (id: string) => api.get<any, TextLibraryItem>(`/text-library/${id}`),
-  create: (data: { project_id: string; name: string; content: string; category?: string; description?: string }) => 
+  create: (data: { project_id: string; name: string; content: string; category?: string; description?: string }) =>
     api.post<any, TextLibraryItem>('/text-library', data),
-  update: (id: string, data: { name?: string; content?: string; category?: string; save_version?: boolean; version_description?: string }) => 
+  update: (id: string, data: { name?: string; content?: string; category?: string; save_version?: boolean; version_description?: string }) =>
     api.put<any, TextLibraryItem>(`/text-library/${id}`, data),
-  saveVersion: (id: string, description?: string) => 
+  saveVersion: (id: string, description?: string) =>
     api.post<any, { message: string; version: TextItemVersion }>(`/text-library/${id}/versions`, null, { params: { description } }),
   listVersions: (id: string) => api.get<any, { versions: TextItemVersion[] }>(`/text-library/${id}/versions`),
-  restoreVersion: (id: string, versionId: string) => 
+  restoreVersion: (id: string, versionId: string) =>
     api.post<any, { message: string; text: TextLibraryItem }>(`/text-library/${id}/restore`, { version_id: versionId }),
   deleteVersion: (id: string, versionId: string) => api.delete(`/text-library/${id}/versions/${versionId}`),
   delete: (id: string) => api.delete(`/text-library/${id}`),
-  deleteAll: (projectId: string, category?: string) => 
+  deleteAll: (projectId: string, category?: string) =>
     api.delete(`/text-library?project_id=${projectId}${category ? `&category=${category}` : ''}`),
 }
 
 // ============ 视频工作室 API ============
-export type VideoTaskKind =
-  | 'image_to_video'
-  | 'reference_to_video'
-  | 'text_to_video'
-  | 'keyframe_to_video'
-  | 'video_extension'
-  | 'video_edit_global'
-  | 'video_edit_local'
-  | 'video_repainting'
-
-export type VideoStudioTaskType =
-  | 'image_to_video'
-  | 'reference_to_video'
-  | 'text_to_video'
-  | 'keyframe_to_video'
-  | 'video_extension'
-  | 'video_repainting'
-  | 'video_edit'
-  | 'video_edit_global'
-
-export type VideoInputRole =
-  | 'first_frame'
-  | 'last_frame'
-  | 'first_clip'
-  | 'reference_image'
-  | 'reference_video'
-  | 'base_video'
-  | 'feature_video'
-  | 'source_video'
-  | 'mask_image'
-  | 'audio'
-
-export type VideoNarrativeMode =
-  | 'single'
-  | 'multi_shot_intelligence'
-  | 'multi_shot_customize'
-
-export interface VideoReferenceMediaItem {
-  type: 'reference_image' | 'reference_video'
-  url: string
-  reference_voice?: string
-}
-
-export interface VideoStudioInputAssets {
-  first_frame?: string[]
-  last_frame?: string[]
-  first_clip?: string[]
-  audio?: string[]
-  reference_images?: string[]
-  reference_videos?: string[]
-  reference_media?: VideoReferenceMediaItem[]
-  source_video?: string[]
-  base_video?: string[]
-  mask_image?: string[]
-  [key: string]: any
-}
-
-export interface VideoPromptLengthPolicy {
-  mode: 'cjk_weighted' | string
-  max_units: number
-  cjk_unit?: number
-  non_cjk_unit?: number
-  cjk_equivalent_limit?: number
-  non_cjk_equivalent_limit?: number
-}
-
-export type VideoReferenceTokenRole = 'reference_image' | 'reference_video'
-
-export interface VideoReferenceTokenVariant {
-  key: string
-  label: string
-  template: string
-}
-
-export interface VideoReferenceTokenTemplate {
-  template: string
-  variants?: VideoReferenceTokenVariant[]
-}
-
-export interface VideoReferenceTokenPolicy {
-  mode: 'media_reference_tokens' | string
-  index_base: number
-  numbering_scope: 'by_type' | 'combined'
-  reference_order?: VideoReferenceTokenRole[]
-  tokens: Partial<Record<VideoReferenceTokenRole, VideoReferenceTokenTemplate>>
-}
-
-export interface VideoTaskProfile {
-  task_kind: VideoTaskKind
-  label: string
-  description?: string
-  input_roles: VideoInputRole[]
-  parameters: ModelParameterDef[]
-  ui_hints?: Record<string, any> & {
-    asset_help?: Partial<Record<VideoInputRole, HelpContent | string>>
-    prompt_help?: HelpContent | string
-    prompt_length_policy?: VideoPromptLengthPolicy
-    reference_token_policy?: VideoReferenceTokenPolicy
-  }
-  supported_narrative_modes: VideoNarrativeMode[]
-  default_values?: Record<string, any>
-  verification_profiles?: Record<string, string[]>
-}
-
-export interface VideoCapabilityModel {
-  id: string
-  name: string
-  provider: string
-  type: string
-  description?: string
-  doc_url?: string
-  capabilities?: ModelCapabilities
-  supported_task_kinds: VideoTaskKind[]
-  task_profiles: Partial<Record<VideoTaskKind, VideoTaskProfile>>
-  ui_hints?: Record<string, any>
-}
-
-export interface VideoTaskKindInfo {
-  id: VideoTaskKind
-  label: string
-  description?: string
-  legacy_task_types: string[]
-  model_ids: string[]
-  default_model_id?: string | null
-}
-
-export interface VideoStudioCapabilitiesResponse {
-  task_kinds: VideoTaskKindInfo[]
-  models: Record<string, VideoCapabilityModel>
-  legacy_task_kind_map: Record<string, VideoTaskKind>
-}
-
-export interface VideoStudioTask {
-  id: string
-  project_id: string
-  name: string
-  
-  // 任务类型: image_to_video / reference_to_video / text_to_video / keyframe_to_video / video_extension / video_repainting / video_edit
-  task_type: VideoStudioTaskType
-  task_kind: VideoTaskKind
-  provider: string
-  key_profile?: 'test' | 'production' | null
-  model_id?: string
-  narrative_mode?: VideoNarrativeMode
-  input_assets?: VideoStudioInputAssets
-  normalized_params?: Record<string, any>
-  provider_payload_snapshot?: Record<string, any> | null
-  provider_result_meta?: Record<string, any>
-  
-  // 图生视频参数
-  mode: 'first_frame' | 'first_last_frame'
-  first_frame_url?: string
-  last_frame_url?: string
-  first_clip_url?: string
-  audio_url?: string
-  
-  // 参考生视频参数（支持视频和图片，总数≤5）
-  reference_video_urls?: string[]  // 参考素材URL列表（视频+图片）
-
-  // VACE 视频编辑参数
-  source_video_url?: string
-  source_video_preview_url?: string
-  reference_image_url?: string
-  mask_image_url?: string
-  mask_frame_id?: number
-  
-  // 通用参数
-  prompt: string
-  negative_prompt: string
-  model: string
-  duration: number
-  watermark: boolean  // 水印
-  seed?: number | null  // 随机种子
-  shot_type?: string  // 镜头类型 single/multi
-  auto_audio: boolean  // 自动配音
-  
-  // 图生视频专用
-  resolution: string
-  prompt_extend: boolean  // 智能改写
-  ratio?: string
-  audio_setting?: string
-  
-  // 参考生视频专用
-  size?: string  // 分辨率（宽*高格式）
-  r2v_prompt_extend?: boolean  // 参考生视频提示词改写（已废弃）
-  
-  // 文生视频专用
-  t2v_prompt_extend?: boolean  // 文生视频智能改写
-
-  // VACE 专用
-  control_condition?: string
-  strength?: number | null
-  mask_type?: string
-  expand_ratio?: number | null
-  expand_mode?: string
-  
-  group_count: number
-  video_urls: string[]
-  selected_video_url?: string
-  thumbnail_url?: string
-  video_markers?: Record<string, string[]>  // {video_url: [marker_type, ...]}
-  task_ids: string[]
-  request_ids?: string[]  // 各组的请求ID（用于追踪）
-  status: 'pending' | 'processing' | 'succeeded' | 'failed'
-  error_message?: string
-  created_at: string
-  updated_at: string
-}
-
-export const videoStudioApi = {
-  list: (projectId: string) => api.get<any, { tasks: VideoStudioTask[] }>('/video-studio', { params: { project_id: projectId } }),
-  getCapabilities: () => api.get<any, VideoStudioCapabilitiesResponse>('/video-studio/capabilities'),
-  get: (id: string) => api.get<any, VideoStudioTask>(`/video-studio/${id}`),
-  getStatus: (id: string) => api.get<any, { task: VideoStudioTask }>(`/video-studio/${id}/status`),
-  previewPayload: (data: {
-    project_id: string
-    name?: string
-    task_type?: VideoStudioTaskType
-    task_kind?: VideoTaskKind
-    provider?: string
-    model_id?: string
-    narrative_mode?: VideoNarrativeMode
-    input_assets?: VideoStudioInputAssets
-    normalized_params?: Record<string, any>
-    prompt?: string
-    negative_prompt?: string
-    group_count?: number
-    source_video_preview_url?: string
-    model?: string
-    duration?: number
-    resolution?: string
-    size?: string
-    watermark?: boolean
-    auto_audio?: boolean
-    shot_type?: string
-    prompt_extend?: boolean
-    t2v_prompt_extend?: boolean
-    seed?: number
-    first_frame_url?: string
-    last_frame_url?: string
-    first_clip_url?: string
-    audio_url?: string
-    reference_video_urls?: string[]
-    source_video_url?: string
-    reference_image_url?: string
-    mask_image_url?: string
-    mask_frame_id?: number
-    control_condition?: string
-    strength?: number
-    mask_type?: string
-    expand_ratio?: number
-    expand_mode?: string
-    ratio?: string
-    audio_setting?: string
-  }) => api.post<any, {
-    canonical_request: Record<string, any>
-    provider_payload: Record<string, any> | null
-    validation_warnings: string[]
-  }>('/video-studio/preview-payload', data),
-  prepareSourceVideo: (data: { project_id: string; video_url: string }) =>
-    api.post<any, {
-      preview_image_data_url: string
-      preview_image_url?: string | null
-      metadata: {
-        width: number
-        height: number
-        fps: number
-        duration: number
-        frame_count: number
-        file_size: number
-        format: string
-        warnings: string[]
-      }
-      warnings: string[]
-    }>('/video-studio/prepare-source-video', data),
-  uploadMask: (formData: FormData) =>
-    api.post<any, { mask_image_url: string; width: number; height: number }>(
-      '/video-studio/upload-mask',
-      formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } }
-    ),
-  create: (data: {
-    project_id: string
-    name?: string
-    task_type?: VideoStudioTaskType
-    task_kind?: VideoTaskKind
-    provider?: string
-    model_id?: string
-    narrative_mode?: VideoNarrativeMode
-    input_assets?: VideoStudioInputAssets
-    normalized_params?: Record<string, any>
-    mode?: string
-    first_frame_url?: string  // 图生视频需要
-    last_frame_url?: string
-    first_clip_url?: string
-    audio_url?: string  // 自定义音频URL（图生视频/文生视频支持）
-    // 参考生视频参数
-    reference_video_urls?: string[]  // 参考生视频的参考素材（视频+图片）
-    // VACE 参数
-    source_video_url?: string
-    source_video_preview_url?: string
-    reference_image_url?: string
-    mask_image_url?: string
-    mask_frame_id?: number
-    // 通用参数
-    prompt?: string
-    negative_prompt?: string
-    model?: string
-    duration?: number
-    watermark?: boolean  // 水印
-    seed?: number  // 随机种子
-    shot_type?: string  // 镜头类型
-    auto_audio?: boolean  // 自动配音
-    // 图生视频专用
-    resolution?: string
-    prompt_extend?: boolean  // 智能改写
-    ratio?: string
-    audio_setting?: string
-    // 参考生视频专用
-    size?: string  // 分辨率（宽*高格式）
-    r2v_prompt_extend?: boolean  // 参考生视频提示词改写（已废弃）
-    // 文生视频专用
-    t2v_prompt_extend?: boolean  // 文生视频智能改写
-    // VACE 专用
-    control_condition?: string
-    strength?: number
-    mask_type?: string
-    expand_ratio?: number
-    expand_mode?: string
-    group_count?: number
-  }) => api.post<any, { task: VideoStudioTask }>('/video-studio', data),
-  update: (id: string, data: { 
-    name?: string
-    selected_video_url?: string
-    task_type?: VideoStudioTaskType
-    task_kind?: VideoTaskKind
-    provider?: string
-    model_id?: string
-    narrative_mode?: VideoNarrativeMode
-    input_assets?: VideoStudioInputAssets
-    normalized_params?: Record<string, any>
-    prompt?: string
-    negative_prompt?: string
-    model?: string
-    resolution?: string
-    duration?: number
-    prompt_extend?: boolean
-    watermark?: boolean
-    seed?: number
-    auto_audio?: boolean
-    shot_type?: string  // 镜头类型
-    first_frame_url?: string
-    last_frame_url?: string
-    first_clip_url?: string
-    audio_url?: string
-    reference_video_urls?: string[]  // 参考素材URL列表（视频+图片）
-    size?: string  // 分辨率（宽*高格式）
-    ratio?: string
-    audio_setting?: string
-    r2v_prompt_extend?: boolean  // 参考生视频提示词改写（已废弃）
-    t2v_prompt_extend?: boolean  // 文生视频智能改写
-    group_count?: number
-    source_video_url?: string
-    source_video_preview_url?: string
-    reference_image_url?: string
-    mask_image_url?: string
-    mask_frame_id?: number
-    control_condition?: string
-    strength?: number
-    mask_type?: string
-    expand_ratio?: number
-    expand_mode?: string
-  }) => 
-    api.put<any, VideoStudioTask>(`/video-studio/${id}`, data),
-  regenerate: (id: string) => 
-    api.post<any, { task: VideoStudioTask; task_ids: string[] }>(`/video-studio/${id}/regenerate`),
-  saveToLibrary: (id: string, videoUrl: string, name?: string) =>
-    api.post<any, { message: string; video: VideoLibraryItem }>(`/video-studio/${id}/save-to-library`, null, { params: { video_url: videoUrl, name } }),
-  updateVideoMarkers: (taskId: string, videoUrl: string, markers: string[]) =>
-    api.post<any, { success: boolean; video_markers: Record<string, string[]> }>(`/video-studio/${taskId}/markers`, { video_url: videoUrl, markers }),
-  extractLastFrame: (taskId: string, videoUrl: string, name?: string) =>
-    api.post<any, { message: string; image: GalleryImage }>(`/video-studio/${taskId}/extract-last-frame`, { video_url: videoUrl, name }),
-  delete: (id: string) => api.delete(`/video-studio/${id}`),
-  deleteAll: (projectId: string) => api.delete(`/video-studio?project_id=${projectId}`),
-}
+export { videoStudioApi } from './videoStudioApi'
+export type {
+  VideoTaskKind,
+  VideoStudioTaskType,
+  VideoInputRole,
+  VideoNarrativeMode,
+  VideoReferenceMediaItem,
+  VideoStudioInputAssets,
+  VideoPromptLengthPolicy,
+  VideoReferenceTokenRole,
+  VideoReferenceTokenVariant,
+  VideoReferenceTokenTemplate,
+  VideoReferenceTokenPolicy,
+  VideoTaskProfile,
+  VideoCapabilityModel,
+  VideoTaskKindInfo,
+  VideoStudioCapabilitiesResponse,
+  VideoStudioTask,
+} from './videoStudioApi'
 
 // ============ 模型注册系统 API ============
 
@@ -2646,54 +2055,54 @@ export interface ModelTypeInfo {
 export const modelsApi = {
   // 获取所有模型
   listAll: () => api.get<any, { models: Record<string, RegisteredModelInfo> }>('/models'),
-  
+
   // 获取图像生成模型（文生图 + 图生图）
-  listImageModels: () => 
+  listImageModels: () =>
     api.get<any, { models: Record<string, RegisteredModelInfo> }>('/models/image'),
-  
+
   // 获取视频生成模型
-  listVideoModels: () => 
+  listVideoModels: () =>
     api.get<any, { models: Record<string, RegisteredModelInfo> }>('/models/video'),
-  
+
   // 按类型获取模型
-  listByType: (modelType: string) => 
+  listByType: (modelType: string) =>
     api.get<any, { models: Record<string, RegisteredModelInfo> }>(`/models/by-type/${modelType}`),
-  
+
   // 获取单个模型详情
-  getModel: (modelId: string) => 
+  getModel: (modelId: string) =>
     api.get<any, RegisteredModelInfo>(`/models/${modelId}`),
-  
+
   // 获取模型参数定义
-  getParameters: (modelId: string, group?: string) => 
+  getParameters: (modelId: string, group?: string) =>
     api.get<any, { model_id: string; parameters: ModelParameterDef[] }>(
       `/models/${modelId}/parameters`,
       { params: group ? { group } : {} }
     ),
-  
+
   // 获取模型支持的尺寸选项
-  getSizes: (modelId: string) => 
-    api.get<any, { 
+  getSizes: (modelId: string) =>
+    api.get<any, {
       model_id: string
       common_sizes: SizeOption[]
-      size_constraints: SizeConstraints | null 
+      size_constraints: SizeConstraints | null
     }>(`/models/${modelId}/sizes`),
-  
+
   // 验证尺寸
-  validateSize: (modelId: string, width: number, height: number) => 
-    api.post<any, { 
+  validateSize: (modelId: string, width: number, height: number) =>
+    api.post<any, {
       valid: boolean
       message: string
       width: number
       height: number
-      total_pixels: number 
+      total_pixels: number
     }>(`/models/${modelId}/validate-size`, null, { params: { width, height } }),
-  
+
   // 验证参数
-  validateParams: (modelId: string, params: Record<string, any>) => 
+  validateParams: (modelId: string, params: Record<string, any>) =>
     api.post<any, { valid: boolean; errors: string[] }>(`/models/${modelId}/validate`, params),
-  
+
   // 获取可用的模型类型
-  listTypes: () => 
+  listTypes: () =>
     api.get<any, { types: ModelTypeInfo[] }>('/models/types/available'),
 }
 
@@ -2714,21 +2123,21 @@ export interface LoginResponse {
 
 export const authApi = {
   // 登录
-  login: (username: string, password: string) => 
+  login: (username: string, password: string) =>
     api.post<any, LoginResponse>('/auth/login', { username, password }),
-  
+
   // 注册
-  register: (username: string, password: string, display_name?: string) => 
+  register: (username: string, password: string, display_name?: string) =>
     api.post<any, LoginResponse>('/auth/register', { username, password, display_name }),
-  
+
   // 登出
   logout: () => api.post<any, { success: boolean }>('/auth/logout'),
-  
+
   // 获取当前用户
   me: () => api.get<any, UserInfo>('/auth/me'),
-  
+
   // 修改密码
-  changePassword: (oldPassword: string, newPassword: string) => 
+  changePassword: (oldPassword: string, newPassword: string) =>
     api.post<any, { success: boolean; message: string }>('/auth/change-password', {
       old_password: oldPassword,
       new_password: newPassword

@@ -231,9 +231,15 @@ pre 部署复验：
 - `frontend/src/services/api.ts` 保留原有导出面，继续作为业务 API 聚合入口。
 - 该拆分不改变调用方 import 路径，不改变接口语义。
 
+2026-06-04 阶段 6A 服务层拆分：
+
+- 新增 `frontend/src/services/studioApi.ts`，承载图片工作室类型与 `studioApi`；`api.ts` 继续 re-export，页面 import 路径不变。
+- 新增 `frontend/src/services/videoStudioApi.ts`，承载视频工作室 capability / task 类型与 `videoStudioApi`；`api.ts` 保留 type-only re-export，并仅用 type-only import 支撑视频测评 capability 类型。
+- `frontend/src/services/api.ts` 从约 `2851` 行降至约 `2260` 行；不改变后端接口、请求体、响应体、页面行为或 UI。
+
 后续建议继续拆分：
 
-- `api.ts` 下一刀：按 domain 提取 `studioApi` / `videoStudioApi`，仍从 `api.ts` re-export，先不改页面 import。
+- `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
 - `VideoStudioPage.tsx` 下一刀：优先提取任务展示/状态工具函数，再提取数据加载 hook；不重做 UI。
 
 ## 结论

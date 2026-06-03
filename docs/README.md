@@ -129,8 +129,10 @@ docker compose config
   - FastAPI `on_event is deprecated` 警告
   - `baseline-browser-mapping` 数据过期提示
   - `./run.sh test` 落到系统 Python 导致依赖缺失的问题
+  - 前端 `api.ts` 继续承载所有 domain API 的维护压力：已拆出 `apiClient.ts`、`studioApi.ts`、`videoStudioApi.ts`，并保持 `api.ts` 兼容 re-export
 - 当前保留为后续治理：
   - CI / 服务器环境仍需显式安装 Playwright Chromium；当前自动发现主要覆盖本机已有缓存的开发场景
+  - `VideoStudioPage.tsx`、`StudioPage.tsx` 等大页面仍需继续做行为保持型拆分
 
 ## 文档维护规则
 

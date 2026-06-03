@@ -303,7 +303,7 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
    - 不改接口语义。
    - 每拆一小步跑 typecheck/lint。
 
-   状态：已完成第一刀 transport 拆分，新增 `frontend/src/services/apiClient.ts`。后续继续按 domain API 分组，但保持 `api.ts` re-export，避免一次性改动所有页面 import。
+   状态：已完成第一刀 transport 拆分，新增 `frontend/src/services/apiClient.ts`；阶段 6A 已拆出 `frontend/src/services/studioApi.ts` 与 `frontend/src/services/videoStudioApi.ts`，`api.ts` 继续 re-export，页面 import 路径保持不变。后续继续按 domain API 分组或进入页面拆分。
 
 2. 拆 `frontend/src/pages/VideoStudio/VideoStudioPage.tsx`
    - 提取数据加载、任务列表、任务详情、能力表单、媒体预处理。
