@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- W2 本地客户端 Cloudflare 美国代理样本：本地 Mac 经 Clash TUN 美国代理节点访问 Cloudflare，最新有效 `100 VU / 120s` 无失败、无 header check 缺失，但 P95 `960.63ms`；服务器 API 同窗口 `200 11159`，作为代理出口风险记录而非 W2 平台侧硬门禁，证据归档到 `docs/reports/artifacts/2026-06-04-w2-client-cloudflare-us-proxy/`。
 - W2 本地客户端 Cloudflare 干净直连复测：关闭 Clash TUN/fake-ip 后，DNS 为 Cloudflare 真实 IP 且 route 走 `en0`；`100 VU / 120s` 无失败、无 header check 缺失，但 P95 `734.57ms`，因目标不关注大陆访问效果，本轮作为跨境客户端风险记录而非目标市场硬门禁，证据归档到 `docs/reports/artifacts/2026-06-04-w2-client-cloudflare-clean-direct/`。
 - W2 本地客户端 Cloudflare DIRECT 规则复测：Clash Verge 已为 `pre-studio.miemie.co` 添加 domain DIRECT 规则，但系统层仍返回 fake-ip `198.18.2.211` 且 route 走 `utun1024`；`100 VU / 120s` P95 `969.79ms`，API 侧同窗口 `200 10523`，证据归档到 `docs/reports/artifacts/2026-06-04-w2-client-cloudflare-direct-rule/`。
 - W2 本地客户端 Cloudflare 复测：本地 Mac 经 Clash Verge TUN / fake-ip 代理出口访问 Cloudflare，`100 VU / 120s` 失败率 `0`、check failures `0`，但 P95 `925.75ms`，证据归档到 `docs/reports/artifacts/2026-06-03-w2-client-cloudflare-baseline/`。

@@ -216,6 +216,13 @@ pre 部署复验：
 - 慢样本 `505` 个，Cloudflare colo 分布为 `LAX 367`、`SJC 138`；服务器 API 同窗口观察类 GET 状态码汇总为 `200 12685`，未观察到应用 4xx/5xx。证据见 `docs/reports/artifacts/2026-06-04-w2-client-cloudflare-clean-direct/README.md`。
 - 用户补充该网站不关注大陆访问效果；因此本地大陆/跨境客户端直连 Cloudflare 的 P95 不作为目标市场硬门禁，只作为跨境访问风险记录。后续 W2 判断应优先补非大陆客户端/VPS vantage，或继续以服务器侧入口对照作为平台承载依据。
 
+2026-06-04 W2 本地客户端 Cloudflare 美国代理样本：
+
+- 用户确认可用本机 TUN 美国代理做阶段收尾参考；本轮路径为本地 Mac -> Clash 美国代理节点 -> Cloudflare -> 源站，预检显示 fake-ip `198.18.2.211`、route 走 `utun1024`，Cloudflare colo 为 `DEN`。
+- 最新有效 Cloudflare 入口 `100 VU / 120s` 失败率 `0`、check failed `0`，但 P95 `960.63ms`、P99 `1315.98ms`，按原始 W2 读路径 `300ms` 保守门槛停止，未进入 200/300 VU。
+- 慢样本 `1173` 个，Cloudflare colo 均为 `DEN`；服务器 API 同窗口观察类 GET 状态码汇总为 `200 11159`，未观察到应用 4xx/5xx。证据见 `docs/reports/artifacts/2026-06-04-w2-client-cloudflare-us-proxy/README.md`。
+- 结论：美国代理样本稳定性通过但尾延迟高，且代理链路不是目标地区 VPS 原生网络；它不改变 W2 平台侧结论。若需要目标市场入口 SLO，应后续从美国或目标地区 VPS 直接跑 k6。
+
 ## 代码治理
 
 已完成第一刀行为保持型拆分：
@@ -235,6 +242,6 @@ pre 部署复验：
 - 公网域名 `pre-studio.miemie.co` 的 Cloudflare -> aaPanel/Nginx -> `127.0.0.1:18100` 反代门禁通过，可作为下一轮 S4 混合查询基线的真实入口。
 - S4 保守基线通过：公网链路相比本机链路有可见但很小的额外延迟，本轮未观察到 5xx 或 header 缺失。
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
-- W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`。由于网站不关注大陆访问效果，本地跨境客户端 P95 只作为风险记录，不作为目标市场硬门禁。
+- W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步仍不需要进入 PostgreSQL / SSE；应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。下一步先取得本地直连 Cloudflare 客户端样本，再聚焦 Cloudflare/TLS/压测来源位置对照和入口 SLO 分层。
+- 下一步仍不需要进入 PostgreSQL / SSE；应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口，下一阶段应进入 W2 结论沉淀、目标市场入口 SLO 分层，以及阶段 6 代码治理。

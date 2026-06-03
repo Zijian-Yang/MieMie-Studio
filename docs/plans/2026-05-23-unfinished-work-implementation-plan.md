@@ -282,14 +282,15 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 - 2026-06-03 已补本地客户端侧 Cloudflare 复测，但预检确认本机走 Clash Verge TUN / fake-ip：`dig` 返回 `198.18.2.211`，route 走 `utun1024`。该代理出口路径下 `100 VU / 120s` 失败率 `0`、check failures `0`，但 P95 `925.75ms`，按规则停止；API 侧窗口仍全 `200`。证据归档于 `docs/reports/artifacts/2026-06-03-w2-client-cloudflare-baseline/`。
 - 2026-06-04 已在 Clash Verge 为 `pre-studio.miemie.co` 添加 domain DIRECT 规则后复测本地客户端侧 Cloudflare 入口；预检仍显示 `dig` 返回 `198.18.2.211`，route 走 `utun1024`，说明当前 TUN/fake-ip 仍在接管域名。`100 VU / 120s` 失败率 `0.019%`、P95 `969.79ms`、P99 `1401.50ms`，按规则停止；API 侧窗口为 `200 10523`，未观察到应用 4xx/5xx 放大。证据归档于 `docs/reports/artifacts/2026-06-04-w2-client-cloudflare-direct-rule/`。
 - 2026-06-04 已在关闭 Clash TUN/fake-ip 后复测干净本地直连 Cloudflare 入口；预检显示 DNS 为 Cloudflare 真实 IP `172.67.201.59` / `104.21.85.29`，route 走 `en0`。`100 VU / 120s` 失败率 `0`、check failures `0`，但 P95 `734.57ms`、P99 `1080.36ms`，按原始 `300ms` 门槛停止；API 侧窗口为 `200 12685`。用户确认该网站不关注大陆访问效果，因此该本地跨境客户端 P95 只作为风险记录，不作为目标市场硬门禁。证据归档于 `docs/reports/artifacts/2026-06-04-w2-client-cloudflare-clean-direct/`。
+- 2026-06-04 已补本机 TUN 美国代理入口样本：路径为本地 Mac -> Clash 美国代理节点 -> Cloudflare -> 源站，Cloudflare colo 为 `DEN`。最新有效 `100 VU / 120s` 失败率 `0`、check failures `0`，但 P95 `960.63ms`、P99 `1315.98ms`；API 侧窗口为 `200 11159`。该代理样本稳定性通过但尾延迟高，不作为目标市场硬门禁。证据归档于 `docs/reports/artifacts/2026-06-04-w2-client-cloudflare-us-proxy/`。
 
 下一步补跑前置：
 
 - W2 preview 5xx 阻塞项已解除。
 - Cloudflare 代理路径 timeout 已通过 DNS only 对照确认；DNS only 下公网 100 VU 已通过，300 VU 稳定性通过但 P95 略超；关闭 HTTP/3/QUIC 后 Cloudflare timeout 有改善但未清零；临时 Skip 规则未能清零 timeout。
 - StorageService 固定 tmp 文件竞态已部署并确认应用 500 清零。
-- Cloudflare 100 VU 已在 2026-06-03 恢复通过；300 VU 同窗口对照显示 app direct / 本机 Nginx 可以过门槛，源站公网路径略超，Cloudflare 真实入口明显超。本地 Clash TUN 代理出口下 100 VU P95 明显更高，不能作为直连用户结论；添加 domain DIRECT 规则后系统层仍为 fake-ip/TUN。关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 稳定性通过但 P95 仍高。由于目标不关注大陆访问效果，该本地跨境客户端 P95 不作为硬门禁。
-- 下一轮不先改应用架构；建议补一个非大陆客户端/VPS vantage 的 Cloudflare 100/300 VU 对照，或直接将 W2 结论拆成“源站能力”和“Cloudflare 目标市场入口体验”两条 SLO 后进入阶段性判断。
+- Cloudflare 100 VU 已在 2026-06-03 恢复通过；300 VU 同窗口对照显示 app direct / 本机 Nginx 可以过门槛，源站公网路径略超，Cloudflare 真实入口明显超。本地 Clash TUN 代理出口、domain DIRECT 但仍走 TUN、关闭 TUN 后干净直连、以及本机 TUN 美国代理样本均已补齐；这些客户端样本稳定性没有暴露应用 4xx/5xx，但 P95 高，不作为目标市场硬门禁。
+- 下一轮不先改应用架构；W2 平台侧阶段可收口。后续如需更准的目标市场入口 SLO，再从美国或目标地区 VPS 原生网络跑 k6；否则进入阶段 6 代码治理。
 
 ## 阶段 6：代码治理，降低维护压力
 

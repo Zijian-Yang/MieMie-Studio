@@ -1,0 +1,3 @@
+label	vus	duration	http_req_failed	p95_ms	p99_ms	http_reqs	checks_fails	k6_exit	ok	reason
+client-cloudflare-100	100	120s	0.000281109	847.232750	1188.943570	10672	9	99	0	p95 847.23ms >= 300ms
+client-cloudflare-100	100	120s	0.000000000	960.627750	1315.982500	10436	0	99	0	p95 960.63ms >= 300ms
