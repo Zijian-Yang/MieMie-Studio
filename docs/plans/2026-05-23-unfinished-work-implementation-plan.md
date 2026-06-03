@@ -279,14 +279,15 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 - 2026-06-01 已部署 StorageService 修复到 pre：运行版本 `00091f21f5ee207f78a1092e7e5e164ab4567c7f`，容器内并发回归 `2 passed`，Cloudflare `100 VU / 120s` 复跑后 API 侧观察类 GET 汇总为 `200 19263`、无 500；Cloudflare 仍有 7 个 timeout，check failures 为 21。证据归档于 `docs/reports/artifacts/2026-06-01-w2-storage-fix-cloudflare-rerun/`。
 - 2026-06-03 已在关闭 Cloudflare 临时 Skip 规则后做 Ray 诊断：Cloudflare `100 VU / 120s` 通过，P95 `36.75ms`、失败率 `0`、check failures `0`、API 侧 `200 23061`；随后 Cloudflare `300 VU / 120s` 无 timeout、无 check failure、API 侧 `200 49577`，但 P95 `351.64ms` 超过 `300ms` 门槛，按规则停止。证据归档于 `docs/reports/artifacts/2026-06-03-w2-cloudflare-ray-diagnostics/`。
 - 2026-06-03 已完成 300 VU 入口对照：应用直连 P95 `244.29ms`、本机 Nginx P95 `271.69ms`，两组均通过；源站公网 IP forced P95 `325.81ms` 略超但无失败；Cloudflare 真实入口 P95 `512.92ms`，有 1 个 `dial: i/o timeout`，API 侧窗口仍全 `200`。证据归档于 `docs/reports/artifacts/2026-06-03-w2-300-entry-comparison/`。
+- 2026-06-03 已补本地客户端侧 Cloudflare 复测，但预检确认本机走 Clash Verge TUN / fake-ip：`dig` 返回 `198.18.2.211`，route 走 `utun1024`。该代理出口路径下 `100 VU / 120s` 失败率 `0`、check failures `0`，但 P95 `925.75ms`，按规则停止；API 侧窗口仍全 `200`。证据归档于 `docs/reports/artifacts/2026-06-03-w2-client-cloudflare-baseline/`。
 
 下一步补跑前置：
 
 - W2 preview 5xx 阻塞项已解除。
 - Cloudflare 代理路径 timeout 已通过 DNS only 对照确认；DNS only 下公网 100 VU 已通过，300 VU 稳定性通过但 P95 略超；关闭 HTTP/3/QUIC 后 Cloudflare timeout 有改善但未清零；临时 Skip 规则未能清零 timeout。
 - StorageService 固定 tmp 文件竞态已部署并确认应用 500 清零。
-- Cloudflare 100 VU 已在 2026-06-03 恢复通过；300 VU 同窗口对照显示 app direct / 本机 Nginx 可以过门槛，源站公网路径略超，Cloudflare 真实入口明显超。
-- 下一轮不先改应用架构；优先做 Cloudflare/TLS/连接复用/压测来源位置对照，并把 W2 结论拆成“源站能力”与“Cloudflare 真实入口体验”两条 SLO。
+- Cloudflare 100 VU 已在 2026-06-03 恢复通过；300 VU 同窗口对照显示 app direct / 本机 Nginx 可以过门槛，源站公网路径略超，Cloudflare 真实入口明显超。本地 Clash TUN 代理出口下 100 VU P95 明显更高，不能作为直连用户结论。
+- 下一轮不先改应用架构；先让本地客户端对 `pre-studio.miemie.co` 走 DIRECT 或关闭 TUN/fake-ip 后复跑 100 VU。拿到直连样本后，再决定是否进入 Cloudflare/TLS/连接复用/压测来源位置对照，并把 W2 结论拆成“源站能力”与“Cloudflare 真实入口体验”两条 SLO。
 
 ## 阶段 6：代码治理，降低维护压力
 

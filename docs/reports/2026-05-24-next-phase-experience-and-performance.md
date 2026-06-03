@@ -194,6 +194,14 @@ pre 部署复验：
 - API 日志窗口内状态码汇总为 `200 217076`，未观察到应用 4xx/5xx；测试任务、项目和 session 均清理成功，压测后 health 与 Compose 仍健康。证据见 `docs/reports/artifacts/2026-06-03-w2-300-entry-comparison/README.md`。
 - 结论：应用直连与本机 Nginx 在 300 VU 下仍能过保守门槛；源站公网路径已有小幅尾延迟，Cloudflare 真实入口进一步放大。下一步应优先做 Cloudflare/公网边缘路径调优和压测来源位置对照，而不是先上 PostgreSQL / SSE / RabbitMQ。
 
+2026-06-03 W2 本地客户端 Cloudflare 入口复测：
+
+- 本机安装 `k6 v2.0.0 (darwin/arm64)` 后，从本地 Mac 对 `https://pre-studio.miemie.co` 执行客户端侧状态观察复测；计划按 `100 -> 200 -> 300 VU` 递进。
+- 预检显示当前本机并非直连 Cloudflare：`dig` 返回 `198.18.2.211`，`route` 走 `utun1024`，判定为 Clash Verge TUN / fake-ip 路径。
+- Clash TUN 路径下 `100 VU / 120s` 失败率 `0`、check failed `0`，但 P95 `925.75ms`、P99 `1671.47ms`，按门禁停止，未进入 200/300 VU。
+- 慢样本 `813` 个，Cloudflare colo 分布为 `LAX 503`、`SJC 310`；服务器 API 同窗口观察类 GET 状态码为 `200 11169`，未观察到应用 4xx/5xx。证据见 `docs/reports/artifacts/2026-06-03-w2-client-cloudflare-baseline/README.md`。
+- 结论：本轮只能代表“本地 Mac + Clash TUN 代理出口 -> Cloudflare”，不能代表普通用户直连。下一步需要在 Clash 为 `pre-studio.miemie.co` 配置 DIRECT 或临时关闭 TUN/fake-ip 后，复跑直连客户端侧样本。
+
 ## 代码治理
 
 已完成第一刀行为保持型拆分：
@@ -213,6 +221,6 @@ pre 部署复验：
 - 公网域名 `pre-studio.miemie.co` 的 Cloudflare -> aaPanel/Nginx -> `127.0.0.1:18100` 反代门禁通过，可作为下一轮 S4 混合查询基线的真实入口。
 - S4 保守基线通过：公网链路相比本机链路有可见但很小的额外延迟，本轮未观察到 5xx 或 header 缺失。
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
-- W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。
+- W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`，需补直连样本。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步仍不需要进入 PostgreSQL / SSE；应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。下一步聚焦 Cloudflare/TLS/压测来源位置对照和入口 SLO 分层。
+- 下一步仍不需要进入 PostgreSQL / SSE；应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。下一步先取得本地直连 Cloudflare 客户端样本，再聚焦 Cloudflare/TLS/压测来源位置对照和入口 SLO 分层。
