@@ -1,0 +1,5 @@
+label	entry	vus	duration	http_req_failed	p95_ms	p99_ms	http_reqs	checks_fails	k6_exit	ok	reason
+app-direct-300	app-direct	300	120s	0.000000000	244.294753	489.408228	62776	0	0	1
+nginx-local-300	nginx-local-forced-127.0.0.1	300	120s	0.000000000	271.693311	609.996302	52756	0	0	1
+nginx-origin-ip-300	nginx-origin-forced-47.79.99.190	300	120s	0.000000000	325.809349	681.585284	51636	0	99	0	p95 325.81ms >= 300ms
+public-cloudflare-300	public-cloudflare	300	120s	0.000020037	512.917148	914.128698	49908	3	99	0	p95 512.92ms >= 300ms

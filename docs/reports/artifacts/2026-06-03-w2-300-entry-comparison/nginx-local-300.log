@@ -1,0 +1,549 @@
+
+         /\      Grafana   /‾‾/
+    /\  /  \     |\  __   /  /
+   /  \/    \    | |/ /  /   ‾‾\
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/
+
+
+     execution: local
+        script: /tmp/w2-300-entry-comparison-20260603/w2-entry-status.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 300 max VUs, 2m30s max duration (incl. graceful stop):
+              * default: 300 looping VUs for 2m0s (gracefulStop: 30s)
+
+
+running (0m00.9s), 300/300 VUs, 0 complete and 0 interrupted iterations
+default   [   1% ] 300 VUs  0m00.9s/2m0s
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-164-0\",\"vu\":164,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":838.762905,\"blocked_ms\":156.102061,\"connecting_ms\":58.082919,\"tls_ms\":97.799527,\"waiting_ms\":819.601247,\"receiving_ms\":19.041815,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-174-0\",\"vu\":174,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":841.748717,\"blocked_ms\":157.186772,\"connecting_ms\":82.621958,\"tls_ms\":74.416359,\"waiting_ms\":831.436443,\"receiving_ms\":10.189833,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-300-0\",\"vu\":300,\"iter\":0,\"url\":\"/api/video-studio?project_id=789db892-0b76-4c14-834d-9c753977d1a9\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":830.855437,\"blocked_ms\":0.000391,\"connecting_ms\":0,\"tls_ms\":0,\"waiting_ms\":820.18042,\"receiving_ms\":10.622971,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-175-0\",\"vu\":175,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":836.985917,\"blocked_ms\":167.769472,\"connecting_ms\":84.474899,\"tls_ms\":83.192304,\"waiting_ms\":819.469263,\"receiving_ms\":17.408691,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-16-0\",\"vu\":16,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":839.466844,\"blocked_ms\":176.193887,\"connecting_ms\":88.109871,\"tls_ms\":87.942973,\"waiting_ms\":821.414247,\"receiving_ms\":17.941823,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-173-0\",\"vu\":173,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":841.976724,\"blocked_ms\":174.484782,\"connecting_ms\":86.074208,\"tls_ms\":87.906237,\"waiting_ms\":836.571971,\"receiving_ms\":5.324896,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-171-0\",\"vu\":171,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":866.701166,\"blocked_ms\":175.205309,\"connecting_ms\":85.47206,\"tls_ms\":89.653662,\"waiting_ms\":862.350102,\"receiving_ms\":4.265396,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-29-0\",\"vu\":29,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":870.495426,\"blocked_ms\":176.6217,\"connecting_ms\":87.08967,\"tls_ms\":89.343472,\"waiting_ms\":864.350777,\"receiving_ms\":6.062132,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-30-0\",\"vu\":30,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":877.575218,\"blocked_ms\":177.902077,\"connecting_ms\":86.545131,\"tls_ms\":91.2784,\"waiting_ms\":873.190361,\"receiving_ms\":4.314301,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-22-0\",\"vu\":22,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":879.595694,\"blocked_ms\":184.036032,\"connecting_ms\":91.512796,\"tls_ms\":92.449506,\"waiting_ms\":874.665376,\"receiving_ms\":4.86393,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-172-0\",\"vu\":172,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":889.78487,\"blocked_ms\":181.648825,\"connecting_ms\":87.719788,\"tls_ms\":93.859445,\"waiting_ms\":885.762994,\"receiving_ms\":3.95187,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-28-0\",\"vu\":28,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":891.94896,\"blocked_ms\":184.568071,\"connecting_ms\":96.041017,\"tls_ms\":88.345443,\"waiting_ms\":888.305132,\"receiving_ms\":3.561307,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-21-0\",\"vu\":21,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":896.174264,\"blocked_ms\":187.19695,\"connecting_ms\":97.021668,\"tls_ms\":90.119439,\"waiting_ms\":893.96435,\"receiving_ms\":2.152855,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-161-0\",\"vu\":161,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":898.544387,\"blocked_ms\":186.883951,\"connecting_ms\":97.509976,\"tls_ms\":89.307647,\"waiting_ms\":893.248798,\"receiving_ms\":5.213567,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-169-0\",\"vu\":169,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":899.365698,\"blocked_ms\":185.51527,\"connecting_ms\":88.263472,\"tls_ms\":97.008871,\"waiting_ms\":895.257315,\"receiving_ms\":3.970296,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-27-0\",\"vu\":27,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":905.534192,\"blocked_ms\":187.820094,\"connecting_ms\":97.001539,\"tls_ms\":90.600326,\"waiting_ms\":901.951117,\"receiving_ms\":3.484219,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-160-0\",\"vu\":160,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":910.260454,\"blocked_ms\":194.024532,\"connecting_ms\":100.283913,\"tls_ms\":93.66616,\"waiting_ms\":907.6208,\"receiving_ms\":2.536196,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-170-0\",\"vu\":170,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":914.552268,\"blocked_ms\":188.955563,\"connecting_ms\":96.537318,\"tls_ms\":92.008407,\"waiting_ms\":911.971713,\"receiving_ms\":2.490805,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-12-0\",\"vu\":12,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":917.409715,\"blocked_ms\":192.838133,\"connecting_ms\":98.161656,\"tls_ms\":94.510732,\"waiting_ms\":912.002272,\"receiving_ms\":5.336248,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-167-0\",\"vu\":167,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":921.263725,\"blocked_ms\":193.256173,\"connecting_ms\":97.77201,\"tls_ms\":95.307903,\"waiting_ms\":916.704678,\"receiving_ms\":4.463867,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-159-0\",\"vu\":159,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":923.123526,\"blocked_ms\":200.256074,\"connecting_ms\":102.578573,\"tls_ms\":97.596175,\"waiting_ms\":917.794112,\"receiving_ms\":5.23863,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-157-0\",\"vu\":157,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":940.661197,\"blocked_ms\":206.062687,\"connecting_ms\":103.373469,\"tls_ms\":102.618012,\"waiting_ms\":938.703174,\"receiving_ms\":1.891931,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-18-0\",\"vu\":18,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":949.904601,\"blocked_ms\":209.065468,\"connecting_ms\":102.898537,\"tls_ms\":106.10492,\"waiting_ms\":945.381734,\"receiving_ms\":4.444358,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-168-0\",\"vu\":168,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":944.986596,\"blocked_ms\":217.659845,\"connecting_ms\":102.211785,\"tls_ms\":115.256681,\"waiting_ms\":940.9621,\"receiving_ms\":3.920154,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-25-0\",\"vu\":25,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":959.665084,\"blocked_ms\":211.084853,\"connecting_ms\":98.783728,\"tls_ms\":111.988542,\"waiting_ms\":955.600605,\"receiving_ms\":3.985482,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-158-0\",\"vu\":158,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":968.677556,\"blocked_ms\":217.635258,\"connecting_ms\":104.257882,\"tls_ms\":113.293224,\"waiting_ms\":963.687524,\"receiving_ms\":4.145781,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-24-0\",\"vu\":24,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":972.757525,\"blocked_ms\":214.168636,\"connecting_ms\":103.746489,\"tls_ms\":110.168904,\"waiting_ms\":969.303058,\"receiving_ms\":3.367873,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-165-0\",\"vu\":165,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":972.770136,\"blocked_ms\":217.502205,\"connecting_ms\":39.803098,\"tls_ms\":177.508407,\"waiting_ms\":970.428701,\"receiving_ms\":2.263847,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-163-0\",\"vu\":163,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":970.850549,\"blocked_ms\":220.701781,\"connecting_ms\":105.989742,\"tls_ms\":114.45003,\"waiting_ms\":968.054451,\"receiving_ms\":2.723067,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-17-0\",\"vu\":17,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":976.316879,\"blocked_ms\":220.829381,\"connecting_ms\":103.775188,\"tls_ms\":116.962702,\"waiting_ms\":971.501869,\"receiving_ms\":4.696146,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-49-0\",\"vu\":49,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":976.24829,\"blocked_ms\":208.819257,\"connecting_ms\":90.40235,\"tls_ms\":117.093444,\"waiting_ms\":971.310274,\"receiving_ms\":4.80844,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-15-0\",\"vu\":15,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":976.967645,\"blocked_ms\":226.571118,\"connecting_ms\":104.59987,\"tls_ms\":121.902367,\"waiting_ms\":973.690525,\"receiving_ms\":3.187166,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-23-0\",\"vu\":23,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":978.841929,\"blocked_ms\":223.584203,\"connecting_ms\":104.847986,\"tls_ms\":118.520379,\"waiting_ms\":974.005138,\"receiving_ms\":4.766275,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-154-0\",\"vu\":154,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":978.785492,\"blocked_ms\":228.643486,\"connecting_ms\":109.434983,\"tls_ms\":119.138022,\"waiting_ms\":977.185386,\"receiving_ms\":1.522017,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-14-0\",\"vu\":14,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":979.293214,\"blocked_ms\":233.075964,\"connecting_ms\":109.851141,\"tls_ms\":120.812582,\"waiting_ms\":970.481479,\"receiving_ms\":6.448542,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-195-0\",\"vu\":195,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":979.651995,\"blocked_ms\":217.531139,\"connecting_ms\":91.486912,\"tls_ms\":125.960124,\"waiting_ms\":976.392798,\"receiving_ms\":3.173834,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-156-0\",\"vu\":156,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":981.728936,\"blocked_ms\":233.690161,\"connecting_ms\":110.280229,\"tls_ms\":123.339893,\"waiting_ms\":973.689729,\"receiving_ms\":7.954428,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-48-0\",\"vu\":48,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":978.042934,\"blocked_ms\":223.010105,\"connecting_ms\":97.030798,\"tls_ms\":125.77578,\"waiting_ms\":974.958656,\"receiving_ms\":2.995137,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-192-0\",\"vu\":192,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":978.784701,\"blocked_ms\":225.449272,\"connecting_ms\":97.307695,\"tls_ms\":127.963209,\"waiting_ms\":976.824409,\"receiving_ms\":1.877578,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-47-0\",\"vu\":47,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":976.945829,\"blocked_ms\":228.728394,\"connecting_ms\":98.130334,\"tls_ms\":130.393872,\"waiting_ms\":970.336273,\"receiving_ms\":6.519028,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-190-0\",\"vu\":190,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":974.867167,\"blocked_ms\":233.739382,\"connecting_ms\":102.919218,\"tls_ms\":130.613504,\"waiting_ms\":971.253018,\"receiving_ms\":3.524775,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-46-0\",\"vu\":46,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":978.259134,\"blocked_ms\":234.828587,\"connecting_ms\":103.321174,\"tls_ms\":131.254066,\"waiting_ms\":973.237971,\"receiving_ms\":3.60153,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-188-0\",\"vu\":188,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":974.307256,\"blocked_ms\":242.169868,\"connecting_ms\":106.978672,\"tls_ms\":135.111459,\"waiting_ms\":971.222839,\"receiving_ms\":2.968952,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-45-0\",\"vu\":45,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":979.284986,\"blocked_ms\":238.887525,\"connecting_ms\":106.502752,\"tls_ms\":132.252051,\"waiting_ms\":974.316474,\"receiving_ms\":4.853068,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-44-0\",\"vu\":44,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":974.569928,\"blocked_ms\":247.354534,\"connecting_ms\":107.453041,\"tls_ms\":139.339805,\"waiting_ms\":970.0678,\"receiving_ms\":3.898197,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-189-0\",\"vu\":189,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":982.147793,\"blocked_ms\":239.347785,\"connecting_ms\":106.077174,\"tls_ms\":133.189908,\"waiting_ms\":978.275153,\"receiving_ms\":3.788867,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-42-0\",\"vu\":42,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":972.172581,\"blocked_ms\":252.935576,\"connecting_ms\":112.782399,\"tls_ms\":140.063095,\"waiting_ms\":968.288606,\"receiving_ms\":3.766241,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-7-0\",\"vu\":7,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":971.084413,\"blocked_ms\":271.307648,\"connecting_ms\":124.978697,\"tls_ms\":146.250414,\"waiting_ms\":966.081055,\"receiving_ms\":4.894197,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-43-0\",\"vu\":43,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":974.996759,\"blocked_ms\":255.120785,\"connecting_ms\":113.685593,\"tls_ms\":140.296871,\"waiting_ms\":971.64711,\"receiving_ms\":3.246676,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-39-0\",\"vu\":39,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":976.853581,\"blocked_ms\":261.566984,\"connecting_ms\":116.576595,\"tls_ms\":144.789536,\"waiting_ms\":972.15631,\"receiving_ms\":4.622534,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-6-0\",\"vu\":6,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":975.910598,\"blocked_ms\":277.989566,\"connecting_ms\":130.239382,\"tls_ms\":147.66188,\"waiting_ms\":972.646512,\"receiving_ms\":3.159563,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-41-0\",\"vu\":41,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":982.287805,\"blocked_ms\":259.069504,\"connecting_ms\":115.773538,\"tls_ms\":143.075028,\"waiting_ms\":977.139148,\"receiving_ms\":4.996465,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-145-0\",\"vu\":145,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":980.196533,\"blocked_ms\":279.007422,\"connecting_ms\":132.424911,\"tls_ms\":146.483882,\"waiting_ms\":976.625149,\"receiving_ms\":3.460702,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-185-0\",\"vu\":185,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":982.245817,\"blocked_ms\":266.106236,\"connecting_ms\":116.834601,\"tls_ms\":146.957753,\"waiting_ms\":975.557455,\"receiving_ms\":6.521856,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-147-0\",\"vu\":147,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":979.884477,\"blocked_ms\":283.104666,\"connecting_ms\":134.771829,\"tls_ms\":148.257235,\"waiting_ms\":976.358187,\"receiving_ms\":3.441675,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-4-0\",\"vu\":4,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":980.32211,\"blocked_ms\":284.637227,\"connecting_ms\":133.602229,\"tls_ms\":150.856488,\"waiting_ms\":977.818142,\"receiving_ms\":2.150292,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-146-0\",\"vu\":146,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":982.603074,\"blocked_ms\":285.546417,\"connecting_ms\":135.305387,\"tls_ms\":150.139653,\"waiting_ms\":976.780415,\"receiving_ms\":5.704182,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-144-0\",\"vu\":144,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":979.637433,\"blocked_ms\":289.75509,\"connecting_ms\":136.131559,\"tls_ms\":153.542909,\"waiting_ms\":976.490087,\"receiving_ms\":3.05809,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-1-0\",\"vu\":1,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":982.078046,\"blocked_ms\":292.279189,\"connecting_ms\":136.498451,\"tls_ms\":155.663675,\"waiting_ms\":979.655949,\"receiving_ms\":2.339158,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-284-0\",\"vu\":284,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":984.216199,\"blocked_ms\":211.579467,\"connecting_ms\":54.521233,\"tls_ms\":156.850431,\"waiting_ms\":980.544453,\"receiving_ms\":3.571522,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-40-0\",\"vu\":40,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":984.409902,\"blocked_ms\":282.852432,\"connecting_ms\":123.007656,\"tls_ms\":159.765512,\"waiting_ms\":979.448726,\"receiving_ms\":4.871647,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-101-0\",\"vu\":101,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":979.718218,\"blocked_ms\":257.585563,\"connecting_ms\":93.398439,\"tls_ms\":164.076139,\"waiting_ms\":974.878324,\"receiving_ms\":4.743506,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-97-0\",\"vu\":97,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":971.525461,\"blocked_ms\":268.539183,\"connecting_ms\":95.73429,\"tls_ms\":172.732907,\"waiting_ms\":969.244716,\"receiving_ms\":2.189702,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-162-0\",\"vu\":162,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":981.539275,\"blocked_ms\":300.02052,\"connecting_ms\":92.372521,\"tls_ms\":166.443153,\"waiting_ms\":976.955172,\"receiving_ms\":4.496476,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-272-0\",\"vu\":272,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":987.22398,\"blocked_ms\":218.305342,\"connecting_ms\":55.341099,\"tls_ms\":162.765613,\"waiting_ms\":983.584929,\"receiving_ms\":3.559864,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-241-0\",\"vu\":241,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":974.888707,\"blocked_ms\":270.346437,\"connecting_ms\":95.468518,\"tls_ms\":174.784709,\"waiting_ms\":970.483386,\"receiving_ms\":4.316381,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-37-0\",\"vu\":37,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":971.323702,\"blocked_ms\":307.496812,\"connecting_ms\":127.502992,\"tls_ms\":178.890917,\"waiting_ms\":967.098524,\"receiving_ms\":3.126054,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-180-0\",\"vu\":180,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":977.472596,\"blocked_ms\":302.037285,\"connecting_ms\":123.919259,\"tls_ms\":175.390085,\"waiting_ms\":974.692663,\"receiving_ms\":2.704693,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-178-0\",\"vu\":178,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":954.148147,\"blocked_ms\":330.182799,\"connecting_ms\":136.475663,\"tls_ms\":193.496255,\"waiting_ms\":950.225495,\"receiving_ms\":3.815399,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-182-0\",\"vu\":182,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":973.96766,\"blocked_ms\":309.903995,\"connecting_ms\":127.098279,\"tls_ms\":182.70688,\"waiting_ms\":969.507274,\"receiving_ms\":4.338509,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-92-0\",\"vu\":92,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":972.333528,\"blocked_ms\":284.714266,\"connecting_ms\":102.197561,\"tls_ms\":182.430341,\"waiting_ms\":969.96686,\"receiving_ms\":2.293247,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-285-0\",\"vu\":285,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":975.42398,\"blocked_ms\":243.776994,\"connecting_ms\":61.002632,\"tls_ms\":182.703526,\"waiting_ms\":971.328997,\"receiving_ms\":4.021556,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-181-0\",\"vu\":181,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":966.363447,\"blocked_ms\":324.056243,\"connecting_ms\":134.117086,\"tls_ms\":189.861208,\"waiting_ms\":963.766455,\"receiving_ms\":2.519866,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-90-0\",\"vu\":90,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":968.961437,\"blocked_ms\":293.015947,\"connecting_ms\":103.352234,\"tls_ms\":189.571987,\"waiting_ms\":964.008961,\"receiving_ms\":4.86129,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-177-0\",\"vu\":177,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":945.725017,\"blocked_ms\":350.181908,\"connecting_ms\":141.950085,\"tls_ms\":207.494542,\"waiting_ms\":942.367719,\"receiving_ms\":3.218837,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-88-0\",\"vu\":88,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":963.995659,\"blocked_ms\":304.437438,\"connecting_ms\":109.005419,\"tls_ms\":195.340092,\"waiting_ms\":957.450479,\"receiving_ms\":4.599633,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-89-0\",\"vu\":89,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":969.011424,\"blocked_ms\":300.657813,\"connecting_ms\":108.07321,\"tls_ms\":192.503989,\"waiting_ms\":965.151567,\"receiving_ms\":3.78839,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-33-0\",\"vu\":33,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":957.905151,\"blocked_ms\":344.766684,\"connecting_ms\":141.468605,\"tls_ms\":203.156378,\"waiting_ms\":954.235292,\"receiving_ms\":3.582529,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-233-0\",\"vu\":233,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":966.461143,\"blocked_ms\":311.706249,\"connecting_ms\":109.681529,\"tls_ms\":199.351464,\"waiting_ms\":960.549668,\"receiving_ms\":5.80405,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-256-0\",\"vu\":256,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":946.996757,\"blocked_ms\":311.57674,\"connecting_ms\":94.482732,\"tls_ms\":216.968999,\"waiting_ms\":943.277332,\"receiving_ms\":3.599524,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-123-0\",\"vu\":123,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":946.837378,\"blocked_ms\":314.440337,\"connecting_ms\":95.386261,\"tls_ms\":218.980334,\"waiting_ms\":944.084399,\"receiving_ms\":2.671962,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-122-0\",\"vu\":122,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":949.145886,\"blocked_ms\":316.032643,\"connecting_ms\":96.007971,\"tls_ms\":219.948611,\"waiting_ms\":945.428105,\"receiving_ms\":3.631293,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-253-0\",\"vu\":253,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":940.99171,\"blocked_ms\":325.237277,\"connecting_ms\":97.491559,\"tls_ms\":227.657172,\"waiting_ms\":938.120861,\"receiving_ms\":2.784337,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-120-0\",\"vu\":120,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":938.815577,\"blocked_ms\":330.365862,\"connecting_ms\":97.920114,\"tls_ms\":232.347296,\"waiting_ms\":936.20583,\"receiving_ms\":2.510621,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-216-0\",\"vu\":216,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":936.275793,\"blocked_ms\":361.073705,\"connecting_ms\":124.938386,\"tls_ms\":236.007212,\"waiting_ms\":932.066739,\"receiving_ms\":4.057549,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-252-0\",\"vu\":252,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":928.070717,\"blocked_ms\":345.766666,\"connecting_ms\":99.37585,\"tls_ms\":246.208819,\"waiting_ms\":924.006084,\"receiving_ms\":3.875584,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-116-0\",\"vu\":116,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":910.125543,\"blocked_ms\":365.939894,\"connecting_ms\":103.083572,\"tls_ms\":262.746722,\"waiting_ms\":905.503326,\"receiving_ms\":4.522887,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-118-0\",\"vu\":118,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":926.279169,\"blocked_ms\":350.384103,\"connecting_ms\":100.684639,\"tls_ms\":249.587958,\"waiting_ms\":926.057136,\"receiving_ms\":0.095402,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-117-0\",\"vu\":117,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":923.475778,\"blocked_ms\":356.156715,\"connecting_ms\":101.877141,\"tls_ms\":254.170826,\"waiting_ms\":919.185779,\"receiving_ms\":4.178685,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-111-0\",\"vu\":111,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":888.62322,\"blocked_ms\":394.319823,\"connecting_ms\":106.542202,\"tls_ms\":287.671318,\"waiting_ms\":884.749914,\"receiving_ms\":3.768438,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-248-0\",\"vu\":248,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":915.30611,\"blocked_ms\":367.857383,\"connecting_ms\":103.587898,\"tls_ms\":264.167745,\"waiting_ms\":911.06403,\"receiving_ms\":3.2647,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-214-0\",\"vu\":214,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":908.707471,\"blocked_ms\":401.996838,\"connecting_ms\":128.55288,\"tls_ms\":273.111595,\"waiting_ms\":904.789225,\"receiving_ms\":3.796529,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-68-0\",\"vu\":68,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":909.588696,\"blocked_ms\":403.242245,\"connecting_ms\":129.46366,\"tls_ms\":273.578921,\"waiting_ms\":905.575429,\"receiving_ms\":3.923937,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-265-0\",\"vu\":265,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":889.883933,\"blocked_ms\":391.78198,\"connecting_ms\":98.131883,\"tls_ms\":293.440464,\"waiting_ms\":885.603203,\"receiving_ms\":4.158539,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-126-0\",\"vu\":126,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":862.773066,\"blocked_ms\":421.198281,\"connecting_ms\":102.448942,\"tls_ms\":318.640062,\"waiting_ms\":858.877593,\"receiving_ms\":3.748525,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-128-0\",\"vu\":128,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":885.749473,\"blocked_ms\":407.503405,\"connecting_ms\":100.042902,\"tls_ms\":300.09195,\"waiting_ms\":875.332507,\"receiving_ms\":3.035311,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-264-0\",\"vu\":264,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":892.351458,\"blocked_ms\":393.573916,\"connecting_ms\":98.947806,\"tls_ms\":294.36472,\"waiting_ms\":888.535994,\"receiving_ms\":3.719794,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-129-0\",\"vu\":129,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":886.152687,\"blocked_ms\":402.30209,\"connecting_ms\":99.331669,\"tls_ms\":302.781295,\"waiting_ms\":882.966353,\"receiving_ms\":3.074405,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-263-0\",\"vu\":263,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":884.801691,\"blocked_ms\":404.74025,\"connecting_ms\":100.327949,\"tls_ms\":304.341383,\"waiting_ms\":881.350771,\"receiving_ms\":3.364299,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-115-0\",\"vu\":115,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":879.557257,\"blocked_ms\":412.575892,\"connecting_ms\":101.307695,\"tls_ms\":311.074116,\"waiting_ms\":876.134948,\"receiving_ms\":2.566138,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-282-0\",\"vu\":282,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":853.843713,\"blocked_ms\":423.096608,\"connecting_ms\":87.842052,\"tls_ms\":334.797224,\"waiting_ms\":850.205015,\"receiving_ms\":3.160165,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-283-0\",\"vu\":283,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":870.436039,\"blocked_ms\":406.062077,\"connecting_ms\":84.85912,\"tls_ms\":321.080719,\"waiting_ms\":866.380675,\"receiving_ms\":3.890049,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-208-0\",\"vu\":208,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":864.168895,\"blocked_ms\":468.732795,\"connecting_ms\":139.887432,\"tls_ms\":328.728422,\"waiting_ms\":861.537342,\"receiving_ms\":2.41446,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-63-0\",\"vu\":63,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":868.886626,\"blocked_ms\":465.305683,\"connecting_ms\":139.005368,\"tls_ms\":326.228613,\"waiting_ms\":863.303949,\"receiving_ms\":5.492734,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-141-0\",\"vu\":141,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":865.413919,\"blocked_ms\":418.292162,\"connecting_ms\":87.486692,\"tls_ms\":330.726238,\"waiting_ms\":862.06407,\"receiving_ms\":3.262287,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-135-0\",\"vu\":135,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":841.045354,\"blocked_ms\":446.66416,\"connecting_ms\":92.465052,\"tls_ms\":354.047029,\"waiting_ms\":835.493243,\"receiving_ms\":5.387125,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-137-0\",\"vu\":137,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":864.648322,\"blocked_ms\":424.215615,\"connecting_ms\":88.396946,\"tls_ms\":335.630179,\"waiting_ms\":861.132571,\"receiving_ms\":3.313242,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-281-0\",\"vu\":281,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":859.764738,\"blocked_ms\":430.569919,\"connecting_ms\":89.395631,\"tls_ms\":341.047988,\"waiting_ms\":854.956049,\"receiving_ms\":4.652602,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-133-0\",\"vu\":133,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":832.660832,\"blocked_ms\":464.027207,\"connecting_ms\":94.179611,\"tls_ms\":369.738521,\"waiting_ms\":828.230666,\"receiving_ms\":4.312327,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-279-0\",\"vu\":279,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":859.269636,\"blocked_ms\":436.734373,\"connecting_ms\":90.895275,\"tls_ms\":345.588863,\"waiting_ms\":853.135762,\"receiving_ms\":5.86697,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-136-0\",\"vu\":136,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":845.664781,\"blocked_ms\":452.359155,\"connecting_ms\":93.350858,\"tls_ms\":358.872664,\"waiting_ms\":843.89431,\"receiving_ms\":1.617509,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-207-0\",\"vu\":207,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":841.819085,\"blocked_ms\":507.809946,\"connecting_ms\":144.236499,\"tls_ms\":363.456605,\"waiting_ms\":837.727301,\"receiving_ms\":3.951496,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-60-0\",\"vu\":60,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":835.810739,\"blocked_ms\":518.639718,\"connecting_ms\":144.81613,\"tls_ms\":373.723969,\"waiting_ms\":831.122271,\"receiving_ms\":4.587981,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-275-0\",\"vu\":275,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":832.640461,\"blocked_ms\":473.187221,\"connecting_ms\":95.131494,\"tls_ms\":377.944351,\"waiting_ms\":828.2553,\"receiving_ms\":4.253709,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-134-0\",\"vu\":134,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":836.765669,\"blocked_ms\":471.950925,\"connecting_ms\":95.282287,\"tls_ms\":376.578853,\"waiting_ms\":832.489463,\"receiving_ms\":4.192167,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-206-0\",\"vu\":206,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":833.400232,\"blocked_ms\":525.797424,\"connecting_ms\":145.114321,\"tls_ms\":380.600962,\"waiting_ms\":829.908527,\"receiving_ms\":3.39631,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-205-0\",\"vu\":205,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":833.3331,\"blocked_ms\":532.020704,\"connecting_ms\":145.675409,\"tls_ms\":382.391431,\"waiting_ms\":826.213083,\"receiving_ms\":3.146584,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-274-0\",\"vu\":274,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":833.576554,\"blocked_ms\":480.727003,\"connecting_ms\":95.800503,\"tls_ms\":384.824917,\"waiting_ms\":829.713734,\"receiving_ms\":3.769662,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-130-0\",\"vu\":130,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":822.231855,\"blocked_ms\":494.483116,\"connecting_ms\":97.198109,\"tls_ms\":397.202547,\"waiting_ms\":815.766617,\"receiving_ms\":3.440078,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-273-0\",\"vu\":273,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":830.956919,\"blocked_ms\":487.180635,\"connecting_ms\":96.398392,\"tls_ms\":390.671422,\"waiting_ms\":827.137214,\"receiving_ms\":3.715916,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-271-0\",\"vu\":271,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":821.212262,\"blocked_ms\":497.845272,\"connecting_ms\":97.51347,\"tls_ms\":400.2105,\"waiting_ms\":816.928148,\"receiving_ms\":4.169372,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-131-0\",\"vu\":131,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":804.295398,\"blocked_ms\":522.409501,\"connecting_ms\":103.349079,\"tls_ms\":418.969219,\"waiting_ms\":800.519484,\"receiving_ms\":3.694161,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-270-0\",\"vu\":270,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":807.902707,\"blocked_ms\":517.248807,\"connecting_ms\":98.518907,\"tls_ms\":416.829388,\"waiting_ms\":802.49084,\"receiving_ms\":3.502047,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-269-0\",\"vu\":269,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":815.255217,\"blocked_ms\":512.51211,\"connecting_ms\":99.099016,\"tls_ms\":413.308339,\"waiting_ms\":811.65706,\"receiving_ms\":3.509962,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-287-0\",\"vu\":287,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":801.467007,\"blocked_ms\":511.440345,\"connecting_ms\":85.843002,\"tls_ms\":425.512295,\"waiting_ms\":799.282566,\"receiving_ms\":2.078488,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+time="2026-06-03T22:53:20+08:00" level=info msg="SLOW_SAMPLE {\"kind\":\"SLOW_SAMPLE\",\"request_id\":\"w2-300-entry-comparison-20260603-nginx-local-300-query-132-0\",\"vu\":132,\"iter\":0,\"url\":\"/api/projects\",\"status\":200,\"error\":\"\",\"error_code\":0,\"duration_ms\":811.112936,\"blocked_ms\":519.825992,\"connecting_ms\":98.206737,\"tls_ms\":421.525625,\"waiting_ms\":809.625866,\"receiving_ms\":1.388256,\"cf_ray\":\"\",\"cf_cache_status\":\"\",\"server\":\"nginx\"}" source=console
+
+running (0m01.9s), 300/300 VUs, 0 complete and 0 interrupted iterations
+default   [   2% ] 300 VUs  0m01.9s/2m0s
+
+running (0m02.9s), 300/300 VUs, 0 complete and 0 interrupted iterations
+default   [   2% ] 300 VUs  0m02.9s/2m0s
+
+running (0m03.9s), 300/300 VUs, 42 complete and 0 interrupted iterations
+default   [   3% ] 300 VUs  0m03.9s/2m0s
+
+running (0m04.9s), 300/300 VUs, 112 complete and 0 interrupted iterations
+default   [   4% ] 300 VUs  0m04.9s/2m0s
+
+running (0m05.9s), 300/300 VUs, 307 complete and 0 interrupted iterations
+default   [   5% ] 300 VUs  0m05.9s/2m0s
+
+running (0m06.9s), 300/300 VUs, 389 complete and 0 interrupted iterations
+default   [   6% ] 300 VUs  0m06.9s/2m0s
+
+running (0m07.9s), 300/300 VUs, 432 complete and 0 interrupted iterations
+default   [   7% ] 300 VUs  0m07.9s/2m0s
+
+running (0m08.9s), 300/300 VUs, 584 complete and 0 interrupted iterations
+default   [   7% ] 300 VUs  0m08.9s/2m0s
+
+running (0m09.9s), 300/300 VUs, 731 complete and 0 interrupted iterations
+default   [   8% ] 300 VUs  0m09.9s/2m0s
+
+running (0m10.9s), 300/300 VUs, 797 complete and 0 interrupted iterations
+default   [   9% ] 300 VUs  0m10.9s/2m0s
+
+running (0m11.9s), 300/300 VUs, 894 complete and 0 interrupted iterations
+default   [  10% ] 300 VUs  0m11.9s/2m0s
+
+running (0m12.9s), 300/300 VUs, 1003 complete and 0 interrupted iterations
+default   [  11% ] 300 VUs  0m12.9s/2m0s
+
+running (0m13.9s), 300/300 VUs, 1130 complete and 0 interrupted iterations
+default   [  12% ] 300 VUs  0m13.9s/2m0s
+
+running (0m14.9s), 300/300 VUs, 1248 complete and 0 interrupted iterations
+default   [  12% ] 300 VUs  0m14.9s/2m0s
+
+running (0m15.9s), 300/300 VUs, 1341 complete and 0 interrupted iterations
+default   [  13% ] 300 VUs  0m15.9s/2m0s
+
+running (0m16.9s), 300/300 VUs, 1441 complete and 0 interrupted iterations
+default   [  14% ] 300 VUs  0m16.9s/2m0s
+
+running (0m17.9s), 300/300 VUs, 1571 complete and 0 interrupted iterations
+default   [  15% ] 300 VUs  0m17.9s/2m0s
+
+running (0m18.9s), 300/300 VUs, 1699 complete and 0 interrupted iterations
+default   [  16% ] 300 VUs  0m18.9s/2m0s
+
+running (0m19.9s), 300/300 VUs, 1783 complete and 0 interrupted iterations
+default   [  17% ] 300 VUs  0m19.9s/2m0s
+
+running (0m20.9s), 300/300 VUs, 1883 complete and 0 interrupted iterations
+default   [  17% ] 300 VUs  0m20.9s/2m0s
+
+running (0m21.9s), 300/300 VUs, 2006 complete and 0 interrupted iterations
+default   [  18% ] 300 VUs  0m21.9s/2m0s
+
+running (0m22.9s), 300/300 VUs, 2135 complete and 0 interrupted iterations
+default   [  19% ] 300 VUs  0m22.9s/2m0s
+
+running (0m23.9s), 300/300 VUs, 2235 complete and 0 interrupted iterations
+default   [  20% ] 300 VUs  0m23.9s/2m0s
+
+running (0m24.9s), 300/300 VUs, 2331 complete and 0 interrupted iterations
+default   [  21% ] 300 VUs  0m24.9s/2m0s
+
+running (0m25.9s), 300/300 VUs, 2453 complete and 0 interrupted iterations
+default   [  22% ] 300 VUs  0m25.9s/2m0s
+
+running (0m26.9s), 300/300 VUs, 2568 complete and 0 interrupted iterations
+default   [  22% ] 300 VUs  0m26.9s/2m0s
+
+running (0m27.9s), 300/300 VUs, 2674 complete and 0 interrupted iterations
+default   [  23% ] 300 VUs  0m27.9s/2m0s
+
+running (0m28.9s), 300/300 VUs, 2781 complete and 0 interrupted iterations
+default   [  24% ] 300 VUs  0m28.9s/2m0s
+
+running (0m29.9s), 300/300 VUs, 2907 complete and 0 interrupted iterations
+default   [  25% ] 300 VUs  0m29.9s/2m0s
+
+running (0m30.9s), 300/300 VUs, 3021 complete and 0 interrupted iterations
+default   [  26% ] 300 VUs  0m30.9s/2m0s
+
+running (0m31.9s), 300/300 VUs, 3132 complete and 0 interrupted iterations
+default   [  27% ] 300 VUs  0m31.9s/2m0s
+
+running (0m32.9s), 300/300 VUs, 3241 complete and 0 interrupted iterations
+default   [  27% ] 300 VUs  0m32.9s/2m0s
+
+running (0m33.9s), 300/300 VUs, 3330 complete and 0 interrupted iterations
+default   [  28% ] 300 VUs  0m33.9s/2m0s
+
+running (0m34.9s), 300/300 VUs, 3446 complete and 0 interrupted iterations
+default   [  29% ] 300 VUs  0m34.9s/2m0s
+
+running (0m35.9s), 300/300 VUs, 3566 complete and 0 interrupted iterations
+default   [  30% ] 300 VUs  0m35.9s/2m0s
+
+running (0m36.9s), 300/300 VUs, 3676 complete and 0 interrupted iterations
+default   [  31% ] 300 VUs  0m36.9s/2m0s
+
+running (0m37.9s), 300/300 VUs, 3775 complete and 0 interrupted iterations
+default   [  32% ] 300 VUs  0m37.9s/2m0s
+
+running (0m38.9s), 300/300 VUs, 3896 complete and 0 interrupted iterations
+default   [  32% ] 300 VUs  0m38.9s/2m0s
+
+running (0m39.9s), 300/300 VUs, 4014 complete and 0 interrupted iterations
+default   [  33% ] 300 VUs  0m39.9s/2m0s
+
+running (0m40.9s), 300/300 VUs, 4128 complete and 0 interrupted iterations
+default   [  34% ] 300 VUs  0m40.9s/2m0s
+
+running (0m41.9s), 300/300 VUs, 4236 complete and 0 interrupted iterations
+default   [  35% ] 300 VUs  0m41.9s/2m0s
+
+running (0m42.9s), 300/300 VUs, 4353 complete and 0 interrupted iterations
+default   [  36% ] 300 VUs  0m42.9s/2m0s
+
+running (0m43.9s), 300/300 VUs, 4461 complete and 0 interrupted iterations
+default   [  37% ] 300 VUs  0m43.9s/2m0s
+
+running (0m44.9s), 300/300 VUs, 4571 complete and 0 interrupted iterations
+default   [  37% ] 300 VUs  0m44.9s/2m0s
+
+running (0m45.9s), 300/300 VUs, 4680 complete and 0 interrupted iterations
+default   [  38% ] 300 VUs  0m45.9s/2m0s
+
+running (0m46.9s), 300/300 VUs, 4802 complete and 0 interrupted iterations
+default   [  39% ] 300 VUs  0m46.9s/2m0s
+
+running (0m47.9s), 300/300 VUs, 4899 complete and 0 interrupted iterations
+default   [  40% ] 300 VUs  0m47.9s/2m0s
+
+running (0m48.9s), 300/300 VUs, 5003 complete and 0 interrupted iterations
+default   [  41% ] 300 VUs  0m48.9s/2m0s
+
+running (0m49.9s), 300/300 VUs, 5113 complete and 0 interrupted iterations
+default   [  42% ] 300 VUs  0m49.9s/2m0s
+
+running (0m50.9s), 300/300 VUs, 5237 complete and 0 interrupted iterations
+default   [  42% ] 300 VUs  0m50.9s/2m0s
+
+running (0m51.9s), 300/300 VUs, 5337 complete and 0 interrupted iterations
+default   [  43% ] 300 VUs  0m51.9s/2m0s
+
+running (0m52.9s), 300/300 VUs, 5450 complete and 0 interrupted iterations
+default   [  44% ] 300 VUs  0m52.9s/2m0s
+
+running (0m53.9s), 300/300 VUs, 5560 complete and 0 interrupted iterations
+default   [  45% ] 300 VUs  0m53.9s/2m0s
+
+running (0m54.9s), 300/300 VUs, 5676 complete and 0 interrupted iterations
+default   [  46% ] 300 VUs  0m54.9s/2m0s
+
+running (0m55.9s), 300/300 VUs, 5789 complete and 0 interrupted iterations
+default   [  47% ] 300 VUs  0m55.9s/2m0s
+
+running (0m56.9s), 300/300 VUs, 5902 complete and 0 interrupted iterations
+default   [  47% ] 300 VUs  0m56.9s/2m0s
+
+running (0m57.9s), 300/300 VUs, 6019 complete and 0 interrupted iterations
+default   [  48% ] 300 VUs  0m57.9s/2m0s
+
+running (0m58.9s), 300/300 VUs, 6125 complete and 0 interrupted iterations
+default   [  49% ] 300 VUs  0m58.9s/2m0s
+
+running (0m59.9s), 300/300 VUs, 6231 complete and 0 interrupted iterations
+default   [  50% ] 300 VUs  0m59.9s/2m0s
+
+running (1m00.9s), 300/300 VUs, 6347 complete and 0 interrupted iterations
+default   [  51% ] 300 VUs  1m00.9s/2m0s
+
+running (1m01.9s), 300/300 VUs, 6450 complete and 0 interrupted iterations
+default   [  52% ] 300 VUs  1m01.9s/2m0s
+
+running (1m02.9s), 300/300 VUs, 6538 complete and 0 interrupted iterations
+default   [  52% ] 300 VUs  1m02.9s/2m0s
+
+running (1m03.9s), 300/300 VUs, 6648 complete and 0 interrupted iterations
+default   [  53% ] 300 VUs  1m03.9s/2m0s
+
+running (1m04.9s), 300/300 VUs, 6785 complete and 0 interrupted iterations
+default   [  54% ] 300 VUs  1m04.9s/2m0s
+
+running (1m05.9s), 300/300 VUs, 6895 complete and 0 interrupted iterations
+default   [  55% ] 300 VUs  1m05.9s/2m0s
+
+running (1m06.9s), 300/300 VUs, 6995 complete and 0 interrupted iterations
+default   [  56% ] 300 VUs  1m06.9s/2m0s
+
+running (1m07.9s), 300/300 VUs, 7103 complete and 0 interrupted iterations
+default   [  57% ] 300 VUs  1m07.9s/2m0s
+
+running (1m08.9s), 300/300 VUs, 7226 complete and 0 interrupted iterations
+default   [  57% ] 300 VUs  1m08.9s/2m0s
+
+running (1m09.9s), 300/300 VUs, 7342 complete and 0 interrupted iterations
+default   [  58% ] 300 VUs  1m09.9s/2m0s
+
+running (1m10.9s), 300/300 VUs, 7457 complete and 0 interrupted iterations
+default   [  59% ] 300 VUs  1m10.9s/2m0s
+
+running (1m11.9s), 300/300 VUs, 7563 complete and 0 interrupted iterations
+default   [  60% ] 300 VUs  1m11.9s/2m0s
+
+running (1m12.9s), 300/300 VUs, 7662 complete and 0 interrupted iterations
+default   [  61% ] 300 VUs  1m12.9s/2m0s
+
+running (1m13.9s), 300/300 VUs, 7774 complete and 0 interrupted iterations
+default   [  62% ] 300 VUs  1m13.9s/2m0s
+
+running (1m14.9s), 300/300 VUs, 7891 complete and 0 interrupted iterations
+default   [  62% ] 300 VUs  1m14.9s/2m0s
+
+running (1m15.9s), 300/300 VUs, 8010 complete and 0 interrupted iterations
+default   [  63% ] 300 VUs  1m15.9s/2m0s
+
+running (1m16.9s), 300/300 VUs, 8118 complete and 0 interrupted iterations
+default   [  64% ] 300 VUs  1m16.9s/2m0s
+
+running (1m17.9s), 300/300 VUs, 8219 complete and 0 interrupted iterations
+default   [  65% ] 300 VUs  1m17.9s/2m0s
+
+running (1m18.9s), 300/300 VUs, 8338 complete and 0 interrupted iterations
+default   [  66% ] 300 VUs  1m18.9s/2m0s
+
+running (1m19.9s), 300/300 VUs, 8448 complete and 0 interrupted iterations
+default   [  67% ] 300 VUs  1m19.9s/2m0s
+
+running (1m20.9s), 300/300 VUs, 8554 complete and 0 interrupted iterations
+default   [  67% ] 300 VUs  1m20.9s/2m0s
+
+running (1m21.9s), 300/300 VUs, 8667 complete and 0 interrupted iterations
+default   [  68% ] 300 VUs  1m21.9s/2m0s
+
+running (1m22.9s), 300/300 VUs, 8788 complete and 0 interrupted iterations
+default   [  69% ] 300 VUs  1m22.9s/2m0s
+
+running (1m23.9s), 300/300 VUs, 8890 complete and 0 interrupted iterations
+default   [  70% ] 300 VUs  1m23.9s/2m0s
+
+running (1m24.9s), 300/300 VUs, 9002 complete and 0 interrupted iterations
+default   [  71% ] 300 VUs  1m24.9s/2m0s
+
+running (1m25.9s), 300/300 VUs, 9123 complete and 0 interrupted iterations
+default   [  72% ] 300 VUs  1m25.9s/2m0s
+
+running (1m26.9s), 300/300 VUs, 9234 complete and 0 interrupted iterations
+default   [  72% ] 300 VUs  1m26.9s/2m0s
+
+running (1m27.9s), 300/300 VUs, 9345 complete and 0 interrupted iterations
+default   [  73% ] 300 VUs  1m27.9s/2m0s
+
+running (1m28.9s), 300/300 VUs, 9461 complete and 0 interrupted iterations
+default   [  74% ] 300 VUs  1m28.9s/2m0s
+
+running (1m29.9s), 300/300 VUs, 9578 complete and 0 interrupted iterations
+default   [  75% ] 300 VUs  1m29.9s/2m0s
+
+running (1m30.9s), 300/300 VUs, 9677 complete and 0 interrupted iterations
+default   [  76% ] 300 VUs  1m30.9s/2m0s
+
+running (1m31.9s), 300/300 VUs, 9789 complete and 0 interrupted iterations
+default   [  77% ] 300 VUs  1m31.9s/2m0s
+
+running (1m32.9s), 300/300 VUs, 9908 complete and 0 interrupted iterations
+default   [  77% ] 300 VUs  1m32.9s/2m0s
+
+running (1m33.9s), 300/300 VUs, 10015 complete and 0 interrupted iterations
+default   [  78% ] 300 VUs  1m33.9s/2m0s
+
+running (1m34.9s), 300/300 VUs, 10120 complete and 0 interrupted iterations
+default   [  79% ] 300 VUs  1m34.9s/2m0s
+
+running (1m35.9s), 300/300 VUs, 10227 complete and 0 interrupted iterations
+default   [  80% ] 300 VUs  1m35.9s/2m0s
+
+running (1m36.9s), 300/300 VUs, 10349 complete and 0 interrupted iterations
+default   [  81% ] 300 VUs  1m36.9s/2m0s
+
+running (1m37.9s), 300/300 VUs, 10462 complete and 0 interrupted iterations
+default   [  82% ] 300 VUs  1m37.9s/2m0s
+
+running (1m38.9s), 300/300 VUs, 10570 complete and 0 interrupted iterations
+default   [  82% ] 300 VUs  1m38.9s/2m0s
+
+running (1m39.9s), 300/300 VUs, 10683 complete and 0 interrupted iterations
+default   [  83% ] 300 VUs  1m39.9s/2m0s
+
+running (1m40.9s), 300/300 VUs, 10808 complete and 0 interrupted iterations
+default   [  84% ] 300 VUs  1m40.9s/2m0s
+
+running (1m41.9s), 300/300 VUs, 10908 complete and 0 interrupted iterations
+default   [  85% ] 300 VUs  1m41.9s/2m0s
+
+running (1m42.9s), 300/300 VUs, 11018 complete and 0 interrupted iterations
+default   [  86% ] 300 VUs  1m42.9s/2m0s
+
+running (1m43.9s), 300/300 VUs, 11133 complete and 0 interrupted iterations
+default   [  87% ] 300 VUs  1m43.9s/2m0s
+
+running (1m44.9s), 300/300 VUs, 11243 complete and 0 interrupted iterations
+default   [  87% ] 300 VUs  1m44.9s/2m0s
+
+running (1m45.9s), 300/300 VUs, 11348 complete and 0 interrupted iterations
+default   [  88% ] 300 VUs  1m45.9s/2m0s
+
+running (1m46.9s), 300/300 VUs, 11453 complete and 0 interrupted iterations
+default   [  89% ] 300 VUs  1m46.9s/2m0s
+
+running (1m47.9s), 300/300 VUs, 11569 complete and 0 interrupted iterations
+default   [  90% ] 300 VUs  1m47.9s/2m0s
+
+running (1m48.9s), 300/300 VUs, 11675 complete and 0 interrupted iterations
+default   [  91% ] 300 VUs  1m48.9s/2m0s
+
+running (1m49.9s), 300/300 VUs, 11779 complete and 0 interrupted iterations
+default   [  92% ] 300 VUs  1m49.9s/2m0s
+
+running (1m50.9s), 300/300 VUs, 11882 complete and 0 interrupted iterations
+default   [  92% ] 300 VUs  1m50.9s/2m0s
+
+running (1m51.9s), 300/300 VUs, 12006 complete and 0 interrupted iterations
+default   [  93% ] 300 VUs  1m51.9s/2m0s
+
+running (1m52.9s), 300/300 VUs, 12118 complete and 0 interrupted iterations
+default   [  94% ] 300 VUs  1m52.9s/2m0s
+
+running (1m53.9s), 300/300 VUs, 12224 complete and 0 interrupted iterations
+default   [  95% ] 300 VUs  1m53.9s/2m0s
+
+running (1m54.9s), 300/300 VUs, 12332 complete and 0 interrupted iterations
+default   [  96% ] 300 VUs  1m54.9s/2m0s
+
+running (1m55.9s), 300/300 VUs, 12447 complete and 0 interrupted iterations
+default   [  97% ] 300 VUs  1m55.9s/2m0s
+
+running (1m56.9s), 300/300 VUs, 12565 complete and 0 interrupted iterations
+default   [  97% ] 300 VUs  1m56.9s/2m0s
+
+running (1m57.9s), 300/300 VUs, 12673 complete and 0 interrupted iterations
+default   [  98% ] 300 VUs  1m57.9s/2m0s
+
+running (1m58.9s), 300/300 VUs, 12769 complete and 0 interrupted iterations
+default   [  99% ] 300 VUs  1m58.9s/2m0s
+
+running (1m59.9s), 300/300 VUs, 12877 complete and 0 interrupted iterations
+default   [ 100% ] 300 VUs  1m59.9s/2m0s
+
+running (2m00.9s), 193/300 VUs, 12996 complete and 0 interrupted iterations
+default ↓ [ 100% ] 300 VUs  2m0s
+
+running (2m01.9s), 073/300 VUs, 13116 complete and 0 interrupted iterations
+default ↓ [ 100% ] 300 VUs  2m0s
+
+
+  █ THRESHOLDS
+
+    http_req_duration
+    ✓ 'p(95)<300' p(95)=271.69ms
+
+    http_req_failed
+    ✓ 'rate<0.01' rate=0.00%
+
+
+  █ TOTAL RESULTS
+
+    checks_total.......: 158268  1293.762058/s
+    checks_succeeded...: 100.00% 158268 out of 158268
+    checks_failed......: 0.00%   0 out of 158268
+
+    ✓ query status acceptable
+    ✓ query has request id
+    ✓ query has deployment version
+
+    HTTP
+    http_req_duration..............: avg=186.8ms min=1.84ms med=174.53ms max=987.22ms p(90)=229.96ms p(95)=271.69ms p(99)=609.99ms
+      { expected_response:true }...: avg=186.8ms min=1.84ms med=174.53ms max=987.22ms p(90)=229.96ms p(95)=271.69ms p(99)=609.99ms
+    http_req_failed................: 0.00%  0 out of 52756
+    http_reqs......................: 52756  431.254019/s
+
+    EXECUTION
+    iteration_duration.............: avg=2.75s   min=2.01s  med=2.7s     max=5.26s    p(90)=2.9s     p(95)=3.08s    p(99)=4.99s
+    iterations.....................: 13189  107.813505/s
+    vus............................: 73     min=73         max=300
+    vus_max........................: 300    min=300        max=300
+
+    NETWORK
+    data_received..................: 134 MB 1.1 MB/s
+    data_sent......................: 4.0 MB 33 kB/s
+
+
+
+
+running (2m02.3s), 000/300 VUs, 13189 complete and 0 interrupted iterations
+default ✓ [ 100% ] 300 VUs  2m0s

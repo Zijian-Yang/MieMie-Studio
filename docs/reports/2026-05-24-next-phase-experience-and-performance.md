@@ -186,6 +186,14 @@ pre 部署复验：
 - 两档慢/失败样本 `sample_count=0`，说明本轮没有 `>=800ms` 慢请求或失败响应；300 VU P95 超标更像较多请求落在 `300-715ms` 区间，而不是少量尖刺。证据见 `docs/reports/artifacts/2026-06-03-w2-cloudflare-ray-diagnostics/README.md`。
 - 结论：Cloudflare 入口当前 100 VU 门禁已恢复通过；300 VU 稳定性通过但 P95 超标。下一步应做同时间窗口的 300 VU 本机 / Nginx 源站 / Cloudflare 对照，定位 300 VU 尾部延迟来源。
 
+2026-06-03 W2 300 VU 入口对照：
+
+- 同一批一次性用户、项目和无 key 视频任务，分别跑应用直连、本机 Nginx、源站公网 IP forced 和 Cloudflare 真实入口 `300 VU / 120s` 状态观察读路径。
+- 应用直连和本机 Nginx 均通过 W2 读路径门槛：app direct P95 `244.29ms` / P99 `489.41ms`，Nginx local P95 `271.69ms` / P99 `610.00ms`，失败率均为 `0`，check failed 均为 `0`。
+- 源站公网 IP forced 路径失败率 `0`、check failed `0`，但 P95 `325.81ms` 略超 `300ms`；Cloudflare 真实入口 P95 `512.92ms`、P99 `914.13ms`，失败率 `0.0020%`，出现 1 个 `dial: i/o timeout`，导致 3 个响应 check 失败。
+- API 日志窗口内状态码汇总为 `200 217076`，未观察到应用 4xx/5xx；测试任务、项目和 session 均清理成功，压测后 health 与 Compose 仍健康。证据见 `docs/reports/artifacts/2026-06-03-w2-300-entry-comparison/README.md`。
+- 结论：应用直连与本机 Nginx 在 300 VU 下仍能过保守门槛；源站公网路径已有小幅尾延迟，Cloudflare 真实入口进一步放大。下一步应优先做 Cloudflare/公网边缘路径调优和压测来源位置对照，而不是先上 PostgreSQL / SSE / RabbitMQ。
+
 ## 代码治理
 
 已完成第一刀行为保持型拆分：
@@ -205,6 +213,6 @@ pre 部署复验：
 - 公网域名 `pre-studio.miemie.co` 的 Cloudflare -> aaPanel/Nginx -> `127.0.0.1:18100` 反代门禁通过，可作为下一轮 S4 混合查询基线的真实入口。
 - S4 保守基线通过：公网链路相比本机链路有可见但很小的额外延迟，本轮未观察到 5xx 或 header 缺失。
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
-- W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过，300 VU 无 timeout/无 5xx 但 P95 `351.64ms` 超门槛。
+- W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步仍不需要进入 PostgreSQL / SSE；应用 500 已清零，Cloudflare 100 VU 已恢复通过。下一步聚焦 300 VU 尾部延迟，对比本机 / Nginx 源站 / Cloudflare 三条入口。
+- 下一步仍不需要进入 PostgreSQL / SSE；应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。下一步聚焦 Cloudflare/TLS/压测来源位置对照和入口 SLO 分层。

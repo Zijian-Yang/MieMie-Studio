@@ -1,0 +1,15 @@
+{
+  "label": "nginx-origin-ip-300",
+  "entry": "nginx-origin-forced-47.79.99.190",
+  "vus": 300,
+  "duration": "120s",
+  "http_req_failed": 0.0,
+  "http_req_duration_p95_ms": 325.809349,
+  "http_req_duration_p99_ms": 681.5852843,
+  "http_reqs": 51636,
+  "checks_fails": 0,
+  "k6_exit_code": 99,
+  "ok": false,
+  "strict_stop": false,
+  "reason": "p95 325.81ms >= 300ms"
+}

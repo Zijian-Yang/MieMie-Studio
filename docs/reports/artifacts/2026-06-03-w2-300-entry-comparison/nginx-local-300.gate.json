@@ -1,0 +1,15 @@
+{
+  "label": "nginx-local-300",
+  "entry": "nginx-local-forced-127.0.0.1",
+  "vus": 300,
+  "duration": "120s",
+  "http_req_failed": 0.0,
+  "http_req_duration_p95_ms": 271.693311,
+  "http_req_duration_p99_ms": 609.9963022999999,
+  "http_reqs": 52756,
+  "checks_fails": 0,
+  "k6_exit_code": 0,
+  "ok": true,
+  "strict_stop": false,
+  "reason": ""
+}

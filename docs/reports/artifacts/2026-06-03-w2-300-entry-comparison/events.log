@@ -1,0 +1,16 @@
+2026-06-03T22:51:09+08:00 run start
+2026-06-03T22:51:09+08:00 precheck start
+2026-06-03T22:51:12+08:00 precheck ok
+2026-06-03T22:51:12+08:00 prepare data start
+2026-06-03T22:51:16+08:00 prepare data ok project=789db892-0b76-4c14-834d-9c753977d1a9 task=a90c18cb-5a1c-41fd-ac35-75d3a3b14942
+2026-06-03T22:51:16+08:00 stage app-direct-300 start entry=app-direct
+2026-06-03T22:53:19+08:00 stage app-direct-300 ok
+2026-06-03T22:53:19+08:00 stage nginx-local-300 start entry=nginx-local-forced-127.0.0.1
+2026-06-03T22:55:21+08:00 stage nginx-local-300 ok
+2026-06-03T22:55:21+08:00 stage nginx-origin-ip-300 start entry=nginx-origin-forced-47.79.99.190
+2026-06-03T22:57:24+08:00 stage nginx-origin-ip-300 gate failed p95 325.81ms >= 300ms
+2026-06-03T22:57:24+08:00 stage public-cloudflare-300 start entry=public-cloudflare
+2026-06-03T22:59:29+08:00 stage public-cloudflare-300 gate failed p95 512.92ms >= 300ms
+2026-06-03T22:59:29+08:00 FAIL public-cloudflare-300: p95 512.92ms >= 300ms
+2026-06-03T22:59:33+08:00 cleanup done
+2026-06-03T22:59:36+08:00 run failed public-cloudflare-300: p95 512.92ms >= 300ms

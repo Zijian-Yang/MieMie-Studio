@@ -1,0 +1,15 @@
+{
+  "label": "public-cloudflare-300",
+  "entry": "public-cloudflare",
+  "vus": 300,
+  "duration": "120s",
+  "http_req_failed": 2.0036867836819747e-05,
+  "http_req_duration_p95_ms": 512.9171477999998,
+  "http_req_duration_p99_ms": 914.12869751,
+  "http_reqs": 49908,
+  "checks_fails": 3,
+  "k6_exit_code": 99,
+  "ok": false,
+  "strict_stop": false,
+  "reason": "p95 512.92ms >= 300ms"
+}

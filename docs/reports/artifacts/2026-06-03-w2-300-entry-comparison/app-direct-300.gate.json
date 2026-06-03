@@ -1,0 +1,15 @@
+{
+  "label": "app-direct-300",
+  "entry": "app-direct",
+  "vus": 300,
+  "duration": "120s",
+  "http_req_failed": 0.0,
+  "http_req_duration_p95_ms": 244.29475250000002,
+  "http_req_duration_p99_ms": 489.408228,
+  "http_reqs": 62776,
+  "checks_fails": 0,
+  "k6_exit_code": 0,
+  "ok": true,
+  "strict_stop": false,
+  "reason": ""
+}
