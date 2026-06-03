@@ -1,0 +1,13 @@
+{
+  "label": "client-cloudflare-100",
+  "vus": 100,
+  "duration": "120s",
+  "http_req_failed": 0.00019004180919802356,
+  "http_req_duration_p95_ms": 969.7901999999999,
+  "http_req_duration_p99_ms": 1401.4961899999992,
+  "http_reqs": 10524,
+  "checks_fails": 6,
+  "k6_exit_code": 99,
+  "ok": false,
+  "reason": "p95 969.79ms >= 300ms"
+}

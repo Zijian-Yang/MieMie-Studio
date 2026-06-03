@@ -1,0 +1,9 @@
+2026-06-03T16:20:43Z run start
+2026-06-03T16:20:43Z precheck start
+2026-06-03T16:20:48Z precheck ok
+2026-06-03T16:20:48Z prepare data start
+2026-06-03T16:21:00Z prepare data ok project=500bb7f8-870e-4ebf-90df-3e8374cc7942 task=fee0dd37-255b-4c4d-9225-49f49e279835
+2026-06-03T16:21:00Z stage client-cloudflare-100 start
+2026-06-03T16:23:07Z FAIL client-cloudflare-100: p95 969.79ms >= 300ms
+2026-06-03T16:23:13Z cleanup done
+2026-06-03T16:23:15Z run failed client-cloudflare-100: p95 969.79ms >= 300ms

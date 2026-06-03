@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- W2 本地客户端 Cloudflare DIRECT 规则复测：Clash Verge 已为 `pre-studio.miemie.co` 添加 domain DIRECT 规则，但系统层仍返回 fake-ip `198.18.2.211` 且 route 走 `utun1024`；`100 VU / 120s` P95 `969.79ms`，API 侧同窗口 `200 10523`，证据归档到 `docs/reports/artifacts/2026-06-04-w2-client-cloudflare-direct-rule/`。
 - W2 本地客户端 Cloudflare 复测：本地 Mac 经 Clash Verge TUN / fake-ip 代理出口访问 Cloudflare，`100 VU / 120s` 失败率 `0`、check failures `0`，但 P95 `925.75ms`，证据归档到 `docs/reports/artifacts/2026-06-03-w2-client-cloudflare-baseline/`。
 - W2 300 VU 入口对照：同一批状态观察读路径下，app direct P95 `244.29ms`、本机 Nginx P95 `271.69ms` 均通过；源站公网 IP forced P95 `325.81ms` 略超，Cloudflare 真实入口 P95 `512.92ms` 且有 1 次连接超时，证据归档到 `docs/reports/artifacts/2026-06-03-w2-300-entry-comparison/`。
 - W2 Cloudflare Ray 诊断：关闭临时 Skip 规则后，Cloudflare `100 VU / 120s` 通过且无 timeout；`300 VU / 120s` 无 timeout、无 5xx，但 P95 `351.64ms` 超过 `300ms` 保守门槛，证据归档到 `docs/reports/artifacts/2026-06-03-w2-cloudflare-ray-diagnostics/`。

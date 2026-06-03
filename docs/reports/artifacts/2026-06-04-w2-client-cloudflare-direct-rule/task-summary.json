@@ -1,0 +1,13 @@
+{
+  "id": "fee0dd37-255b-4c4d-9225-49f49e279835",
+  "project_id": "500bb7f8-870e-4ebf-90df-3e8374cc7942",
+  "name": "视频任务 20260604_002054",
+  "task_type": "text_to_video",
+  "task_kind": "text_to_video",
+  "provider": "wan",
+  "model_id": "wan2.7-t2v",
+  "status": "processing",
+  "submit_state": "submitting",
+  "created_at": "2026-06-04T00:20:54.747172",
+  "updated_at": "2026-06-04T00:20:54.753784"
+}
