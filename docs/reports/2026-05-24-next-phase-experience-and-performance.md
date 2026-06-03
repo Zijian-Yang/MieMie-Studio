@@ -178,6 +178,14 @@ pre 部署复验：
 - API 日志窗口内观察类 GET 状态码汇总为 `200 19263`，未再出现应用 500；测试视频任务删除 `200`、项目删除 `200`、logout `200`，服务器 `/tmp` token env 已删除，压测后 `/api/health` 仍为 `200` 且容器保持运行。证据见 `docs/reports/artifacts/2026-06-01-w2-storage-fix-cloudflare-rerun/README.md`。
 - 结论：应用侧 JSON 写入竞态已解除；Cloudflare/公网边缘链路 timeout 仍独立存在，下一步继续聚焦 Cloudflare 入口尾部 timeout。
 
+2026-06-03 W2 Cloudflare Ray 诊断：
+
+- Cloudflare 临时 Skip 规则已关闭，运行版本仍为 `00091f21f5ee207f78a1092e7e5e164ab4567c7f`；本轮使用带 `cf-ray` / timings 采样的诊断脚本，只记录 `>=800ms` 慢请求和失败请求。
+- Cloudflare `100 VU / 120s` 通过：`23060` 个 GET、失败率 `0`、P95 `36.75ms`、P99 `187.71ms`、check 失败 `0`；API 侧观察类 GET 汇总为 `200 23061`。
+- 因 100 VU 通过，继续进入 Cloudflare `300 VU / 120s`；该档无 timeout、无 check 失败、API 侧观察类 GET 汇总为 `200 49577`，但 P95 `351.64ms` 超过 `300ms` 保守门槛，按规则停止，未进入 500 VU。
+- 两档慢/失败样本 `sample_count=0`，说明本轮没有 `>=800ms` 慢请求或失败响应；300 VU P95 超标更像较多请求落在 `300-715ms` 区间，而不是少量尖刺。证据见 `docs/reports/artifacts/2026-06-03-w2-cloudflare-ray-diagnostics/README.md`。
+- 结论：Cloudflare 入口当前 100 VU 门禁已恢复通过；300 VU 稳定性通过但 P95 超标。下一步应做同时间窗口的 300 VU 本机 / Nginx 源站 / Cloudflare 对照，定位 300 VU 尾部延迟来源。
+
 ## 代码治理
 
 已完成第一刀行为保持型拆分：
@@ -197,6 +205,6 @@ pre 部署复验：
 - 公网域名 `pre-studio.miemie.co` 的 Cloudflare -> aaPanel/Nginx -> `127.0.0.1:18100` 反代门禁通过，可作为下一轮 S4 混合查询基线的真实入口。
 - S4 保守基线通过：公网链路相比本机链路有可见但很小的额外延迟，本轮未观察到 5xx 或 header 缺失。
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
-- W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 再次出现 9 个 timeout，关闭 HTTP/3/QUIC 后降到 5 个 timeout 但仍未通过，临时 Skip 规则复验仍出现 15 个 timeout；修复 StorageService 竞态后应用 500 清零，但 Cloudflare 仍有 7 个 timeout。
+- W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过，300 VU 无 timeout/无 5xx 但 P95 `351.64ms` 超门槛。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步仍不需要进入 PostgreSQL / SSE；应用 500 已清零，继续聚焦 Cloudflare/公网边缘链路 timeout，Cloudflare timeout 清零后再进入 300/500。
+- 下一步仍不需要进入 PostgreSQL / SSE；应用 500 已清零，Cloudflare 100 VU 已恢复通过。下一步聚焦 300 VU 尾部延迟，对比本机 / Nginx 源站 / Cloudflare 三条入口。

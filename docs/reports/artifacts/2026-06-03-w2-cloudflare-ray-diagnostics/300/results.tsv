@@ -1,0 +1,2 @@
+label	vus	duration	http_req_failed	p95_ms	p99_ms	http_reqs	checks_fails	ok	reason
+cf-ray-status-300	300	120s	0.000000000	351.638741	715.182559	49576	0	0	p95 351.64ms >= 300ms

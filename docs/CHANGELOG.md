@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- W2 Cloudflare Ray 诊断：关闭临时 Skip 规则后，Cloudflare `100 VU / 120s` 通过且无 timeout；`300 VU / 120s` 无 timeout、无 5xx，但 P95 `351.64ms` 超过 `300ms` 保守门槛，证据归档到 `docs/reports/artifacts/2026-06-03-w2-cloudflare-ray-diagnostics/`。
 - W2 Cloudflare Skip 规则复验：按压测来源 IP 与 `/api/*` 临时跳过 rate limiting、managed rules、Super Bot Fight Mode 与 Browser Integrity Check 后，真实入口 `100 VU / 120s` 仍出现 15 个 timeout，并暴露 `StorageService._write_json_with_lock()` 固定 tmp 文件并发写入竞态，证据归档到 `docs/reports/artifacts/2026-06-01-w2-cloudflare-skip-rule/`。
 - W2 Cloudflare HTTP/3 关闭复验：关闭 `HTTP/3 (with QUIC)` 后真实入口 `100 VU / 120s` P95 降至 `190.14ms`，timeout 从 9 个降至 5 个但仍未清零，证据归档到 `docs/reports/artifacts/2026-06-01-w2-cloudflare-http3off/`。
 - W2 Cloudflare 入口复验：恢复 Cloudflare 代理后真实入口 `100 VU / 120s` P95 `207.86ms`，但出现 9 个 k6 `request timeout` 并触发 27 个响应 check 失败，证据归档到 `docs/reports/artifacts/2026-05-31-w2-cloudflare-entry-retune/`。

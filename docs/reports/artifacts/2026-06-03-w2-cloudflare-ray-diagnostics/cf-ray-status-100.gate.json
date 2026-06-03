@@ -1,0 +1,13 @@
+{
+  "label": "cf-ray-status-100",
+  "vus": 100,
+  "duration": "120s",
+  "http_req_failed": 0.0,
+  "http_req_duration_p95_ms": 36.751883399999976,
+  "http_req_duration_p99_ms": 187.70544293999995,
+  "http_reqs": 23060,
+  "checks_fails": 0,
+  "k6_exit_code": 0,
+  "ok": true,
+  "reason": ""
+}

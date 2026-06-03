@@ -1,0 +1,156 @@
+{
+    "metrics": {
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 23060,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0
+        },
+        "iteration_duration": {
+            "p(99)": 3206.1970298399983,
+            "avg": 2099.316003839889,
+            "min": 2047.418662,
+            "med": 2072.105775,
+            "max": 3405.758399,
+            "p(90)": 2101.5560218,
+            "p(95)": 2140.9031306
+        },
+        "vus": {
+            "value": 6,
+            "min": 6,
+            "max": 100
+        },
+        "http_req_receiving": {
+            "max": 103.392369,
+            "p(90)": 2.476836100000004,
+            "p(95)": 3.3124209999999996,
+            "p(99)": 6.371897359999999,
+            "avg": 0.810100285993063,
+            "min": 0.017746,
+            "med": 0.131133
+        },
+        "checks": {
+            "passes": 69180,
+            "fails": 0,
+            "value": 1
+        },
+        "data_sent": {
+            "count": 1671964,
+            "rate": 13699.044102131696
+        },
+        "data_received": {
+            "count": 61078462,
+            "rate": 500439.3304092522
+        },
+        "iterations": {
+            "count": 5765,
+            "rate": 47.234862263056634
+        },
+        "http_reqs": {
+            "count": 23060,
+            "rate": 188.93944905222654
+        },
+        "vus_max": {
+            "value": 100,
+            "min": 100,
+            "max": 100
+        },
+        "http_req_duration{expected_response:true}": {
+            "max": 244.781375,
+            "p(90)": 26.507404100000006,
+            "p(95)": 36.751883399999976,
+            "p(99)": 187.70544293999995,
+            "avg": 22.454734722810034,
+            "min": 10.045066,
+            "med": 17.256659
+        },
+        "http_req_duration": {
+            "avg": 22.454734722810034,
+            "min": 10.045066,
+            "med": 17.256659,
+            "max": 244.781375,
+            "p(90)": 26.507404100000006,
+            "p(95)": 36.751883399999976,
+            "p(99)": 187.70544293999995,
+            "thresholds": {
+                "p(95)<300": false
+            }
+        },
+        "http_req_connecting": {
+            "p(99)": 0,
+            "avg": 0.05615831448395491,
+            "min": 0,
+            "med": 0,
+            "max": 25.123247,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "http_req_waiting": {
+            "max": 242.894713,
+            "p(90)": 25.341305600000005,
+            "p(95)": 34.6790095,
+            "p(99)": 181.00188931,
+            "avg": 21.593710064570555,
+            "min": 9.97081,
+            "med": 16.617126
+        },
+        "http_req_blocked": {
+            "max": 733.872087,
+            "p(90)": 0.000448,
+            "p(95)": 0.000487,
+            "p(99)": 0.000747,
+            "avg": 1.9341089519514703,
+            "min": 0.000136,
+            "med": 0.000386
+        },
+        "http_req_tls_handshaking": {
+            "min": 0,
+            "med": 0,
+            "max": 698.051489,
+            "p(90)": 0,
+            "p(95)": 0,
+            "p(99)": 0,
+            "avg": 1.8000042473980924
+        },
+        "http_req_sending": {
+            "p(99)": 0.3247767899999998,
+            "avg": 0.050924372246313944,
+            "min": 0.014713,
+            "med": 0.0349335,
+            "max": 13.739974,
+            "p(90)": 0.054820100000000004,
+            "p(95)": 0.07279564999999998
+        }
+    },
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {
+                "query status acceptable": {
+                    "fails": 0,
+                    "name": "query status acceptable",
+                    "path": "::query status acceptable",
+                    "id": "acce6fd9c240031c61891186bbf8250c",
+                    "passes": 23060
+                },
+                "query has request id": {
+                    "name": "query has request id",
+                    "path": "::query has request id",
+                    "id": "1a75bed9b98e35c3cb104e0284d14bd4",
+                    "passes": 23060,
+                    "fails": 0
+                },
+                "query has deployment version": {
+                    "name": "query has deployment version",
+                    "path": "::query has deployment version",
+                    "id": "03e96c039e2c8e5dec617850a6b48a82",
+                    "passes": 23060,
+                    "fails": 0
+                }
+            }
+    }
+}

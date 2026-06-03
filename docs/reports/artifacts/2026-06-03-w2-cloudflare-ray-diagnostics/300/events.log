@@ -1,0 +1,9 @@
+2026-06-03T21:00:24+08:00 run start
+2026-06-03T21:00:24+08:00 precheck start
+2026-06-03T21:00:27+08:00 precheck ok
+2026-06-03T21:00:27+08:00 prepare data start
+2026-06-03T21:00:31+08:00 prepare data ok project=dec10820-0146-4b08-b276-6ded619bf030 task=da295f40-d552-4af1-9549-af3a760aaebb
+2026-06-03T21:00:31+08:00 stage cf-ray-status-300 start
+2026-06-03T21:02:34+08:00 FAIL cf-ray-status-300: p95 351.64ms >= 300ms
+2026-06-03T21:02:35+08:00 cleanup done
+2026-06-03T21:02:38+08:00 run failed cf-ray-status-300: p95 351.64ms >= 300ms
