@@ -261,10 +261,16 @@ pre 部署复验：
 - `frontend/src/pages/VideoStudio/VideoStudioPage.tsx` 从约 `3644` 行降至约 `3345` 行；页面继续负责选中任务、数据状态、创建/编辑表单和任务操作回调。
 - 本刀不改变详情弹窗宽度、按钮文案、标记逻辑、保存动作、开发者模式内容或用户可见交互。
 
+2026-06-04 阶段 6B 视频工作室页面拆分第五刀：
+
+- 新增 `frontend/src/pages/VideoStudio/useVideoStudioTaskActions.ts`，承载保存到视频库、提取尾帧、视频标记、单任务删除、全部删除和重新生成动作，以及 `extractingFrames` / `regenerating` 操作状态。
+- `frontend/src/pages/VideoStudio/VideoStudioPage.tsx` 从约 `3345` 行降至约 `3277` 行；页面剩余 `videoStudioApi` 调用收窄到源视频准备、Mask 上传、创建任务和编辑保存等表单路径。
+- 本刀不改变删除确认、保存提示、尾帧提取 loading、视频标记更新、重新生成轮询启动或用户可见交互。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
-- `VideoStudioPage.tsx` 下一刀：优先拆任务操作 hook，或在进入大表单拆分前补视频工作室 smoke；不重做 UI。
+- `VideoStudioPage.tsx` 下一刀：在进入创建/编辑表单拆分前，优先补视频工作室 smoke；之后再拆创建/编辑表单组件，不重做 UI。
 
 ## 结论
 

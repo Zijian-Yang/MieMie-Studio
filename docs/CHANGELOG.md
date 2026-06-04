@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 前端页面治理阶段 6B 第五刀：新增 `frontend/src/pages/VideoStudio/useVideoStudioTaskActions.ts`，拆出保存到视频库、提取尾帧、视频标记、单任务删除、全部删除和重新生成动作；`VideoStudioPage.tsx` 的 API 调用继续收窄到源视频准备、创建和编辑表单路径。
 - 前端页面治理阶段 6B 第四刀：新增 `frontend/src/pages/VideoStudio/TaskDetailModal.tsx`，拆出视频工作室任务详情弹窗、输入素材、生成结果、标记按钮、保存动作和开发者模式展示；`VideoStudioPage.tsx` 继续保留数据状态、表单和任务操作回调。
 - 前端页面治理阶段 6B 第三刀：新增 `frontend/src/pages/VideoStudio/TaskListPanel.tsx`，拆出视频工作室任务列表卡片、空状态、新建入口、批量删除入口和单任务查看/删除动作；`VideoStudioPage.tsx` 继续保留数据、表单和详情弹窗编排。
 - 前端页面治理阶段 6B 第二刀：新增 `frontend/src/pages/VideoStudio/useVideoStudioData.ts`，拆出视频工作室任务列表、素材库数据、模型配置占位状态、初始加载和后台任务轮询启动逻辑；`VideoStudioPage.tsx` 继续保留表单、弹窗和 UI 编排。

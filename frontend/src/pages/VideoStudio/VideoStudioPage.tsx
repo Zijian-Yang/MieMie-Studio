@@ -13,6 +13,7 @@ import {
 import { useVideoStudioData } from './useVideoStudioData'
 import TaskListPanel from './TaskListPanel'
 import TaskDetailModal from './TaskDetailModal'
+import { useVideoStudioTaskActions } from './useVideoStudioTaskActions'
 
 const { TextArea } = Input
 const { Option } = Select
@@ -52,7 +53,6 @@ const VideoStudioPage = () => {
   const [selectedTask, setSelectedTask] = useState<VideoStudioTask | null>(null)
   const [editForm] = Form.useForm()
   const [saving, setSaving] = useState(false)
-  const [regenerating, setRegenerating] = useState(false)
 
   // 创建任务表单
   const [taskType, setTaskType] = useState<VideoStudioTaskType>('image_to_video')  // 任务类型
@@ -109,6 +109,23 @@ const VideoStudioPage = () => {
     videoEditModels,
     startTaskPolling,
   } = useVideoStudioData({ projectId, fetchProject, setSelectedTask })
+  const {
+    extractingFrames,
+    regenerating,
+    handleSaveToLibrary,
+    handleExtractLastFrame,
+    handleToggleVideoMarker,
+    handleDelete,
+    handleRegenerate,
+    handleDeleteAll,
+  } = useVideoStudioTaskActions({
+    projectId,
+    tasks,
+    selectedTask,
+    setTasks,
+    setSelectedTask,
+    startTaskPolling,
+  })
 
   const getCanonicalTaskTag = (task: VideoStudioTask) => {
     const taskKind = getResolvedTaskKind(task)
@@ -380,61 +397,6 @@ const VideoStudioPage = () => {
     }
   }
 
-  const handleSaveToLibrary = async (videoUrl: string) => {
-    if (!selectedTask) return
-
-    try {
-      await videoStudioApi.saveToLibrary(selectedTask.id, videoUrl)
-      message.success('已保存到视频库')
-    } catch (error: any) {
-      message.error(error.message || '保存失败')
-    }
-  }
-
-  const [extractingFrames, setExtractingFrames] = useState<Set<string>>(new Set())
-
-  const handleExtractLastFrame = async (videoUrl: string) => {
-    if (!selectedTask) return
-    setExtractingFrames(prev => new Set([...prev, videoUrl]))
-    try {
-      await videoStudioApi.extractLastFrame(selectedTask.id, videoUrl)
-      message.success('尾帧已保存到图库')
-    } catch (error: any) {
-      message.error(error.message || '提取尾帧失败')
-    } finally {
-      setExtractingFrames(prev => { const next = new Set(prev); next.delete(videoUrl); return next })
-    }
-  }
-
-  const handleToggleVideoMarker = async (taskId: string, videoUrl: string, markerKey: string) => {
-    const task = tasks.find(t => t.id === taskId)
-    if (!task) return
-    const currentMarkers = task.video_markers?.[videoUrl] || []
-    const newMarkers = currentMarkers.includes(markerKey)
-      ? currentMarkers.filter((m: string) => m !== markerKey)
-      : [...currentMarkers, markerKey]
-    try {
-      const res = await videoStudioApi.updateVideoMarkers(taskId, videoUrl, newMarkers)
-      const updatedVideoMarkers = res.video_markers
-      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, video_markers: updatedVideoMarkers } : t))
-      if (selectedTask?.id === taskId) {
-        setSelectedTask(prev => prev ? { ...prev, video_markers: updatedVideoMarkers } : prev)
-      }
-    } catch {
-      message.error('标记更新失败')
-    }
-  }
-
-  const handleDelete = async (task: VideoStudioTask) => {
-    try {
-      await videoStudioApi.delete(task.id)
-      setTasks(prev => prev.filter(t => t.id !== task.id))
-      message.success('删除成功')
-    } catch (error: any) {
-      message.error(error.message || '删除失败')
-    }
-  }
-
   // 编辑表单的额外状态（不在 Form 中管理的值）
   const [editTaskType] = useState<VideoStudioTaskType>('image_to_video')
   const [editFirstFrameUrl, setEditFirstFrameUrl] = useState('')
@@ -592,36 +554,6 @@ const VideoStudioPage = () => {
       message.error(error.message || '更新失败')
     } finally {
       setSaving(false)
-    }
-  }
-
-  // 重新生成
-  const handleRegenerate = async (task: VideoStudioTask) => {
-    try {
-      setRegenerating(true)
-      const { task: updatedTask } = await videoStudioApi.regenerate(task.id)
-      setTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t))
-      setSelectedTask(updatedTask)
-
-      // 启动轮询（后台会异步提交 API 任务）
-      startTaskPolling(task.id)
-      
-      message.success('已开始重新生成')
-    } catch (error: any) {
-      message.error(error.message || '重新生成失败')
-    } finally {
-      setRegenerating(false)
-    }
-  }
-
-  const handleDeleteAll = async () => {
-    if (!projectId) return
-    try {
-      await videoStudioApi.deleteAll(projectId)
-      setTasks([])
-      message.success('全部删除成功')
-    } catch (error: any) {
-      message.error(error.message || '删除失败')
     }
   }
 
