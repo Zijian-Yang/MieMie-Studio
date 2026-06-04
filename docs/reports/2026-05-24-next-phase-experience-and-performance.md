@@ -249,10 +249,16 @@ pre 部署复验：
 - `frontend/src/pages/VideoStudio/VideoStudioPage.tsx` 从约 `3846` 行降至约 `3744` 行；页面继续保留创建/编辑表单、详情弹窗、任务操作和 UI 编排。
 - 本刀不改变 API URL、请求体、响应体、轮询间隔、任务完成提示或用户可见交互。
 
+2026-06-04 阶段 6B 视频工作室页面拆分第三刀：
+
+- 新增 `frontend/src/pages/VideoStudio/TaskListPanel.tsx`，承载视频工作室顶部任务列表卡片、空状态、新建入口、批量删除入口、任务缩略图、状态标签和单任务查看/删除动作。
+- `frontend/src/pages/VideoStudio/VideoStudioPage.tsx` 从约 `3744` 行降至约 `3644` 行；页面继续负责数据、表单、详情弹窗和任务操作回调。
+- 本刀不改变任务列表布局、标签、进度展示、确认删除行为或卡片点击行为。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
-- `VideoStudioPage.tsx` 下一刀：继续收窄轮询/通知协调细节，再拆任务列表/任务详情组件；不重做 UI。
+- `VideoStudioPage.tsx` 下一刀：优先拆任务详情弹窗组件，再继续收窄轮询/通知协调细节；不重做 UI。
 
 ## 结论
 

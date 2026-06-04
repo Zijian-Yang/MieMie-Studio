@@ -1,25 +1,20 @@
 import { useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { Card, Button, List, Modal, Input, Select, InputNumber, Switch, message, Popconfirm, Space, Empty, Spin, Row, Col, Tabs, Tag, Form, theme, Collapse } from 'antd'
-import { PlusOutlined, DeleteOutlined, PlayCircleOutlined, SaveOutlined, VideoCameraOutlined, EditOutlined, ReloadOutlined, StarFilled, FlagOutlined, FlagFilled, CheckOutlined, CloseOutlined, StarOutlined, CameraOutlined } from '@ant-design/icons'
+import { Card, Button, Modal, Input, Select, InputNumber, Switch, message, Space, Spin, Row, Col, Tabs, Tag, Form, theme, Collapse } from 'antd'
+import { DeleteOutlined, SaveOutlined, VideoCameraOutlined, EditOutlined, ReloadOutlined, StarFilled, FlagOutlined, FlagFilled, CheckOutlined, CloseOutlined, StarOutlined, CameraOutlined } from '@ant-design/icons'
 import { videoStudioApi, VideoStudioTask, VideoModelInfo, RefVideoModelInfo, TextToVideoModelInfo, VideoStudioTaskType, VaceVideoEditModelInfo } from '../../services/api'
 import { useProjectStore } from '../../stores/projectStore'
 import MaskEditor, { type MaskEditorHandle, type MaskEditorTool } from './MaskEditor'
 import CapabilityCreateModal from './CapabilityCreateModal'
 import {
-  TASK_CARD_META_ROW_STYLE,
-  TASK_CARD_PROGRESS_STYLE,
-  TASK_CARD_TAGS_STYLE,
-} from './taskCardLayout'
-import {
   TASK_KIND_META,
   getResolvedTaskKind,
   getTaskInputAssets,
   getTaskParameterEntries,
-  getTaskPreviewUrl,
   getTaskSummaryLine,
 } from './taskViewUtils'
 import { useVideoStudioData } from './useVideoStudioData'
+import TaskListPanel from './TaskListPanel'
 
 const { TextArea } = Input
 const { Option } = Select
@@ -655,111 +650,16 @@ const VideoStudioPage = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <Card
-        title={
-          <Space>
-            <VideoCameraOutlined />
-            视频工作室
-          </Space>
-        }
-        extra={
-          <Space>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setCreateModalVisible(true)}
-            >
-              新建任务
-            </Button>
-            {tasks.length > 0 && (
-              <Popconfirm
-                title="确定删除所有任务？"
-                onConfirm={handleDeleteAll}
-              >
-                <Button danger icon={<DeleteOutlined />}>
-                  全部删除
-                </Button>
-              </Popconfirm>
-            )}
-          </Space>
-        }
-      >
-        {tasks.length === 0 ? (
-          <Empty description="暂无任务" />
-        ) : (
-          <List
-            grid={{ gutter: 16, column: 4 }}
-            dataSource={tasks}
-            loading={loading}
-            renderItem={(task) => (
-              <List.Item>
-                <Card
-                  size="small"
-                  cover={
-                    <div
-                      style={{
-                        height: 120,
-                        background: token.colorBgLayout,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        position: 'relative'
-                      }}
-                      onClick={() => handleViewDetail(task)}
-                    >
-                      {getTaskPreviewUrl(task) ? (
-                        <img
-                          src={getTaskPreviewUrl(task)}
-                          alt="首帧"
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
-                      ) : (
-                        <PlayCircleOutlined style={{ fontSize: 48, color: token.colorPrimary }} />
-                      )}
-                      {task.status === 'processing' && (
-                        <div style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          background: 'rgba(0,0,0,0.5)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}>
-                          <Spin />
-                        </div>
-                      )}
-                    </div>
-                  }
-                  actions={[
-                    <Button type="link" size="small" onClick={() => handleViewDetail(task)}>查看</Button>,
-                    <Popconfirm title="确定删除？" onConfirm={() => handleDelete(task)}>
-                      <Button type="link" size="small" danger>删除</Button>
-                    </Popconfirm>
-                  ]}
-                >
-                  <div style={{ fontWeight: 500, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {task.name}
-                  </div>
-                  <div style={TASK_CARD_META_ROW_STYLE}>
-                    <Space size={[4, 4]} wrap style={TASK_CARD_TAGS_STYLE}>
-                      {getCanonicalTaskTag(task)}
-                      {task.provider && <Tag>{task.provider.toUpperCase()}</Tag>}
-                      {getStatusTag(task.status)}
-                    </Space>
-                    <span style={{ ...TASK_CARD_PROGRESS_STYLE, color: token.colorTextSecondary }}>
-                      {task.video_urls.length}/{task.group_count}
-                    </span>
-                  </div>
-                </Card>
-              </List.Item>
-            )}
-          />
-        )}
-      </Card>
+      <TaskListPanel
+        tasks={tasks}
+        loading={loading}
+        renderTaskKindTag={getCanonicalTaskTag}
+        renderStatusTag={getStatusTag}
+        onCreate={() => setCreateModalVisible(true)}
+        onDeleteAll={handleDeleteAll}
+        onViewDetail={handleViewDetail}
+        onDelete={handleDelete}
+      />
 
       {projectId && createModalVisible && (
         <CapabilityCreateModal
