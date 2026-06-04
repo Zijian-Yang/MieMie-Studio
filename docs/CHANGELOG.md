@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 前端页面治理阶段 6B 第二刀：新增 `frontend/src/pages/VideoStudio/useVideoStudioData.ts`，拆出视频工作室任务列表、素材库数据、模型配置占位状态、初始加载和后台任务轮询启动逻辑；`VideoStudioPage.tsx` 继续保留表单、弹窗和 UI 编排。
 - 前端页面治理阶段 6B 第一刀：新增 `frontend/src/pages/VideoStudio/taskViewUtils.ts`，拆出视频工作室任务类型解析、输入素材归一化、参数摘要和预览图选择等纯工具函数；`VideoStudioPage.tsx` 保持页面编排与 UI 行为不变。
 - 前端服务层治理阶段 6A：新增 `frontend/src/services/studioApi.ts` 与 `frontend/src/services/videoStudioApi.ts`，拆出图片/视频工作室 API 与类型；`api.ts` 继续 re-export，保持页面 import 兼容。
 - W2 本地客户端 Cloudflare 美国代理样本：本地 Mac 经 Clash TUN 美国代理节点访问 Cloudflare，最新有效 `100 VU / 120s` 无失败、无 header check 缺失，但 P95 `960.63ms`；服务器 API 同窗口 `200 11159`，作为代理出口风险记录而非 W2 平台侧硬门禁，证据归档到 `docs/reports/artifacts/2026-06-04-w2-client-cloudflare-us-proxy/`。

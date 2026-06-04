@@ -132,7 +132,7 @@ docker compose config
   - 前端 `api.ts` 继续承载所有 domain API 的维护压力：已拆出 `apiClient.ts`、`studioApi.ts`、`videoStudioApi.ts`，并保持 `api.ts` 兼容 re-export
 - 当前保留为后续治理：
   - CI / 服务器环境仍需显式安装 Playwright Chromium；当前自动发现主要覆盖本机已有缓存的开发场景
-  - `VideoStudioPage.tsx` 已完成任务展示纯工具函数第一刀拆分，后续仍需继续提取数据加载 hook、轮询/通知协调逻辑和任务列表/详情组件；`StudioPage.tsx` 等大页面也仍需继续做行为保持型拆分
+  - `VideoStudioPage.tsx` 已完成任务展示纯工具函数与数据加载 hook 两刀拆分，后续仍需继续提取轮询/通知协调细节和任务列表/详情组件；`StudioPage.tsx` 等大页面也仍需继续做行为保持型拆分
 
 ## 文档维护规则
 
