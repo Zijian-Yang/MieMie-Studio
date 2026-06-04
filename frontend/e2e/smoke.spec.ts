@@ -95,6 +95,46 @@ function createVideoStudioSmokeTask() {
   }
 }
 
+function createVideoStudioCreatedTask(payload: Record<string, any> = {}) {
+  return {
+    id: 'video-task-created',
+    project_id: payload.project_id || 'project-1',
+    name: payload.name || 'Smoke 创建任务',
+    task_type: payload.task_type || 'text_to_video',
+    task_kind: payload.task_kind || 'text_to_video',
+    provider: payload.provider || 'wan',
+    key_profile: 'test',
+    model_id: payload.model_id || payload.model || 'wan2.6-t2v',
+    input_assets: payload.input_assets || {},
+    normalized_params: payload.normalized_params || {
+      resolution: '720P',
+      duration: 5,
+      prompt_extend: true,
+      watermark: false,
+    },
+    provider_payload_snapshot: null,
+    provider_result_meta: {},
+    mode: 'first_frame',
+    prompt: payload.prompt || 'Smoke 创建流程提示词',
+    negative_prompt: payload.negative_prompt || '',
+    model: payload.model || payload.model_id || 'wan2.6-t2v',
+    duration: payload.normalized_params?.duration || 5,
+    watermark: payload.normalized_params?.watermark || false,
+    auto_audio: false,
+    resolution: payload.normalized_params?.resolution || '720P',
+    prompt_extend: payload.normalized_params?.prompt_extend ?? true,
+    t2v_prompt_extend: payload.normalized_params?.prompt_extend ?? true,
+    group_count: payload.group_count || 1,
+    video_urls: [],
+    video_markers: {},
+    task_ids: [],
+    request_ids: [],
+    status: 'pending',
+    created_at: '2026-04-23T00:02:00',
+    updated_at: '2026-04-23T00:02:00',
+  }
+}
+
 function createProjectSmokeProject() {
   return {
     id: 'project-1',
@@ -111,6 +151,53 @@ function createProjectSmokeProject() {
     prop_ids: [],
     created_at: '2026-04-23T00:00:00',
     updated_at: '2026-04-23T00:00:00',
+  }
+}
+
+function createVideoStudioCapabilities() {
+  return {
+    task_kinds: [
+      {
+        id: 'text_to_video',
+        label: '文生视频',
+        description: '通过提示词生成视频。',
+        legacy_task_types: ['text_to_video'],
+        model_ids: ['wan2.6-t2v'],
+        default_model_id: 'wan2.6-t2v',
+      },
+    ],
+    models: {
+      'wan2.6-t2v': {
+        id: 'wan2.6-t2v',
+        name: 'Wan 文生视频',
+        provider: 'wan',
+        type: 'video',
+        description: 'Smoke 测试模型',
+        capabilities: {
+          max_concurrent: 2,
+        },
+        supported_task_kinds: ['text_to_video'],
+        task_profiles: {
+          text_to_video: {
+            task_kind: 'text_to_video',
+            label: '文生视频',
+            description: '通过提示词生成视频。',
+            input_roles: [],
+            parameters: [],
+            supported_narrative_modes: ['single'],
+            default_values: {
+              resolution: '720P',
+              duration: 5,
+              prompt_extend: true,
+              watermark: false,
+            },
+          },
+        },
+      },
+    },
+    legacy_task_kind_map: {
+      text_to_video: 'text_to_video',
+    },
   }
 }
 
@@ -208,6 +295,42 @@ async function mockProjectApis(page: Page, options: { videoStudioTasks?: any[] }
       return
     }
 
+    if (path === '/api/video-studio/capabilities') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(createVideoStudioCapabilities()),
+      })
+      return
+    }
+
+    if (path === '/api/video-studio/preview-payload') {
+      const payload = route.request().postDataJSON() as Record<string, any>
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          canonical_request: payload,
+          provider_payload: {
+            model: payload.model || payload.model_id,
+            prompt: payload.prompt,
+          },
+          validation_warnings: [],
+        }),
+      })
+      return
+    }
+
+    if (path === '/api/video-studio' && route.request().method() === 'POST') {
+      const payload = route.request().postDataJSON() as Record<string, any>
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ task: createVideoStudioCreatedTask(payload) }),
+      })
+      return
+    }
+
     if (path === '/api/video-studio') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ tasks: videoStudioTasks }) })
       return
@@ -284,6 +407,29 @@ test('视频工作室空态可渲染', async () => {
     await mockProjectApis(page)
     await page.goto('/project/project-1/video-studio')
     await expect(page.getByText('暂无任务')).toBeVisible()
+  })
+})
+
+test('视频工作室文生视频创建流程可提交', async () => {
+  await withPage(async (page) => {
+    await seedAuth(page)
+    await mockProjectApis(page)
+    await page.goto('/project/project-1/video-studio')
+
+    await page.getByRole('button', { name: '新建任务' }).click()
+    await expect(page.getByText('新建视频任务')).toBeVisible()
+    await expect(page.getByRole('tab', { name: '文生视频' })).toBeVisible()
+
+    await page.getByPlaceholder('留空自动生成').fill('Smoke 创建任务')
+    await page.getByPlaceholder('描述想要生成的视频内容').fill('Smoke 创建流程提示词')
+    await page.getByRole('button', { name: '创建任务' }).click()
+
+    await expect(page.getByText('任务已创建')).toBeVisible()
+    await expect(page.getByText('Smoke 创建任务')).toBeVisible()
+    await expect(page.getByText('文生视频').first()).toBeVisible()
+    await expect(page.getByText('WAN').first()).toBeVisible()
+    await expect(page.getByText('等待中').first()).toBeVisible()
+    await expect(page.getByText('0/1')).toBeVisible()
   })
 })
 

@@ -279,11 +279,17 @@ pre 部署复验：
 - `npm run test:e2e` 从 5 个 smoke 扩展到 6 个 smoke，全部通过。
 - 本 smoke 只验证现有列表渲染，不触发真实项目创建、删除或供应商调用。
 
+2026-06-05 视频工作室创建流程 smoke 补强：
+
+- `frontend/e2e/smoke.spec.ts` 新增最小文生视频能力 mock，覆盖 `/api/video-studio/capabilities`、`/api/video-studio/preview-payload` 与 `POST /api/video-studio`，验证新建任务弹窗、文生视频 tab、任务名称、提示词、创建成功消息和新任务卡片回显。
+- `npm run test:e2e` 从 6 个 smoke 扩展到 7 个 smoke，全部通过。
+- 本 smoke 返回本地 mock `pending` 任务，不触发真实供应商调用，不启动后台轮询。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
 - `VideoStudioPage.tsx` 下一刀：继续拆创建/编辑表单组件；不重做 UI。
-- Smoke 下一刀：补至少一个工作室创建流程的 mock smoke，让创建入口在拆表单前有基础回归护栏。
+- Smoke 后续：随创建/编辑表单拆分继续补编辑、素材选择、局部编辑等更重路径。
 
 ## 结论
 
