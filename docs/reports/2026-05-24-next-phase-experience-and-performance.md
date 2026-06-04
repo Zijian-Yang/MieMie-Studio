@@ -285,10 +285,16 @@ pre 部署复验：
 - `npm run test:e2e` 从 6 个 smoke 扩展到 7 个 smoke，全部通过。
 - 本 smoke 返回本地 mock `pending` 任务，不触发真实供应商调用，不启动后台轮询。
 
+2026-06-05 阶段 6B 视频工作室页面拆分第六刀：
+
+- 删除 `frontend/src/pages/VideoStudio/VideoStudioPage.tsx` 内两个 `{false && ...}` 包裹的旧创建/编辑弹窗，以及只服务这些不可达弹窗的旧状态、旧 handler、Mask 处理和旧模型分支引用。
+- `VideoStudioPage.tsx` 从约 `3277` 行降至 `152` 行；当前创建/编辑继续统一挂载 `CapabilityCreateModal`，详情继续走 `TaskDetailModal`，列表继续走 `TaskListPanel`。
+- 本刀不改变用户可见创建/编辑入口、任务详情操作、轮询启动或 API 语义；价值是移除不可达代码，避免后续拆分误碰旧路径。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
-- `VideoStudioPage.tsx` 下一刀：继续拆创建/编辑表单组件；不重做 UI。
+- `CapabilityCreateModal.tsx` 下一刀：拆能力表单内的素材选择、payload preview、源视频/Mask 准备等子组件或 hook；不重做 UI。
 - Smoke 后续：随创建/编辑表单拆分继续补编辑、素材选择、局部编辑等更重路径。
 
 ## 结论

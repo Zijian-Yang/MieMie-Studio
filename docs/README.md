@@ -131,9 +131,10 @@ docker compose config
   - `./run.sh test` 落到系统 Python 导致依赖缺失的问题
   - 前端 `api.ts` 继续承载所有 domain API 的维护压力：已拆出 `apiClient.ts`、`studioApi.ts`、`videoStudioApi.ts`，并保持 `api.ts` 兼容 re-export
   - 项目列表、视频工作室任务列表/详情弹窗与基础创建流程缺少 smoke 护栏：`frontend/e2e/smoke.spec.ts` 已补项目列表样本、视频工作室成功任务样本和文生视频创建流程样本，覆盖项目卡片/统计/入口、视频任务列表卡片/详情弹窗，以及新建任务弹窗提交回显
+  - `VideoStudioPage.tsx` 继续保留旧创建/编辑表单死代码的维护压力：已删除两个 `{false && ...}` 包裹的不可达旧弹窗和专属旧状态/handler，页面降至 152 行并仅保留编排逻辑
 - 当前保留为后续治理：
   - CI / 服务器环境仍需显式安装 Playwright Chromium；当前自动发现主要覆盖本机已有缓存的开发场景
-  - `VideoStudioPage.tsx` 已完成任务展示纯工具函数、数据加载 hook、任务列表组件、任务详情弹窗与任务操作 hook 五刀拆分，后续继续提取创建/编辑表单组件；前端 smoke 可继续随拆分补编辑、素材选择和局部编辑等更重路径；`StudioPage.tsx` 等大页面也仍需继续做行为保持型拆分
+  - `CapabilityCreateModal.tsx` 仍是视频工作室创建/编辑能力的主要复杂点，后续可继续提取素材选择、payload preview、源视频/Mask 准备等子组件或 hook；前端 smoke 可继续随拆分补编辑、素材选择和局部编辑等更重路径；`StudioPage.tsx` 等大页面也仍需继续做行为保持型拆分
 
 ## 文档维护规则
 
