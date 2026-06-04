@@ -310,6 +310,8 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
    - 主页面保留编排逻辑。
    - 不重做 UI，不换状态管理。
 
+   状态：阶段 6B 已完成第一刀，新增 `frontend/src/pages/VideoStudio/taskViewUtils.ts`，提取任务类型解析、输入素材归一化、参数摘要和预览图选择等纯工具函数；`VideoStudioPage.tsx` 继续保留 JSX、状态编排和页面行为。后续继续提取数据加载 hook、轮询/通知协调逻辑，以及任务列表/任务详情组件。
+
 3. 补前端 smoke tests
    - 登录页 smoke。
    - 项目列表 smoke。

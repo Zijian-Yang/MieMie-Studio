@@ -237,10 +237,16 @@ pre 部署复验：
 - 新增 `frontend/src/services/videoStudioApi.ts`，承载视频工作室 capability / task 类型与 `videoStudioApi`；`api.ts` 保留 type-only re-export，并仅用 type-only import 支撑视频测评 capability 类型。
 - `frontend/src/services/api.ts` 从约 `2851` 行降至约 `2260` 行；不改变后端接口、请求体、响应体、页面行为或 UI。
 
+2026-06-04 阶段 6B 视频工作室页面拆分第一刀：
+
+- 新增 `frontend/src/pages/VideoStudio/taskViewUtils.ts`，承载任务类型元数据、历史任务类型归一化、输入素材归一化、参数摘要、参数展示项和预览图选择等纯工具函数。
+- `frontend/src/pages/VideoStudio/VideoStudioPage.tsx` 从约 `3972` 行降至约 `3846` 行；页面继续保留 JSX 标签渲染、状态编排和用户交互，不改变 UI 行为。
+- 本刀只建立任务展示工具边界，不拆数据加载 hook、轮询通知或任务列表/详情组件。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
-- `VideoStudioPage.tsx` 下一刀：优先提取任务展示/状态工具函数，再提取数据加载 hook；不重做 UI。
+- `VideoStudioPage.tsx` 下一刀：优先提取数据加载 hook、轮询/通知协调逻辑，再拆任务列表/任务详情组件；不重做 UI。
 
 ## 结论
 
