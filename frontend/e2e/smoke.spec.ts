@@ -95,28 +95,50 @@ function createVideoStudioSmokeTask() {
   }
 }
 
+function createProjectSmokeProject() {
+  return {
+    id: 'project-1',
+    name: 'Playwright 项目',
+    description: '用于 smoke 测试',
+    script: {
+      shots: [
+        { id: 'shot-1', content: '第一镜' },
+        { id: 'shot-2', content: '第二镜' },
+      ],
+    },
+    character_ids: ['character-1', 'character-2'],
+    scene_ids: [],
+    prop_ids: [],
+    created_at: '2026-04-23T00:00:00',
+    updated_at: '2026-04-23T00:00:00',
+  }
+}
+
 async function mockProjectApis(page: Page, options: { videoStudioTasks?: any[] } = {}) {
   const videoStudioTasks = options.videoStudioTasks ?? []
+  const smokeProject = createProjectSmokeProject()
 
   await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url())
     const path = url.pathname
 
-    if (path === '/api/projects/project-1') {
+    if (path === '/api/projects') {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          id: 'project-1',
-          name: 'Playwright 项目',
-          description: '用于 smoke 测试',
-          script: { shots: [] },
-          character_ids: [],
-          scene_ids: [],
-          prop_ids: [],
-          created_at: '2026-04-23T00:00:00',
-          updated_at: '2026-04-23T00:00:00',
+          projects: [smokeProject],
+          total: 1,
         }),
+      })
+      return
+    }
+
+    if (path === '/api/projects/project-1') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(smokeProject),
       })
       return
     }
@@ -226,6 +248,23 @@ test('未登录访问受保护路由会跳转到登录页', async () => {
   await withPage(async (page) => {
     await page.goto('/projects')
     await expect(page).toHaveURL(/\/login$/)
+  })
+})
+
+test('项目列表可渲染已有项目', async () => {
+  await withPage(async (page) => {
+    await seedAuth(page)
+    await mockProjectApis(page)
+    await page.goto('/projects')
+
+    await expect(page.getByRole('heading', { name: '项目列表' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '新建项目' })).toBeVisible()
+    await expect(page.getByText('Playwright 项目')).toBeVisible()
+    await expect(page.getByText('用于 smoke 测试')).toBeVisible()
+    await expect(page.getByText('分镜数：2')).toBeVisible()
+    await expect(page.getByText('角色数：2')).toBeVisible()
+    await expect(page.getByRole('button', { name: '打开' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '删除' })).toBeVisible()
   })
 })
 

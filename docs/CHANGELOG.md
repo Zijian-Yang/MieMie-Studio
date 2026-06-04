@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 前端 smoke 补强：`frontend/e2e/smoke.spec.ts` 新增项目列表样本，覆盖登录态项目列表、已有项目卡片、描述、分镜/角色统计和打开/删除入口；`npm run test:e2e` 扩展到 6 个 smoke。
 - 前端 smoke 补强：`frontend/e2e/smoke.spec.ts` 新增视频工作室成功任务样本，覆盖任务列表卡片、状态/Provider/进度、详情弹窗、输入素材、关键参数、生成结果、提示词、编辑/重生成、保存到视频库、保存尾帧和开发者模式入口。
 - 前端页面治理阶段 6B 第五刀：新增 `frontend/src/pages/VideoStudio/useVideoStudioTaskActions.ts`，拆出保存到视频库、提取尾帧、视频标记、单任务删除、全部删除和重新生成动作；`VideoStudioPage.tsx` 的 API 调用继续收窄到源视频准备、创建和编辑表单路径。
 - 前端页面治理阶段 6B 第四刀：新增 `frontend/src/pages/VideoStudio/TaskDetailModal.tsx`，拆出视频工作室任务详情弹窗、输入素材、生成结果、标记按钮、保存动作和开发者模式展示；`VideoStudioPage.tsx` 继续保留数据状态、表单和任务操作回调。

@@ -273,10 +273,17 @@ pre 部署复验：
 - `npm run test:e2e` 从 4 个 smoke 扩展到 5 个 smoke，全部通过。
 - 本 smoke 不触发真实供应商调用，不改变后端接口或页面行为。
 
+2026-06-05 项目列表 smoke 补强：
+
+- `frontend/e2e/smoke.spec.ts` 新增项目列表样本，mock `/api/projects` 返回一个带分镜和角色统计的项目，覆盖登录态进入 `/projects`、项目卡片、描述、分镜数、角色数和打开/删除入口。
+- `npm run test:e2e` 从 5 个 smoke 扩展到 6 个 smoke，全部通过。
+- 本 smoke 只验证现有列表渲染，不触发真实项目创建、删除或供应商调用。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
 - `VideoStudioPage.tsx` 下一刀：继续拆创建/编辑表单组件；不重做 UI。
+- Smoke 下一刀：补至少一个工作室创建流程的 mock smoke，让创建入口在拆表单前有基础回归护栏。
 
 ## 结论
 
