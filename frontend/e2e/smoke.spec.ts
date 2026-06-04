@@ -44,7 +44,60 @@ async function seedAuth(page: Page) {
   }, AUTH_STATE)
 }
 
-async function mockProjectApis(page: Page) {
+function createVideoStudioSmokeTask() {
+  return {
+    id: 'video-task-1',
+    project_id: 'project-1',
+    name: 'Smoke 视频任务',
+    task_type: 'image_to_video',
+    task_kind: 'image_to_video',
+    provider: 'wan',
+    key_profile: 'test',
+    model_id: 'wan2.5-i2v-preview',
+    input_assets: {
+      first_frame: ['https://assets.example.com/first-frame.png'],
+      audio: [],
+    },
+    normalized_params: {
+      resolution: '720P',
+      duration: 5,
+      prompt_extend: true,
+      watermark: false,
+    },
+    provider_payload_snapshot: {
+      model: 'wan2.5-i2v-preview',
+      prompt: '镜头缓慢推进',
+    },
+    provider_result_meta: {
+      request_id: 'req-smoke-1',
+    },
+    mode: 'first_frame',
+    first_frame_url: 'https://assets.example.com/first-frame.png',
+    prompt: '镜头缓慢推进',
+    negative_prompt: '',
+    model: 'wan2.5-i2v-preview',
+    duration: 5,
+    watermark: false,
+    auto_audio: false,
+    resolution: '720P',
+    prompt_extend: true,
+    group_count: 1,
+    video_urls: ['https://assets.example.com/result.mp4'],
+    thumbnail_url: 'https://assets.example.com/first-frame.png',
+    video_markers: {
+      'https://assets.example.com/result.mp4': ['star'],
+    },
+    task_ids: ['dashscope-task-1'],
+    request_ids: ['req-smoke-1'],
+    status: 'succeeded',
+    created_at: '2026-04-23T00:00:00',
+    updated_at: '2026-04-23T00:01:00',
+  }
+}
+
+async function mockProjectApis(page: Page, options: { videoStudioTasks?: any[] } = {}) {
+  const videoStudioTasks = options.videoStudioTasks ?? []
+
   await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url())
     const path = url.pathname
@@ -134,7 +187,7 @@ async function mockProjectApis(page: Page) {
     }
 
     if (path === '/api/video-studio') {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ tasks: [] }) })
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ tasks: videoStudioTasks }) })
       return
     }
 
@@ -192,5 +245,31 @@ test('视频工作室空态可渲染', async () => {
     await mockProjectApis(page)
     await page.goto('/project/project-1/video-studio')
     await expect(page.getByText('暂无任务')).toBeVisible()
+  })
+})
+
+test('视频工作室任务列表和详情弹窗可渲染', async () => {
+  await withPage(async (page) => {
+    await seedAuth(page)
+    await mockProjectApis(page, { videoStudioTasks: [createVideoStudioSmokeTask()] })
+    await page.goto('/project/project-1/video-studio')
+
+    await expect(page.getByText('Smoke 视频任务')).toBeVisible()
+    await expect(page.getByText('图生视频').first()).toBeVisible()
+    await expect(page.getByText('WAN').first()).toBeVisible()
+    await expect(page.getByText('已完成').first()).toBeVisible()
+    await expect(page.getByText('1/1')).toBeVisible()
+
+    await page.getByRole('button', { name: '查看' }).click()
+    await expect(page.getByText('输入素材')).toBeVisible()
+    await expect(page.getByText('关键参数')).toBeVisible()
+    await expect(page.getByText('生成结果')).toBeVisible()
+    await expect(page.getByText('提示词')).toBeVisible()
+    await expect(page.getByText('镜头缓慢推进')).toBeVisible()
+    await expect(page.getByRole('button', { name: '编辑' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '重新生成' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '保存到视频库' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '保存尾帧' })).toBeVisible()
+    await expect(page.getByText('开发者模式')).toBeVisible()
   })
 })

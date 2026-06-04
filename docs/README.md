@@ -130,9 +130,10 @@ docker compose config
   - `baseline-browser-mapping` 数据过期提示
   - `./run.sh test` 落到系统 Python 导致依赖缺失的问题
   - 前端 `api.ts` 继续承载所有 domain API 的维护压力：已拆出 `apiClient.ts`、`studioApi.ts`、`videoStudioApi.ts`，并保持 `api.ts` 兼容 re-export
+  - 视频工作室任务列表与详情弹窗缺少 smoke 护栏：`frontend/e2e/smoke.spec.ts` 已补成功任务样本，覆盖列表卡片与详情弹窗主要渲染路径
 - 当前保留为后续治理：
   - CI / 服务器环境仍需显式安装 Playwright Chromium；当前自动发现主要覆盖本机已有缓存的开发场景
-  - `VideoStudioPage.tsx` 已完成任务展示纯工具函数、数据加载 hook、任务列表组件、任务详情弹窗与任务操作 hook 五刀拆分，后续建议先补视频工作室 smoke，再继续提取创建/编辑表单组件；`StudioPage.tsx` 等大页面也仍需继续做行为保持型拆分
+  - `VideoStudioPage.tsx` 已完成任务展示纯工具函数、数据加载 hook、任务列表组件、任务详情弹窗与任务操作 hook 五刀拆分，后续继续提取创建/编辑表单组件；`StudioPage.tsx` 等大页面也仍需继续做行为保持型拆分
 
 ## 文档维护规则
 

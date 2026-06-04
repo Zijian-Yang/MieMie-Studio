@@ -267,10 +267,16 @@ pre 部署复验：
 - `frontend/src/pages/VideoStudio/VideoStudioPage.tsx` 从约 `3345` 行降至约 `3277` 行；页面剩余 `videoStudioApi` 调用收窄到源视频准备、Mask 上传、创建任务和编辑保存等表单路径。
 - 本刀不改变删除确认、保存提示、尾帧提取 loading、视频标记更新、重新生成轮询启动或用户可见交互。
 
+2026-06-05 视频工作室 smoke 补强：
+
+- `frontend/e2e/smoke.spec.ts` 新增 mock 成功任务，覆盖 `TaskListPanel` 和 `TaskDetailModal` 的主要渲染路径：任务卡片、任务类型、Provider、状态、进度、详情弹窗、输入素材、关键参数、生成结果、提示词、编辑/重生成、保存到视频库、保存尾帧和开发者模式入口。
+- `npm run test:e2e` 从 4 个 smoke 扩展到 5 个 smoke，全部通过。
+- 本 smoke 不触发真实供应商调用，不改变后端接口或页面行为。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
-- `VideoStudioPage.tsx` 下一刀：在进入创建/编辑表单拆分前，优先补视频工作室 smoke；之后再拆创建/编辑表单组件，不重做 UI。
+- `VideoStudioPage.tsx` 下一刀：继续拆创建/编辑表单组件；不重做 UI。
 
 ## 结论
 

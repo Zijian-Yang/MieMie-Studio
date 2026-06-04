@@ -317,6 +317,8 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
    - 项目列表 smoke。
    - 至少一个工作室创建流程 smoke。
 
+   状态：已补视频工作室任务列表与详情弹窗 smoke，`frontend/e2e/smoke.spec.ts` 新增 mock 成功任务，覆盖任务卡片、状态/Provider/进度、打开详情、输入素材、关键参数、生成结果、提示词、编辑/重生成、保存到视频库、保存尾帧和开发者模式入口。后续仍需补项目列表和至少一个创建流程 smoke。
+
 4. 视风险再拆 `StudioPage` / `FramesPage`
    - 等前两项稳定后再做。
 
