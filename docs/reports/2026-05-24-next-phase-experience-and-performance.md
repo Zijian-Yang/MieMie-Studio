@@ -291,10 +291,16 @@ pre 部署复验：
 - `VideoStudioPage.tsx` 从约 `3277` 行降至 `152` 行；当前创建/编辑继续统一挂载 `CapabilityCreateModal`，详情继续走 `TaskDetailModal`，列表继续走 `TaskListPanel`。
 - 本刀不改变用户可见创建/编辑入口、任务详情操作、轮询启动或 API 语义；价值是移除不可达代码，避免后续拆分误碰旧路径。
 
+2026-06-06 阶段 6B 视频工作室创建/编辑弹窗拆分第一刀：
+
+- 新增 `frontend/src/pages/VideoStudio/DeveloperPreviewPanel.tsx`，从 `CapabilityCreateModal.tsx` 拆出开发者模式提交状态、canonical 请求体、厂商请求体和 validation warning 展示。
+- `CapabilityCreateModal.tsx` 从 `1730` 行降至 `1706` 行；新面板为纯展示组件，不持有 API 调用、表单状态或副作用。
+- 本刀不改变 preview payload 的生成时机、开发者模式折叠面板文案、warning 显示、请求体格式或提交行为。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
-- `CapabilityCreateModal.tsx` 下一刀：拆能力表单内的素材选择、payload preview、源视频/Mask 准备等子组件或 hook；不重做 UI。
+- `CapabilityCreateModal.tsx` 下一刀：拆能力表单内的素材选择、源视频/Mask 准备或参数区域等子组件或 hook；不重做 UI。
 - Smoke 后续：随创建/编辑表单拆分继续补编辑、素材选择、局部编辑等更重路径。
 
 ## 结论

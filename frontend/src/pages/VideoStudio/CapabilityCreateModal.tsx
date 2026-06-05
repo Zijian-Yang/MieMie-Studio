@@ -41,6 +41,7 @@ import {
 } from '../../services/api'
 import DynamicModelForm from '../../components/ModelConfig/DynamicModelForm'
 import HoverInfoPopover from '../../components/Help/HoverInfoPopover'
+import DeveloperPreviewPanel, { type VideoStudioPreviewPayload } from './DeveloperPreviewPanel'
 import MaskEditor, { type MaskEditorHandle, type MaskEditorTool } from './MaskEditor'
 import { resolveReferenceCollectionLimits } from './capabilityLimits'
 import {
@@ -266,11 +267,7 @@ const CapabilityCreateModal = ({
   const [multiShotSegments, setMultiShotSegments] = useState<MultiShotSegment[]>([
     { id: 'segment-1', prompt: '', duration: 5 },
   ])
-  const [previewPayload, setPreviewPayload] = useState<{
-    canonical_request: Record<string, any>
-    provider_payload: Record<string, any> | null
-    validation_warnings: string[]
-  } | null>(null)
+  const [previewPayload, setPreviewPayload] = useState<VideoStudioPreviewPayload | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const maskEditorRef = useRef<MaskEditorHandle | null>(null)
   const promptTextAreaRef = useRef<any>(null)
@@ -1690,33 +1687,12 @@ const CapabilityCreateModal = ({
                 key: 'developer-mode',
                 label: '开发者模式',
                 children: (
-                  <div>
-                    <div style={{ marginBottom: 8, fontWeight: 500 }}>提交状态</div>
-                    <div style={{ marginBottom: 12, color: token.colorTextSecondary }}>
-                      {isEditMode && task ? `任务 ID: ${task.id}` : '尚未提交'}
-                    </div>
-                    {previewLoading ? (
-                      <Spin size="small" />
-                    ) : (
-                      <>
-                        {previewPayload?.validation_warnings?.length ? (
-                          <div style={{ marginBottom: 12, padding: 10, borderRadius: 8, background: token.colorWarningBg }}>
-                            {previewPayload.validation_warnings.map((warning, index) => (
-                              <div key={index} style={{ color: token.colorWarningText, fontSize: 12 }}>{warning}</div>
-                            ))}
-                          </div>
-                        ) : null}
-                        <div style={{ marginBottom: 8, fontWeight: 500 }}>Canonical 请求体</div>
-                        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout, marginBottom: 12 }}>
-                          {JSON.stringify(previewPayload?.canonical_request || {}, null, 2)}
-                        </pre>
-                        <div style={{ marginBottom: 8, fontWeight: 500 }}>厂商请求体</div>
-                        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout }}>
-                          {JSON.stringify(previewPayload?.provider_payload || {}, null, 2)}
-                        </pre>
-                      </>
-                    )}
-                  </div>
+                  <DeveloperPreviewPanel
+                    isEditMode={isEditMode}
+                    taskId={task?.id}
+                    previewLoading={previewLoading}
+                    previewPayload={previewPayload}
+                  />
                 ),
               },
             ]}

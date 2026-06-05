@@ -310,7 +310,7 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
    - 主页面保留编排逻辑。
    - 不重做 UI，不换状态管理。
 
-   状态：阶段 6B 已完成六刀。第一刀新增 `frontend/src/pages/VideoStudio/taskViewUtils.ts`，提取任务类型解析、输入素材归一化、参数摘要和预览图选择等纯工具函数；第二刀新增 `frontend/src/pages/VideoStudio/useVideoStudioData.ts`，承载任务列表、素材库、模型配置占位状态、初始加载和后台任务轮询启动逻辑；第三刀新增 `frontend/src/pages/VideoStudio/TaskListPanel.tsx`，承载任务列表卡片、空状态、创建入口、批量删除入口和单任务查看/删除动作；第四刀新增 `frontend/src/pages/VideoStudio/TaskDetailModal.tsx`，承载任务详情弹窗、输入素材展示、生成结果、标记按钮、保存到视频库、保存尾帧和开发者模式展示；第五刀新增 `frontend/src/pages/VideoStudio/useVideoStudioTaskActions.ts`，承载保存到视频库、提取尾帧、视频标记、单任务删除、全部删除和重新生成动作；第六刀删除 `VideoStudioPage.tsx` 中两个 `{false && ...}` 包裹的旧创建/编辑弹窗及其专属旧状态/handler。`VideoStudioPage.tsx` 现仅保留任务列表、创建/编辑弹窗挂载、详情弹窗和少量编排逻辑，当前创建/编辑能力统一走 `CapabilityCreateModal`。后续若继续治理，应拆 `CapabilityCreateModal.tsx` 内部能力表单，而不是回到旧页面表单。
+   状态：阶段 6B 已完成七刀。第一刀新增 `frontend/src/pages/VideoStudio/taskViewUtils.ts`，提取任务类型解析、输入素材归一化、参数摘要和预览图选择等纯工具函数；第二刀新增 `frontend/src/pages/VideoStudio/useVideoStudioData.ts`，承载任务列表、素材库、模型配置占位状态、初始加载和后台任务轮询启动逻辑；第三刀新增 `frontend/src/pages/VideoStudio/TaskListPanel.tsx`，承载任务列表卡片、空状态、创建入口、批量删除入口和单任务查看/删除动作；第四刀新增 `frontend/src/pages/VideoStudio/TaskDetailModal.tsx`，承载任务详情弹窗、输入素材展示、生成结果、标记按钮、保存到视频库、保存尾帧和开发者模式展示；第五刀新增 `frontend/src/pages/VideoStudio/useVideoStudioTaskActions.ts`，承载保存到视频库、提取尾帧、视频标记、单任务删除、全部删除和重新生成动作；第六刀删除 `VideoStudioPage.tsx` 中两个 `{false && ...}` 包裹的旧创建/编辑弹窗及其专属旧状态/handler；第七刀新增 `frontend/src/pages/VideoStudio/DeveloperPreviewPanel.tsx`，从 `CapabilityCreateModal.tsx` 拆出开发者模式提交状态、canonical 请求体、厂商请求体和 warning 展示。`VideoStudioPage.tsx` 现仅保留任务列表、创建/编辑弹窗挂载、详情弹窗和少量编排逻辑，当前创建/编辑能力统一走 `CapabilityCreateModal`。后续继续治理时，优先拆 `CapabilityCreateModal.tsx` 的素材选择、源视频/Mask 准备和能力参数区域。
 
 3. 补前端 smoke tests
    - 登录页 smoke。

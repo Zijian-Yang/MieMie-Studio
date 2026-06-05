@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 前端页面治理阶段 6B 第七刀：新增 `frontend/src/pages/VideoStudio/DeveloperPreviewPanel.tsx`，从 `CapabilityCreateModal.tsx` 拆出开发者模式提交状态、canonical 请求体、厂商请求体和 validation warning 展示；行为保持不变。
 - 前端页面治理阶段 6B 第六刀：删除 `VideoStudioPage.tsx` 中两个 `{false && ...}` 包裹的旧创建/编辑弹窗死代码，以及只服务旧弹窗的旧状态、handler、Mask 处理和模型分支引用；页面降至 152 行，当前创建/编辑继续统一走 `CapabilityCreateModal`。
 - 前端 smoke 补强：`frontend/e2e/smoke.spec.ts` 新增视频工作室文生视频创建流程样本，mock 能力接口、preview payload 与创建提交，覆盖新建任务弹窗、提示词填写、提交成功和新任务卡片回显；`npm run test:e2e` 扩展到 7 个 smoke。
 - 前端 smoke 补强：`frontend/e2e/smoke.spec.ts` 新增项目列表样本，覆盖登录态项目列表、已有项目卡片、描述、分镜/角色统计和打开/删除入口；`npm run test:e2e` 扩展到 6 个 smoke。
