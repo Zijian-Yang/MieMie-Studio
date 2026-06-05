@@ -20,7 +20,7 @@ import {
   message,
   theme,
 } from 'antd'
-import { DeleteOutlined, DownOutlined, PlusOutlined, VideoCameraOutlined } from '@ant-design/icons'
+import { DeleteOutlined, DownOutlined, PlusOutlined } from '@ant-design/icons'
 import {
   AudioItem,
   GalleryImage,
@@ -40,6 +40,7 @@ import {
 } from '../../services/api'
 import DynamicModelForm from '../../components/ModelConfig/DynamicModelForm'
 import DeveloperPreviewPanel, { type VideoStudioPreviewPayload } from './DeveloperPreviewPanel'
+import InputAssetSelector from './InputAssetSelector'
 import type { MaskEditorHandle, MaskEditorTool } from './MaskEditor'
 import MaskEditorPanel, { type SourceVideoMetadata } from './MaskEditorPanel'
 import ReferenceCollectionsPanel, { type StructuredReferenceMediaItem } from './ReferenceCollectionsPanel'
@@ -991,163 +992,34 @@ const CapabilityCreateModal = ({
   }
 
   const renderAssetSelector = (role: VideoInputRole) => {
-    if (role === 'first_frame') {
-      const required = taskKind !== 'reference_to_video'
-      return (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ marginBottom: 8 }}>
-            <VideoFieldLabel label="首帧图" help={getAssetHelp('first_frame')} required={required} />
-            {!required && <span style={{ marginLeft: 6, color: token.colorTextSecondary }}>（可选）</span>}
-          </div>
-          <Select
-            style={{ width: '100%' }}
-            value={(taskKind === 'reference_to_video' ? referenceFirstFrameUrl : firstFrameUrl) || undefined}
-            onChange={(value) => {
-              if (taskKind === 'reference_to_video') setReferenceFirstFrameUrl(value || '')
-              else setFirstFrameUrl(value || '')
-            }}
-            placeholder="从图库选择图片"
-            allowClear
-            optionLabelProp="label"
-          >
-            {galleryImages.map((image) => (
-              <Select.Option key={image.id} value={image.url} label={image.name}>
-                <Space>
-                  <img src={image.url} alt="" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4 }} />
-                  {image.name}
-                </Space>
-              </Select.Option>
-            ))}
-          </Select>
-        </div>
-      )
-    }
-
-    if (role === 'last_frame') {
-      const required = taskKind === 'keyframe_to_video'
-      return (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ marginBottom: 8 }}>
-            <VideoFieldLabel label="尾帧图" help={getAssetHelp('last_frame')} required={required} />
-            {!required && <span style={{ marginLeft: 6, color: token.colorTextSecondary }}>（可选）</span>}
-          </div>
-          <Select
-            style={{ width: '100%' }}
-            value={lastFrameUrl || undefined}
-            onChange={(value) => setLastFrameUrl(value || '')}
-            placeholder={required ? '从图库选择尾帧图' : '从图库选择尾帧图（可选）'}
-            optionLabelProp="label"
-          >
-            {galleryImages.map((image) => (
-              <Select.Option key={image.id} value={image.url} label={image.name}>
-                <Space>
-                  <img src={image.url} alt="" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4 }} />
-                  {image.name}
-                </Space>
-              </Select.Option>
-            ))}
-          </Select>
-        </div>
-      )
-    }
-
-    if (role === 'audio') {
-      const audioLabel = taskKind === 'text_to_video' ? '自定义音频' : '驱动音频'
-      return (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ marginBottom: 8 }}><VideoFieldLabel label={audioLabel} help={getAssetHelp('audio')} /></div>
-          <Select
-            style={{ width: '100%' }}
-            value={audioUrl || undefined}
-            onChange={(value) => setAudioUrl(value || '')}
-            placeholder="从音频库选择"
-            allowClear
-          >
-            {audioItems.map((audio) => (
-              <Select.Option key={audio.id} value={audio.url}>
-                {audio.name}
-              </Select.Option>
-            ))}
-          </Select>
-        </div>
-      )
-    }
-
-    if (role === 'first_clip') {
-      return (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ marginBottom: 8 }}><VideoFieldLabel label="首段视频" help={getAssetHelp('first_clip')} required /></div>
-          <Select
-            style={{ width: '100%' }}
-            value={firstClipUrl || undefined}
-            onChange={(value) => setFirstClipUrl(value || '')}
-            placeholder="从视频库选择首段视频"
-            optionLabelProp="label"
-          >
-            {videoLibraryItems.map((video) => (
-              <Select.Option key={video.id} value={video.url} label={video.name}>
-                <Space>
-                  <VideoCameraOutlined />
-                  {video.name}
-                </Space>
-              </Select.Option>
-            ))}
-          </Select>
-        </div>
-      )
-    }
-
-    if (role === 'base_video' || role === 'source_video') {
-      const currentValue = role === 'base_video' ? baseVideoUrl : sourceVideoUrl
-      const disableSelector = isEditMode && taskKind === 'video_edit_local' && role === 'source_video'
-      const label = role === 'base_video' ? '待编辑视频' : '源视频'
-      return (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ marginBottom: 8 }}><VideoFieldLabel label={label} help={getAssetHelp(role)} required /></div>
-          <Select
-            style={{ width: '100%' }}
-            value={currentValue || undefined}
-            disabled={disableSelector}
-            onChange={(value) => {
-              if (role === 'base_video') {
-                setBaseVideoUrl(value || '')
-              } else {
-                setSourceVideoUrl(value || '')
-                if (value) {
-                  void handlePrepareSourceVideo(value)
-                }
-              }
-            }}
-            placeholder="从视频库选择视频"
-            optionLabelProp="label"
-          >
-            {videoLibraryItems.map((video) => (
-              <Select.Option key={video.id} value={video.url} label={video.name}>
-                <Space>
-                  <VideoCameraOutlined />
-                  {video.name}
-                </Space>
-              </Select.Option>
-            ))}
-          </Select>
-          {role === 'source_video' && sourceVideoPreparing && (
-            <div style={{ marginTop: 8 }}>
-              <Space size={8}>
-                <Spin size="small" />
-                <span style={{ color: token.colorTextSecondary }}>正在提取首帧与视频元数据...</span>
-              </Space>
-            </div>
-          )}
-          {role === 'source_video' && sourceVideoMetadata && (
-            <div style={{ marginTop: 8, fontSize: 12, color: token.colorTextSecondary }}>
-              {sourceVideoMetadata.width} × {sourceVideoMetadata.height} · {sourceVideoMetadata.fps.toFixed(2)} FPS · {sourceVideoMetadata.duration.toFixed(2)} 秒
-            </div>
-          )}
-        </div>
-      )
-    }
-
-    return null
+    return (
+      <InputAssetSelector
+        role={role}
+        taskKind={taskKind}
+        isEditMode={isEditMode}
+        galleryImages={galleryImages}
+        audioItems={audioItems}
+        videoLibraryItems={videoLibraryItems}
+        firstFrameUrl={firstFrameUrl}
+        lastFrameUrl={lastFrameUrl}
+        referenceFirstFrameUrl={referenceFirstFrameUrl}
+        audioUrl={audioUrl}
+        firstClipUrl={firstClipUrl}
+        baseVideoUrl={baseVideoUrl}
+        sourceVideoUrl={sourceVideoUrl}
+        sourceVideoPreparing={sourceVideoPreparing}
+        sourceVideoMetadata={sourceVideoMetadata}
+        getAssetHelp={getAssetHelp}
+        onFirstFrameChange={setFirstFrameUrl}
+        onLastFrameChange={setLastFrameUrl}
+        onReferenceFirstFrameChange={setReferenceFirstFrameUrl}
+        onAudioChange={setAudioUrl}
+        onFirstClipChange={setFirstClipUrl}
+        onBaseVideoChange={setBaseVideoUrl}
+        onSourceVideoChange={setSourceVideoUrl}
+        onPrepareSourceVideo={(url) => { void handlePrepareSourceVideo(url) }}
+      />
+    )
   }
 
   const renderReferenceCollections = () => {

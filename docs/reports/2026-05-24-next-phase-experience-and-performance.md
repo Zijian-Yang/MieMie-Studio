@@ -317,10 +317,16 @@ pre 部署复验：
 - `frontend/e2e/smoke.spec.ts` 新增局部编辑源视频/Mask 面板样本，mock `video_edit_local` 能力、视频库源视频和 `prepare-source-video`，覆盖源视频选择后元数据与 Mask 面板出现；`npm run test:e2e` 扩展到 9 个 smoke。
 - 本刀不改变 Mask 绘制工具、Mask 导出、上传接口、局部编辑校验或源视频准备接口语义。
 
+2026-06-06 阶段 6B 视频工作室创建/编辑弹窗拆分第五刀：
+
+- 新增 `frontend/src/pages/VideoStudio/InputAssetSelector.tsx`，从 `CapabilityCreateModal.tsx` 拆出首帧、尾帧、音频、首段视频、待编辑视频和源视频选择器。
+- `CapabilityCreateModal.tsx` 从 `1434` 行降至 `1306` 行；新组件为受控 UI 组件，素材状态、源视频准备回调、preview payload 和提交逻辑仍由父组件持有。
+- 本刀不改变素材选择控件、可选/必填标记、源视频准备触发时机、元数据展示或任一后端接口语义；继续由 9 个前端 smoke 覆盖文生、参考素材和局部编辑入口。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
-- `CapabilityCreateModal.tsx` 下一刀：拆源视频准备状态/选择器或参数区域等子组件或 hook；不重做 UI。
+- `CapabilityCreateModal.tsx` 下一刀：拆能力参数区域等子组件或 hook；不重做 UI。
 - Smoke 后续：随创建/编辑表单拆分继续补编辑提交等更重路径。
 
 ## 结论
