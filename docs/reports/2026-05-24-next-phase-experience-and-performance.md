@@ -310,11 +310,18 @@ pre 部署复验：
 - `frontend/e2e/smoke.spec.ts` 新增参考素材创建流程样本，mock `wan2.7-r2v` 能力、图库参考图、preview payload 与创建提交，断言 `reference_media` 请求体；`npm run test:e2e` 扩展到 8 个 smoke。
 - 本刀不改变参考素材数量限制、已选素材展示、参考音色选择、指代词插入、提交校验或任一后端接口语义。
 
+2026-06-06 阶段 6B 视频工作室创建/编辑弹窗拆分第四刀：
+
+- 新增 `frontend/src/pages/VideoStudio/MaskEditorPanel.tsx`，从 `CapabilityCreateModal.tsx` 拆出局部编辑 Mask 展示、工具按钮、警告、编辑模式复用提示和 `SourceVideoMetadata` 纯类型。
+- `CapabilityCreateModal.tsx` 从 `1499` 行降至 `1434` 行；新面板为受控 UI 组件，源视频准备、Mask 上传、提交校验和 API 调用仍由父组件持有。
+- `frontend/e2e/smoke.spec.ts` 新增局部编辑源视频/Mask 面板样本，mock `video_edit_local` 能力、视频库源视频和 `prepare-source-video`，覆盖源视频选择后元数据与 Mask 面板出现；`npm run test:e2e` 扩展到 9 个 smoke。
+- 本刀不改变 Mask 绘制工具、Mask 导出、上传接口、局部编辑校验或源视频准备接口语义。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
-- `CapabilityCreateModal.tsx` 下一刀：拆源视频/Mask 准备或参数区域等子组件或 hook；不重做 UI。
-- Smoke 后续：随创建/编辑表单拆分继续补编辑、局部编辑等更重路径。
+- `CapabilityCreateModal.tsx` 下一刀：拆源视频准备状态/选择器或参数区域等子组件或 hook；不重做 UI。
+- Smoke 后续：随创建/编辑表单拆分继续补编辑提交等更重路径。
 
 ## 结论
 

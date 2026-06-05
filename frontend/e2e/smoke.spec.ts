@@ -253,6 +253,51 @@ function createReferenceVideoStudioCapabilities() {
   }
 }
 
+function createVideoEditLocalCapabilities() {
+  return {
+    task_kinds: [
+      {
+        id: 'video_edit_local',
+        label: '局部编辑',
+        description: '选择源视频并绘制 Mask 后局部编辑视频。',
+        legacy_task_types: ['video_edit'],
+        model_ids: ['wan2.5-video-edit-local'],
+        default_model_id: 'wan2.5-video-edit-local',
+      },
+    ],
+    models: {
+      'wan2.5-video-edit-local': {
+        id: 'wan2.5-video-edit-local',
+        name: 'Wan 局部编辑',
+        provider: 'wan',
+        type: 'video',
+        description: 'Smoke 局部编辑模型',
+        capabilities: {
+          max_concurrent: 1,
+        },
+        supported_task_kinds: ['video_edit_local'],
+        task_profiles: {
+          video_edit_local: {
+            task_kind: 'video_edit_local',
+            label: '局部编辑',
+            description: '选择源视频并绘制 Mask 后局部编辑视频。',
+            input_roles: ['source_video'],
+            parameters: [],
+            supported_narrative_modes: ['single'],
+            default_values: {
+              resolution: '720P',
+              duration: 5,
+            },
+          },
+        },
+      },
+    },
+    legacy_task_kind_map: {
+      video_edit: 'video_edit_local',
+    },
+  }
+}
+
 async function mockProjectApis(
   page: Page,
   options: {
@@ -382,6 +427,29 @@ async function mockProjectApis(
             prompt: payload.prompt,
           },
           validation_warnings: [],
+        }),
+      })
+      return
+    }
+
+    if (path === '/api/video-studio/prepare-source-video') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          preview_image_data_url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+          preview_image_url: 'https://assets.example.com/source-preview.png',
+          metadata: {
+            width: 320,
+            height: 180,
+            fps: 24,
+            duration: 4,
+            frame_count: 96,
+            file_size: 1024,
+            format: 'mp4',
+            warnings: [],
+          },
+          warnings: [],
         }),
       })
       return
@@ -534,6 +602,35 @@ test('视频工作室参考素材创建流程可提交', async () => {
     await expect(page.getByText('任务已创建')).toBeVisible()
     await expect.poll(() => createdPayload?.input_assets?.reference_media?.[0]?.url).toBe('https://assets.example.com/reference-image.png')
     await expect.poll(() => createdPayload?.input_assets?.reference_media?.[0]?.type).toBe('reference_image')
+  })
+})
+
+test('视频工作室局部编辑源视频选择后显示 Mask 面板', async () => {
+  await withPage(async (page) => {
+    await seedAuth(page)
+    await mockProjectApis(page, {
+      videoStudioCapabilities: createVideoEditLocalCapabilities(),
+      videoLibraryItems: [
+        {
+          id: 'video-source-1',
+          name: 'Smoke 源视频',
+          url: 'https://assets.example.com/source-video.mp4',
+          created_at: '2026-04-23T00:00:00',
+        },
+      ],
+    })
+    await page.goto('/project/project-1/video-studio')
+
+    await page.getByRole('button', { name: '新建任务' }).click()
+    await expect(page.getByText('新建视频任务')).toBeVisible()
+    await expect(page.getByRole('tab', { name: '局部编辑' })).toBeVisible()
+
+    await page.locator('.ant-select-selector').filter({ hasText: '从视频库选择视频' }).click()
+    await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').getByText('Smoke 源视频').click()
+
+    await expect(page.getByText('320 × 180 · 24.00 FPS · 4.00 秒')).toBeVisible()
+    await expect(page.getByText('局部编辑 Mask')).toBeVisible()
+    await expect(page.getByPlaceholder('描述需要替换或新增的局部内容')).toBeVisible()
   })
 })
 

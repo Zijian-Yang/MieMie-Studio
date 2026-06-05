@@ -40,7 +40,8 @@ import {
 } from '../../services/api'
 import DynamicModelForm from '../../components/ModelConfig/DynamicModelForm'
 import DeveloperPreviewPanel, { type VideoStudioPreviewPayload } from './DeveloperPreviewPanel'
-import MaskEditor, { type MaskEditorHandle, type MaskEditorTool } from './MaskEditor'
+import type { MaskEditorHandle, MaskEditorTool } from './MaskEditor'
+import MaskEditorPanel, { type SourceVideoMetadata } from './MaskEditorPanel'
 import ReferenceCollectionsPanel, { type StructuredReferenceMediaItem } from './ReferenceCollectionsPanel'
 import VideoFieldLabel from './VideoFieldLabel'
 import {
@@ -55,7 +56,6 @@ import {
 
 const { Text, Paragraph } = Typography
 const { TextArea } = Input
-const MASK_BRUSH_SIZES = [8, 16, 32, 64]
 const LEGACY_TASK_KIND_MAP: Record<string, VideoTaskKind> = {
   image_to_video: 'image_to_video',
   reference_to_video: 'reference_to_video',
@@ -65,17 +65,6 @@ const LEGACY_TASK_KIND_MAP: Record<string, VideoTaskKind> = {
   video_repainting: 'video_repainting',
   video_edit: 'video_edit_local',
   video_edit_global: 'video_edit_global',
-}
-
-interface SourceVideoMetadata {
-  width: number
-  height: number
-  fps: number
-  duration: number
-  frame_count: number
-  file_size: number
-  format: string
-  warnings: string[]
 }
 
 interface MultiShotSegment {
@@ -1190,75 +1179,21 @@ const CapabilityCreateModal = ({
   const renderMaskEditor = () => {
     if (taskKind !== 'video_edit_local') return null
 
-    if (isEditMode) {
-      return (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ marginBottom: 8 }}><VideoFieldLabel label="局部编辑 Mask" help={getAssetHelp('mask_image')} /></div>
-          <div style={{ marginBottom: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout }}>
-            <Text type="secondary">编辑模式会复用任务已有的 Mask，本阶段不支持重新绘制。</Text>
-          </div>
-          {existingMaskImageUrl ? (
-            <img
-              src={existingMaskImageUrl}
-              alt="局部编辑蒙版"
-              style={{ width: '100%', borderRadius: 8, objectFit: 'contain', background: token.colorBgLayout }}
-            />
-          ) : (
-            <div style={{ padding: 16, borderRadius: 8, background: token.colorWarningBg, color: token.colorWarningText }}>
-              当前任务没有可复用的蒙版，无法在编辑模式下修改。请重新创建局部编辑任务。
-            </div>
-          )}
-        </div>
-      )
-    }
-
     return (
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ marginBottom: 8 }}><VideoFieldLabel label="局部编辑 Mask" help={getAssetHelp('mask_image')} required /></div>
-        <div style={{ marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <Button type={maskTool === 'brush' ? 'primary' : 'default'} onClick={() => setMaskTool('brush')}>画笔</Button>
-          <Button type={maskTool === 'polygon' ? 'primary' : 'default'} onClick={() => setMaskTool('polygon')}>多边形</Button>
-          <Button type={maskTool === 'eraser' ? 'primary' : 'default'} onClick={() => setMaskTool('eraser')}>橡皮擦</Button>
-          {MASK_BRUSH_SIZES.map((sizeValue) => (
-            <Button
-              key={sizeValue}
-              type={maskBrushSize === sizeValue ? 'primary' : 'default'}
-              onClick={() => setMaskBrushSize(sizeValue)}
-              disabled={maskTool === 'polygon'}
-            >
-              {sizeValue}px
-            </Button>
-          ))}
-          <Button onClick={() => {
-            maskEditorRef.current?.clearMask()
-            setMaskHasContent(false)
-          }}>
-            清空蒙版
-          </Button>
-        </div>
-        {sourceVideoWarnings.length > 0 && (
-          <div style={{ marginBottom: 8, padding: 10, borderRadius: 8, background: token.colorWarningBg }}>
-            {sourceVideoWarnings.map((warning, index) => (
-              <div key={index} style={{ fontSize: 12, color: token.colorWarningText }}>{warning}</div>
-            ))}
-          </div>
-        )}
-        {sourceVideoPreviewDataUrl && sourceVideoMetadata ? (
-          <MaskEditor
-            ref={maskEditorRef}
-            backgroundImageUrl={sourceVideoPreviewDataUrl}
-            width={sourceVideoMetadata.width}
-            height={sourceVideoMetadata.height}
-            tool={maskTool}
-            brushSize={maskBrushSize}
-            onMaskStateChange={setMaskHasContent}
-          />
-        ) : (
-          <div style={{ padding: 16, borderRadius: 8, background: token.colorBgLayout, color: token.colorTextSecondary }}>
-            选择源视频后，系统会提取首帧并显示可编辑区域。
-          </div>
-        )}
-      </div>
+      <MaskEditorPanel
+        isEditMode={isEditMode}
+        existingMaskImageUrl={existingMaskImageUrl}
+        sourceVideoWarnings={sourceVideoWarnings}
+        sourceVideoPreviewDataUrl={sourceVideoPreviewDataUrl}
+        sourceVideoMetadata={sourceVideoMetadata}
+        maskTool={maskTool}
+        maskBrushSize={maskBrushSize}
+        maskEditorRef={maskEditorRef}
+        maskHelp={getAssetHelp('mask_image')}
+        onMaskToolChange={setMaskTool}
+        onMaskBrushSizeChange={setMaskBrushSize}
+        onMaskContentChange={setMaskHasContent}
+      />
     )
   }
 
