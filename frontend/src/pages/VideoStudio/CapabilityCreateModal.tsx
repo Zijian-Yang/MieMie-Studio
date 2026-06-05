@@ -8,7 +8,6 @@ import {
   Empty,
   Input,
   InputNumber,
-  List,
   Modal,
   Row,
   Select,
@@ -42,8 +41,8 @@ import {
 import DynamicModelForm from '../../components/ModelConfig/DynamicModelForm'
 import DeveloperPreviewPanel, { type VideoStudioPreviewPayload } from './DeveloperPreviewPanel'
 import MaskEditor, { type MaskEditorHandle, type MaskEditorTool } from './MaskEditor'
+import ReferenceCollectionsPanel, { type StructuredReferenceMediaItem } from './ReferenceCollectionsPanel'
 import VideoFieldLabel from './VideoFieldLabel'
-import { resolveReferenceCollectionLimits } from './capabilityLimits'
 import {
   countPromptLengthUnits,
   formatPromptLengthLimit,
@@ -83,10 +82,6 @@ interface MultiShotSegment {
   id: string
   prompt: string
   duration: number
-}
-
-interface StructuredReferenceMediaItem extends VideoReferenceMediaItem {
-  id: string
 }
 
 interface PromptSelection {
@@ -1167,222 +1162,28 @@ const CapabilityCreateModal = ({
   }
 
   const renderReferenceCollections = () => {
-    if (taskKind !== 'reference_to_video' && taskKind !== 'video_edit_global' && taskKind !== 'video_edit_local' && taskKind !== 'video_repainting') {
-      return null
-    }
-
-    const { maxReferenceImages, maxReferenceVideos, maxReferenceTotal } = resolveReferenceCollectionLimits(taskKind, currentProfile)
-
-    if (isWan27ReferenceModel) {
-      const selectedReferenceUrls = new Set(referenceMediaItems.map((item) => item.url))
-      return (
-        <>
-          {maxReferenceImages > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ marginBottom: 8 }}>
-                <VideoFieldLabel label="参考图片" help={currentProfile?.ui_hints?.asset_help?.reference_image || getAssetHelp('reference_image')} />
-              </div>
-              <Select
-                style={{ width: '100%' }}
-                value={undefined}
-                onChange={(value) => {
-                  const currentImageCount = referenceMediaItems.filter((item) => item.type === 'reference_image').length
-                  if (!value || currentImageCount >= maxReferenceImages || referenceMediaItems.length >= maxReferenceTotal) return
-                  addReferenceMediaItem('reference_image', value)
-                }}
-                placeholder="从图库添加参考图"
-                disabled={referenceMediaItems.filter((item) => item.type === 'reference_image').length >= maxReferenceImages || referenceMediaItems.length >= maxReferenceTotal}
-                optionLabelProp="label"
-              >
-                {galleryImages.filter((item) => !selectedReferenceUrls.has(item.url)).map((image) => (
-                  <Select.Option key={image.id} value={image.url} label={image.name}>
-                    <Space>
-                      <img src={image.url} alt="" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4 }} />
-                      {image.name}
-                    </Space>
-                  </Select.Option>
-                ))}
-              </Select>
-            </div>
-          )}
-          {maxReferenceVideos > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ marginBottom: 8 }}>
-                <VideoFieldLabel label="参考视频" help={currentProfile?.ui_hints?.asset_help?.reference_video || getAssetHelp('reference_video')} />
-              </div>
-              <Select
-                style={{ width: '100%' }}
-                value={undefined}
-                onChange={(value) => {
-                  const currentVideoCount = referenceMediaItems.filter((item) => item.type === 'reference_video').length
-                  if (!value || currentVideoCount >= maxReferenceVideos || referenceMediaItems.length >= maxReferenceTotal) return
-                  addReferenceMediaItem('reference_video', value)
-                }}
-                placeholder="从视频库添加参考视频"
-                disabled={referenceMediaItems.filter((item) => item.type === 'reference_video').length >= maxReferenceVideos || referenceMediaItems.length >= maxReferenceTotal}
-              >
-                {videoLibraryItems.filter((item) => !selectedReferenceUrls.has(item.url)).map((video) => (
-                  <Select.Option key={video.id} value={video.url}>
-                    {video.name}
-                  </Select.Option>
-                ))}
-              </Select>
-            </div>
-          )}
-          {referenceMediaItems.length > 0 && (
-            <div style={{ marginBottom: 16, padding: 12, borderRadius: 8, background: token.colorBgLayout }}>
-              <div style={{ marginBottom: 8, fontWeight: 500 }}>已选参考素材</div>
-              <Space direction="vertical" style={{ width: '100%' }}>
-                {referenceMediaItems.map((item, index) => {
-                  const image = galleryImages.find((entry) => entry.url === item.url)
-                  const video = videoLibraryItems.find((entry) => entry.url === item.url)
-                  const audio = audioItems.find((entry) => entry.url === item.reference_voice)
-                  const roleCounts = {
-                    reference_image: referenceMediaItems.filter((entry) => entry.type === 'reference_image').length,
-                    reference_video: referenceMediaItems.filter((entry) => entry.type === 'reference_video').length,
-                  }
-                  const roleIndex = referenceMediaItems
-                    .slice(0, index)
-                    .filter((entry) => entry.type === item.type)
-                    .length
-                  return (
-                    <div key={item.id} style={{ padding: 12, borderRadius: 8, background: token.colorBgContainer }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                        <Space size={8} wrap>
-                          <Tag color={item.type === 'reference_image' ? 'green' : 'blue'}>
-                            {item.type === 'reference_image' ? '图片' : '视频'}
-                          </Tag>
-                          <span>{image?.name || video?.name || item.url}</span>
-                          {audio && <Tag color="gold">音色: {audio.name}</Tag>}
-                        </Space>
-                        <Space size={4}>
-                          {renderReferenceTokenButton(item.type, roleIndex, roleCounts)}
-                          <Button type="text" disabled={index === 0} onClick={() => moveReferenceMediaItem(item.id, -1)}>上移</Button>
-                          <Button type="text" disabled={index === referenceMediaItems.length - 1} onClick={() => moveReferenceMediaItem(item.id, 1)}>下移</Button>
-                          <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeReferenceMediaItem(item.id)} />
-                        </Space>
-                      </div>
-                      <Select
-                        style={{ width: '100%' }}
-                        value={item.reference_voice}
-                        allowClear
-                        placeholder="从音频库选择该素材的参考音色（可选）"
-                        onChange={(value) => updateReferenceMediaVoice(item.id, value)}
-                      >
-                        {audioItems.map((audioItem) => (
-                          <Select.Option key={audioItem.id} value={audioItem.url}>
-                            {audioItem.name}
-                          </Select.Option>
-                        ))}
-                      </Select>
-                    </div>
-                  )
-                })}
-              </Space>
-            </div>
-          )}
-        </>
-      )
-    }
-
     return (
-      <>
-        {maxReferenceImages > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ marginBottom: 8 }}>
-              <VideoFieldLabel label="参考图片" help={currentProfile?.ui_hints?.asset_help?.reference_image || getAssetHelp('reference_image')} />
-              {taskKind !== 'reference_to_video' && <span style={{ marginLeft: 6, color: token.colorTextSecondary }}>（可选）</span>}
-            </div>
-            <Select
-              style={{ width: '100%' }}
-              value={undefined}
-              onChange={(value) => {
-                if (!value || referenceImageUrls.length >= maxReferenceImages) return
-                setReferenceImageUrls((prev) => addUnique(prev, value))
-              }}
-              placeholder="从图库添加参考图"
-              disabled={referenceImageUrls.length >= maxReferenceImages}
-              optionLabelProp="label"
-            >
-              {galleryImages.filter((item) => !referenceImageUrls.includes(item.url)).map((image) => (
-                <Select.Option key={image.id} value={image.url} label={image.name}>
-                  <Space>
-                    <img src={image.url} alt="" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 4 }} />
-                    {image.name}
-                  </Space>
-                </Select.Option>
-              ))}
-            </Select>
-          </div>
-        )}
-        {maxReferenceVideos > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ marginBottom: 8 }}>
-              <VideoFieldLabel label="参考视频" help={currentProfile?.ui_hints?.asset_help?.reference_video || getAssetHelp('reference_video')} />
-              {taskKind === 'reference_to_video' && <span style={{ marginLeft: 6, color: token.colorTextSecondary }}>（可选）</span>}
-            </div>
-            <Select
-              style={{ width: '100%' }}
-              value={undefined}
-              onChange={(value) => {
-                if (!value || referenceVideoUrls.length >= maxReferenceVideos) return
-                setReferenceVideoUrls((prev) => addUnique(prev, value))
-              }}
-              placeholder="从视频库添加参考视频"
-              disabled={referenceVideoUrls.length >= maxReferenceVideos}
-            >
-              {videoLibraryItems.filter((item) => !referenceVideoUrls.includes(item.url)).map((video) => (
-                <Select.Option key={video.id} value={video.url}>
-                  {video.name}
-                </Select.Option>
-              ))}
-            </Select>
-          </div>
-        )}
-        {(referenceImageUrls.length > 0 || referenceVideoUrls.length > 0) && (
-          <div style={{ marginBottom: 16, padding: 12, borderRadius: 8, background: token.colorBgLayout }}>
-            <div style={{ marginBottom: 8, fontWeight: 500 }}>已选参考素材</div>
-            <List
-              size="small"
-              dataSource={[
-                ...referenceImageUrls.map((url, index) => ({ url, type: 'image' as const, role: 'reference_image' as const, roleIndex: index })),
-                ...referenceVideoUrls.map((url, index) => ({ url, type: 'video' as const, role: 'reference_video' as const, roleIndex: index })),
-              ]}
-              renderItem={(item) => {
-                const image = galleryImages.find((entry) => entry.url === item.url)
-                const video = videoLibraryItems.find((entry) => entry.url === item.url)
-                const roleCounts = {
-                  reference_image: referenceImageUrls.length,
-                  reference_video: referenceVideoUrls.length,
-                }
-                return (
-                  <List.Item
-                    actions={[
-                      <span key="reference-token">
-                        {renderReferenceTokenButton(item.role, item.roleIndex, roleCounts)}
-                      </span>,
-                      <Button
-                        key="delete"
-                        type="text"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => item.type === 'image' ? removeReferenceImage(item.url) : removeReferenceVideo(item.url)}
-                      />,
-                    ]}
-                  >
-                    <Space>
-                      <Tag color={item.type === 'image' ? 'green' : 'blue'}>
-                        {item.type === 'image' ? '图片' : '视频'}
-                      </Tag>
-                      <span>{image?.name || video?.name || item.url}</span>
-                    </Space>
-                  </List.Item>
-                )
-              }}
-            />
-          </div>
-        )}
-      </>
+      <ReferenceCollectionsPanel
+        taskKind={taskKind}
+        currentProfile={currentProfile}
+        isWan27ReferenceModel={isWan27ReferenceModel}
+        galleryImages={galleryImages}
+        videoLibraryItems={videoLibraryItems}
+        audioItems={audioItems}
+        referenceImageUrls={referenceImageUrls}
+        referenceVideoUrls={referenceVideoUrls}
+        referenceMediaItems={referenceMediaItems}
+        getAssetHelp={getAssetHelp}
+        onAddReferenceImage={(url) => setReferenceImageUrls((prev) => addUnique(prev, url))}
+        onAddReferenceVideo={(url) => setReferenceVideoUrls((prev) => addUnique(prev, url))}
+        onRemoveReferenceImage={removeReferenceImage}
+        onRemoveReferenceVideo={removeReferenceVideo}
+        onAddReferenceMediaItem={addReferenceMediaItem}
+        onRemoveReferenceMediaItem={removeReferenceMediaItem}
+        onMoveReferenceMediaItem={moveReferenceMediaItem}
+        onUpdateReferenceMediaVoice={updateReferenceMediaVoice}
+        renderReferenceTokenButton={renderReferenceTokenButton}
+      />
     )
   }
 

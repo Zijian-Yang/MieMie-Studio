@@ -201,8 +201,74 @@ function createVideoStudioCapabilities() {
   }
 }
 
-async function mockProjectApis(page: Page, options: { videoStudioTasks?: any[] } = {}) {
+function createReferenceVideoStudioCapabilities() {
+  return {
+    task_kinds: [
+      {
+        id: 'reference_to_video',
+        label: '参考生视频',
+        description: '通过参考素材和提示词生成视频。',
+        legacy_task_types: ['reference_to_video'],
+        model_ids: ['wan2.7-r2v'],
+        default_model_id: 'wan2.7-r2v',
+      },
+    ],
+    models: {
+      'wan2.7-r2v': {
+        id: 'wan2.7-r2v',
+        name: 'Wan 参考生视频',
+        provider: 'wan',
+        type: 'video',
+        description: 'Smoke 参考素材模型',
+        capabilities: {
+          max_concurrent: 2,
+        },
+        supported_task_kinds: ['reference_to_video'],
+        task_profiles: {
+          reference_to_video: {
+            task_kind: 'reference_to_video',
+            label: '参考生视频',
+            description: '通过参考素材和提示词生成视频。',
+            input_roles: [],
+            parameters: [],
+            supported_narrative_modes: ['single'],
+            default_values: {
+              resolution: '720P',
+              duration: 5,
+              prompt_extend: true,
+              watermark: false,
+            },
+            ui_hints: {
+              max_reference_images: 1,
+              max_reference_videos: 0,
+              max_reference_total: 1,
+            },
+          },
+        },
+      },
+    },
+    legacy_task_kind_map: {
+      reference_to_video: 'reference_to_video',
+    },
+  }
+}
+
+async function mockProjectApis(
+  page: Page,
+  options: {
+    videoStudioTasks?: any[]
+    videoStudioCapabilities?: any
+    galleryImages?: any[]
+    audioItems?: any[]
+    videoLibraryItems?: any[]
+    onVideoStudioCreate?: (payload: Record<string, any>) => void
+  } = {},
+) {
   const videoStudioTasks = options.videoStudioTasks ?? []
+  const videoStudioCapabilities = options.videoStudioCapabilities ?? createVideoStudioCapabilities()
+  const galleryImages = options.galleryImages ?? []
+  const audioItems = options.audioItems ?? []
+  const videoLibraryItems = options.videoLibraryItems ?? []
   const smokeProject = createProjectSmokeProject()
 
   await page.route('**/api/**', async (route) => {
@@ -299,7 +365,7 @@ async function mockProjectApis(page: Page, options: { videoStudioTasks?: any[] }
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(createVideoStudioCapabilities()),
+        body: JSON.stringify(videoStudioCapabilities),
       })
       return
     }
@@ -323,6 +389,7 @@ async function mockProjectApis(page: Page, options: { videoStudioTasks?: any[] }
 
     if (path === '/api/video-studio' && route.request().method() === 'POST') {
       const payload = route.request().postDataJSON() as Record<string, any>
+      options.onVideoStudioCreate?.(payload)
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -337,17 +404,17 @@ async function mockProjectApis(page: Page, options: { videoStudioTasks?: any[] }
     }
 
     if (path === '/api/gallery') {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: [] }) })
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ images: galleryImages }) })
       return
     }
 
     if (path === '/api/audio') {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ audios: [] }) })
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ audios: audioItems }) })
       return
     }
 
     if (path === '/api/video-library') {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ videos: [] }) })
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ videos: videoLibraryItems }) })
       return
     }
 
@@ -430,6 +497,43 @@ test('视频工作室文生视频创建流程可提交', async () => {
     await expect(page.getByText('WAN').first()).toBeVisible()
     await expect(page.getByText('等待中').first()).toBeVisible()
     await expect(page.getByText('0/1')).toBeVisible()
+  })
+})
+
+test('视频工作室参考素材创建流程可提交', async () => {
+  await withPage(async (page) => {
+    let createdPayload: Record<string, any> | null = null
+    await seedAuth(page)
+    await mockProjectApis(page, {
+      videoStudioCapabilities: createReferenceVideoStudioCapabilities(),
+      galleryImages: [
+        {
+          id: 'gallery-reference-1',
+          name: 'Smoke 参考图',
+          url: 'https://assets.example.com/reference-image.png',
+          created_at: '2026-04-23T00:00:00',
+        },
+      ],
+      onVideoStudioCreate: (payload) => {
+        createdPayload = payload
+      },
+    })
+    await page.goto('/project/project-1/video-studio')
+
+    await page.getByRole('button', { name: '新建任务' }).click()
+    await expect(page.getByText('新建视频任务')).toBeVisible()
+    await expect(page.getByRole('tab', { name: '参考生视频' })).toBeVisible()
+
+    await page.locator('.ant-select-selector').filter({ hasText: '从图库添加参考图' }).click()
+    await page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').getByText('Smoke 参考图').click()
+    await expect(page.getByText('已选参考素材')).toBeVisible()
+
+    await page.getByPlaceholder('描述想要生成的视频内容').fill('Smoke 参考素材提示词')
+    await page.getByRole('button', { name: '创建任务' }).click()
+
+    await expect(page.getByText('任务已创建')).toBeVisible()
+    await expect.poll(() => createdPayload?.input_assets?.reference_media?.[0]?.url).toBe('https://assets.example.com/reference-image.png')
+    await expect.poll(() => createdPayload?.input_assets?.reference_media?.[0]?.type).toBe('reference_image')
   })
 })
 

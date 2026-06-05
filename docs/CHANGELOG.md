@@ -32,6 +32,8 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 前端页面治理阶段 6B 第九刀：新增 `frontend/src/pages/VideoStudio/ReferenceCollectionsPanel.tsx`，拆出参考图片/视频选择、已选参考素材、参考音色、顺序调整、删除和指代词按钮挂载；`CapabilityCreateModal.tsx` 继续保留状态、preview 和提交逻辑，行为保持不变。
+- 前端 smoke 补强：`frontend/e2e/smoke.spec.ts` 新增视频工作室参考素材创建流程样本，mock `wan2.7-r2v` 能力、图库参考图、preview payload 与创建提交，断言 `reference_media` 请求体；`npm run test:e2e` 扩展到 8 个 smoke。
 - 前端页面治理阶段 6B 第八刀：新增 `frontend/src/pages/VideoStudio/VideoFieldLabel.tsx`，收敛视频工作室创建/编辑弹窗中素材、Mask 和提示词区域共用的字段标题、必填星号和 hover 帮助入口；行为保持不变。
 - 前端页面治理阶段 6B 第七刀：新增 `frontend/src/pages/VideoStudio/DeveloperPreviewPanel.tsx`，从 `CapabilityCreateModal.tsx` 拆出开发者模式提交状态、canonical 请求体、厂商请求体和 validation warning 展示；行为保持不变。
 - 前端页面治理阶段 6B 第六刀：删除 `VideoStudioPage.tsx` 中两个 `{false && ...}` 包裹的旧创建/编辑弹窗死代码，以及只服务旧弹窗的旧状态、handler、Mask 处理和模型分支引用；页面降至 152 行，当前创建/编辑继续统一走 `CapabilityCreateModal`。

@@ -303,11 +303,18 @@ pre 部署复验：
 - `CapabilityCreateModal.tsx` 从 `1706` 行降至 `1698` 行；新组件为纯展示组件，不持有表单状态、素材状态或副作用。
 - 本刀不改变字段文案、必填星号、帮助弹层内容或任一素材选择行为。
 
+2026-06-06 阶段 6B 视频工作室创建/编辑弹窗拆分第三刀：
+
+- 新增 `frontend/src/pages/VideoStudio/ReferenceCollectionsPanel.tsx`，从 `CapabilityCreateModal.tsx` 拆出参考图片/视频选择、已选参考素材、参考音色、顺序调整、删除和指代词按钮挂载。
+- `CapabilityCreateModal.tsx` 从 `1698` 行降至 `1499` 行；新组件为受控 UI 组件，状态、提交 payload、preview payload 和 API 调用仍由父组件持有。
+- `frontend/e2e/smoke.spec.ts` 新增参考素材创建流程样本，mock `wan2.7-r2v` 能力、图库参考图、preview payload 与创建提交，断言 `reference_media` 请求体；`npm run test:e2e` 扩展到 8 个 smoke。
+- 本刀不改变参考素材数量限制、已选素材展示、参考音色选择、指代词插入、提交校验或任一后端接口语义。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
-- `CapabilityCreateModal.tsx` 下一刀：拆能力表单内的素材选择、源视频/Mask 准备或参数区域等子组件或 hook；不重做 UI。
-- Smoke 后续：随创建/编辑表单拆分继续补编辑、素材选择、局部编辑等更重路径。
+- `CapabilityCreateModal.tsx` 下一刀：拆源视频/Mask 准备或参数区域等子组件或 hook；不重做 UI。
+- Smoke 后续：随创建/编辑表单拆分继续补编辑、局部编辑等更重路径。
 
 ## 结论
 
