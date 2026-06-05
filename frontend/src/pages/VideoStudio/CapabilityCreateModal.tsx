@@ -40,9 +40,9 @@ import {
   videoStudioApi,
 } from '../../services/api'
 import DynamicModelForm from '../../components/ModelConfig/DynamicModelForm'
-import HoverInfoPopover from '../../components/Help/HoverInfoPopover'
 import DeveloperPreviewPanel, { type VideoStudioPreviewPayload } from './DeveloperPreviewPanel'
 import MaskEditor, { type MaskEditorHandle, type MaskEditorTool } from './MaskEditor'
+import VideoFieldLabel from './VideoFieldLabel'
 import { resolveReferenceCollectionLimits } from './capabilityLimits'
 import {
   countPromptLengthUnits,
@@ -421,14 +421,6 @@ const CapabilityCreateModal = ({
     setReferenceImageUrls(referenceMediaItems.filter((item) => item.type === 'reference_image').map((item) => item.url))
     setReferenceVideoUrls(referenceMediaItems.filter((item) => item.type === 'reference_video').map((item) => item.url))
   }, [taskKind, modelId, referenceMediaItems])
-
-  const renderFieldLabel = (label: string, help?: HelpContent | string, required?: boolean) => (
-    <Space size={4}>
-      <span>{label}</span>
-      {required && <span style={{ color: token.colorError }}>*</span>}
-      <HoverInfoPopover title={label} help={help} />
-    </Space>
-  )
 
   const getAssetHelp = (role: VideoInputRole): HelpContent | string | undefined => {
     const profileHelp = currentProfile?.ui_hints?.asset_help?.[role]
@@ -1020,7 +1012,7 @@ const CapabilityCreateModal = ({
       return (
         <div style={{ marginBottom: 16 }}>
           <div style={{ marginBottom: 8 }}>
-            {renderFieldLabel('首帧图', getAssetHelp('first_frame'), required)}
+            <VideoFieldLabel label="首帧图" help={getAssetHelp('first_frame')} required={required} />
             {!required && <span style={{ marginLeft: 6, color: token.colorTextSecondary }}>（可选）</span>}
           </div>
           <Select
@@ -1052,7 +1044,7 @@ const CapabilityCreateModal = ({
       return (
         <div style={{ marginBottom: 16 }}>
           <div style={{ marginBottom: 8 }}>
-            {renderFieldLabel('尾帧图', getAssetHelp('last_frame'), required)}
+            <VideoFieldLabel label="尾帧图" help={getAssetHelp('last_frame')} required={required} />
             {!required && <span style={{ marginLeft: 6, color: token.colorTextSecondary }}>（可选）</span>}
           </div>
           <Select
@@ -1079,7 +1071,7 @@ const CapabilityCreateModal = ({
       const audioLabel = taskKind === 'text_to_video' ? '自定义音频' : '驱动音频'
       return (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ marginBottom: 8 }}>{renderFieldLabel(audioLabel, getAssetHelp('audio'))}</div>
+          <div style={{ marginBottom: 8 }}><VideoFieldLabel label={audioLabel} help={getAssetHelp('audio')} /></div>
           <Select
             style={{ width: '100%' }}
             value={audioUrl || undefined}
@@ -1100,7 +1092,7 @@ const CapabilityCreateModal = ({
     if (role === 'first_clip') {
       return (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ marginBottom: 8 }}>{renderFieldLabel('首段视频', getAssetHelp('first_clip'), true)}</div>
+          <div style={{ marginBottom: 8 }}><VideoFieldLabel label="首段视频" help={getAssetHelp('first_clip')} required /></div>
           <Select
             style={{ width: '100%' }}
             value={firstClipUrl || undefined}
@@ -1127,7 +1119,7 @@ const CapabilityCreateModal = ({
       const label = role === 'base_video' ? '待编辑视频' : '源视频'
       return (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ marginBottom: 8 }}>{renderFieldLabel(label, getAssetHelp(role), true)}</div>
+          <div style={{ marginBottom: 8 }}><VideoFieldLabel label={label} help={getAssetHelp(role)} required /></div>
           <Select
             style={{ width: '100%' }}
             value={currentValue || undefined}
@@ -1188,7 +1180,7 @@ const CapabilityCreateModal = ({
           {maxReferenceImages > 0 && (
             <div style={{ marginBottom: 16 }}>
               <div style={{ marginBottom: 8 }}>
-                {renderFieldLabel('参考图片', currentProfile?.ui_hints?.asset_help?.reference_image || getAssetHelp('reference_image'))}
+                <VideoFieldLabel label="参考图片" help={currentProfile?.ui_hints?.asset_help?.reference_image || getAssetHelp('reference_image')} />
               </div>
               <Select
                 style={{ width: '100%' }}
@@ -1216,7 +1208,7 @@ const CapabilityCreateModal = ({
           {maxReferenceVideos > 0 && (
             <div style={{ marginBottom: 16 }}>
               <div style={{ marginBottom: 8 }}>
-                {renderFieldLabel('参考视频', currentProfile?.ui_hints?.asset_help?.reference_video || getAssetHelp('reference_video'))}
+                <VideoFieldLabel label="参考视频" help={currentProfile?.ui_hints?.asset_help?.reference_video || getAssetHelp('reference_video')} />
               </div>
               <Select
                 style={{ width: '100%' }}
@@ -1298,7 +1290,7 @@ const CapabilityCreateModal = ({
         {maxReferenceImages > 0 && (
           <div style={{ marginBottom: 16 }}>
             <div style={{ marginBottom: 8 }}>
-              {renderFieldLabel('参考图片', currentProfile?.ui_hints?.asset_help?.reference_image || getAssetHelp('reference_image'))}
+              <VideoFieldLabel label="参考图片" help={currentProfile?.ui_hints?.asset_help?.reference_image || getAssetHelp('reference_image')} />
               {taskKind !== 'reference_to_video' && <span style={{ marginLeft: 6, color: token.colorTextSecondary }}>（可选）</span>}
             </div>
             <Select
@@ -1326,7 +1318,7 @@ const CapabilityCreateModal = ({
         {maxReferenceVideos > 0 && (
           <div style={{ marginBottom: 16 }}>
             <div style={{ marginBottom: 8 }}>
-              {renderFieldLabel('参考视频', currentProfile?.ui_hints?.asset_help?.reference_video || getAssetHelp('reference_video'))}
+              <VideoFieldLabel label="参考视频" help={currentProfile?.ui_hints?.asset_help?.reference_video || getAssetHelp('reference_video')} />
               {taskKind === 'reference_to_video' && <span style={{ marginLeft: 6, color: token.colorTextSecondary }}>（可选）</span>}
             </div>
             <Select
@@ -1400,7 +1392,7 @@ const CapabilityCreateModal = ({
     if (isEditMode) {
       return (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ marginBottom: 8 }}>{renderFieldLabel('局部编辑 Mask', getAssetHelp('mask_image'))}</div>
+          <div style={{ marginBottom: 8 }}><VideoFieldLabel label="局部编辑 Mask" help={getAssetHelp('mask_image')} /></div>
           <div style={{ marginBottom: 12, padding: 12, borderRadius: 8, background: token.colorBgLayout }}>
             <Text type="secondary">编辑模式会复用任务已有的 Mask，本阶段不支持重新绘制。</Text>
           </div>
@@ -1421,7 +1413,7 @@ const CapabilityCreateModal = ({
 
     return (
       <div style={{ marginBottom: 16 }}>
-        <div style={{ marginBottom: 8 }}>{renderFieldLabel('局部编辑 Mask', getAssetHelp('mask_image'), true)}</div>
+        <div style={{ marginBottom: 8 }}><VideoFieldLabel label="局部编辑 Mask" help={getAssetHelp('mask_image')} required /></div>
         <div style={{ marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Button type={maskTool === 'brush' ? 'primary' : 'default'} onClick={() => setMaskTool('brush')}>画笔</Button>
           <Button type={maskTool === 'polygon' ? 'primary' : 'default'} onClick={() => setMaskTool('polygon')}>多边形</Button>
@@ -1546,7 +1538,7 @@ const CapabilityCreateModal = ({
           {renderMaskEditor()}
 
           <div style={{ marginBottom: 16 }}>
-            <div style={{ marginBottom: 8 }}>{renderFieldLabel('提示词', promptHelp, promptRequired)}</div>
+            <div style={{ marginBottom: 8 }}><VideoFieldLabel label="提示词" help={promptHelp} required={promptRequired} /></div>
             <TextArea
               ref={promptTextAreaRef}
               value={prompt}

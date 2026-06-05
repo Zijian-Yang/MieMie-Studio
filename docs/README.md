@@ -134,7 +134,7 @@ docker compose config
   - `VideoStudioPage.tsx` 继续保留旧创建/编辑表单死代码的维护压力：已删除两个 `{false && ...}` 包裹的不可达旧弹窗和专属旧状态/handler，页面降至 152 行并仅保留编排逻辑
 - 当前保留为后续治理：
   - CI / 服务器环境仍需显式安装 Playwright Chromium；当前自动发现主要覆盖本机已有缓存的开发场景
-  - `CapabilityCreateModal.tsx` 仍是视频工作室创建/编辑能力的主要复杂点；已先拆出 `DeveloperPreviewPanel.tsx`，后续可继续提取素材选择、源视频/Mask 准备和参数区域等子组件或 hook；前端 smoke 可继续随拆分补编辑、素材选择和局部编辑等更重路径；`StudioPage.tsx` 等大页面也仍需继续做行为保持型拆分
+  - `CapabilityCreateModal.tsx` 仍是视频工作室创建/编辑能力的主要复杂点；已先拆出 `DeveloperPreviewPanel.tsx` 与 `VideoFieldLabel.tsx`，后续可继续提取素材选择、源视频/Mask 准备和参数区域等子组件或 hook；前端 smoke 可继续随拆分补编辑、素材选择和局部编辑等更重路径；`StudioPage.tsx` 等大页面也仍需继续做行为保持型拆分
 
 ## 文档维护规则
 

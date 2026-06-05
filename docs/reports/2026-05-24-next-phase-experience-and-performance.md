@@ -297,6 +297,12 @@ pre 部署复验：
 - `CapabilityCreateModal.tsx` 从 `1730` 行降至 `1706` 行；新面板为纯展示组件，不持有 API 调用、表单状态或副作用。
 - 本刀不改变 preview payload 的生成时机、开发者模式折叠面板文案、warning 显示、请求体格式或提交行为。
 
+2026-06-06 阶段 6B 视频工作室创建/编辑弹窗拆分第二刀：
+
+- 新增 `frontend/src/pages/VideoStudio/VideoFieldLabel.tsx`，收敛素材、Mask 和提示词区域共用的字段标题、必填星号和 hover 帮助入口。
+- `CapabilityCreateModal.tsx` 从 `1706` 行降至 `1698` 行；新组件为纯展示组件，不持有表单状态、素材状态或副作用。
+- 本刀不改变字段文案、必填星号、帮助弹层内容或任一素材选择行为。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
