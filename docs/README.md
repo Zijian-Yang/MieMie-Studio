@@ -77,6 +77,7 @@
 | [运行模式矩阵](./playbooks/RUNTIME_MODE_MATRIX.md) | 开发环境、脚本生产模式、Compose 生产模式的边界对比 |
 | [观测与轮询盘点](./reviews/2026-04-step-00-observability-and-polling-inventory.md) | 当前轮询热点、状态接口副作用与最小观测缺口 |
 | [扩容架构 ADR](./adr/ADR-0002-server-grade-scalability-architecture.md) | 为什么采用 Redis + PostgreSQL + Worker + SSE 的渐进式路线 |
+| [数据库前架构检查点 ADR](./adr/ADR-0003-pre-database-architecture-checkpoint.md) | 阶段 5/6 后为什么暂不立即实施数据库，以及进入数据库阶段前的触发条件与准备包 |
 | [后端开发规范](./BACKEND.md) | FastAPI、服务层、schema/capabilities、适配器边界 |
 | [前端开发规范](./FRONTEND.md) | React 页面、状态管理、错误处理、动态表单 |
 | [UI 设计规范](./UI_GUIDELINES.md) | 主题 token、组件视觉约束 |
@@ -135,6 +136,7 @@ docker compose config
 - 当前保留为后续治理：
   - CI / 服务器环境仍需显式安装 Playwright Chromium；当前自动发现主要覆盖本机已有缓存的开发场景
   - `CapabilityCreateModal.tsx` 仍是视频工作室创建/编辑能力的主要复杂点；已先拆出 `DeveloperPreviewPanel.tsx`、`VideoFieldLabel.tsx`、`ReferenceCollectionsPanel.tsx`、`MaskEditorPanel.tsx` 与 `InputAssetSelector.tsx`，后续可继续提取参数区域等子组件或 hook；前端 smoke 可继续随拆分补编辑提交等更重路径；`StudioPage.tsx` 等大页面也仍需继续做行为保持型拆分
+  - 数据库阶段暂不直接实施：`ADR-0003` 已沉淀数据库前架构检查点，要求先确认 JSON I/O 瓶颈、多实例状态需求或运维接受度，再进入 SQLite/PostgreSQL 具体实施设计
 
 ## 文档维护规则
 
@@ -142,4 +144,4 @@ docker compose config
 - 如果旧文档与新 spec 冲突，以 spec / ADR 为准，并尽快修正文档入口
 - 不要把聊天上下文当规范；规范必须落盘
 
-*最后更新：2026-06-04*
+*最后更新：2026-06-06*

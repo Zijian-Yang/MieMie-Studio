@@ -332,6 +332,8 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 
 本阶段只准备讨论材料，不直接实施新技术栈。
 
+状态：已新增 `docs/adr/ADR-0003-pre-database-architecture-checkpoint.md` 作为数据库阶段前检查点草案。当前结论是不立即实施数据库；只有当本机入口也出现明确 JSON I/O 瓶颈、业务确认需要跨主机多实例核心状态、或用户接受数据库运维成本后，才进入 SQLite/PostgreSQL 具体实施设计。
+
 需要回答的问题：
 
 1. 用现有 Compose 单机 + 轻量优化，是否已经能覆盖目标人数和体验？
