@@ -363,6 +363,14 @@ pre 部署复验：
 - 本地验证：schema 测试 `3 passed`、数据库 health 测试 `3 passed`、R3 targeted 后端测试 `7 passed`、Alembic offline SQL 生成通过、`docker compose config` 通过、`git diff --check` 通过。
 - live `alembic upgrade head` 尚未执行；原因是本地 Docker daemon 不可用，且 R1/R2 staging build 后 SSH/health 仍未恢复到可验证状态。后续必须先收口服务器 R1/R2，再在 Compose 网络内执行 migration。
 
+2026-06-07 阶段 7 R4 本地 repository boundary：
+
+- 新增 `backend/app/repositories/base.py` 与 `backend/app/repositories/video_studio_tasks.py`，为视频工作室任务建立 `save/get/list_for_project/list_all/delete/mark_deleted` 仓储协议。
+- 新增 file repository adapter，默认继续包装现有 `StorageService` JSON 读写，排序和保存更新时间语义保持不变；当前路由和 worker 尚未接入 repository，因此运行态仍是 JSON/file-only。
+- 新增 PostgreSQL 行映射和 repository skeleton：常用查询字段进入索引列，完整 Pydantic 任务保存在 `raw_task_snapshot`，PostgreSQL 删除路径采用 `deleted_at` 软删除。
+- 新增 dual repository wrapper：先写 JSON primary，再写 PostgreSQL shadow；shadow 写失败在非 strict 模式不打断 JSON 主路径，为后续 R5 dual-write feature flag 做准备。
+- 本地验证：repository 测试 `4 passed`，repository/schema/health 目标集 `10 passed`，后端全量 `245 passed`。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r4-local-repository/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -377,4 +385,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步继续 R1/R2 服务器 rollout 收口：恢复 SSH 后检查 `docker compose ps/logs`，确认或修复 `api` health，完成 `postgres`、`pg_isready`、`/api/health.database`、备份/恢复演练和 post-rollout stats；随后执行 R3 live `alembic upgrade head`。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 数据库升级进入服务器验证阶段但尚未完成。
+- 下一步优先级有两条线：恢复 SSH 后收口 R1/R2 服务器 rollout 并执行 R3 live `alembic upgrade head`；本地继续 R5 前置，实现 `video_studio_tasks` backfill/reconcile 脚本和对账测试，再启用 runtime dual-write feature flag。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 数据库升级仍在进行中，尚未完成最终切库。

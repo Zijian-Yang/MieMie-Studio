@@ -411,17 +411,19 @@ Expected: migration completes and `video_studio_tasks` exists.
 - Modify: `backend/app/worker_tasks.py`
 - Create: `backend/tests/test_video_studio_task_repository.py`
 
-- [ ] Define repository protocol: `save`, `get`, `list_for_project`, `delete`, `mark_deleted`.
-- [ ] Implement file repository by wrapping current `StorageService` calls.
-- [ ] Implement postgres repository using SQLAlchemy.
-- [ ] Implement dual repository that writes JSON first, then PostgreSQL.
-- [ ] Default mode remains file-only.
-- [ ] Route and worker behavior is unchanged when env flags are disabled.
+- [x] Define repository protocol: `save`, `get`, `list_for_project`, `list_all`, `delete`, `mark_deleted`.
+- [x] Implement file repository by wrapping current `StorageService` calls.
+- [x] Implement postgres repository using SQLAlchemy.
+- [x] Implement dual repository that writes JSON first, then PostgreSQL.
+- [x] Default mode remains file-only.
+- [x] Route and worker behavior is unchanged when env flags are disabled.
+
+2026-06-07 note: local R4 repository boundary is implemented and covered by `backend/tests/test_video_studio_task_repository.py`; no router/worker wiring was enabled in this slice, so runtime remains JSON/file-only. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r4-local-repository/`. Live PostgreSQL validation is still pending staging SSH/API recovery.
 
 Required tests:
 
 - file-only repository round-trips an existing `VideoStudioTask`.
-- postgres repository round-trips JSONB fields.
+- postgres row mapping preserves indexed columns and JSONB `raw_task_snapshot`.
 - dual repository returns success only when JSON write succeeds.
 - postgres failure in shadow mode is logged and does not break JSON primary path.
 

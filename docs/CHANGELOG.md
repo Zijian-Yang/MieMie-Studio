@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R4 本地 repository boundary：新增 `backend/app/repositories/`，为视频工作室任务建立 file/postgres/dual repository；JSON 仍为默认主路径，PostgreSQL 映射保留 `raw_task_snapshot`，dual shadow 写失败不打断 JSON 主写路径，后端全量 `245 passed`。
 - 数据库升级 R3 本地 schema：新增 Alembic 配置、`video_studio_tasks` SQLAlchemy metadata、首个 PostgreSQL migration 和 schema 回归测试；生成的 DDL 包含 JSONB snapshot、任务状态索引和 partial indexes，业务读写路径仍未切库。
 - 数据库升级 R1/R2 本地实现：Compose 新增 `postgres:16-alpine` 基础设施和保守内存参数，API/worker 默认仍 `MIEMIE_DATABASE_ENABLED=false` 且不依赖 PostgreSQL；`/api/health` 新增 `database` 观测，新增懒连接数据库 health helper、PostgreSQL 备份/恢复演练脚本和数据库 health 回归测试。
 - 数据库升级 R1/R2 staging 记录：服务器已 fast-forward 到 `cb2d4ff`、写入未跟踪 `compose.env` PostgreSQL 设置并通过 Compose config；`up -d --build postgres api worker worker-video` 执行中 SSH 被远端断开，后续 SSH/TUN 验证暂未闭环，证据记录为 `in_progress`。

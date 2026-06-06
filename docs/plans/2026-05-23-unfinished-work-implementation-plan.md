@@ -332,7 +332,7 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 
 本阶段只准备讨论材料，不直接实施新技术栈。
 
-状态：已新增 `docs/adr/ADR-0003-pre-database-architecture-checkpoint.md` 作为数据库阶段前检查点，并在用户确认后接受 Compose 内 PostgreSQL 作为最终核心业务状态库。已新增 `docs/plans/2026-06-06-postgres-upgrade-optimization-plan.md`，明确 JSON 过渡、双写对账、分域读切换和最终数据库主数据源路线；第一实施域建议为视频工作室任务索引/任务状态。2026-06-07 已新增 `docs/superpowers/plans/2026-06-07-postgres-platform-upgrade-execution.md` 作为 goal 模式执行路线，并完成 preflight artifact `docs/reports/artifacts/2026-06-07-postgres-upgrade-preflight/`：本地工具链、后端关键测试、前端 typecheck/chunk 检查、服务器 SSH/Compose/health、Cloudflare health 均通过，服务器已预拉取 `postgres:16-alpine`。R1/R2 本地实现已完成：Compose PostgreSQL、database health、备份/恢复脚本和 health 测试已落地，业务读写仍默认 JSON，下一步服务器 rollout 验证 PostgreSQL 容器、health、备份和恢复演练。
+状态：已新增 `docs/adr/ADR-0003-pre-database-architecture-checkpoint.md` 作为数据库阶段前检查点，并在用户确认后接受 Compose 内 PostgreSQL 作为最终核心业务状态库。已新增 `docs/plans/2026-06-06-postgres-upgrade-optimization-plan.md`，明确 JSON 过渡、双写对账、分域读切换和最终数据库主数据源路线；第一实施域建议为视频工作室任务索引/任务状态。2026-06-07 已新增 `docs/superpowers/plans/2026-06-07-postgres-platform-upgrade-execution.md` 作为 goal 模式执行路线，并完成 preflight artifact `docs/reports/artifacts/2026-06-07-postgres-upgrade-preflight/`：本地工具链、后端关键测试、前端 typecheck/chunk 检查、服务器 SSH/Compose/health、Cloudflare health 均通过，服务器已预拉取 `postgres:16-alpine`。R1/R2 本地实现已完成：Compose PostgreSQL、database health、备份/恢复脚本和 health 测试已落地，业务读写仍默认 JSON。R3 本地 schema/Alembic 已完成，R4 本地 repository boundary 已完成：视频工作室任务已有 file/postgres/dual repository、JSONB snapshot 映射和 shadow 写失败不打断 JSON 主路径的测试。下一步需要服务器 rollout 收口和本地 backfill/reconcile 双线推进。
 
 需要回答的问题：
 
@@ -367,7 +367,7 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 3. 阶段 3 Worker 图片工作室最小接入已完成。
 4. 阶段 3.5 Redis + Worker 稳定性补强已闭环：Redis restart / unavailable、worker restart stale 兜底和 1 个真实 DashScope 图片队列 smoke 均已验证。
 5. 视频工作室 Worker 迁移 v1 已完成本地实现、pre 基础部署、无 key 失败路径、`worker-video` restart 基础恢复和 1 个真实 DashScope 视频 smoke；视频 worker v1 服务器验收已闭环。
-6. Compose PostgreSQL R1/R2 本地实现已完成；服务器 rollout 已启动但未闭环，当前记录在 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r1-r2-staging/`。R3 本地 schema/Alembic 已完成并记录在 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r3-local-schema/`，但 live migration 待服务器恢复。下一刀必须先恢复 SSH/health 检查，验证或修复 `postgres` 容器、`pg_isready`、`/api/health.database`、备份/恢复演练和 JSON 默认路径，然后执行 `alembic upgrade head`。SSE 继续后置，不与数据库第一阶段绑定。
+6. Compose PostgreSQL R1/R2 本地实现已完成；服务器 rollout 已启动但未闭环，当前记录在 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r1-r2-staging/`。R3 本地 schema/Alembic 已完成并记录在 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r3-local-schema/`，但 live migration 待服务器恢复。R4 本地 repository boundary 已完成并记录在 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r4-local-repository/`，当前运行态仍未切库。下一步：恢复 SSH/health 后验证或修复 `postgres` 容器、`pg_isready`、`/api/health.database`、备份/恢复演练和 JSON 默认路径，再执行 `alembic upgrade head`；本地继续补 `video_studio_tasks` backfill/reconcile 脚本与对账测试，为 R5 runtime dual-write 做准备。SSE 继续后置，不与数据库第一阶段绑定。
 
 ## 暂不做
 
