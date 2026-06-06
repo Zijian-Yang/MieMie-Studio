@@ -1,0 +1,44 @@
+{
+  "state": "local_passed",
+  "stage": "r9-studio-tasks-backfill-reconcile",
+  "runtime_default": "file_only",
+  "staging_enabled": false,
+  "implemented": [
+    "studio_tasks_json_iterator",
+    "studio_tasks_backfill_summary",
+    "studio_tasks_reconcile_summary",
+    "studio_tasks_reconcile_markdown",
+    "postgres_backfill_studio_tasks_script",
+    "postgres_reconcile_studio_tasks_script",
+    "sanitized_summaries_without_prompt_payload_or_private_urls"
+  ],
+  "verification": [
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_studio_task_migration.py -q",
+      "result": "3 passed"
+    },
+    {
+      "command": "backend/.venv/bin/python -m py_compile scripts/postgres_backfill_studio_tasks.py scripts/postgres_reconcile_studio_tasks.py backend/app/services/migration/backfill_studio_tasks.py backend/app/services/migration/reconcile_studio_tasks.py",
+      "result": "passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_studio_task_migration.py backend/tests/test_studio_task_repository.py backend/tests/test_studio_task_schema.py backend/tests/test_video_studio_task_migration.py backend/tests/test_video_studio_task_repository.py backend/tests/test_video_studio_task_schema.py backend/tests/test_database_health.py -q",
+      "result": "23 passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests -q",
+      "result": "269 passed"
+    }
+  ],
+  "pending": [
+    "studio_tasks_runtime_dual_write",
+    "studio_tasks_read_switch",
+    "studio_tasks_primary_write",
+    "staging_postgres_rollout"
+  ],
+  "updated_at": "2026-06-07"
+}

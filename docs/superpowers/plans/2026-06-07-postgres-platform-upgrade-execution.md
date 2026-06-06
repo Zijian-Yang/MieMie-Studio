@@ -548,6 +548,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-07 note: while R7 staging precheck remained blocked by the operator-side TUN/fake-ip path, local next-domain work started. `studio_tasks` now has a PostgreSQL schema, Alembic migration `20260607_0002`, repository protocol, and file/PostgreSQL/dual repository boundary. Runtime remains file-only; backfill/reconcile and read/write feature flags are still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r8-studio-tasks-local-schema-repository/`.
 
+2026-06-07 note: local `studio_tasks` backfill/reconcile tooling is implemented and covered by `backend/tests/test_studio_task_migration.py`; summaries are sanitized and avoid prompt bodies, raw provider payloads, key/token/password values, and private URLs. Runtime remains file-only; dual-write, read-switch, and primary-write flags are still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r9-studio-tasks-backfill-reconcile/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
