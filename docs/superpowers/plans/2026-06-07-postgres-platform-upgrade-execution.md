@@ -166,7 +166,7 @@ Create `docs/reports/artifacts/2026-06-07-postgres-upgrade-preflight/status.json
 
 Use `"state": "blocked"` and list exact missing prerequisites if any required gate fails.
 
-- [ ] **Step 7: Commit preflight docs and artifacts**
+- [x] **Step 7: Commit preflight docs and artifacts**
 
 Run:
 
@@ -186,7 +186,7 @@ git push origin pre
 - Modify: `docs/CHANGELOG.md`
 - Artifact: `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r1-compose-infra/`
 
-- [ ] **Step 1: Add PostgreSQL service without making API depend on it**
+- [x] **Step 1: Add PostgreSQL service without making API depend on it**
 
 Add `postgres` service:
 
@@ -218,7 +218,7 @@ Add volume:
 
 Do not add `depends_on: postgres` to `api`, `worker`, or `worker-video` in this task.
 
-- [ ] **Step 2: Add env example defaults**
+- [x] **Step 2: Add env example defaults**
 
 Add to `compose.env.example`:
 
@@ -238,7 +238,7 @@ MIEMIE_DATABASE_JSON_FALLBACK_READ=true
 MIEMIE_DATABASE_RECONCILE_STRICT=false
 ```
 
-- [ ] **Step 3: Verify local Compose config**
+- [x] **Step 3: Verify local Compose config**
 
 Run:
 
@@ -250,6 +250,8 @@ Expected: config renders successfully.
 
 - [ ] **Step 4: Verify local PostgreSQL container starts**
 
+2026-06-07 note: skipped locally because Docker daemon was not running (`Cannot connect to the Docker daemon at unix:///Users/zane/.docker/run/docker.sock`). Server preflight already pulled and executed `postgres:16-alpine`; R1/R2 rollout must complete this check on staging.
+
 Run:
 
 ```bash
@@ -260,7 +262,7 @@ docker compose exec -T postgres pg_isready -U miemie -d miemie
 
 Expected: `pg_isready` prints `accepting connections`.
 
-- [ ] **Step 5: Verify API still works with database disabled**
+- [x] **Step 5: Verify API still works with database disabled**
 
 Run existing fast tests:
 
@@ -282,7 +284,7 @@ Expected: pass.
 - Modify: `requirements.txt`
 - Modify: `docs/DEPLOYMENT.md`
 
-- [ ] **Step 1: Add dependencies**
+- [x] **Step 1: Add dependencies**
 
 Add to `requirements.txt`:
 
@@ -292,7 +294,7 @@ psycopg[binary]>=3.1.0
 alembic>=1.13.0
 ```
 
-- [ ] **Step 2: Add database engine module**
+- [x] **Step 2: Add database engine module**
 
 Create `backend/app/db/engine.py` with these public functions and behavior:
 
@@ -319,7 +321,7 @@ Required behavior:
 - If enabled and connection fails, return `{"configured": True, "ok": False, "error": "<ExceptionClass>"}`.
 - Never include password or full URL in health output.
 
-- [ ] **Step 3: Add health output**
+- [x] **Step 3: Add health output**
 
 Modify `/api/health` response to include:
 
@@ -332,7 +334,7 @@ Modify `/api/health` response to include:
 
 when database is disabled.
 
-- [ ] **Step 4: Test health behavior**
+- [x] **Step 4: Test health behavior**
 
 Add `backend/tests/test_database_health.py` covering:
 
@@ -347,7 +349,7 @@ backend/.venv/bin/pytest backend/tests/test_database_health.py -q
 backend/.venv/bin/pytest backend/tests/test_runtime_observability.py backend/tests/test_docker_runtime.py -q
 ```
 
-- [ ] **Step 5: Add backup script**
+- [x] **Step 5: Add backup script**
 
 Create `scripts/postgres_backup.sh`:
 
@@ -369,7 +371,7 @@ docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f "$COMPOSE_FILE_1" -f
 echo "$BACKUP_DIR/miemie-postgres-$TIMESTAMP.sql"
 ```
 
-- [ ] **Step 6: Add restore rehearsal script**
+- [x] **Step 6: Add restore rehearsal script**
 
 Create `scripts/postgres_restore_rehearsal.sh` that restores a dump into a temporary database named `miemie_restore_check`, runs `select 1`, and drops the temporary database. It must not overwrite production tables.
 
@@ -388,10 +390,11 @@ Create `scripts/postgres_restore_rehearsal.sh` that restores a dump into a tempo
 - [ ] Add migration upgrade/downgrade.
 - [ ] Verify against a temporary PostgreSQL service.
 
-Run:
+Run inside the Compose network, without exposing PostgreSQL on a host port:
 
 ```bash
-MIEMIE_DATABASE_ENABLED=true MIEMIE_DATABASE_URL=postgresql+psycopg://miemie:local-dev-password@localhost:5432/miemie backend/.venv/bin/python -m alembic -c backend/alembic.ini upgrade head
+docker compose --env-file compose.env exec -T api \
+  /opt/venv/bin/python -m alembic -c backend/alembic.ini upgrade head
 ```
 
 Expected: migration completes and `video_studio_tasks` exists.

@@ -67,6 +67,7 @@ backend/data/*
 
 # Backups
 backups/
+backend/backups/
 
 # OS
 Thumbs.db

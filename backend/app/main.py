@@ -24,6 +24,7 @@ from app.routers import (
     audio_studio, models, auth, image_benchmark, video_benchmark
 )
 from app.middleware.auth import AuthMiddleware
+from app.db.engine import database_health
 from app.services.rate_limit import create_limiter, redis_url_from_env
 from app.services.runtime_observability import build_request_observation, should_observe_request
 
@@ -187,6 +188,7 @@ async def health_check():
         "serve_frontend": SERVE_FRONTEND,
         "started_at": APP_STARTED_AT,
         "redis": _redis_health(),
+        "database": database_health(),
     }
 
 

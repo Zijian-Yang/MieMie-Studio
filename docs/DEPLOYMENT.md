@@ -55,12 +55,15 @@
 - API 服务（容器内 Gunicorn + UvicornWorker）
 - 前端静态资源（镜像构建阶段生成，运行时由 FastAPI 统一服务）
 - 宿主机持久化目录（`backend/data/`、`backend/logs/`）
+- Redis（session、限流、Celery broker / result backend）
+- Celery worker 与独立 `worker-video`
+- PostgreSQL 16（数据库升级阶段基础设施，业务依赖默认关闭）
 
 当前阶段仍然保持：
 
 - **脚本模式可继续作为兼容路径**
-- **Compose 是 Step 01 起点的推荐参考路径**
-- **Redis / PostgreSQL / Worker 暂不在本轮 Compose 中实装**
+- **Compose 是生产与 pre 验证的推荐路径**
+- **JSON 当前仍是主数据源，PostgreSQL 先作为可观测、可备份、可迁移的基础设施接入**
 
 ### 反向代理边界
 
@@ -157,6 +160,12 @@ curl http://127.0.0.1:8000/api/health
   - Redis 用于 session、限流和后台任务 broker。
   - Worker 先承接图片工作室生成任务。
   - API 与 Worker 共享 `backend/data/` 和 `backend/logs/` 挂载，便于保持当前 JSON 存储兼容。
+- Compose 也会定义 PostgreSQL：
+  - 默认不暴露宿主机端口，只供 Compose 内部服务访问。
+  - 默认 `MIEMIE_DATABASE_ENABLED=false`，因此 API / Worker 不依赖 PostgreSQL 启动。
+  - 真实 `compose.env` 必须设置 `MIEMIE_POSTGRES_PASSWORD` 强密码，不要使用样例占位值。
+  - 小内存服务器可先使用 `MIEMIE_POSTGRES_SHARED_BUFFERS=128MB`、`MIEMIE_POSTGRES_MAX_CONNECTIONS=50` 等保守默认值，再按压测结果调整。
+  - 数据库迁移遵循 `JSON 主数据源 → PostgreSQL shadow/backfill/reconcile → dual-write → read-switch → PostgreSQL primary` 的分阶段路线。
 
 ---
 
@@ -169,6 +178,14 @@ curl http://127.0.0.1:8000/api/health
 | `MIEMIE_WORKERS` | 自动推荐 | Gunicorn Worker 数量，优先兼顾稳定性和机器内存 |
 | `NODE_BUILD_MEMORY_MB` | 自动推荐 | 前端生产构建时的 Node 内存上限（MB） |
 | `MIEMIE_MODE` | 跟随 `DEFAULT_RUN_MODE` | 临时覆盖当前运行模式：`dev`（开发）/ `prod`（生产） |
+| `MIEMIE_DATABASE_ENABLED` | `false` | 是否启用 PostgreSQL health/业务数据库连接 |
+| `MIEMIE_DATABASE_URL` | Compose 内部 `postgres` | PostgreSQL 连接串，不能写入真实密码到 Git |
+| `MIEMIE_DATABASE_WRITE_MODE` | `file` | 写入模式，数据库迁移初期保持 JSON 主写 |
+| `MIEMIE_DATABASE_READ_MODE` | `file` | 读取模式，按域灰度切换前保持 JSON 主读 |
+| `MIEMIE_DATABASE_READ_DOMAINS` | 空 | 允许从 PostgreSQL 读取的域，逗号分隔 |
+| `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS` | 空 | 允许双写的域，逗号分隔 |
+| `MIEMIE_DATABASE_JSON_FALLBACK_READ` | `true` | PostgreSQL 读缺失时是否回退 JSON |
+| `MIEMIE_POSTGRES_PASSWORD` | 无安全默认值 | PostgreSQL 密码，生产必须在未跟踪的 `compose.env` 中设置强值 |
 
 设置方式：
 

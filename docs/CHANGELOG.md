@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R1/R2 本地实现：Compose 新增 `postgres:16-alpine` 基础设施和保守内存参数，API/worker 默认仍 `MIEMIE_DATABASE_ENABLED=false` 且不依赖 PostgreSQL；`/api/health` 新增 `database` 观测，新增懒连接数据库 health helper、PostgreSQL 备份/恢复演练脚本和数据库 health 回归测试。
 - 数据库升级执行路线：新增 `docs/superpowers/plans/2026-06-07-postgres-platform-upgrade-execution.md`，把 Compose PostgreSQL 升级拆为 preflight、基础设施、health/备份、Alembic、视频任务 shadow/dual-write/read-switch、服务器 rollout、性能门禁和真实 provider smoke 边界。
 - 数据库升级设计：新增 `docs/plans/2026-06-06-postgres-upgrade-optimization-plan.md`，确认 Compose 内 PostgreSQL、JSON 过渡、双写对账、分域读切换和最终数据库主数据源路线；`ADR-0003` 更新为 Accepted。
 - 架构治理阶段 7：新增 `docs/adr/ADR-0003-pre-database-architecture-checkpoint.md`，沉淀数据库阶段前检查点、触发条件和准备包。

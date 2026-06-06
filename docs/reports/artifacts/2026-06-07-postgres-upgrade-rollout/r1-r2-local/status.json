@@ -1,0 +1,32 @@
+{
+  "state": "ready_for_staging_rollout",
+  "stage": "r1-r2-local",
+  "local_commit_before_change": "67eee1fffae8415904991fac0e47c33fa888b263",
+  "implemented": [
+    "compose-postgres-service",
+    "database-env-flags",
+    "database-health-module",
+    "health-response-database-field",
+    "postgres-backup-script",
+    "postgres-restore-rehearsal-script",
+    "database-health-tests"
+  ],
+  "passed_gates": [
+    "docker compose config",
+    "MIEMIE_POSTGRES_PASSWORD=local-dev-password docker compose config",
+    "backend database health tests",
+    "backend targeted tests",
+    "backend full tests 238 passed",
+    "frontend typecheck",
+    "frontend test:vite-chunks",
+    "frontend build",
+    "backup and restore script syntax"
+  ],
+  "not_verified_locally": [
+    "docker compose up -d postgres",
+    "docker compose exec -T postgres pg_isready"
+  ],
+  "not_verified_reason": "local Docker daemon was not running",
+  "next_task": "R1/R2 staging rollout: deploy, start postgres, verify pg_isready, health, backup, and restore rehearsal",
+  "updated_at": "2026-06-07T04:08:00+08:00"
+}

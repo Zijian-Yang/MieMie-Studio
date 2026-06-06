@@ -22,6 +22,14 @@ services:
       MIEMIE_CELERY_BROKER_URL: "${MIEMIE_CELERY_BROKER_URL:-redis://redis:6379/2}"
       MIEMIE_CELERY_RESULT_BACKEND: "${MIEMIE_CELERY_RESULT_BACKEND:-redis://redis:6379/3}"
       MIEMIE_STUDIO_GENERATION_STALE_SECONDS: "${MIEMIE_STUDIO_GENERATION_STALE_SECONDS:-1800}"
+      MIEMIE_DATABASE_ENABLED: "${MIEMIE_DATABASE_ENABLED:-false}"
+      MIEMIE_DATABASE_URL: "${MIEMIE_DATABASE_URL:-postgresql+psycopg://miemie:${MIEMIE_POSTGRES_PASSWORD:-}@postgres:5432/miemie}"
+      MIEMIE_DATABASE_WRITE_MODE: "${MIEMIE_DATABASE_WRITE_MODE:-file}"
+      MIEMIE_DATABASE_READ_MODE: "${MIEMIE_DATABASE_READ_MODE:-file}"
+      MIEMIE_DATABASE_DUAL_WRITE_DOMAINS: "${MIEMIE_DATABASE_DUAL_WRITE_DOMAINS:-}"
+      MIEMIE_DATABASE_READ_DOMAINS: "${MIEMIE_DATABASE_READ_DOMAINS:-}"
+      MIEMIE_DATABASE_JSON_FALLBACK_READ: "${MIEMIE_DATABASE_JSON_FALLBACK_READ:-true}"
+      MIEMIE_DATABASE_RECONCILE_STRICT: "${MIEMIE_DATABASE_RECONCILE_STRICT:-false}"
     depends_on:
       redis:
         condition: service_healthy
@@ -53,6 +61,14 @@ services:
       MIEMIE_CELERY_BROKER_URL: "${MIEMIE_CELERY_BROKER_URL:-redis://redis:6379/2}"
       MIEMIE_CELERY_RESULT_BACKEND: "${MIEMIE_CELERY_RESULT_BACKEND:-redis://redis:6379/3}"
       MIEMIE_STUDIO_GENERATION_STALE_SECONDS: "${MIEMIE_STUDIO_GENERATION_STALE_SECONDS:-1800}"
+      MIEMIE_DATABASE_ENABLED: "${MIEMIE_DATABASE_ENABLED:-false}"
+      MIEMIE_DATABASE_URL: "${MIEMIE_DATABASE_URL:-postgresql+psycopg://miemie:${MIEMIE_POSTGRES_PASSWORD:-}@postgres:5432/miemie}"
+      MIEMIE_DATABASE_WRITE_MODE: "${MIEMIE_DATABASE_WRITE_MODE:-file}"
+      MIEMIE_DATABASE_READ_MODE: "${MIEMIE_DATABASE_READ_MODE:-file}"
+      MIEMIE_DATABASE_DUAL_WRITE_DOMAINS: "${MIEMIE_DATABASE_DUAL_WRITE_DOMAINS:-}"
+      MIEMIE_DATABASE_READ_DOMAINS: "${MIEMIE_DATABASE_READ_DOMAINS:-}"
+      MIEMIE_DATABASE_JSON_FALLBACK_READ: "${MIEMIE_DATABASE_JSON_FALLBACK_READ:-true}"
+      MIEMIE_DATABASE_RECONCILE_STRICT: "${MIEMIE_DATABASE_RECONCILE_STRICT:-false}"
     depends_on:
       redis:
         condition: service_healthy
@@ -82,6 +98,14 @@ services:
       MIEMIE_VIDEO_STUDIO_WORKER_STALE_SECONDS: "${MIEMIE_VIDEO_STUDIO_WORKER_STALE_SECONDS:-180}"
       MIEMIE_WORKER_TASK_TIME_LIMIT: "${MIEMIE_VIDEO_WORKER_TASK_TIME_LIMIT:-3600}"
       MIEMIE_WORKER_TASK_SOFT_TIME_LIMIT: "${MIEMIE_VIDEO_WORKER_TASK_SOFT_TIME_LIMIT:-3300}"
+      MIEMIE_DATABASE_ENABLED: "${MIEMIE_DATABASE_ENABLED:-false}"
+      MIEMIE_DATABASE_URL: "${MIEMIE_DATABASE_URL:-postgresql+psycopg://miemie:${MIEMIE_POSTGRES_PASSWORD:-}@postgres:5432/miemie}"
+      MIEMIE_DATABASE_WRITE_MODE: "${MIEMIE_DATABASE_WRITE_MODE:-file}"
+      MIEMIE_DATABASE_READ_MODE: "${MIEMIE_DATABASE_READ_MODE:-file}"
+      MIEMIE_DATABASE_DUAL_WRITE_DOMAINS: "${MIEMIE_DATABASE_DUAL_WRITE_DOMAINS:-}"
+      MIEMIE_DATABASE_READ_DOMAINS: "${MIEMIE_DATABASE_READ_DOMAINS:-}"
+      MIEMIE_DATABASE_JSON_FALLBACK_READ: "${MIEMIE_DATABASE_JSON_FALLBACK_READ:-true}"
+      MIEMIE_DATABASE_RECONCILE_STRICT: "${MIEMIE_DATABASE_RECONCILE_STRICT:-false}"
     depends_on:
       redis:
         condition: service_healthy
@@ -102,5 +126,34 @@ services:
       retries: 5
       start_period: 5s
 
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=${MIEMIE_POSTGRES_SHARED_BUFFERS:-128MB}"
+      - "-c"
+      - "max_connections=${MIEMIE_POSTGRES_MAX_CONNECTIONS:-50}"
+      - "-c"
+      - "work_mem=${MIEMIE_POSTGRES_WORK_MEM:-4MB}"
+      - "-c"
+      - "maintenance_work_mem=${MIEMIE_POSTGRES_MAINTENANCE_WORK_MEM:-64MB}"
+    environment:
+      POSTGRES_DB: "${MIEMIE_POSTGRES_DB:-miemie}"
+      POSTGRES_USER: "${MIEMIE_POSTGRES_USER:-miemie}"
+      POSTGRES_PASSWORD: "${MIEMIE_POSTGRES_PASSWORD:-}"
+      TZ: "${TZ:-Asia/Shanghai}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/backups/postgres:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
 volumes:
   redis_data:
+  postgres_data:
