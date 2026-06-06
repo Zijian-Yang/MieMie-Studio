@@ -1,0 +1,23 @@
+{
+  "state": "in_progress",
+  "stage": "r1-r2-staging",
+  "server_commit": "cb2d4ff0f5e00d2eb7fbb84a6b411408014107f0",
+  "completed": [
+    "server precheck before rollout",
+    "git fast-forward to cb2d4ff0f5e00d2eb7fbb84a6b411408014107f0",
+    "compose.env postgres settings updated without printing secrets",
+    "docker compose config passed",
+    "docker compose up -d --build postgres api worker worker-video started"
+  ],
+  "not_yet_verified": [
+    "postgres container health",
+    "api health after rebuild",
+    "database health field on staging",
+    "backup script",
+    "restore rehearsal script",
+    "post-rollout docker stats"
+  ],
+  "current_blocker": "SSH session closed during image build and follow-up verification from this client was blocked by SSH banner timeouts/local TUN route errors.",
+  "next_action": "Reconnect when SSH is reliable, inspect compose ps/logs, restore healthy JSON-default runtime if needed, then complete pg_isready/health/backup/restore checks.",
+  "updated_at": "2026-06-07T04:25:00+08:00"
+}

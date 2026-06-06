@@ -349,6 +349,13 @@ pre 部署复验：
 - 新增 `scripts/postgres_backup.sh` 与 `scripts/postgres_restore_rehearsal.sh`，恢复演练使用临时库 `miemie_restore_check`，不覆盖生产库；`backend/backups/` 已加入 `.gitignore`。
 - 本地验证：`docker compose config`、带 `MIEMIE_POSTGRES_PASSWORD` 的 Compose config、数据库 health 测试、后端全量 `238 passed`、前端 typecheck、vite chunk 检查和生产 build 均通过。因本机 Docker daemon 未运行，`docker compose up -d postgres` 与本机 `pg_isready` 未在本地验证，服务器 rollout 需补齐。
 
+2026-06-07 阶段 7 R1/R2 staging rollout 进行中：
+
+- 服务器已从 `00091f21f5ee207f78a1092e7e5e164ab4567c7f` fast-forward 到 `cb2d4ff0f5e00d2eb7fbb84a6b411408014107f0`，并在未跟踪 `compose.env` 中写入 PostgreSQL 强密码、保守参数和 `MIEMIE_DATABASE_ENABLED=false`，未打印秘密。
+- 服务器 `docker compose config` 已通过，随后执行 `docker compose up -d --build postgres api worker worker-video`；构建过程中 SSH 被远端断开。
+- 断开后，本机到服务器的 SSH banner 多次超时，源站 TCP/HTTP 检查受本机 Clash TUN/路由状态影响不稳定；因此 staging R1/R2 尚未闭环，artifact 记录为 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r1-r2-staging/` 的 `in_progress`。
+- 恢复 SSH 后必须先检查 Compose 状态和 health，必要时优先恢复 JSON 默认路径，再补 `postgres`、`pg_isready`、`/api/health.database`、备份和恢复演练。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -363,4 +370,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步执行 R1/R2 服务器 rollout：部署当前提交，设置未跟踪 `compose.env` 中的 PostgreSQL 强密码，启动 `postgres`，验证 `pg_isready`、`/api/health.database`、备份/恢复演练和 JSON 默认路径不受影响。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 数据库升级进入服务器验证阶段。
+- 下一步继续 R1/R2 服务器 rollout 收口：恢复 SSH 后检查 `docker compose ps/logs`，确认或修复 `api` health，完成 `postgres`、`pg_isready`、`/api/health.database`、备份/恢复演练和 post-rollout stats。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 数据库升级进入服务器验证阶段但尚未完成。
