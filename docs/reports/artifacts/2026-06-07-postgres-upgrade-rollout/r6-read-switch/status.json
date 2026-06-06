@@ -1,0 +1,29 @@
+{
+  "state": "ready_for_staging_after_live_dual_write_reconcile",
+  "stage": "r6-read-switch",
+  "local_commit_before_change": "c851b3630991c14a23d4fe50329de2e780e03566",
+  "implemented": [
+    "read switch feature flag",
+    "postgres-first single task read",
+    "postgres-first project task list",
+    "postgres-first all task list",
+    "json fallback on postgres miss or error",
+    "fallback-disabled error propagation",
+    "read switch unit tests"
+  ],
+  "not_implemented_in_this_slice": [
+    "staging read switch enablement",
+    "postgres primary mode",
+    "json archive mode",
+    "non-video-studio domains"
+  ],
+  "verification": {
+    "read_switch_tests": "4 passed",
+    "targeted_database_tests": "78 passed",
+    "diff_check": "passed",
+    "backend_full_tests": "255 passed"
+  },
+  "runtime_default": "file-only",
+  "server_status": "R1/R2 staging verification, R3 live migration, R5 live reconcile, and staging dual-write still pending SSH/API recovery",
+  "updated_at": "2026-06-07T06:35:25+0800"
+}

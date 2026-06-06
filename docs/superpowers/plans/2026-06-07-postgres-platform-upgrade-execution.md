@@ -467,10 +467,12 @@ Expected reconcile JSON:
 - Create: `backend/tests/test_video_studio_task_read_switch.py`
 - Modify: `docs/DEPLOYMENT.md`
 
-- [ ] When `MIEMIE_DATABASE_READ_DOMAINS=video_studio_tasks`, list/status reads use PostgreSQL.
-- [ ] If `MIEMIE_DATABASE_JSON_FALLBACK_READ=true` and PostgreSQL misses a task, fallback to JSON and log a reconciliation warning.
-- [ ] Rollback is `MIEMIE_DATABASE_READ_DOMAINS=` and `MIEMIE_DATABASE_WRITE_MODE=file`.
-- [ ] Keep public API response shapes unchanged.
+- [x] When `MIEMIE_DATABASE_READ_DOMAINS=video_studio_tasks`, list/status reads use PostgreSQL.
+- [x] If `MIEMIE_DATABASE_JSON_FALLBACK_READ=true` and PostgreSQL misses a task, fallback to JSON and log a reconciliation warning.
+- [x] Rollback is `MIEMIE_DATABASE_READ_DOMAINS=` and `MIEMIE_DATABASE_WRITE_MODE=file`.
+- [x] Keep public API response shapes unchanged.
+
+2026-06-07 note: local read switch and JSON fallback are implemented through `StorageService` video task read methods; runtime default remains file-only, and staging read switch is pending live migration/backfill/reconcile/dual-write evidence. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r6-read-switch/`.
 
 ## Task R7: Staging Rollout Gate
 

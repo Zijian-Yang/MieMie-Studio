@@ -533,16 +533,14 @@ class StorageService:
 
         shadow_save_video_studio_task(self._get_owner_user_id(), task)
     
-    def get_video_studio_task(self, task_id: str) -> Optional[VideoStudioTask]:
-        """获取视频工作室任务"""
+    def _get_video_studio_task_from_file(self, task_id: str) -> Optional[VideoStudioTask]:
         file_path = self.video_studio_dir / f"{task_id}.json"
         data = self._read_json_with_lock(file_path)
         if data:
             return VideoStudioTask(**data)
         return None
 
-    def get_video_studio_tasks(self, project_id: str) -> List[VideoStudioTask]:
-        """获取项目所有视频工作室任务"""
+    def _get_video_studio_tasks_from_file(self, project_id: str) -> List[VideoStudioTask]:
         tasks = []
         for file_path in self.video_studio_dir.glob("*.json"):
             data = self._read_json_with_lock(file_path)
@@ -550,14 +548,44 @@ class StorageService:
                 tasks.append(VideoStudioTask(**data))
         return sorted(tasks, key=lambda t: t.created_at, reverse=True)
 
-    def get_all_video_studio_tasks(self) -> List[VideoStudioTask]:
-        """获取当前存储目录下所有视频工作室任务"""
+    def _get_all_video_studio_tasks_from_file(self) -> List[VideoStudioTask]:
         tasks = []
         for file_path in self.video_studio_dir.glob("*.json"):
             data = self._read_json_with_lock(file_path)
             if data:
                 tasks.append(VideoStudioTask(**data))
         return sorted(tasks, key=lambda t: t.created_at, reverse=True)
+
+    def get_video_studio_task(self, task_id: str) -> Optional[VideoStudioTask]:
+        """获取视频工作室任务"""
+        from app.repositories.video_studio_task_runtime import read_video_studio_task
+
+        return read_video_studio_task(
+            self._get_owner_user_id(),
+            task_id,
+            lambda: self._get_video_studio_task_from_file(task_id),
+        )
+
+    def get_video_studio_tasks(self, project_id: str) -> List[VideoStudioTask]:
+        """获取项目所有视频工作室任务"""
+        from app.repositories.video_studio_task_runtime import (
+            read_video_studio_tasks_for_project,
+        )
+
+        return read_video_studio_tasks_for_project(
+            self._get_owner_user_id(),
+            project_id,
+            lambda: self._get_video_studio_tasks_from_file(project_id),
+        )
+
+    def get_all_video_studio_tasks(self) -> List[VideoStudioTask]:
+        """获取当前存储目录下所有视频工作室任务"""
+        from app.repositories.video_studio_task_runtime import read_all_video_studio_tasks
+
+        return read_all_video_studio_tasks(
+            self._get_owner_user_id(),
+            self._get_all_video_studio_tasks_from_file,
+        )
     
     def delete_video_studio_task(self, task_id: str) -> None:
         """删除视频工作室任务"""

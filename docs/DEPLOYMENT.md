@@ -167,6 +167,7 @@ curl http://127.0.0.1:8000/api/health
   - 小内存服务器可先使用 `MIEMIE_POSTGRES_SHARED_BUFFERS=128MB`、`MIEMIE_POSTGRES_MAX_CONNECTIONS=50` 等保守默认值，再按压测结果调整。
   - 数据库迁移遵循 `JSON 主数据源 → PostgreSQL shadow/backfill/reconcile → dual-write → read-switch → PostgreSQL primary` 的分阶段路线。
   - 视频工作室任务双写的服务器启用顺序必须是：PostgreSQL health 通过、`alembic upgrade head` 通过、backfill/reconcile 干净后，再设置 `MIEMIE_DATABASE_ENABLED=true` 与 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=video_studio_tasks`；回滚双写只需清空 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS` 并保持 `MIEMIE_DATABASE_WRITE_MODE=file`。
+  - 视频工作室任务读切换必须在双写和再次对账干净后启用：设置 `MIEMIE_DATABASE_READ_DOMAINS=video_studio_tasks`；回滚读切换只需清空 `MIEMIE_DATABASE_READ_DOMAINS`，保留 `MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 可在 PostgreSQL miss/异常时回退 JSON。
 
 ---
 

@@ -41,6 +41,23 @@ def video_studio_task_dual_write_enabled() -> bool:
     return write_mode == "dual" or DOMAIN in dual_domains
 
 
+def video_studio_task_read_enabled() -> bool:
+    """Return true when video studio task reads should prefer PostgreSQL."""
+
+    if not database_enabled():
+        return False
+
+    read_mode = os.getenv("MIEMIE_DATABASE_READ_MODE", "file").strip().lower()
+    read_domains = _env_csv("MIEMIE_DATABASE_READ_DOMAINS")
+    return read_mode == "postgres" or DOMAIN in read_domains
+
+
+def json_fallback_read_enabled() -> bool:
+    """Return true when PostgreSQL read miss/error should fallback to JSON."""
+
+    return _env_true("MIEMIE_DATABASE_JSON_FALLBACK_READ")
+
+
 def strict_shadow_writes_enabled() -> bool:
     """Return true when PostgreSQL shadow write failures should be propagated."""
 
@@ -62,6 +79,10 @@ def clear_runtime_database_engine() -> None:
 
 
 def build_video_studio_task_shadow_repository(user_id: str) -> PostgresVideoStudioTaskRepository:
+    return PostgresVideoStudioTaskRepository(_runtime_engine(), user_id)
+
+
+def build_video_studio_task_read_repository(user_id: str) -> PostgresVideoStudioTaskRepository:
     return PostgresVideoStudioTaskRepository(_runtime_engine(), user_id)
 
 
@@ -98,3 +119,87 @@ def shadow_mark_video_studio_task_deleted(user_id: str | None, task_id: str) -> 
             extra={"user_id": user_id, "task_id": task_id, "error": exc.__class__.__name__},
         )
 
+
+def read_video_studio_task(
+    user_id: str | None,
+    task_id: str,
+    json_loader,
+) -> VideoStudioTask | None:
+    """Read one task from PostgreSQL when enabled, with optional JSON fallback."""
+
+    if not user_id or not video_studio_task_read_enabled():
+        return json_loader()
+
+    try:
+        task = build_video_studio_task_read_repository(user_id).get(task_id)
+        if task is not None:
+            return task
+        if json_fallback_read_enabled():
+            logger.warning(
+                "video_studio_task_postgres_read_miss_json_fallback",
+                extra={"user_id": user_id, "task_id": task_id},
+            )
+            return json_loader()
+        return None
+    except Exception as exc:
+        if not json_fallback_read_enabled():
+            raise
+        logger.warning(
+            "video_studio_task_postgres_read_failed_json_fallback",
+            extra={"user_id": user_id, "task_id": task_id, "error": exc.__class__.__name__},
+        )
+        return json_loader()
+
+
+def read_video_studio_tasks_for_project(
+    user_id: str | None,
+    project_id: str,
+    json_loader,
+) -> list[VideoStudioTask]:
+    """Read project tasks from PostgreSQL when enabled, with optional JSON fallback."""
+
+    if not user_id or not video_studio_task_read_enabled():
+        return json_loader()
+
+    try:
+        tasks = build_video_studio_task_read_repository(user_id).list_for_project(project_id)
+        if tasks or not json_fallback_read_enabled():
+            return tasks
+        logger.warning(
+            "video_studio_task_postgres_project_empty_json_fallback",
+            extra={"user_id": user_id, "project_id": project_id},
+        )
+        return json_loader()
+    except Exception as exc:
+        if not json_fallback_read_enabled():
+            raise
+        logger.warning(
+            "video_studio_task_postgres_project_read_failed_json_fallback",
+            extra={"user_id": user_id, "project_id": project_id, "error": exc.__class__.__name__},
+        )
+        return json_loader()
+
+
+def read_all_video_studio_tasks(user_id: str | None, json_loader) -> list[VideoStudioTask]:
+    """Read all user tasks from PostgreSQL when enabled, with optional JSON fallback."""
+
+    if not user_id or not video_studio_task_read_enabled():
+        return json_loader()
+
+    try:
+        tasks = build_video_studio_task_read_repository(user_id).list_all()
+        if tasks or not json_fallback_read_enabled():
+            return tasks
+        logger.warning(
+            "video_studio_task_postgres_all_empty_json_fallback",
+            extra={"user_id": user_id},
+        )
+        return json_loader()
+    except Exception as exc:
+        if not json_fallback_read_enabled():
+            raise
+        logger.warning(
+            "video_studio_task_postgres_all_read_failed_json_fallback",
+            extra={"user_id": user_id, "error": exc.__class__.__name__},
+        )
+        return json_loader()
