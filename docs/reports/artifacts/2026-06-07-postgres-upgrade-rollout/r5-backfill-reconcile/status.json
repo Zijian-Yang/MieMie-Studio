@@ -1,0 +1,31 @@
+{
+  "state": "ready_for_live_postgres_once_staging_recovers",
+  "stage": "r5-backfill-reconcile",
+  "local_commit_before_change": "6221246152dc621eeb99e38c598b4cc2f9739032",
+  "implemented": [
+    "video_studio_tasks JSON scanner",
+    "backfill service",
+    "reconcile service",
+    "sanitized JSON summaries",
+    "sanitized Markdown reconcile summary",
+    "backfill CLI script",
+    "reconcile CLI script",
+    "migration unit tests"
+  ],
+  "not_implemented_in_this_slice": [
+    "live staging backfill",
+    "live staging reconcile",
+    "runtime dual-write feature flag",
+    "read switch"
+  ],
+  "verification": {
+    "migration_tests": "3 passed",
+    "targeted_database_tests": "13 passed",
+    "script_py_compile": "passed",
+    "diff_check": "passed",
+    "backend_full_tests": "248 passed"
+  },
+  "privacy_guardrail": "summaries exclude prompt bodies, raw provider payloads, tokens, passwords, api keys, and private URLs",
+  "server_status": "R1/R2 staging verification and R3 live migration still pending SSH/API recovery",
+  "updated_at": "2026-06-07T06:11:03+0800"
+}

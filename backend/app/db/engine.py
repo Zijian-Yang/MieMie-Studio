@@ -88,3 +88,14 @@ def database_health(timeout_seconds: float = 0.5) -> dict:
         return {"configured": True, "ok": True}
     except Exception as exc:
         return {"configured": True, "ok": False, "error": exc.__class__.__name__}
+
+
+def create_database_engine(**kwargs):
+    """Create a SQLAlchemy engine from MIEMIE_DATABASE_URL for maintenance jobs."""
+    url = _database_url()
+    if not url:
+        raise RuntimeError("MIEMIE_DATABASE_URL is required")
+
+    from sqlalchemy import create_engine
+
+    return create_engine(url, **kwargs)

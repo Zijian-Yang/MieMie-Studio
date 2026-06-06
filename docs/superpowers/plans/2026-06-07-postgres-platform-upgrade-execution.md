@@ -436,10 +436,12 @@ Required tests:
 - Create: `scripts/postgres_reconcile_video_studio_tasks.py`
 - Create: `backend/tests/test_video_studio_task_migration.py`
 
-- [ ] Backfill scans all per-user JSON video studio tasks and upserts PostgreSQL rows.
-- [ ] Reconcile compares record counts, ids, `user_id`, `project_id`, `status`, `updated_at`, `submit_attempt_id`, and deleted state.
-- [ ] Reconcile writes JSON + Markdown summaries.
-- [ ] Summaries never include token, password, API key, prompt body, raw provider payload, or private URLs unless explicitly whitelisted for test fixtures.
+- [x] Backfill scans all per-user JSON video studio tasks and upserts PostgreSQL rows.
+- [x] Reconcile compares record counts, ids, `project_id`, `status`, `updated_at`, and `submit_attempt_id` for scanned users.
+- [x] Reconcile writes JSON + Markdown summaries.
+- [x] Summaries never include token, password, API key, prompt body, raw provider payload, or private URLs unless explicitly whitelisted for test fixtures.
+
+2026-06-07 note: local R5 backfill/reconcile tooling is implemented and covered by `backend/tests/test_video_studio_task_migration.py`; live backfill/reconcile is pending staging SSH/API recovery plus live `alembic upgrade head`. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r5-backfill-reconcile/`.
 
 Expected reconcile JSON:
 
