@@ -367,7 +367,7 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 3. 阶段 3 Worker 图片工作室最小接入已完成。
 4. 阶段 3.5 Redis + Worker 稳定性补强已闭环：Redis restart / unavailable、worker restart stale 兜底和 1 个真实 DashScope 图片队列 smoke 均已验证。
 5. 视频工作室 Worker 迁移 v1 已完成本地实现、pre 基础部署、无 key 失败路径、`worker-video` restart 基础恢复和 1 个真实 DashScope 视频 smoke；视频 worker v1 服务器验收已闭环。
-6. Compose PostgreSQL R1/R2 本地实现已完成；服务器 rollout 已启动但未闭环，当前记录在 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r1-r2-staging/`。下一刀必须先恢复 SSH/health 检查，验证或修复 `postgres` 容器、`pg_isready`、`/api/health.database`、备份/恢复演练和 JSON 默认路径。SSE 继续后置，不与数据库第一阶段绑定。
+6. Compose PostgreSQL R1/R2 本地实现已完成；服务器 rollout 已启动但未闭环，当前记录在 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r1-r2-staging/`。R3 本地 schema/Alembic 已完成并记录在 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r3-local-schema/`，但 live migration 待服务器恢复。下一刀必须先恢复 SSH/health 检查，验证或修复 `postgres` 容器、`pg_isready`、`/api/health.database`、备份/恢复演练和 JSON 默认路径，然后执行 `alembic upgrade head`。SSE 继续后置，不与数据库第一阶段绑定。
 
 ## 暂不做
 

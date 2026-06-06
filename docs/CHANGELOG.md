@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R3 本地 schema：新增 Alembic 配置、`video_studio_tasks` SQLAlchemy metadata、首个 PostgreSQL migration 和 schema 回归测试；生成的 DDL 包含 JSONB snapshot、任务状态索引和 partial indexes，业务读写路径仍未切库。
 - 数据库升级 R1/R2 本地实现：Compose 新增 `postgres:16-alpine` 基础设施和保守内存参数，API/worker 默认仍 `MIEMIE_DATABASE_ENABLED=false` 且不依赖 PostgreSQL；`/api/health` 新增 `database` 观测，新增懒连接数据库 health helper、PostgreSQL 备份/恢复演练脚本和数据库 health 回归测试。
 - 数据库升级 R1/R2 staging 记录：服务器已 fast-forward 到 `cb2d4ff`、写入未跟踪 `compose.env` PostgreSQL 设置并通过 Compose config；`up -d --build postgres api worker worker-video` 执行中 SSH 被远端断开，后续 SSH/TUN 验证暂未闭环，证据记录为 `in_progress`。
 - 数据库升级执行路线：新增 `docs/superpowers/plans/2026-06-07-postgres-platform-upgrade-execution.md`，把 Compose PostgreSQL 升级拆为 preflight、基础设施、health/备份、Alembic、视频任务 shadow/dual-write/read-switch、服务器 rollout、性能门禁和真实 provider smoke 边界。

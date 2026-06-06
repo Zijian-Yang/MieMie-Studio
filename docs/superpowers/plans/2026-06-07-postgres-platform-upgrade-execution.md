@@ -385,10 +385,12 @@ Create `scripts/postgres_restore_rehearsal.sh` that restores a dump into a tempo
 - Create: `backend/app/db/schema/video_studio_tasks.py`
 - Create: `backend/tests/test_video_studio_task_schema.py`
 
-- [ ] Add SQLAlchemy metadata for `video_studio_tasks`.
-- [ ] Add partial indexes for `user_id/project_id/updated_at`, `user_id/status/updated_at`, and `submit_attempt_id`.
-- [ ] Add migration upgrade/downgrade.
+- [x] Add SQLAlchemy metadata for `video_studio_tasks`.
+- [x] Add partial indexes for `user_id/project_id/updated_at`, `user_id/status/updated_at`, and `submit_attempt_id`.
+- [x] Add migration upgrade/downgrade.
 - [ ] Verify against a temporary PostgreSQL service.
+
+2026-06-07 note: local schema tests and Alembic offline SQL generation pass. Live PostgreSQL migration is pending because local Docker daemon is unavailable and staging SSH/health verification is still not reliable after the R1/R2 build disconnect.
 
 Run inside the Compose network, without exposing PostgreSQL on a host port:
 

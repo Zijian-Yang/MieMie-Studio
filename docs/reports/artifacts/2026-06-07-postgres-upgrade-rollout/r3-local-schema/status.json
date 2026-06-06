@@ -1,0 +1,25 @@
+{
+  "state": "ready_for_live_migration_check",
+  "stage": "r3-local-schema",
+  "implemented": [
+    "alembic-config",
+    "alembic-env",
+    "video-studio-task-sqlalchemy-schema",
+    "video-studio-task-migration",
+    "schema-tests"
+  ],
+  "passed_gates": [
+    "video_studio_task_schema tests 3 passed",
+    "database_health tests 3 passed",
+    "targeted backend tests 7 passed",
+    "alembic offline SQL generation",
+    "docker compose config",
+    "git diff --check"
+  ],
+  "pending_gates": [
+    "live alembic upgrade head against PostgreSQL",
+    "live downgrade/upgrade rehearsal before business repositories use the table"
+  ],
+  "next_task": "Restore staging SSH/health, complete R1/R2, then run Alembic upgrade head in the Compose network.",
+  "updated_at": "2026-06-07T04:45:00+08:00"
+}
