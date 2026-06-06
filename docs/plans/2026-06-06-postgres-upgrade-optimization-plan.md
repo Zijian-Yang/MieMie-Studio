@@ -73,8 +73,10 @@ MIEMIE_DATABASE_ENABLED=false
 MIEMIE_DATABASE_WRITE_MODE=file
 MIEMIE_DATABASE_READ_MODE=file
 MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=
+MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=
 MIEMIE_DATABASE_READ_DOMAINS=
 MIEMIE_DATABASE_JSON_FALLBACK_READ=true
+MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=false
 MIEMIE_DATABASE_RECONCILE_STRICT=false
 ```
 
@@ -84,7 +86,7 @@ MIEMIE_DATABASE_RECONCILE_STRICT=false
 - `shadow`：写 JSON，同时允许脚本回填/对账 PostgreSQL，业务读写不依赖 PostgreSQL。
 - `dual_write`：业务写 JSON + PostgreSQL，读仍从 JSON 或按域切换。
 - `postgres_read`：指定域从 PostgreSQL 读，写仍双写。
-- `postgres_primary`：指定域 PostgreSQL 读写为主，JSON 可只读归档或关闭。
+- `postgres_primary`：指定域 PostgreSQL 读写为主，`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` 时可继续写 JSON 归档镜像，否则关闭 JSON 写入。
 
 ## Compose PostgreSQL 设计
 

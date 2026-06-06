@@ -38,7 +38,24 @@ def video_studio_task_dual_write_enabled() -> bool:
 
     write_mode = os.getenv("MIEMIE_DATABASE_WRITE_MODE", "file").strip().lower()
     dual_domains = _env_csv("MIEMIE_DATABASE_DUAL_WRITE_DOMAINS")
-    return write_mode == "dual" or DOMAIN in dual_domains
+    return write_mode in {"dual", "dual_write"} or DOMAIN in dual_domains
+
+
+def video_studio_task_primary_write_enabled() -> bool:
+    """Return true when video studio task writes should use PostgreSQL primary."""
+
+    if not database_enabled():
+        return False
+
+    write_mode = os.getenv("MIEMIE_DATABASE_WRITE_MODE", "file").strip().lower()
+    primary_domains = _env_csv("MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS")
+    return write_mode in {"postgres", "postgres_primary", "primary"} or DOMAIN in primary_domains
+
+
+def json_archive_writes_enabled() -> bool:
+    """Return true when PostgreSQL primary writes should maintain JSON archive mirrors."""
+
+    return _env_true("MIEMIE_DATABASE_JSON_ARCHIVE_WRITES")
 
 
 def video_studio_task_read_enabled() -> bool:
@@ -84,6 +101,30 @@ def build_video_studio_task_shadow_repository(user_id: str) -> PostgresVideoStud
 
 def build_video_studio_task_read_repository(user_id: str) -> PostgresVideoStudioTaskRepository:
     return PostgresVideoStudioTaskRepository(_runtime_engine(), user_id)
+
+
+def build_video_studio_task_primary_repository(user_id: str) -> PostgresVideoStudioTaskRepository:
+    return PostgresVideoStudioTaskRepository(_runtime_engine(), user_id)
+
+
+def save_video_studio_task_primary(user_id: str | None, task: VideoStudioTask) -> bool:
+    """Save to PostgreSQL as the primary store when primary mode is enabled."""
+
+    if not user_id or not video_studio_task_primary_write_enabled():
+        return False
+
+    build_video_studio_task_primary_repository(user_id).save(task)
+    return True
+
+
+def mark_video_studio_task_deleted_primary(user_id: str | None, task_id: str) -> bool:
+    """Mark a PostgreSQL-primary task deleted when primary mode is enabled."""
+
+    if not user_id or not video_studio_task_primary_write_enabled():
+        return False
+
+    build_video_studio_task_primary_repository(user_id).mark_deleted(task_id)
+    return True
 
 
 def shadow_save_video_studio_task(user_id: str | None, task: VideoStudioTask) -> None:

@@ -168,6 +168,7 @@ curl http://127.0.0.1:8000/api/health
   - 数据库迁移遵循 `JSON 主数据源 → PostgreSQL shadow/backfill/reconcile → dual-write → read-switch → PostgreSQL primary` 的分阶段路线。
   - 视频工作室任务双写的服务器启用顺序必须是：PostgreSQL health 通过、`alembic upgrade head` 通过、backfill/reconcile 干净后，再设置 `MIEMIE_DATABASE_ENABLED=true` 与 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=video_studio_tasks`；回滚双写只需清空 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS` 并保持 `MIEMIE_DATABASE_WRITE_MODE=file`。
   - 视频工作室任务读切换必须在双写和再次对账干净后启用：设置 `MIEMIE_DATABASE_READ_DOMAINS=video_studio_tasks`；回滚读切换只需清空 `MIEMIE_DATABASE_READ_DOMAINS`，保留 `MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 可在 PostgreSQL miss/异常时回退 JSON。
+  - 视频工作室任务 PostgreSQL 主写必须在读切换和再次对账干净后启用：设置 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=video_studio_tasks`，必要时临时设置 `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` 保留 JSON 归档镜像；回滚主写只需清空 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS` 并恢复前一阶段双写/读切换组合。
 
 ---
 
@@ -186,7 +187,9 @@ curl http://127.0.0.1:8000/api/health
 | `MIEMIE_DATABASE_READ_MODE` | `file` | 读取模式，按域灰度切换前保持 JSON 主读 |
 | `MIEMIE_DATABASE_READ_DOMAINS` | 空 | 允许从 PostgreSQL 读取的域，逗号分隔 |
 | `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS` | 空 | 允许双写的域，逗号分隔 |
+| `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS` | 空 | 允许 PostgreSQL 主写的域，逗号分隔；当前支持 `video_studio_tasks` |
 | `MIEMIE_DATABASE_JSON_FALLBACK_READ` | `true` | PostgreSQL 读缺失时是否回退 JSON |
+| `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES` | `false` | PostgreSQL 主写时是否继续维护 JSON 归档镜像，灰度/对账期可临时开启 |
 | `MIEMIE_DATABASE_RECONCILE_STRICT` | `false` | 双写 shadow 失败是否抛出；灰度初期保持 `false`，让 JSON 主路径不中断 |
 | `MIEMIE_POSTGRES_PASSWORD` | 无安全默认值 | PostgreSQL 密码，生产必须在未跟踪的 `compose.env` 中设置强值 |
 

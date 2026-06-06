@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R6 PostgreSQL primary write：新增 `video_studio_tasks` PostgreSQL 主写开关和可选 JSON archive mirror；显式启用后视频任务保存/删除先写 PostgreSQL，默认不再写 JSON，主写失败不落 JSON 分叉状态，Compose/API/worker 环境变量已补齐，目标集 `82 passed`。
 - 数据库升级 R6 read switch：新增 `video_studio_tasks` PostgreSQL 优先读开关与 JSON fallback，默认 file-only；显式启用后任务详情/状态、项目任务列表和全量任务列表优先读 PostgreSQL，miss/异常可回退 JSON，后端全量 `255 passed`。
 - 数据库升级 R6 runtime dual-write：新增 `video_studio_tasks` 写侧 feature flag，默认 file-only；显式启用后视频任务 JSON 主写/删除成功再 shadow 写 PostgreSQL，后台 `get_user_storage(user_id)` 路径携带 owner user id，shadow 失败默认不打断 JSON 主路径，后端全量 `251 passed`。
 - 数据库升级 R5 本地 backfill/reconcile：新增视频工作室任务 JSON 扫描、PostgreSQL repository upsert、脱敏 JSON/Markdown 对账摘要和两个维护脚本；摘要不包含 prompt、raw provider payload、key/token/password 或私有 URL，后端全量 `248 passed`。

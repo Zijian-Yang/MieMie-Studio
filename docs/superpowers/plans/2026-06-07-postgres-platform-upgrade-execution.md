@@ -233,8 +233,10 @@ MIEMIE_DATABASE_URL=postgresql+psycopg://miemie:${MIEMIE_POSTGRES_PASSWORD}@post
 MIEMIE_DATABASE_WRITE_MODE=file
 MIEMIE_DATABASE_READ_MODE=file
 MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=
+MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=
 MIEMIE_DATABASE_READ_DOMAINS=
 MIEMIE_DATABASE_JSON_FALLBACK_READ=true
+MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=false
 MIEMIE_DATABASE_RECONCILE_STRICT=false
 ```
 
@@ -473,6 +475,8 @@ Expected reconcile JSON:
 - [x] Keep public API response shapes unchanged.
 
 2026-06-07 note: local read switch and JSON fallback are implemented through `StorageService` video task read methods; runtime default remains file-only, and staging read switch is pending live migration/backfill/reconcile/dual-write evidence. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r6-read-switch/`.
+
+2026-06-07 note: local PostgreSQL primary-write mode for `video_studio_tasks` is implemented as the next read-switch prerequisite. `StorageService.save_video_studio_task()` and `delete_video_studio_task()` route writes/deletes to PostgreSQL when `MIEMIE_DATABASE_ENABLED=true` and `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=video_studio_tasks` or `MIEMIE_DATABASE_WRITE_MODE=postgres_primary`; `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` keeps a temporary JSON mirror for audit/recovery. Runtime default remains file-only, and staging primary-write enablement is pending live migration/backfill/reconcile/dual-write/read-switch evidence. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r6-postgres-primary-write/`.
 
 ## Task R7: Staging Rollout Gate
 

@@ -1,0 +1,44 @@
+{
+  "state": "local_passed",
+  "scope": "video_studio_tasks_postgres_primary_write",
+  "runtime_default": "file_only",
+  "staging_enabled": false,
+  "implemented": [
+    "primary_write_domain_flag",
+    "postgres_primary_write_mode_alias",
+    "optional_json_archive_writes",
+    "primary_write_failure_prevents_json_split_brain",
+    "save_updates_timestamp_before_primary_write"
+  ],
+  "verification": [
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_video_studio_task_primary_write.py -q",
+      "result": "4 passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_video_studio_task_primary_write.py backend/tests/test_video_studio_task_read_switch.py backend/tests/test_video_studio_task_dual_write.py backend/tests/test_video_studio_task_repository.py backend/tests/test_video_studio_task_migration.py backend/tests/test_video_studio_task_schema.py backend/tests/test_database_health.py backend/tests/test_storage_service.py backend/tests/test_video_studio_capabilities.py -q",
+      "result": "82 passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests -q",
+      "result": "259 passed"
+    },
+    {
+      "command": "docker compose config >/tmp/miemie-compose-config-check.txt",
+      "result": "passed"
+    }
+  ],
+  "pending": [
+    "staging_postgres_health_recovery",
+    "live_alembic_upgrade",
+    "live_backfill_reconcile",
+    "staging_dual_write_gate",
+    "staging_read_switch_gate",
+    "staging_primary_write_gate"
+  ],
+  "updated_at": "2026-06-07"
+}

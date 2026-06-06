@@ -525,13 +525,26 @@ class StorageService:
     
     def save_video_studio_task(self, task: VideoStudioTask) -> None:
         """保存视频工作室任务（线程安全）"""
+        from app.repositories.video_studio_task_runtime import (
+            json_archive_writes_enabled,
+            save_video_studio_task_primary,
+            shadow_save_video_studio_task,
+        )
+
+        task.updated_at = datetime.now()
+        owner_user_id = self._get_owner_user_id()
+        if save_video_studio_task_primary(owner_user_id, task):
+            if json_archive_writes_enabled():
+                self._save_video_studio_task_to_file(task)
+            return
+
+        self._save_video_studio_task_to_file(task)
+        shadow_save_video_studio_task(owner_user_id, task)
+
+    def _save_video_studio_task_to_file(self, task: VideoStudioTask) -> None:
         with self._lock:
-            task.updated_at = datetime.now()
             file_path = self.video_studio_dir / f"{task.id}.json"
             self._write_json_with_lock(file_path, task.model_dump())
-        from app.repositories.video_studio_task_runtime import shadow_save_video_studio_task
-
-        shadow_save_video_studio_task(self._get_owner_user_id(), task)
     
     def _get_video_studio_task_from_file(self, task_id: str) -> Optional[VideoStudioTask]:
         file_path = self.video_studio_dir / f"{task_id}.json"
@@ -589,14 +602,25 @@ class StorageService:
     
     def delete_video_studio_task(self, task_id: str) -> None:
         """删除视频工作室任务"""
-        file_path = self.video_studio_dir / f"{task_id}.json"
-        if file_path.exists():
-            file_path.unlink()
         from app.repositories.video_studio_task_runtime import (
+            json_archive_writes_enabled,
+            mark_video_studio_task_deleted_primary,
             shadow_mark_video_studio_task_deleted,
         )
 
-        shadow_mark_video_studio_task_deleted(self._get_owner_user_id(), task_id)
+        owner_user_id = self._get_owner_user_id()
+        if mark_video_studio_task_deleted_primary(owner_user_id, task_id):
+            if json_archive_writes_enabled():
+                self._delete_video_studio_task_from_file(task_id)
+            return
+
+        self._delete_video_studio_task_from_file(task_id)
+        shadow_mark_video_studio_task_deleted(owner_user_id, task_id)
+
+    def _delete_video_studio_task_from_file(self, task_id: str) -> None:
+        file_path = self.video_studio_dir / f"{task_id}.json"
+        if file_path.exists():
+            file_path.unlink()
 
     # ============ Audio Studio ============
 

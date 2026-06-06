@@ -395,6 +395,14 @@ pre 部署复验：
 - 运行态默认仍为 file-only；公开 API 响应形状仍返回 `VideoStudioTask`，未启用 PostgreSQL primary 和 JSON archive。
 - 本地验证：read-switch 测试 `4 passed`，read-switch/dual-write/repository/migration/schema/health/storage/video-studio-capabilities 目标集 `78 passed`，`git diff --check` 通过，后端全量 `255 passed`。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r6-read-switch/`。
 
+2026-06-07 阶段 7 R6 PostgreSQL primary write + JSON archive mirror：
+
+- `backend/app/repositories/video_studio_task_runtime.py` 新增主写开关：默认关闭，只有 `MIEMIE_DATABASE_ENABLED=true` 且 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS` 包含 `video_studio_tasks` 或 `MIEMIE_DATABASE_WRITE_MODE=postgres_primary` 时，视频任务保存/删除才以 PostgreSQL 为主。
+- `StorageService.save_video_studio_task()` 在进入主写、双写或 JSON 分支前统一刷新 `updated_at`；主写成功后默认不写 JSON，只有 `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` 时才维护 JSON archive mirror。
+- PostgreSQL 主写失败会向上抛出，并且不会落 JSON mirror，避免数据库主写阶段产生“PG 失败但 JSON 成功”的分叉状态；删除路径同样先写 PostgreSQL，再按 archive 开关清理 JSON。
+- Compose/API/worker/worker-video 环境变量已补齐 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS` 与 `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES`；运行态默认仍为 file-only，服务器 primary-write 仍需等 live migration/backfill/reconcile/dual-write/read-switch 证据干净后再启用。
+- 本地验证：primary-write 测试 `4 passed`，primary-write/read-switch/dual-write/repository/migration/schema/health/storage/video-studio-capabilities 目标集 `82 passed`。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r6-postgres-primary-write/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
