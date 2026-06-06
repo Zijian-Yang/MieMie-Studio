@@ -332,7 +332,7 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 
 本阶段只准备讨论材料，不直接实施新技术栈。
 
-状态：已新增 `docs/adr/ADR-0003-pre-database-architecture-checkpoint.md` 作为数据库阶段前检查点草案。当前结论是不立即实施数据库；只有当本机入口也出现明确 JSON I/O 瓶颈、业务确认需要跨主机多实例核心状态、或用户接受数据库运维成本后，才进入 SQLite/PostgreSQL 具体实施设计。
+状态：已新增 `docs/adr/ADR-0003-pre-database-architecture-checkpoint.md` 作为数据库阶段前检查点，并在用户确认后接受 Compose 内 PostgreSQL 作为最终核心业务状态库。已新增 `docs/plans/2026-06-06-postgres-upgrade-optimization-plan.md`，明确 JSON 过渡、双写对账、分域读切换和最终数据库主数据源路线；第一实施域建议为视频工作室任务索引/任务状态。
 
 需要回答的问题：
 
@@ -350,7 +350,7 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 候选方向只作为讨论，不作为当前决策：
 
 - 保持 JSON + 文件锁，但补索引和缓存。
-- 引入轻量 SQLite / 单机数据库。
+- 引入 Compose 内 PostgreSQL，并允许 JSON 过渡一段时间。
 - 引入 Redis 只做 session / 限流 / 短缓存。
 - 引入轻量后台任务进程，但不直接上复杂队列。
 - 引入更完整的队列和数据库方案。
@@ -367,12 +367,12 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 3. 阶段 3 Worker 图片工作室最小接入已完成。
 4. 阶段 3.5 Redis + Worker 稳定性补强已闭环：Redis restart / unavailable、worker restart stale 兜底和 1 个真实 DashScope 图片队列 smoke 均已验证。
 5. 视频工作室 Worker 迁移 v1 已完成本地实现、pre 基础部署、无 key 失败路径、`worker-video` restart 基础恢复和 1 个真实 DashScope 视频 smoke；视频 worker v1 服务器验收已闭环。
-6. PostgreSQL / SSE 继续后置，基于 Redis + Worker 图片工作室稳定基线通过后的数据再讨论。
+6. Compose PostgreSQL 已进入设计与分阶段实施准备；SSE 继续后置，不与数据库第一阶段绑定。
 
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。
-- 不立即引入 PostgreSQL / SSE。
+- 不一次性全量替换 JSON，不把 PostgreSQL 与 SSE 绑成同一轮大改。
 - 不做真实供应商高并发压测。
 - 不合并旧实验服务数据目录。
 - 不改反向代理边界。

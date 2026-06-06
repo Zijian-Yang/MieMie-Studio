@@ -325,9 +325,15 @@ pre 部署复验：
 
 2026-06-06 阶段 7 数据库前架构检查点：
 
-- 新增 `docs/adr/ADR-0003-pre-database-architecture-checkpoint.md`，沉淀阶段 5/6 后的数据库前决策：当前不立即实施数据库，只进入设计准备。
+- 新增 `docs/adr/ADR-0003-pre-database-architecture-checkpoint.md`，沉淀阶段 5/6 后的数据库前初版检查点：先进入设计准备，避免一次性全量替换 JSON。
 - ADR 明确进入 SQLite/PostgreSQL 实施前的触发条件：本机入口也出现明确 JSON I/O 瓶颈、业务确认跨主机多实例核心状态需求，或用户接受数据库备份/迁移/监控成本。
 - ADR 同步列出数据库阶段准备包：数据域清单、迁移顺序、回滚策略、备份恢复、性能门禁和 SSE 关系。
+
+2026-06-06 阶段 7 Compose PostgreSQL 升级路线确认：
+
+- 用户确认数据库部署形态选择 Compose 内 PostgreSQL，不走 SQLite 中转；JSON 可作为主数据源保留一段过渡期，但最终核心业务状态全部迁入数据库。
+- 新增 `docs/plans/2026-06-06-postgres-upgrade-optimization-plan.md`，覆盖 Compose PostgreSQL、运行开关、数据域迁移顺序、任务索引首迁、双写/回填/对账、读切换、回滚、备份恢复和性能门禁。
+- `ADR-0003` 状态更新为 Accepted，并把第一实施刀收敛为 PostgreSQL Compose 基础设施与 health 观测；第一业务迁移域建议为视频工作室任务索引/任务状态。
 
 后续建议继续拆分：
 
@@ -343,4 +349,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步仍不直接进入 PostgreSQL / SSE；应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 6 必做代码治理和阶段 7 数据库前 ADR 已落盘，后续若进入数据库，应先按 ADR-0003 准备数据域、迁移、回滚和性能门禁。
+- 下一步进入 Compose PostgreSQL 设计实施准备，但不一次性替换 JSON 主数据。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 6 必做代码治理和阶段 7 数据库升级计划已落盘，后续实施应先做 PostgreSQL Compose 基础设施、health、备份恢复和任务索引影子迁移。
