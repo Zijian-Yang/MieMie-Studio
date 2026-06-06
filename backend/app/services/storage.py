@@ -52,11 +52,12 @@ def get_current_user_id() -> Optional[str]:
 class StorageService:
     """JSON 文件存储服务 - 支持并发安全"""
     
-    def __init__(self, data_dir: Optional[str] = None):
+    def __init__(self, data_dir: Optional[str] = None, owner_user_id: Optional[str] = None):
         if data_dir is None:
             self.data_dir = Path(__file__).parent.parent.parent / "data"
         else:
             self.data_dir = Path(data_dir)
+        self.owner_user_id = owner_user_id
         
         self.projects_dir = self.data_dir / "projects"
         self.characters_dir = self.data_dir / "characters"
@@ -102,6 +103,9 @@ class StorageService:
         if isinstance(obj, datetime):
             return obj.isoformat()
         raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
+    def _get_owner_user_id(self) -> Optional[str]:
+        return self.owner_user_id or get_current_user_id()
     
     def _read_json_with_lock(self, file_path: Path) -> Optional[dict]:
         """带文件锁的 JSON 读取"""
@@ -525,6 +529,9 @@ class StorageService:
             task.updated_at = datetime.now()
             file_path = self.video_studio_dir / f"{task.id}.json"
             self._write_json_with_lock(file_path, task.model_dump())
+        from app.repositories.video_studio_task_runtime import shadow_save_video_studio_task
+
+        shadow_save_video_studio_task(self._get_owner_user_id(), task)
     
     def get_video_studio_task(self, task_id: str) -> Optional[VideoStudioTask]:
         """获取视频工作室任务"""
@@ -557,6 +564,11 @@ class StorageService:
         file_path = self.video_studio_dir / f"{task_id}.json"
         if file_path.exists():
             file_path.unlink()
+        from app.repositories.video_studio_task_runtime import (
+            shadow_mark_video_studio_task_deleted,
+        )
+
+        shadow_mark_video_studio_task_deleted(self._get_owner_user_id(), task_id)
 
     # ============ Audio Studio ============
 
@@ -863,7 +875,10 @@ def get_user_storage(user_id: str) -> StorageService:
                 from app.services.user_service import get_user_service
                 user_service = get_user_service()
                 user_data_path = user_service.get_user_data_path(user_id)
-                _storage_cache[user_id] = StorageService(str(user_data_path))
+                _storage_cache[user_id] = StorageService(
+                    str(user_data_path),
+                    owner_user_id=user_id,
+                )
     return _storage_cache[user_id]
 
 

@@ -1,0 +1,28 @@
+{
+  "state": "ready_for_staging_after_live_reconcile",
+  "stage": "r6-runtime-dual-write",
+  "local_commit_before_change": "48aa686b8b143f169d0bec9ec7ed18b74289e226",
+  "implemented": [
+    "runtime dual-write feature flag",
+    "lazy postgres shadow repository wiring",
+    "storage owner_user_id for background worker paths",
+    "json-primary save shadow write",
+    "json-primary delete shadow soft-delete",
+    "dual-write unit tests"
+  ],
+  "not_implemented_in_this_slice": [
+    "staging dual-write enablement",
+    "read switch",
+    "postgres primary mode",
+    "json archive mode"
+  ],
+  "verification": {
+    "dual_write_tests": "3 passed",
+    "targeted_database_tests": "17 passed",
+    "diff_check": "passed",
+    "backend_full_tests": "251 passed"
+  },
+  "runtime_default": "file-only",
+  "server_status": "R1/R2 staging verification, R3 live migration, and R5 live reconcile still pending SSH/API recovery",
+  "updated_at": "2026-06-07T06:24:19+0800"
+}

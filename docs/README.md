@@ -138,7 +138,7 @@ docker compose config
 - 当前保留为后续治理：
   - CI / 服务器环境仍需显式安装 Playwright Chromium；当前自动发现主要覆盖本机已有缓存的开发场景
   - `CapabilityCreateModal.tsx` 仍是视频工作室创建/编辑能力的主要复杂点；已先拆出 `DeveloperPreviewPanel.tsx`、`VideoFieldLabel.tsx`、`ReferenceCollectionsPanel.tsx`、`MaskEditorPanel.tsx` 与 `InputAssetSelector.tsx`，后续可继续提取参数区域等子组件或 hook；前端 smoke 可继续随拆分补编辑提交等更重路径；`StudioPage.tsx` 等大页面也仍需继续做行为保持型拆分
-  - 数据库阶段已进入 R5：`ADR-0003` 已接受 Compose 内 PostgreSQL 作为最终核心业务状态库，`2026-06-06-postgres-upgrade-optimization-plan.md` 明确 JSON 过渡、双写对账、分域迁移和最终数据库主数据源路线，`2026-06-07-postgres-platform-upgrade-execution.md` 进一步落盘 goal 模式执行路线、服务器 preflight、停止条件、真实 smoke 边界和阶段门禁；本地已实现 Compose PostgreSQL 基础设施、`/api/health.database`、备份/恢复演练脚本、health 回归测试、Alembic 配置、`video_studio_tasks` 首个 schema/migration、视频工作室任务 file/postgres/dual repository boundary，以及 backfill/reconcile 脚本和脱敏对账报告。当前运行态仍默认 JSON/file-only，服务器 R1/R2 rollout、live migration、live backfill/reconcile 尚未闭环，下一步进入 runtime dual-write feature flag 前置
+  - 数据库阶段已进入 R6：`ADR-0003` 已接受 Compose 内 PostgreSQL 作为最终核心业务状态库，`2026-06-06-postgres-upgrade-optimization-plan.md` 明确 JSON 过渡、双写对账、分域迁移和最终数据库主数据源路线，`2026-06-07-postgres-platform-upgrade-execution.md` 进一步落盘 goal 模式执行路线、服务器 preflight、停止条件、真实 smoke 边界和阶段门禁；本地已实现 Compose PostgreSQL 基础设施、`/api/health.database`、备份/恢复演练脚本、health 回归测试、Alembic 配置、`video_studio_tasks` 首个 schema/migration、视频工作室任务 file/postgres/dual repository boundary、backfill/reconcile 脚本和脱敏对账报告，以及 runtime dual-write feature flag。当前运行态仍默认 JSON/file-only，服务器 R1/R2 rollout、live migration、live backfill/reconcile、staging dual-write 尚未闭环，下一步进入 PostgreSQL read switch + JSON fallback
 
 ## 文档维护规则
 

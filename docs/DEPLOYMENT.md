@@ -166,6 +166,7 @@ curl http://127.0.0.1:8000/api/health
   - 真实 `compose.env` 必须设置 `MIEMIE_POSTGRES_PASSWORD` 强密码，不要使用样例占位值。
   - 小内存服务器可先使用 `MIEMIE_POSTGRES_SHARED_BUFFERS=128MB`、`MIEMIE_POSTGRES_MAX_CONNECTIONS=50` 等保守默认值，再按压测结果调整。
   - 数据库迁移遵循 `JSON 主数据源 → PostgreSQL shadow/backfill/reconcile → dual-write → read-switch → PostgreSQL primary` 的分阶段路线。
+  - 视频工作室任务双写的服务器启用顺序必须是：PostgreSQL health 通过、`alembic upgrade head` 通过、backfill/reconcile 干净后，再设置 `MIEMIE_DATABASE_ENABLED=true` 与 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=video_studio_tasks`；回滚双写只需清空 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS` 并保持 `MIEMIE_DATABASE_WRITE_MODE=file`。
 
 ---
 
@@ -185,6 +186,7 @@ curl http://127.0.0.1:8000/api/health
 | `MIEMIE_DATABASE_READ_DOMAINS` | 空 | 允许从 PostgreSQL 读取的域，逗号分隔 |
 | `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS` | 空 | 允许双写的域，逗号分隔 |
 | `MIEMIE_DATABASE_JSON_FALLBACK_READ` | `true` | PostgreSQL 读缺失时是否回退 JSON |
+| `MIEMIE_DATABASE_RECONCILE_STRICT` | `false` | 双写 shadow 失败是否抛出；灰度初期保持 `false`，让 JSON 主路径不中断 |
 | `MIEMIE_POSTGRES_PASSWORD` | 无安全默认值 | PostgreSQL 密码，生产必须在未跟踪的 `compose.env` 中设置强值 |
 
 设置方式：

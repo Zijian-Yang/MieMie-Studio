@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R6 runtime dual-write：新增 `video_studio_tasks` 写侧 feature flag，默认 file-only；显式启用后视频任务 JSON 主写/删除成功再 shadow 写 PostgreSQL，后台 `get_user_storage(user_id)` 路径携带 owner user id，shadow 失败默认不打断 JSON 主路径，后端全量 `251 passed`。
 - 数据库升级 R5 本地 backfill/reconcile：新增视频工作室任务 JSON 扫描、PostgreSQL repository upsert、脱敏 JSON/Markdown 对账摘要和两个维护脚本；摘要不包含 prompt、raw provider payload、key/token/password 或私有 URL，后端全量 `248 passed`。
 - 数据库升级 R4 本地 repository boundary：新增 `backend/app/repositories/`，为视频工作室任务建立 file/postgres/dual repository；JSON 仍为默认主路径，PostgreSQL 映射保留 `raw_task_snapshot`，dual shadow 写失败不打断 JSON 主写路径，后端全量 `245 passed`。
 - 数据库升级 R3 本地 schema：新增 Alembic 配置、`video_studio_tasks` SQLAlchemy metadata、首个 PostgreSQL migration 和 schema 回归测试；生成的 DDL 包含 JSONB snapshot、任务状态索引和 partial indexes，业务读写路径仍未切库。

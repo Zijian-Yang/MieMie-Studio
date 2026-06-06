@@ -443,6 +443,8 @@ Required tests:
 
 2026-06-07 note: local R5 backfill/reconcile tooling is implemented and covered by `backend/tests/test_video_studio_task_migration.py`; live backfill/reconcile is pending staging SSH/API recovery plus live `alembic upgrade head`. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r5-backfill-reconcile/`.
 
+2026-06-07 note: runtime dual-write feature flag for `video_studio_tasks` is implemented as the local read-switch prerequisite. `StorageService.save_video_studio_task()` and `delete_video_studio_task()` remain JSON-primary, then shadow-write PostgreSQL only when `MIEMIE_DATABASE_ENABLED=true` and `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=video_studio_tasks` or `MIEMIE_DATABASE_WRITE_MODE=dual`. Reads still remain JSON/file-only. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r6-runtime-dual-write/`.
+
 Expected reconcile JSON:
 
 ```json
