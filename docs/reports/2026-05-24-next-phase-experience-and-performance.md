@@ -335,6 +335,13 @@ pre 部署复验：
 - 新增 `docs/plans/2026-06-06-postgres-upgrade-optimization-plan.md`，覆盖 Compose PostgreSQL、运行开关、数据域迁移顺序、任务索引首迁、双写/回填/对账、读切换、回滚、备份恢复和性能门禁。
 - `ADR-0003` 状态更新为 Accepted，并把第一实施刀收敛为 PostgreSQL Compose 基础设施与 health 观测；第一业务迁移域建议为视频工作室任务索引/任务状态。
 
+2026-06-07 阶段 7 PostgreSQL 执行路线与 preflight：
+
+- 新增 `docs/superpowers/plans/2026-06-07-postgres-platform-upgrade-execution.md`，将数据库升级拆为 R0 preflight、R1 Compose PostgreSQL 基础设施、R2 database health/备份恢复、R3 Alembic/schema、R4-R6 视频工作室任务 shadow/dual-write/read-switch、R7-R8 服务器 rollout 与性能/真实 smoke 门禁。
+- preflight artifact 已归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-preflight/`：本地 Docker/Compose/Python/pytest/Node/npm/k6 均可用，`docker compose config`、后端关键测试、前端 typecheck 和 vite chunk 检查通过；服务器 SSH、`miemie-pre` Compose、`/api/health`、Cloudflare health 均通过。
+- 服务器当前运行提交仍为 `00091f21f5ee207f78a1092e7e5e164ab4567c7f`，`api`、`redis`、`worker`、`worker-video` 均运行；已预拉取 `postgres:16-alpine` 并验证镜像可执行，后续 R1 不再需要等待镜像下载。
+- 观察到服务器无 swap、可用内存约 `994MiB`，R1/R2 必须保守配置 PostgreSQL 并持续观察 `docker stats`；本地 Mac 对公网 health 的路由仍经 Clash TUN/fake-ip，继续只作为客户端路径变量记录，不作为服务器 rollout 阻塞。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -349,4 +356,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步进入 Compose PostgreSQL 设计实施准备，但不一次性替换 JSON 主数据。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 6 必做代码治理和阶段 7 数据库升级计划已落盘，后续实施应先做 PostgreSQL Compose 基础设施、health、备份恢复和任务索引影子迁移。
+- 下一步进入 `docs/superpowers/plans/2026-06-07-postgres-platform-upgrade-execution.md` 的 R1/R2：先做 PostgreSQL Compose 基础设施、database health、备份/恢复门禁，不一次性替换 JSON 主数据。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 6 必做代码治理已推进，阶段 7 数据库升级进入可执行准备。

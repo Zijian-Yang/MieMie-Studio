@@ -74,6 +74,7 @@
 | [未完成工作实施计划](./plans/2026-05-23-unfinished-work-implementation-plan.md) | 先补齐当前未闭环工作，并把后续架构选型延后到数据驱动讨论 |
 | [下一阶段体验与性能治理报告](./reports/2026-05-24-next-phase-experience-and-performance.md) | Redis + Worker 闭环后的 pre 体验 smoke、轻量观测、S4 基线与 W2 阶梯压测记录 |
 | [Compose PostgreSQL 升级优化计划](./plans/2026-06-06-postgres-upgrade-optimization-plan.md) | Compose 内 PostgreSQL、JSON 过渡、双写对账、分域读切换和最终数据库主数据源路线 |
+| [PostgreSQL 平台升级执行计划](./superpowers/plans/2026-06-07-postgres-platform-upgrade-execution.md) | 数据库升级 goal 模式执行路线、前置检查、分阶段任务、服务器门禁和真实 smoke 边界 |
 | [容量基线与压测手册](./playbooks/CAPACITY_BASELINE_AND_LOADTEST.md) | Step 00 的压测执行方法、字段要求与结果模板 |
 | [运行模式矩阵](./playbooks/RUNTIME_MODE_MATRIX.md) | 开发环境、脚本生产模式、Compose 生产模式的边界对比 |
 | [观测与轮询盘点](./reviews/2026-04-step-00-observability-and-polling-inventory.md) | 当前轮询热点、状态接口副作用与最小观测缺口 |
@@ -137,7 +138,7 @@ docker compose config
 - 当前保留为后续治理：
   - CI / 服务器环境仍需显式安装 Playwright Chromium；当前自动发现主要覆盖本机已有缓存的开发场景
   - `CapabilityCreateModal.tsx` 仍是视频工作室创建/编辑能力的主要复杂点；已先拆出 `DeveloperPreviewPanel.tsx`、`VideoFieldLabel.tsx`、`ReferenceCollectionsPanel.tsx`、`MaskEditorPanel.tsx` 与 `InputAssetSelector.tsx`，后续可继续提取参数区域等子组件或 hook；前端 smoke 可继续随拆分补编辑提交等更重路径；`StudioPage.tsx` 等大页面也仍需继续做行为保持型拆分
-  - 数据库阶段已进入设计讨论：`ADR-0003` 已接受 Compose 内 PostgreSQL 作为最终核心业务状态库，`2026-06-06-postgres-upgrade-optimization-plan.md` 明确 JSON 过渡、双写对账、分域迁移和最终数据库主数据源路线
+  - 数据库阶段已进入执行准备：`ADR-0003` 已接受 Compose 内 PostgreSQL 作为最终核心业务状态库，`2026-06-06-postgres-upgrade-optimization-plan.md` 明确 JSON 过渡、双写对账、分域迁移和最终数据库主数据源路线，`2026-06-07-postgres-platform-upgrade-execution.md` 进一步落盘 goal 模式执行路线、服务器 preflight、停止条件、真实 smoke 边界和阶段门禁
 
 ## 文档维护规则
 

@@ -1,0 +1,24 @@
+{
+  "state": "ready",
+  "stage": "preflight",
+  "local_branch": "pre",
+  "local_commit": "2284582a8b0855cdda7a4d0997c450ea55f19694",
+  "server_host": "root@47.79.99.190",
+  "server_path": "/opt/miemie-pre",
+  "server_commit": "00091f21f5ee207f78a1092e7e5e164ab4567c7f",
+  "server_health": "ok",
+  "public_health": "ok",
+  "postgres_image": {
+    "name": "postgres:16-alpine",
+    "pulled": true,
+    "version": "PostgreSQL 16.14",
+    "digest": "sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229"
+  },
+  "missing_prerequisites": [],
+  "warnings": [
+    "server has no swap and about 994MiB available memory at preflight",
+    "local Mac public-route check still used Clash TUN/fake-ip 198.18.2.211 via utun1024"
+  ],
+  "next_task": "R1 Add Compose PostgreSQL Infrastructure",
+  "updated_at": "2026-06-07T03:43:00+08:00"
+}

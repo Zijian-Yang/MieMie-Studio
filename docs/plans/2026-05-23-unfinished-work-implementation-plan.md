@@ -332,7 +332,7 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 
 本阶段只准备讨论材料，不直接实施新技术栈。
 
-状态：已新增 `docs/adr/ADR-0003-pre-database-architecture-checkpoint.md` 作为数据库阶段前检查点，并在用户确认后接受 Compose 内 PostgreSQL 作为最终核心业务状态库。已新增 `docs/plans/2026-06-06-postgres-upgrade-optimization-plan.md`，明确 JSON 过渡、双写对账、分域读切换和最终数据库主数据源路线；第一实施域建议为视频工作室任务索引/任务状态。
+状态：已新增 `docs/adr/ADR-0003-pre-database-architecture-checkpoint.md` 作为数据库阶段前检查点，并在用户确认后接受 Compose 内 PostgreSQL 作为最终核心业务状态库。已新增 `docs/plans/2026-06-06-postgres-upgrade-optimization-plan.md`，明确 JSON 过渡、双写对账、分域读切换和最终数据库主数据源路线；第一实施域建议为视频工作室任务索引/任务状态。2026-06-07 已新增 `docs/superpowers/plans/2026-06-07-postgres-platform-upgrade-execution.md` 作为 goal 模式执行路线，并完成 preflight artifact `docs/reports/artifacts/2026-06-07-postgres-upgrade-preflight/`：本地工具链、后端关键测试、前端 typecheck/chunk 检查、服务器 SSH/Compose/health、Cloudflare health 均通过，服务器已预拉取 `postgres:16-alpine`。
 
 需要回答的问题：
 
@@ -367,7 +367,7 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 3. 阶段 3 Worker 图片工作室最小接入已完成。
 4. 阶段 3.5 Redis + Worker 稳定性补强已闭环：Redis restart / unavailable、worker restart stale 兜底和 1 个真实 DashScope 图片队列 smoke 均已验证。
 5. 视频工作室 Worker 迁移 v1 已完成本地实现、pre 基础部署、无 key 失败路径、`worker-video` restart 基础恢复和 1 个真实 DashScope 视频 smoke；视频 worker v1 服务器验收已闭环。
-6. Compose PostgreSQL 已进入设计与分阶段实施准备；SSE 继续后置，不与数据库第一阶段绑定。
+6. Compose PostgreSQL 已进入分阶段实施准备；下一刀执行 `2026-06-07-postgres-platform-upgrade-execution.md` 的 R1/R2，即 Compose PostgreSQL 基础设施、database health、备份/恢复门禁，SSE 继续后置，不与数据库第一阶段绑定。
 
 ## 暂不做
 
