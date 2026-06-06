@@ -220,6 +220,8 @@ create index idx_video_studio_tasks_submit_attempt
 - Worker 写任务状态具备数据库路径。
 - 为未来统一 task event / SSE 打基础。
 
+2026-06-07 progress: `studio_tasks` 本地 schema、Alembic migration、file/PostgreSQL/dual repository 边界已完成并通过本地验证；运行态仍默认 JSON/file-only，尚未接入 backfill/reconcile、dual-write、read-switch 或 primary-write。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r8-studio-tasks-local-schema-repository/`。
+
 ### P3：项目表
 
 迁 `projects`，但不立即迁所有子资源。

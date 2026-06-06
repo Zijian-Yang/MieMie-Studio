@@ -546,6 +546,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 - [ ] Recommend the next domain: `studio_tasks`, then `projects`, then media metadata.
 - [ ] Commit and push final docs/artifacts.
 
+2026-06-07 note: while R7 staging precheck remained blocked by the operator-side TUN/fake-ip path, local next-domain work started. `studio_tasks` now has a PostgreSQL schema, Alembic migration `20260607_0002`, repository protocol, and file/PostgreSQL/dual repository boundary. Runtime remains file-only; backfill/reconcile and read/write feature flags are still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r8-studio-tasks-local-schema-repository/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

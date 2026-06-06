@@ -1,0 +1,54 @@
+{
+  "state": "local_passed",
+  "stage": "r8-studio-tasks-local-schema-repository",
+  "runtime_default": "file_only",
+  "staging_enabled": false,
+  "implemented": [
+    "studio_tasks_schema",
+    "studio_tasks_alembic_migration_20260607_0002",
+    "studio_task_repository_protocol",
+    "file_studio_task_repository",
+    "postgres_studio_task_repository",
+    "dual_studio_task_repository",
+    "lossless_raw_task_snapshot_jsonb",
+    "active_project_and_status_partial_indexes"
+  ],
+  "verification": [
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_studio_task_schema.py backend/tests/test_studio_task_repository.py -q",
+      "result": "7 passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_studio_task_schema.py backend/tests/test_studio_task_repository.py backend/tests/test_video_studio_task_schema.py backend/tests/test_video_studio_task_repository.py backend/tests/test_video_studio_task_migration.py backend/tests/test_video_studio_task_dual_write.py backend/tests/test_video_studio_task_read_switch.py backend/tests/test_video_studio_task_primary_write.py backend/tests/test_database_health.py backend/tests/test_storage_service.py backend/tests/test_studio_capabilities.py -q",
+      "result": "86 passed"
+    },
+    {
+      "command": "backend/.venv/bin/python -m py_compile backend/app/db/migrations/versions/20260607_0002_studio_tasks.py",
+      "result": "passed"
+    },
+    {
+      "command": "MIEMIE_DATABASE_URL=postgresql+psycopg://miemie:example@localhost:5432/miemie backend/.venv/bin/alembic -c backend/alembic.ini heads",
+      "result": "20260607_0002 (head)"
+    },
+    {
+      "command": "docker compose config >/tmp/miemie-compose-config-check.txt",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests -q",
+      "result": "266 passed"
+    }
+  ],
+  "pending": [
+    "studio_tasks_backfill_reconcile",
+    "studio_tasks_runtime_dual_write",
+    "studio_tasks_read_switch",
+    "studio_tasks_primary_write",
+    "staging_postgres_rollout"
+  ],
+  "updated_at": "2026-06-07"
+}
