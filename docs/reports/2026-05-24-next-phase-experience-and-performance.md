@@ -403,6 +403,14 @@ pre 部署复验：
 - Compose/API/worker/worker-video 环境变量已补齐 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS` 与 `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES`；运行态默认仍为 file-only，服务器 primary-write 仍需等 live migration/backfill/reconcile/dual-write/read-switch 证据干净后再启用。
 - 本地验证：primary-write 测试 `4 passed`，primary-write/read-switch/dual-write/repository/migration/schema/health/storage/video-studio-capabilities 目标集 `82 passed`。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r6-postgres-primary-write/`。
 
+2026-06-07 阶段 7 R7 staging precheck：
+
+- 本轮只做服务器入口预检，未修改服务器文件、Compose env、数据库开关或容器。
+- SSH 短命令出现 `Connection closed` / `Connection timed out during banner exchange`；公网 `/api/health` 20 秒无响应。
+- 网络诊断显示本机 DNS/路由仍被 Clash TUN/fake-ip 接管：`pre-studio.miemie.co` 解析到 `198.18.2.211`，`47.79.99.190` 路由走 `utun1024`；同时 TCP 22/443 connect 成功，说明本次不能证明源站或应用已宕机。
+- R7 live rollout 暂停在预检阶段；下一步先恢复 SSH banner 和公网 health 的稳定路径，再继续 PostgreSQL container health、backup/restore、live migration、backfill/reconcile 和分阶段开关。
+- 证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r7-staging-precheck/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。

@@ -1,0 +1,26 @@
+{
+  "state": "blocked",
+  "stage": "r7-staging-precheck",
+  "server_changed": false,
+  "blocked_by": "operator_client_network_tun_fake_ip",
+  "evidence": {
+    "ssh_plain": "Connection closed by 47.79.99.190 port 22",
+    "ssh_batch": "Connection timed out during banner exchange",
+    "public_health": "curl timed out after 20 seconds with no response body",
+    "dns_a": "198.18.2.211",
+    "route_source_ip": "47.79.99.190 routed via utun1024 gateway 198.18.0.1",
+    "tcp_22": "succeeded",
+    "tcp_443": "succeeded",
+    "explicit_proxy_attempt": "local Clash listener discovery did not provide a working SSH or HTTPS application-layer path"
+  },
+  "not_proven": [
+    "staging_server_down",
+    "postgres_container_state",
+    "api_health_after_rebuild",
+    "database_health_field",
+    "backup_restore_rehearsal",
+    "live_migration"
+  ],
+  "next_action": "restore direct or stable proxy path for both SSH and public health, then rerun staging precheck before changing server state",
+  "updated_at": "2026-06-07"
+}

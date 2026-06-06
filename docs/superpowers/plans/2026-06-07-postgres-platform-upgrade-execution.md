@@ -501,6 +501,8 @@ Expected reconcile JSON:
 - [ ] Re-run read/status gates from local app entry and public Cloudflare entry.
 - [ ] Roll back read switch and prove JSON path works.
 
+2026-06-07 note: R7 staging precheck was attempted after local R6 primary-write landed, but no server state was changed. The operator client path is currently intercepted by Clash TUN/fake-ip: `dig pre-studio.miemie.co` returned `198.18.2.211`, route to `47.79.99.190` used `utun1024`, SSH hit banner timeout/connection close, and public `/api/health` timed out even though TCP 22/443 connect checks succeeded. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r7-staging-precheck/`. Resume R7 only after stable SSH and public health are available.
+
 ## Task R8: Performance And Real Provider Gates
 
 **Files:**
