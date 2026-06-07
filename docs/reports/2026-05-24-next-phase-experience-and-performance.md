@@ -466,6 +466,14 @@ pre 部署复验：
 - 隐私边界：摘要不包含项目名、描述、剧本内容、model config 细节、prompt body、token、password、API key 或私有 URL；单元测试显式覆盖这些内容不会进入 summary/Markdown。
 - 本地验证：migration 测试 `3 passed`，projects schema/repository/migration 目标集 `10 passed`，三域迁移/仓储目标集 `21 passed`，数据库迁移目标集 `41 passed`，脚本 `py_compile` 通过，`docker compose config` 和 `git diff --check` 通过，后端全量 `290 passed`。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r14-projects-backfill-reconcile/`。
 
+2026-06-07 阶段 7 R15 projects runtime dual-write：
+
+- 新增 `backend/app/repositories/project_runtime.py`，集中处理 `projects` 双写开关：默认关闭，只有 `MIEMIE_DATABASE_ENABLED=true` 且 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS` 包含 `projects` 或 `MIEMIE_DATABASE_WRITE_MODE=dual/dual_write` 时才懒加载 PostgreSQL engine。
+- `StorageService.save_project()` 保持 JSON 主写，JSON 成功后 shadow save PostgreSQL；`delete_project()` 保持 JSON 删除，随后 shadow mark deleted。
+- 非 strict 模式下 PostgreSQL shadow 失败只记录 warning，不打断 JSON 主路径；strict 模式可用于后续对账门禁。
+- 运行态默认仍为 file-only；读路径未切 PostgreSQL，公开 API 响应形状未改。服务器启用双写必须等待 live migration、backfill、reconcile 干净后再设置 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=projects`。
+- 本地验证：dual-write 测试 `3 passed`，projects/storage 目标集 `14 passed`，三域 dual/migration 目标集 `18 passed`，数据库目标集 `44 passed`，`py_compile`、`docker compose config`、`git diff --check` 均通过，后端全量 `293 passed`。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r15-projects-runtime-dual-write/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -480,4 +488,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步优先级有两条线：恢复 SSH 后收口 R1/R2 服务器 rollout、执行 live migration/backfill/reconcile、灰度启用双写、读切换和 primary-write；本地继续补 `projects` runtime dual-write/read-switch/primary-write。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 数据库升级仍在进行中，尚未完成最终切库。
+- 下一步优先级有两条线：恢复 SSH 后收口 R1/R2 服务器 rollout、执行 live migration/backfill/reconcile、灰度启用双写、读切换和 primary-write；本地继续补 `projects` read-switch/primary-write。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 数据库升级仍在进行中，尚未完成最终切库。

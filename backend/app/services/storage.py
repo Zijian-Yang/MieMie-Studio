@@ -146,10 +146,13 @@ class StorageService:
     
     def save_project(self, project: Project) -> None:
         """保存项目（线程安全）"""
+        from app.repositories.project_runtime import shadow_save_project
+
         with self._lock:
             project.updated_at = datetime.now()
             file_path = self.projects_dir / f"{project.id}.json"
             self._write_json_with_lock(file_path, project.model_dump())
+        shadow_save_project(self._get_owner_user_id(), project)
     
     def get_project(self, project_id: str) -> Optional[Project]:
         """获取项目（线程安全）"""
@@ -174,10 +177,13 @@ class StorageService:
     
     def delete_project(self, project_id: str) -> None:
         """删除项目（线程安全）"""
+        from app.repositories.project_runtime import shadow_mark_project_deleted
+
         with self._lock:
             file_path = self.projects_dir / f"{project_id}.json"
             if file_path.exists():
                 file_path.unlink()
+        shadow_mark_project_deleted(self._get_owner_user_id(), project_id)
     
     # ============ Character ============
     

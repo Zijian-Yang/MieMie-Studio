@@ -1,0 +1,52 @@
+{
+  "state": "local_passed",
+  "stage": "r15-projects-runtime-dual-write",
+  "runtime_default": "file_only",
+  "staging_enabled": false,
+  "implemented": [
+    "project_runtime_dual_write_feature_flag",
+    "project_json_primary_then_postgres_shadow_save",
+    "project_json_primary_then_postgres_shadow_delete",
+    "non_strict_shadow_failure_keeps_json_primary"
+  ],
+  "verification": [
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_project_dual_write.py -q",
+      "result": "3 passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_project_dual_write.py backend/tests/test_project_migration.py backend/tests/test_project_repository.py backend/tests/test_project_schema.py backend/tests/test_storage_service.py -q",
+      "result": "14 passed"
+    },
+    {
+      "command": "backend/.venv/bin/python -m py_compile backend/app/repositories/project_runtime.py backend/app/services/storage.py",
+      "result": "passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_project_dual_write.py backend/tests/test_studio_task_dual_write.py backend/tests/test_video_studio_task_dual_write.py backend/tests/test_project_migration.py backend/tests/test_studio_task_migration.py backend/tests/test_video_studio_task_migration.py -q",
+      "result": "18 passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_project_dual_write.py backend/tests/test_project_migration.py backend/tests/test_project_repository.py backend/tests/test_project_schema.py backend/tests/test_studio_task_dual_write.py backend/tests/test_studio_task_read_switch.py backend/tests/test_studio_task_primary_write.py backend/tests/test_studio_task_migration.py backend/tests/test_video_studio_task_dual_write.py backend/tests/test_video_studio_task_read_switch.py backend/tests/test_video_studio_task_primary_write.py backend/tests/test_video_studio_task_migration.py backend/tests/test_database_health.py -q",
+      "result": "44 passed"
+    },
+    {
+      "command": "docker compose config",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests -q",
+      "result": "293 passed"
+    }
+  ],
+  "pending": [
+    "projects_read_switch",
+    "projects_primary_write",
+    "staging_postgres_rollout"
+  ],
+  "updated_at": "2026-06-07"
+}
