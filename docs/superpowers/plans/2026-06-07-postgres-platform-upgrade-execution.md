@@ -558,6 +558,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-07 note: local `projects` schema/repository boundary is implemented with Alembic revision `20260607_0003_projects`, `backend/app/db/schema/projects.py`, `ProjectRepository`, and file/PostgreSQL/dual repository implementations. The table stores list-query index columns plus `raw_project_snapshot` JSONB; runtime remains file-only. Backfill/reconcile, runtime dual-write, read-switch and primary-write are still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r13-projects-local-schema-repository/`.
 
+2026-06-07 note: local `projects` backfill/reconcile tooling is implemented through `backend/app/services/migration/backfill_projects.py`, `backend/app/services/migration/reconcile_projects.py`, `scripts/postgres_backfill_projects.py`, and `scripts/postgres_reconcile_projects.py`. Summaries are sanitized and avoid project names, descriptions, script contents, model config details, prompt bodies, key/token/password values, and private URLs. Runtime remains file-only; dual-write, read-switch, and primary-write flags are still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r14-projects-backfill-reconcile/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

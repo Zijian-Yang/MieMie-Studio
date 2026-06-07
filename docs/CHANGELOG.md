@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R14 `projects` backfill/reconcile：新增项目 JSON 扫描、PostgreSQL repository upsert、脱敏 JSON/Markdown 对账摘要和两个维护脚本；摘要不包含项目名、描述、剧本内容、model config 细节、prompt、key/token/password 或私有 URL，后端全量 `290 passed`。
 - 数据库升级 R13 `projects` 本地基础：新增项目 PostgreSQL schema、Alembic migration `20260607_0003`、`ProjectRepository` 协议和 file/PostgreSQL/dual repository；运行态仍默认 JSON/file-only，后端全量 `287 passed`。
 - 数据库升级 R12 `studio_tasks` PostgreSQL primary write：新增图片工作室任务主写开关和可选 JSON archive mirror；显式启用后图片任务保存/删除先写 PostgreSQL，默认不再写 JSON，主写失败不落 JSON 分叉状态，后端全量 `280 passed`。
 - 数据库升级 R11 `studio_tasks` read switch：新增图片工作室任务 PostgreSQL 优先读开关与 JSON fallback，默认 file-only；显式启用后任务详情与项目任务列表优先读 PostgreSQL，miss/异常可回退 JSON，后端全量 `276 passed`。
