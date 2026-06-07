@@ -156,6 +156,15 @@ class StorageService:
     
     def get_project(self, project_id: str) -> Optional[Project]:
         """获取项目（线程安全）"""
+        from app.repositories.project_runtime import read_project
+
+        return read_project(
+            self._get_owner_user_id(),
+            project_id,
+            lambda: self._get_project_from_file(project_id),
+        )
+
+    def _get_project_from_file(self, project_id: str) -> Optional[Project]:
         file_path = self.projects_dir / f"{project_id}.json"
         data = self._read_json_with_lock(file_path)
         if data:
@@ -164,6 +173,11 @@ class StorageService:
     
     def list_projects(self) -> List[Project]:
         """列出所有项目（线程安全）"""
+        from app.repositories.project_runtime import read_projects
+
+        return read_projects(self._get_owner_user_id(), self._list_projects_from_file)
+
+    def _list_projects_from_file(self) -> List[Project]:
         projects = []
         with self._lock:
             for file_path in self.projects_dir.glob("*.json"):

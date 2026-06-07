@@ -1,4 +1,4 @@
-"""Runtime feature flags for project PostgreSQL shadow writes."""
+"""Runtime feature flags for project PostgreSQL shadow writes and reads."""
 
 from __future__ import annotations
 
@@ -41,6 +41,23 @@ def project_dual_write_enabled() -> bool:
     return write_mode in {"dual", "dual_write"} or DOMAIN in dual_domains
 
 
+def project_read_enabled() -> bool:
+    """Return true when project reads should prefer PostgreSQL."""
+
+    if not database_enabled():
+        return False
+
+    read_mode = os.getenv("MIEMIE_DATABASE_READ_MODE", "file").strip().lower()
+    read_domains = _env_csv("MIEMIE_DATABASE_READ_DOMAINS")
+    return read_mode == "postgres" or DOMAIN in read_domains
+
+
+def json_fallback_read_enabled() -> bool:
+    """Return true when PostgreSQL read miss/error should fallback to JSON."""
+
+    return _env_true("MIEMIE_DATABASE_JSON_FALLBACK_READ")
+
+
 def strict_shadow_writes_enabled() -> bool:
     """Return true when PostgreSQL shadow write failures should be propagated."""
 
@@ -62,6 +79,10 @@ def clear_runtime_database_engine() -> None:
 
 
 def build_project_shadow_repository(user_id: str) -> PostgresProjectRepository:
+    return PostgresProjectRepository(_runtime_engine(), user_id)
+
+
+def build_project_read_repository(user_id: str) -> PostgresProjectRepository:
     return PostgresProjectRepository(_runtime_engine(), user_id)
 
 
@@ -97,3 +118,62 @@ def shadow_mark_project_deleted(user_id: str | None, project_id: str) -> None:
             "project_runtime_shadow_delete_failed",
             extra={"user_id": user_id, "project_id": project_id, "error": exc.__class__.__name__},
         )
+
+
+def read_project(
+    user_id: str | None,
+    project_id: str,
+    json_loader,
+) -> Project | None:
+    """Read one project from PostgreSQL when enabled, with optional JSON fallback."""
+
+    if not user_id or not project_read_enabled():
+        return json_loader()
+
+    try:
+        project = build_project_read_repository(user_id).get(project_id)
+        if project is not None:
+            return project
+        if json_fallback_read_enabled():
+            logger.warning(
+                "project_postgres_read_miss_json_fallback",
+                extra={"user_id": user_id, "project_id": project_id},
+            )
+            return json_loader()
+        return None
+    except Exception as exc:
+        if not json_fallback_read_enabled():
+            raise
+        logger.warning(
+            "project_postgres_read_failed_json_fallback",
+            extra={"user_id": user_id, "project_id": project_id, "error": exc.__class__.__name__},
+        )
+        return json_loader()
+
+
+def read_projects(
+    user_id: str | None,
+    json_loader,
+) -> list[Project]:
+    """Read projects from PostgreSQL when enabled, with optional JSON fallback."""
+
+    if not user_id or not project_read_enabled():
+        return json_loader()
+
+    try:
+        projects = build_project_read_repository(user_id).list_all()
+        if projects or not json_fallback_read_enabled():
+            return projects
+        logger.warning(
+            "project_postgres_list_empty_json_fallback",
+            extra={"user_id": user_id},
+        )
+        return json_loader()
+    except Exception as exc:
+        if not json_fallback_read_enabled():
+            raise
+        logger.warning(
+            "project_postgres_list_failed_json_fallback",
+            extra={"user_id": user_id, "error": exc.__class__.__name__},
+        )
+        return json_loader()

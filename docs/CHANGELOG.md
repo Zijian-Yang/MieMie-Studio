@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R16 `projects` read switch：新增项目 PostgreSQL 优先读开关与 JSON fallback，默认 file-only；显式启用后项目详情与项目列表优先读 PostgreSQL，miss/空列表/异常可回退 JSON，后端全量 `297 passed`。
 - 数据库升级 R15 `projects` runtime dual-write：新增项目写侧 feature flag，默认 file-only；显式启用后 JSON 主写/删除成功再 shadow 写 PostgreSQL，shadow 失败默认不打断 JSON 主路径，后端全量 `293 passed`。
 - 数据库升级 R14 `projects` backfill/reconcile：新增项目 JSON 扫描、PostgreSQL repository upsert、脱敏 JSON/Markdown 对账摘要和两个维护脚本；摘要不包含项目名、描述、剧本内容、model config 细节、prompt、key/token/password 或私有 URL，后端全量 `290 passed`。
 - 数据库升级 R13 `projects` 本地基础：新增项目 PostgreSQL schema、Alembic migration `20260607_0003`、`ProjectRepository` 协议和 file/PostgreSQL/dual repository；运行态仍默认 JSON/file-only，后端全量 `287 passed`。

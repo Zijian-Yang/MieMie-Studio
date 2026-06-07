@@ -1,0 +1,24 @@
+{
+  "state": "completed",
+  "stage": "r16-projects-read-switch",
+  "domain": "projects",
+  "runtime_default": "file-only",
+  "server_enabled": false,
+  "implemented": [
+    "project read feature flag",
+    "PostgreSQL project get/list preferred reads",
+    "JSON fallback on PostgreSQL miss, empty list, or error",
+    "strict error propagation when fallback is disabled"
+  ],
+  "verification": {
+    "project_read_switch": "4 passed",
+    "targeted_project_and_read_switch": "26 passed",
+    "database_regression": "48 passed",
+    "py_compile": "passed",
+    "docker_compose_config": "passed",
+    "git_diff_check": "passed",
+    "backend_full": "297 passed"
+  },
+  "next": "projects PostgreSQL primary-write plus optional JSON archive mirror",
+  "updated_at": "2026-06-07T08:58:00+08:00"
+}
