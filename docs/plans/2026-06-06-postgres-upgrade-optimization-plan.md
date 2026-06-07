@@ -489,7 +489,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 - [ ] 项目删除的子资源级联仍先由应用层控制。
 - [x] 对账通过后再读切换。
 
-2026-06-07 进度：`projects` 已完成 schema/migration、repository boundary、backfill/reconcile、runtime dual-write 和 read-switch + JSON fallback。本地默认仍为 file-only；服务器 live migration/backfill/reconcile、staging dual-write/read-switch/primary-write 尚未启用。下一本地切片为 `projects` PostgreSQL primary-write + JSON archive mirror。
+2026-06-07 进度：`projects` 已完成 schema/migration、repository boundary、backfill/reconcile、runtime dual-write、read-switch + JSON fallback 和 PostgreSQL primary-write + JSON archive mirror。本地默认仍为 file-only；服务器 live migration/backfill/reconcile、staging dual-write/read-switch/primary-write 尚未启用。下一步优先恢复服务器灰度验证；若服务器路径仍阻塞，本地进入 media metadata 域。
 
 ### Task 9：媒体库 metadata 迁移
 

@@ -564,6 +564,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-07 note: local `projects` read-switch and JSON fallback are implemented through `backend/app/repositories/project_runtime.py` and `StorageService.get_project()` / `list_projects()`. Reads prefer PostgreSQL only when `MIEMIE_DATABASE_ENABLED=true` and `MIEMIE_DATABASE_READ_DOMAINS=projects` or `MIEMIE_DATABASE_READ_MODE=postgres`; `MIEMIE_DATABASE_JSON_FALLBACK_READ=true` falls back to JSON on miss, empty list, or PostgreSQL read error. Runtime default remains file-only, and primary-write is still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r16-projects-read-switch/`.
 
+2026-06-07 note: local `projects` PostgreSQL primary-write and optional JSON archive mirror are implemented through `StorageService.save_project()` and `delete_project()`. Writes use PostgreSQL primary only when `MIEMIE_DATABASE_ENABLED=true` and `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=projects` or `MIEMIE_DATABASE_WRITE_MODE=postgres/postgres_primary/primary`; `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` keeps a temporary JSON archive mirror. PostgreSQL primary failures propagate and do not write JSON, avoiding split-brain during cutover. Runtime default remains file-only; staging enablement is pending live migration/backfill/reconcile/dual-write/read-switch evidence. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r17-projects-primary-write/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

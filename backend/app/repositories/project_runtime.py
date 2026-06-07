@@ -41,6 +41,23 @@ def project_dual_write_enabled() -> bool:
     return write_mode in {"dual", "dual_write"} or DOMAIN in dual_domains
 
 
+def project_primary_write_enabled() -> bool:
+    """Return true when project writes should use PostgreSQL primary."""
+
+    if not database_enabled():
+        return False
+
+    write_mode = os.getenv("MIEMIE_DATABASE_WRITE_MODE", "file").strip().lower()
+    primary_domains = _env_csv("MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS")
+    return write_mode in {"postgres", "postgres_primary", "primary"} or DOMAIN in primary_domains
+
+
+def json_archive_writes_enabled() -> bool:
+    """Return true when PostgreSQL primary writes should maintain JSON archive mirrors."""
+
+    return _env_true("MIEMIE_DATABASE_JSON_ARCHIVE_WRITES")
+
+
 def project_read_enabled() -> bool:
     """Return true when project reads should prefer PostgreSQL."""
 
@@ -84,6 +101,30 @@ def build_project_shadow_repository(user_id: str) -> PostgresProjectRepository:
 
 def build_project_read_repository(user_id: str) -> PostgresProjectRepository:
     return PostgresProjectRepository(_runtime_engine(), user_id)
+
+
+def build_project_primary_repository(user_id: str) -> PostgresProjectRepository:
+    return PostgresProjectRepository(_runtime_engine(), user_id)
+
+
+def save_project_primary(user_id: str | None, project: Project) -> bool:
+    """Save to PostgreSQL as the primary store when primary mode is enabled."""
+
+    if not user_id or not project_primary_write_enabled():
+        return False
+
+    build_project_primary_repository(user_id).save(project)
+    return True
+
+
+def mark_project_deleted_primary(user_id: str | None, project_id: str) -> bool:
+    """Mark a PostgreSQL-primary project deleted when primary mode is enabled."""
+
+    if not user_id or not project_primary_write_enabled():
+        return False
+
+    build_project_primary_repository(user_id).mark_deleted(project_id)
+    return True
 
 
 def shadow_save_project(user_id: str | None, project: Project) -> None:

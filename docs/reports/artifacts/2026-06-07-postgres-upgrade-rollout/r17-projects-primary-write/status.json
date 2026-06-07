@@ -1,0 +1,24 @@
+{
+  "state": "completed",
+  "stage": "r17-projects-primary-write",
+  "domain": "projects",
+  "runtime_default": "file-only",
+  "server_enabled": false,
+  "implemented": [
+    "project primary-write feature flag",
+    "PostgreSQL project save/delete primary writes",
+    "optional JSON archive mirror",
+    "primary-write failure propagation without JSON fallback writes"
+  ],
+  "verification": {
+    "project_primary_write": "4 passed",
+    "project_domain": "22 passed",
+    "database_regression": "52 passed",
+    "py_compile": "passed",
+    "docker_compose_config": "passed",
+    "git_diff_check": "passed",
+    "backend_full": "301 passed"
+  },
+  "next": "resume server rollout or start media metadata domain",
+  "updated_at": "2026-06-07T09:05:00+08:00"
+}
