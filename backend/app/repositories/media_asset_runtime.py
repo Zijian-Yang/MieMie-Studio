@@ -42,6 +42,17 @@ def media_metadata_dual_write_enabled() -> bool:
     return write_mode in {"dual", "dual_write"} or DOMAIN in dual_domains
 
 
+def media_metadata_primary_write_enabled() -> bool:
+    """Return true when media metadata writes should use PostgreSQL primary."""
+
+    if not database_enabled():
+        return False
+
+    write_mode = os.getenv("MIEMIE_DATABASE_WRITE_MODE", "file").strip().lower()
+    primary_domains = _env_csv("MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS")
+    return write_mode in {"postgres", "postgres_primary", "primary"} or DOMAIN in primary_domains
+
+
 def media_metadata_read_enabled() -> bool:
     """Return true when media metadata reads should prefer PostgreSQL."""
 
@@ -57,6 +68,12 @@ def json_fallback_read_enabled() -> bool:
     """Return true when PostgreSQL read miss/error should fallback to JSON."""
 
     return _env_true("MIEMIE_DATABASE_JSON_FALLBACK_READ")
+
+
+def json_archive_writes_enabled() -> bool:
+    """Return true when PostgreSQL primary writes should maintain JSON archive mirrors."""
+
+    return _env_true("MIEMIE_DATABASE_JSON_ARCHIVE_WRITES")
 
 
 def strict_shadow_writes_enabled() -> bool:
@@ -93,6 +110,74 @@ def build_media_asset_read_repository(user_id: str) -> PostgresMediaAssetReposit
 
 def build_text_item_read_repository(user_id: str) -> PostgresTextItemRepository:
     return PostgresTextItemRepository(_runtime_engine(), user_id)
+
+
+def build_media_asset_primary_repository(user_id: str) -> PostgresMediaAssetRepository:
+    return PostgresMediaAssetRepository(_runtime_engine(), user_id)
+
+
+def build_text_item_primary_repository(user_id: str) -> PostgresTextItemRepository:
+    return PostgresTextItemRepository(_runtime_engine(), user_id)
+
+
+def save_gallery_image_primary(user_id: str | None, image: GalleryImage) -> bool:
+    """Save a gallery image to PostgreSQL as the primary store when enabled."""
+
+    if not user_id or not media_metadata_primary_write_enabled():
+        return False
+
+    build_media_asset_primary_repository(user_id).save_gallery_image(image)
+    return True
+
+
+def save_audio_item_primary(user_id: str | None, audio: AudioItem) -> bool:
+    """Save an audio item to PostgreSQL as the primary store when enabled."""
+
+    if not user_id or not media_metadata_primary_write_enabled():
+        return False
+
+    build_media_asset_primary_repository(user_id).save_audio_item(audio)
+    return True
+
+
+def save_video_item_primary(user_id: str | None, video: VideoItem) -> bool:
+    """Save a video item to PostgreSQL as the primary store when enabled."""
+
+    if not user_id or not media_metadata_primary_write_enabled():
+        return False
+
+    build_media_asset_primary_repository(user_id).save_video_item(video)
+    return True
+
+
+def save_text_item_primary(user_id: str | None, item: TextItem) -> bool:
+    """Save a text item to PostgreSQL as the primary store when enabled."""
+
+    if not user_id or not media_metadata_primary_write_enabled():
+        return False
+
+    build_text_item_primary_repository(user_id).save(item)
+    return True
+
+
+def mark_media_asset_deleted_primary(user_id: str | None, asset_id: str) -> bool:
+    """Mark a gallery/audio/video row deleted in PostgreSQL primary mode."""
+
+    if not user_id or not media_metadata_primary_write_enabled():
+        return False
+
+    build_media_asset_primary_repository(user_id).mark_deleted(asset_id)
+    return True
+
+
+def mark_text_item_deleted_primary(user_id: str | None, item_id: str) -> bool:
+    """Mark a text row deleted in PostgreSQL primary mode."""
+
+    if not user_id or not media_metadata_primary_write_enabled():
+        return False
+
+    build_text_item_primary_repository(user_id).mark_deleted(item_id)
+    return True
 
 
 def shadow_save_gallery_image(user_id: str | None, image: GalleryImage) -> None:

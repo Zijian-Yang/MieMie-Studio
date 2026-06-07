@@ -410,13 +410,26 @@ class StorageService:
     
     def save_gallery_image(self, image: GalleryImage) -> None:
         """保存图库图片（线程安全）"""
-        from app.repositories.media_asset_runtime import shadow_save_gallery_image
+        from app.repositories.media_asset_runtime import (
+            json_archive_writes_enabled,
+            save_gallery_image_primary,
+            shadow_save_gallery_image,
+        )
 
+        image.updated_at = datetime.now()
+        owner_user_id = self._get_owner_user_id()
+        if save_gallery_image_primary(owner_user_id, image):
+            if json_archive_writes_enabled():
+                self._save_gallery_image_to_file(image)
+            return
+
+        self._save_gallery_image_to_file(image)
+        shadow_save_gallery_image(owner_user_id, image)
+
+    def _save_gallery_image_to_file(self, image: GalleryImage) -> None:
         with self._lock:
-            image.updated_at = datetime.now()
             file_path = self.gallery_dir / f"{image.id}.json"
             self._write_json_with_lock(file_path, image.model_dump())
-        shadow_save_gallery_image(self._get_owner_user_id(), image)
     
     def get_gallery_image(self, image_id: str) -> Optional[GalleryImage]:
         """获取图库图片"""
@@ -455,12 +468,25 @@ class StorageService:
     
     def delete_gallery_image(self, image_id: str) -> None:
         """删除图库图片"""
-        from app.repositories.media_asset_runtime import shadow_mark_media_asset_deleted
+        from app.repositories.media_asset_runtime import (
+            json_archive_writes_enabled,
+            mark_media_asset_deleted_primary,
+            shadow_mark_media_asset_deleted,
+        )
 
+        owner_user_id = self._get_owner_user_id()
+        if mark_media_asset_deleted_primary(owner_user_id, image_id):
+            if json_archive_writes_enabled():
+                self._delete_gallery_image_from_file(image_id)
+            return
+
+        self._delete_gallery_image_from_file(image_id)
+        shadow_mark_media_asset_deleted(owner_user_id, image_id)
+
+    def _delete_gallery_image_from_file(self, image_id: str) -> None:
         file_path = self.gallery_dir / f"{image_id}.json"
         if file_path.exists():
             file_path.unlink()
-        shadow_mark_media_asset_deleted(self._get_owner_user_id(), image_id)
     
     # ============ Studio Task ============
     
@@ -548,13 +574,26 @@ class StorageService:
     
     def save_audio_item(self, audio: AudioItem) -> None:
         """保存音频项（线程安全）"""
-        from app.repositories.media_asset_runtime import shadow_save_audio_item
+        from app.repositories.media_asset_runtime import (
+            json_archive_writes_enabled,
+            save_audio_item_primary,
+            shadow_save_audio_item,
+        )
 
+        audio.updated_at = datetime.now()
+        owner_user_id = self._get_owner_user_id()
+        if save_audio_item_primary(owner_user_id, audio):
+            if json_archive_writes_enabled():
+                self._save_audio_item_to_file(audio)
+            return
+
+        self._save_audio_item_to_file(audio)
+        shadow_save_audio_item(owner_user_id, audio)
+
+    def _save_audio_item_to_file(self, audio: AudioItem) -> None:
         with self._lock:
-            audio.updated_at = datetime.now()
             file_path = self.audio_dir / f"{audio.id}.json"
             self._write_json_with_lock(file_path, audio.model_dump())
-        shadow_save_audio_item(self._get_owner_user_id(), audio)
     
     def get_audio_item(self, audio_id: str) -> Optional[AudioItem]:
         """获取音频项"""
@@ -593,24 +632,50 @@ class StorageService:
     
     def delete_audio_item(self, audio_id: str) -> None:
         """删除音频项"""
-        from app.repositories.media_asset_runtime import shadow_mark_media_asset_deleted
+        from app.repositories.media_asset_runtime import (
+            json_archive_writes_enabled,
+            mark_media_asset_deleted_primary,
+            shadow_mark_media_asset_deleted,
+        )
 
+        owner_user_id = self._get_owner_user_id()
+        if mark_media_asset_deleted_primary(owner_user_id, audio_id):
+            if json_archive_writes_enabled():
+                self._delete_audio_item_from_file(audio_id)
+            return
+
+        self._delete_audio_item_from_file(audio_id)
+        shadow_mark_media_asset_deleted(owner_user_id, audio_id)
+
+    def _delete_audio_item_from_file(self, audio_id: str) -> None:
         file_path = self.audio_dir / f"{audio_id}.json"
         if file_path.exists():
             file_path.unlink()
-        shadow_mark_media_asset_deleted(self._get_owner_user_id(), audio_id)
     
     # ============ Video Library ============
     
     def save_video_item(self, video: VideoItem) -> None:
         """保存视频项（线程安全）"""
-        from app.repositories.media_asset_runtime import shadow_save_video_item
+        from app.repositories.media_asset_runtime import (
+            json_archive_writes_enabled,
+            save_video_item_primary,
+            shadow_save_video_item,
+        )
 
+        video.updated_at = datetime.now()
+        owner_user_id = self._get_owner_user_id()
+        if save_video_item_primary(owner_user_id, video):
+            if json_archive_writes_enabled():
+                self._save_video_item_to_file(video)
+            return
+
+        self._save_video_item_to_file(video)
+        shadow_save_video_item(owner_user_id, video)
+
+    def _save_video_item_to_file(self, video: VideoItem) -> None:
         with self._lock:
-            video.updated_at = datetime.now()
             file_path = self.video_library_dir / f"{video.id}.json"
             self._write_json_with_lock(file_path, video.model_dump())
-        shadow_save_video_item(self._get_owner_user_id(), video)
     
     def get_video_item(self, video_id: str) -> Optional[VideoItem]:
         """获取视频项"""
@@ -649,24 +714,50 @@ class StorageService:
     
     def delete_video_item(self, video_id: str) -> None:
         """删除视频项"""
-        from app.repositories.media_asset_runtime import shadow_mark_media_asset_deleted
+        from app.repositories.media_asset_runtime import (
+            json_archive_writes_enabled,
+            mark_media_asset_deleted_primary,
+            shadow_mark_media_asset_deleted,
+        )
 
+        owner_user_id = self._get_owner_user_id()
+        if mark_media_asset_deleted_primary(owner_user_id, video_id):
+            if json_archive_writes_enabled():
+                self._delete_video_item_from_file(video_id)
+            return
+
+        self._delete_video_item_from_file(video_id)
+        shadow_mark_media_asset_deleted(owner_user_id, video_id)
+
+    def _delete_video_item_from_file(self, video_id: str) -> None:
         file_path = self.video_library_dir / f"{video_id}.json"
         if file_path.exists():
             file_path.unlink()
-        shadow_mark_media_asset_deleted(self._get_owner_user_id(), video_id)
     
     # ============ Text Library ============
     
     def save_text_item(self, text: TextItem) -> None:
         """保存文本项（线程安全）"""
-        from app.repositories.media_asset_runtime import shadow_save_text_item
+        from app.repositories.media_asset_runtime import (
+            json_archive_writes_enabled,
+            save_text_item_primary,
+            shadow_save_text_item,
+        )
 
+        text.updated_at = datetime.now()
+        owner_user_id = self._get_owner_user_id()
+        if save_text_item_primary(owner_user_id, text):
+            if json_archive_writes_enabled():
+                self._save_text_item_to_file(text)
+            return
+
+        self._save_text_item_to_file(text)
+        shadow_save_text_item(owner_user_id, text)
+
+    def _save_text_item_to_file(self, text: TextItem) -> None:
         with self._lock:
-            text.updated_at = datetime.now()
             file_path = self.text_library_dir / f"{text.id}.json"
             self._write_json_with_lock(file_path, text.model_dump())
-        shadow_save_text_item(self._get_owner_user_id(), text)
     
     def get_text_item(self, text_id: str) -> Optional[TextItem]:
         """获取文本项"""
@@ -705,12 +796,25 @@ class StorageService:
     
     def delete_text_item(self, text_id: str) -> None:
         """删除文本项"""
-        from app.repositories.media_asset_runtime import shadow_mark_text_item_deleted
+        from app.repositories.media_asset_runtime import (
+            json_archive_writes_enabled,
+            mark_text_item_deleted_primary,
+            shadow_mark_text_item_deleted,
+        )
 
+        owner_user_id = self._get_owner_user_id()
+        if mark_text_item_deleted_primary(owner_user_id, text_id):
+            if json_archive_writes_enabled():
+                self._delete_text_item_from_file(text_id)
+            return
+
+        self._delete_text_item_from_file(text_id)
+        shadow_mark_text_item_deleted(owner_user_id, text_id)
+
+    def _delete_text_item_from_file(self, text_id: str) -> None:
         file_path = self.text_library_dir / f"{text_id}.json"
         if file_path.exists():
             file_path.unlink()
-        shadow_mark_text_item_deleted(self._get_owner_user_id(), text_id)
     
     # ============ Video Studio ============
     

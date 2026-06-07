@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R23 media metadata PostgreSQL primary write：新增图库、音频库、视频库和文本库主写开关和可选 JSON archive mirror；显式启用后保存/删除先写 PostgreSQL，默认不再写 JSON，主写失败不落 JSON 分叉状态，后端全量 `324 passed`。
 - 数据库升级 R22 media metadata read switch：新增图库、音频库、视频库和文本库 PostgreSQL 优先读开关与 JSON fallback，默认 file-only；显式启用后 get/list 可优先读 PostgreSQL，miss/空列表/异常可回退 JSON，后端全量 `320 passed`。
 - 数据库升级 R21 media metadata runtime dual-write：新增 `media_metadata` 写侧 feature flag，默认 file-only；显式启用后图库、音频库、视频库和文本库 JSON 主写/删除成功再 shadow 写 PostgreSQL，shadow 失败默认不打断 JSON 主路径，后端全量 `316 passed`。
 - 数据库升级 R20 media metadata backfill/reconcile：新增图库、音频库、视频库和文本库 metadata 的 JSON 扫描、PostgreSQL upsert、脱敏 JSON/Markdown 对账摘要和两个维护脚本；对账只比较安全索引字段，不包含文本内容、prompt、provider payload、key/token/password 或私有 URL，后端全量 `313 passed`。

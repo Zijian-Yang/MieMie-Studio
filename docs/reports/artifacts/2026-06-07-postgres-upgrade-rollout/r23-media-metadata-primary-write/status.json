@@ -1,0 +1,35 @@
+{
+  "state": "passed",
+  "stage": "r23-media-metadata-primary-write",
+  "domain": "media_metadata",
+  "runtime_mode": "postgres_primary_write_available_with_optional_json_archive",
+  "server_state_changed": false,
+  "summary": "Media metadata PostgreSQL primary writes are available behind explicit feature flags with optional JSON archive mirrors.",
+  "feature_flags": {
+    "enabled_by": [
+      "MIEMIE_DATABASE_ENABLED=true",
+      "MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=media_metadata"
+    ],
+    "global_primary_modes": [
+      "MIEMIE_DATABASE_WRITE_MODE=postgres",
+      "MIEMIE_DATABASE_WRITE_MODE=postgres_primary",
+      "MIEMIE_DATABASE_WRITE_MODE=primary"
+    ],
+    "json_archive_mirror": "MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true"
+  },
+  "verification": {
+    "red_primary_builder_gate": "failed before implementation with missing build_media_asset_primary_repository",
+    "focused_primary_write_tests": "4 passed",
+    "media_target_tests": "24 passed",
+    "wider_db_target_tests": "47 passed",
+    "full_backend_tests": "324 passed",
+    "py_compile": "passed",
+    "docker_compose_config": "passed"
+  },
+  "pending": [
+    "frontend smoke after asset selector read-switch/primary-write",
+    "server live migration/backfill/reconcile/read-switch/primary-write gates",
+    "server rollback rehearsal for media_metadata"
+  ],
+  "updated_at": "2026-06-07T09:58:00+0800"
+}
