@@ -10,3 +10,4 @@ from app.db.schema.studio_tasks import studio_tasks  # noqa: E402,F401
 from app.db.schema.projects import projects  # noqa: E402,F401
 from app.db.schema.media_assets import media_assets, text_items  # noqa: E402,F401
 from app.db.schema.project_entities import project_entities  # noqa: E402,F401
+from app.db.schema.benchmark_records import benchmark_records  # noqa: E402,F401

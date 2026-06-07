@@ -1,0 +1,32 @@
+{
+  "state": "complete",
+  "stage": "r30-benchmark-records-local-schema-repository",
+  "domain": "benchmark_records",
+  "scope": {
+    "benchmark_kinds": [
+      "image",
+      "video"
+    ],
+    "record_kinds": [
+      "dataset",
+      "suite",
+      "run"
+    ]
+  },
+  "runtime_default": "file-only",
+  "server_state_changed": false,
+  "sensitive_data": "Full snapshots may contain prompts/provider payloads/request ids/task ids/URLs in PostgreSQL; artifacts and future reconcile summaries must stay sanitized.",
+  "verification": {
+    "red_gate": "failed before implementation with missing benchmark_records schema and repository modules",
+    "focused_schema_repository": "5 passed",
+    "database_schema_repository_regression": "42 passed",
+    "full_backend": "351 passed",
+    "py_compile": "passed"
+  },
+  "next": [
+    "benchmark backfill/reconcile with sanitized summaries",
+    "benchmark runtime dual-write",
+    "benchmark read-switch and primary-write after reconcile gates"
+  ],
+  "updated_at": "2026-06-07T11:18:34+0800"
+}

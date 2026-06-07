@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R30 benchmark records 本地基础：新增图片/视频测评 dataset、suite、run 的统一 PostgreSQL schema、Alembic migration `20260607_0006` 和 file/PostgreSQL repository boundary；运行态仍默认 JSON/file-only，后端全量 `351 passed`。
 - 数据库升级 R29 staging 连通性刷新：服务器 rollout 前置检查仍显示 operator path 经 Clash/fake-IP 与 `utun1024`，公网 health 超时，TCP 22 可达但 SSH 命令被远端关闭；本轮未修改服务器状态，证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r29-staging-connectivity-refresh/`。
 - 数据库升级 R28 project entities PostgreSQL primary write：新增角色、场景、道具、首帧、视频和风格主写开关和可选 JSON archive mirror；显式启用后保存/删除先写 PostgreSQL，默认不再写 JSON，主写失败不落 JSON 分叉状态，后端全量 `346 passed`。
 - 数据库升级 R27 project entities read switch：新增角色、场景、道具、首帧、视频和风格 PostgreSQL 优先读开关与 JSON fallback，默认 file-only；显式开启后 get/list 以及 frame/video by-shot、video by-task 可优先读 PostgreSQL，后端全量 `342 passed`。

@@ -590,6 +590,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-07 note: R29 staging connectivity refresh still blocks server rollout from the current operator path. DNS for `pre-studio.miemie.co` returned fake-IP `198.18.2.211`, route to `47.79.99.190` used `utun1024`, public `/api/health` timed out, and SSH command execution was closed by the remote host despite TCP 22 being reachable. No server state was changed. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r29-staging-connectivity-refresh/`. Continue local benchmark/user/config migration work until SSH command execution and public health are both stable.
 
+2026-06-07 note: local benchmark records schema/repository boundary is implemented with Alembic revision `20260607_0006_benchmark_records`, `backend/app/db/schema/benchmark_records.py`, and `backend/app/repositories/benchmark_records.py`. The table covers image/video benchmark dataset/suite/run records with safe index columns plus `raw_record_snapshot` JSONB. Runtime remains file-only; backfill/reconcile, dual-write, read-switch, and primary-write are still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r30-benchmark-records-local-schema-repository/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
