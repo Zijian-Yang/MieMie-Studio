@@ -600,6 +600,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-07 note: local benchmark records PostgreSQL primary-write and optional JSON archive mirror are implemented through `backend/app/repositories/benchmark_record_runtime.py` and `StorageService` image/video benchmark dataset/suite/run save/delete methods. Writes use PostgreSQL primary only when `MIEMIE_DATABASE_ENABLED=true` and `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=benchmark_records` or `MIEMIE_DATABASE_WRITE_MODE=postgres/postgres_primary/primary`; `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` keeps a temporary JSON archive mirror. PostgreSQL primary failures propagate and do not write JSON, avoiding split-brain during cutover. Runtime default remains file-only; staging enablement is pending live migration/backfill/reconcile/dual-write/read-switch evidence. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r34-benchmark-records-primary-write/`.
 
+2026-06-07 note: local user/config schema/repository boundary is implemented with Alembic revision `20260607_0007_user_config`, `backend/app/db/schema/user_config.py`, and `backend/app/repositories/user_config.py`. `users` stores account index columns plus `password_hash` and `raw_user_snapshot`; `user_configs` stores safe indexes (`api_region`, `has_dashscope_key`, `has_oss_config`) plus `raw_config_snapshot`. Runtime remains JSON/Redis/file-only; `UserService`, sessions, and `ConfigManager` are not switched yet. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r35-user-config-local-schema-repository/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

@@ -1,0 +1,26 @@
+{
+  "state": "passed",
+  "stage": "r35-user-config-local-schema-repository",
+  "updated_at": "2026-06-07T12:20:00+08:00",
+  "runtime_changed": false,
+  "database_revision": "20260607_0007",
+  "checks": [
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_user_config_schema.py backend/tests/test_user_config_repository.py -q",
+      "result": "8 passed"
+    },
+    {
+      "command": "backend/.venv/bin/python -m py_compile backend/app/db/schema/user_config.py backend/app/repositories/user_config.py backend/app/db/migrations/versions/20260607_0007_user_config.py",
+      "result": "passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_user_config_schema.py backend/tests/test_user_config_repository.py backend/tests/test_benchmark_record_schema.py backend/tests/test_benchmark_record_repository.py -q",
+      "result": "13 passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests -q",
+      "result": "374 passed"
+    }
+  ],
+  "next_step": "Add user/config backfill and sanitized reconcile tooling before introducing runtime flags."
+}

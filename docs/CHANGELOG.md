@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R35 user/config 本地基础：新增 `users` 与 `user_configs` schema、Alembic migration `20260607_0007`、用户/配置 PostgreSQL repository boundary 和安全索引字段；登录、session 和配置运行态仍默认走 JSON/Redis，focused `8 passed`，目标回归 `13 passed`，后端全量 `374 passed`。
 - 数据库升级 R34 benchmark records PostgreSQL primary write：新增图片/视频测评 dataset、suite、run 主写开关和可选 JSON archive mirror；显式启用后保存/删除先写 PostgreSQL，默认不再写 JSON，主写失败不落 JSON 分叉状态，后端全量 `366 passed`。
 - 数据库升级 R33 benchmark records read-switch：新增图片/视频测评 dataset、suite、run 的 PostgreSQL 优先读开关与 JSON fallback，默认 file-only；显式启用后单条读取、项目列表和 suite run 列表可优先读 PostgreSQL，后端全量 `362 passed`。
 - 数据库升级 R32 benchmark records runtime dual-write：新增图片/视频测评 dataset、suite、run 的写侧 feature flag，默认 file-only；显式启用后 JSON 主写/删除成功再 shadow 写 PostgreSQL，shadow 失败默认不打断 JSON 主路径，后端全量 `358 passed`。
