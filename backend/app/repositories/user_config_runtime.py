@@ -50,13 +50,30 @@ def user_config_read_enabled() -> bool:
 
     read_mode = os.getenv("MIEMIE_DATABASE_READ_MODE", "file").strip().lower()
     read_domains = _env_csv("MIEMIE_DATABASE_READ_DOMAINS")
-    return read_mode == "postgres" or DOMAIN in read_domains
+    return read_mode == "postgres" or DOMAIN in read_domains or user_config_primary_write_enabled()
+
+
+def user_config_primary_write_enabled() -> bool:
+    """Return true when user/config writes should use PostgreSQL primary."""
+
+    if not database_enabled():
+        return False
+
+    write_mode = os.getenv("MIEMIE_DATABASE_WRITE_MODE", "file").strip().lower()
+    primary_domains = _env_csv("MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS")
+    return write_mode in {"postgres", "postgres_primary", "primary"} or DOMAIN in primary_domains
 
 
 def json_fallback_read_enabled() -> bool:
     """Return true when PostgreSQL read miss/error should fallback to JSON."""
 
     return _env_true("MIEMIE_DATABASE_JSON_FALLBACK_READ")
+
+
+def json_archive_writes_enabled() -> bool:
+    """Return true when PostgreSQL primary writes should maintain JSON archive mirrors."""
+
+    return _env_true("MIEMIE_DATABASE_JSON_ARCHIVE_WRITES")
 
 
 def strict_shadow_writes_enabled() -> bool:
@@ -93,6 +110,46 @@ def build_user_read_repository() -> PostgresUserRepository:
 
 def build_user_config_read_repository() -> PostgresUserConfigRepository:
     return PostgresUserConfigRepository(_runtime_engine())
+
+
+def build_user_primary_repository() -> PostgresUserRepository:
+    return PostgresUserRepository(_runtime_engine())
+
+
+def build_user_config_primary_repository() -> PostgresUserConfigRepository:
+    return PostgresUserConfigRepository(_runtime_engine())
+
+
+def _user_lookup_repository() -> PostgresUserRepository:
+    if user_config_primary_write_enabled():
+        return build_user_primary_repository()
+    return build_user_read_repository()
+
+
+def _config_lookup_repository() -> PostgresUserConfigRepository:
+    if user_config_primary_write_enabled():
+        return build_user_config_primary_repository()
+    return build_user_config_read_repository()
+
+
+def save_user_primary(user: User | None) -> bool:
+    """Save a user to PostgreSQL as the primary store when enabled."""
+
+    if user is None or not user_config_primary_write_enabled():
+        return False
+
+    build_user_primary_repository().save(user)
+    return True
+
+
+def save_config_primary(user_id: str | None, config: AppConfig) -> bool:
+    """Save a per-user config to PostgreSQL as the primary store when enabled."""
+
+    if not user_id or not user_config_primary_write_enabled():
+        return False
+
+    build_user_config_primary_repository().save(user_id, config)
+    return True
 
 
 def shadow_save_user(user: User | None) -> None:
@@ -136,7 +193,7 @@ def read_user(user_id: str | None, json_loader) -> User | None:
         return json_loader()
 
     try:
-        user = build_user_read_repository().get_by_id(user_id)
+        user = _user_lookup_repository().get_by_id(user_id)
         if user is not None:
             return user
         if json_fallback_read_enabled():
@@ -153,6 +210,33 @@ def read_user(user_id: str | None, json_loader) -> User | None:
         return json_loader()
 
 
+def read_user_by_username(username: str, json_loader) -> User | None:
+    """Read a user by username from PostgreSQL when enabled, with optional JSON fallback."""
+
+    if not username or not user_config_read_enabled():
+        return json_loader()
+
+    try:
+        user = _user_lookup_repository().get_by_username(username)
+        if user is not None:
+            return user
+        if json_fallback_read_enabled():
+            logger.warning(
+                "user_config_postgres_username_miss_json_fallback",
+                extra={"username": username},
+            )
+            return json_loader()
+        return None
+    except Exception as exc:
+        if not json_fallback_read_enabled():
+            raise
+        logger.warning(
+            "user_config_postgres_username_read_failed_json_fallback",
+            extra={"username": username, "error": exc.__class__.__name__},
+        )
+        return json_loader()
+
+
 def read_config(user_id: str | None, json_loader) -> AppConfig:
     """Read a per-user config from PostgreSQL when enabled, with optional JSON fallback."""
 
@@ -160,7 +244,7 @@ def read_config(user_id: str | None, json_loader) -> AppConfig:
         return json_loader()
 
     try:
-        config = build_user_config_read_repository().get(user_id)
+        config = _config_lookup_repository().get(user_id)
         if config is not None:
             return config
         if json_fallback_read_enabled():

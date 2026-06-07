@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R39 user/config PostgreSQL primary-write：新增 `user_config` 主写开关和可选 JSON archive mirror；显式启用后注册、登录更新、改密码和 per-user config 保存以 PostgreSQL 为主，主写失败不落 JSON 分叉状态，focused `7 passed`，目标回归 `33 passed`，后端全量 `399 passed`。
 - 数据库升级 R38 user/config read-switch：新增 `user_config` 读侧 feature flag 与 JSON fallback；用户 ID/token 恢复和 per-user config 读取可显式优先 PostgreSQL，登录密码校验仍保持 JSON 主路径，focused `7 passed`，目标回归 `26 passed`，后端全量 `392 passed`。
 - 数据库升级 R37 user/config runtime dual-write：新增 `user_config` 写侧 feature flag，注册、登录更新、改密码和 per-user config 保存仍以 JSON 为主，显式启用后 shadow 写 PostgreSQL；shadow 失败默认不打断 JSON 主路径，focused `6 passed`，目标回归 `19 passed`，后端全量 `385 passed`。
 - 数据库升级 R36 user/config backfill/reconcile：新增 `users.json` 与 per-user `config.json` 回填、脱敏对账服务和维护脚本；摘要只输出计数、缺失项和字段名，不输出 password hash、key/token、完整配置或私有用户数据，focused `5 passed`，目标回归 `13 passed`，后端全量 `379 passed`。

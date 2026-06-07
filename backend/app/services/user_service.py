@@ -56,6 +56,22 @@ class UserService:
 
         shadow_save_user(user)
 
+    def _save_user_record(self, users: Dict[str, dict], user: User):
+        from app.repositories.user_config_runtime import (
+            json_archive_writes_enabled,
+            save_user_primary,
+        )
+
+        if save_user_primary(user):
+            if json_archive_writes_enabled():
+                users[user.id] = user.model_dump()
+                self._save_users(users)
+            return
+
+        users[user.id] = user.model_dump()
+        self._save_users(users)
+        self._shadow_save_user(user)
+
     def _load_user_from_json(self, user_id: str) -> Optional[User]:
         users = self._load_users()
         user_data = users.get(user_id)
@@ -65,6 +81,18 @@ class UserService:
         from app.repositories.user_config_runtime import read_user
 
         return read_user(user_id, lambda: self._load_user_from_json(user_id))
+
+    def _load_user_by_username_from_json(self, username: str) -> Optional[User]:
+        users = self._load_users()
+        for user_data in users.values():
+            if user_data.get('username') == username:
+                return User(**user_data)
+        return None
+
+    def _read_user_by_username(self, username: str) -> Optional[User]:
+        from app.repositories.user_config_runtime import read_user_by_username
+
+        return read_user_by_username(username, lambda: self._load_user_by_username_from_json(username))
 
     def _lock_file_path(self, file_path: Path) -> Path:
         return file_path.with_suffix(file_path.suffix + '.lock')
@@ -222,9 +250,8 @@ class UserService:
             users = self._load_users()
             
             # 检查用户名是否已存在
-            for user_data in users.values():
-                if user_data.get('username') == username:
-                    return None
+            if self._read_user_by_username(username):
+                return None
             
             # 创建新用户（密码 bcrypt 哈希）
             user = User(
@@ -233,9 +260,7 @@ class UserService:
                 display_name=display_name or username
             )
             
-            users[user.id] = user.model_dump()
-            self._save_users(users)
-            self._shadow_save_user(user)
+            self._save_user_record(users, user)
             
             # 创建用户数据目录
             self._ensure_user_data_dir(user.id)
@@ -251,28 +276,25 @@ class UserService:
         """
         with self._lock:
             users = self._load_users()
-            
-            for user_id, user_data in users.items():
-                if user_data.get('username') == username and self._verify_password(password, user_data.get('password', '')):
-                    # 渐进式迁移：明文密码自动升级为 bcrypt 哈希
-                    if not self._is_hashed(user_data.get('password', '')):
-                        user_data['password'] = self._hash_password(password)
-                        logger.info(f"用户 {username} 密码已自动迁移为 bcrypt 哈希")
+            user = self._read_user_by_username(username)
+            if user and self._verify_password(password, user.password):
+                # 渐进式迁移：明文密码自动升级为 bcrypt 哈希
+                if not self._is_hashed(user.password):
+                    user.password = self._hash_password(password)
+                    logger.info(f"用户 {username} 密码已自动迁移为 bcrypt 哈希")
 
-                    # 更新最后登录时间
-                    user_data['last_login'] = datetime.now().isoformat()
-                    users[user_id] = user_data
-                    self._save_users(users)
-                    self._shadow_save_user(User(**user_data))
-                    
-                    # 生成 token（带过期时间）
-                    token = self._generate_token(user_id)
-                    self._save_session(token, {
-                        "user_id": user_id,
-                        "created_at": datetime.now().isoformat()
-                    })
-                    
-                    return token, User(**user_data)
+                # 更新最后登录时间
+                user.last_login = datetime.now().isoformat()
+                self._save_user_record(users, user)
+
+                # 生成 token（带过期时间）
+                token = self._generate_token(user.id)
+                self._save_session(token, {
+                    "user_id": user.id,
+                    "created_at": datetime.now().isoformat()
+                })
+
+                return token, user
             
             return None
     
@@ -361,12 +383,12 @@ class UserService:
         with self._lock:
             users = self._load_users()
             
-            user_data = users.get(user_id)
-            if not user_data:
+            user = self._read_user(user_id)
+            if not user:
                 return False, "用户不存在"
             
             # 验证旧密码
-            if not self._verify_password(old_password, user_data.get('password', '')):
+            if not self._verify_password(old_password, user.password):
                 return False, "原密码错误"
 
             # 验证新密码
@@ -377,10 +399,8 @@ class UserService:
                 return False, "新密码不能与原密码相同"
 
             # 更新密码（bcrypt 哈希）
-            user_data['password'] = self._hash_password(new_password)
-            users[user_id] = user_data
-            self._save_users(users)
-            self._shadow_save_user(User(**user_data))
+            user.password = self._hash_password(new_password)
+            self._save_user_record(users, user)
             self._delete_user_sessions(user_id)
             
             return True, "密码修改成功"

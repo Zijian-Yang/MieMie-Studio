@@ -1,0 +1,26 @@
+{
+  "state": "passed",
+  "stage": "r39-user-config-primary-write",
+  "updated_at": "2026-06-07T13:05:00+08:00",
+  "runtime_changed": true,
+  "default_runtime_changed": false,
+  "checks": [
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_user_config_primary_write.py -q",
+      "result": "7 passed"
+    },
+    {
+      "command": "backend/.venv/bin/python -m py_compile backend/app/repositories/user_config_runtime.py backend/app/services/user_service.py backend/app/config.py",
+      "result": "passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_user_config_schema.py backend/tests/test_user_config_repository.py backend/tests/test_user_config_migration.py backend/tests/test_user_config_dual_write.py backend/tests/test_user_config_read_switch.py backend/tests/test_user_config_primary_write.py -q",
+      "result": "33 passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests -q",
+      "result": "399 passed"
+    }
+  ],
+  "next_step": "Run full backend verification, then decide whether to proceed to local live database rehearsal or server rollout recovery."
+}

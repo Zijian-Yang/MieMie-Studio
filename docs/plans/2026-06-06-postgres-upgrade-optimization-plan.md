@@ -272,6 +272,7 @@ create index idx_video_studio_tasks_submit_attempt
 2026-06-07 progress: R36 已新增 user/config backfill/reconcile 服务和维护脚本。回填读取 `users.json` 和可选 `users/{user_id}/config.json`；对账只比较账号安全字段、password hash 字段名、配置安全索引和缺失计数，不输出 hash 值、raw key/token、完整配置快照或私有用户数据。`sessions.json` 暂不迁移，active session 继续 Redis + file fallback。运行态仍默认 JSON/Redis/file-only。
 2026-06-07 progress: R37 已新增 user/config runtime dual-write。注册、登录时 hash/last_login 更新、改密码和 per-user config 保存均保持 JSON 主写成功后再 shadow 写 PostgreSQL；显式启用 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=user_config` 或全局 dual-write 才生效。shadow 失败默认 warning-only，`MIEMIE_DATABASE_RECONCILE_STRICT=true` 可在灰度/对账窗口冒泡。session 不迁移，运行态默认仍为 JSON/Redis/file-only。
 2026-06-07 progress: R38 已新增 user/config read-switch + JSON fallback。显式启用 `MIEMIE_DATABASE_READ_DOMAINS=user_config` 或全局 PostgreSQL read mode 后，`get_user_by_id()`、token 用户恢复和 per-user `ConfigManager.load()` 可优先读 PostgreSQL；`MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 时 miss/error 回退 JSON。登录密码校验仍保持 JSON 主路径，session 继续 Redis + file fallback。
+2026-06-07 progress: R39 已新增 user/config PostgreSQL primary-write + JSON archive mirror。显式启用 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=user_config` 或 PostgreSQL 主写模式后，注册、登录更新、改密码和 per-user config 保存以 PostgreSQL 为主；默认不写 JSON，`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` 可保留临时 JSON 镜像。主写失败直接冒泡且不写 JSON。user/config 本地域已具备 schema、backfill/reconcile、dual-write、read-switch 和 primary-write 本地闭环；session 仍为 Redis + file fallback。
 
 ## 代码架构计划
 
@@ -536,6 +537,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-07 追加：R36 已新增 user/config backfill/reconcile。摘要保持脱敏，不输出 password hash 值、key/token、完整配置或私有用户数据；session 主路径继续 Redis + file fallback。下一步补 user/config runtime dual-write feature flag。
 2026-06-07 追加：R37 已新增 user/config runtime dual-write feature flag。默认不启用；显式开启后 JSON 主写成功再 shadow 写 PostgreSQL。下一步补 user/config read-switch + JSON fallback。
 2026-06-07 追加：R38 已新增 user/config read-switch + JSON fallback。默认不启用；显式开启后用户 ID/token 恢复与 per-user config 可优先 PostgreSQL。下一步补 user/config PostgreSQL primary-write + JSON archive mirror。
+2026-06-07 追加：R39 已新增 user/config PostgreSQL primary-write + JSON archive mirror。user/config 本地域本地迁移门禁闭环；下一步优先恢复服务器 live rollout 或做本地 live database rehearsal。
 
 ## 总体验收
 

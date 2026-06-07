@@ -608,6 +608,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-07 note: local user/config read-switch and JSON fallback are implemented through `backend/app/repositories/user_config_runtime.py`, `UserService.get_user_by_id()`, token user recovery, and `ConfigManager.load()`. Reads prefer PostgreSQL only when `MIEMIE_DATABASE_ENABLED=true` and `MIEMIE_DATABASE_READ_DOMAINS=user_config` or global read mode is explicitly enabled; `MIEMIE_DATABASE_JSON_FALLBACK_READ=true` falls back to JSON on miss/error. Login password verification remains JSON primary in this step. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r38-user-config-read-switch/`.
 
+2026-06-07 note: local user/config PostgreSQL primary-write and optional JSON archive mirror are implemented through `backend/app/repositories/user_config_runtime.py`, `UserService` register/login/password-change paths, and `ConfigManager.save()`. Writes use PostgreSQL primary only when `MIEMIE_DATABASE_ENABLED=true` and `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=user_config` or global primary mode is explicitly enabled; `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` keeps a temporary JSON archive mirror. PostgreSQL primary failures propagate and do not write JSON. Sessions remain Redis + file fallback. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r39-user-config-primary-write/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
