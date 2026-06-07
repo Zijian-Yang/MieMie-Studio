@@ -41,6 +41,23 @@ def studio_task_dual_write_enabled() -> bool:
     return write_mode in {"dual", "dual_write"} or DOMAIN in dual_domains
 
 
+def studio_task_primary_write_enabled() -> bool:
+    """Return true when image studio task writes should use PostgreSQL primary."""
+
+    if not database_enabled():
+        return False
+
+    write_mode = os.getenv("MIEMIE_DATABASE_WRITE_MODE", "file").strip().lower()
+    primary_domains = _env_csv("MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS")
+    return write_mode in {"postgres", "postgres_primary", "primary"} or DOMAIN in primary_domains
+
+
+def json_archive_writes_enabled() -> bool:
+    """Return true when PostgreSQL primary writes should maintain JSON archive mirrors."""
+
+    return _env_true("MIEMIE_DATABASE_JSON_ARCHIVE_WRITES")
+
+
 def studio_task_read_enabled() -> bool:
     """Return true when image studio task reads should prefer PostgreSQL."""
 
@@ -84,6 +101,30 @@ def build_studio_task_shadow_repository(user_id: str) -> PostgresStudioTaskRepos
 
 def build_studio_task_read_repository(user_id: str) -> PostgresStudioTaskRepository:
     return PostgresStudioTaskRepository(_runtime_engine(), user_id)
+
+
+def build_studio_task_primary_repository(user_id: str) -> PostgresStudioTaskRepository:
+    return PostgresStudioTaskRepository(_runtime_engine(), user_id)
+
+
+def save_studio_task_primary(user_id: str | None, task: StudioTask) -> bool:
+    """Save to PostgreSQL as the primary store when primary mode is enabled."""
+
+    if not user_id or not studio_task_primary_write_enabled():
+        return False
+
+    build_studio_task_primary_repository(user_id).save(task)
+    return True
+
+
+def mark_studio_task_deleted_primary(user_id: str | None, task_id: str) -> bool:
+    """Mark a PostgreSQL-primary task deleted when primary mode is enabled."""
+
+    if not user_id or not studio_task_primary_write_enabled():
+        return False
+
+    build_studio_task_primary_repository(user_id).mark_deleted(task_id)
+    return True
 
 
 def shadow_save_studio_task(user_id: str | None, task: StudioTask) -> None:

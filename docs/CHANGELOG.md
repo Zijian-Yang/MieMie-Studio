@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R12 `studio_tasks` PostgreSQL primary write：新增图片工作室任务主写开关和可选 JSON archive mirror；显式启用后图片任务保存/删除先写 PostgreSQL，默认不再写 JSON，主写失败不落 JSON 分叉状态，后端全量 `280 passed`。
 - 数据库升级 R11 `studio_tasks` read switch：新增图片工作室任务 PostgreSQL 优先读开关与 JSON fallback，默认 file-only；显式启用后任务详情与项目任务列表优先读 PostgreSQL，miss/异常可回退 JSON，后端全量 `276 passed`。
 - 数据库升级 R10 `studio_tasks` runtime dual-write：新增图片工作室任务写侧 feature flag，默认 file-only；显式启用后 JSON 主写/删除成功再 shadow 写 PostgreSQL，shadow 失败默认不打断 JSON 主路径，后端全量 `272 passed`。
 - 数据库升级 R9 `studio_tasks` backfill/reconcile：新增图片工作室任务 JSON 扫描、PostgreSQL repository upsert、脱敏 JSON/Markdown 对账摘要和两个维护脚本；摘要不包含 prompt、raw provider payload、key/token/password 或私有 URL，后端全量 `269 passed`。

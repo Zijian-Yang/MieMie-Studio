@@ -554,6 +554,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-07 note: local `studio_tasks` read-switch and JSON fallback are implemented through `StorageService.get_studio_task()` and `get_studio_tasks_by_project()`. Reads prefer PostgreSQL only when `MIEMIE_DATABASE_ENABLED=true` and `MIEMIE_DATABASE_READ_DOMAINS=studio_tasks` or `MIEMIE_DATABASE_READ_MODE=postgres`; default remains file-only. Primary-write is still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r11-studio-tasks-read-switch/`.
 
+2026-06-07 note: local `studio_tasks` PostgreSQL primary-write and optional JSON archive mirror are implemented through `StorageService.save_studio_task()` and `delete_studio_task()`. Writes use PostgreSQL primary only when `MIEMIE_DATABASE_ENABLED=true` and `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=studio_tasks` or `MIEMIE_DATABASE_WRITE_MODE=postgres/postgres_primary/primary`; `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` keeps a temporary JSON archive mirror. PostgreSQL primary failures propagate and do not write JSON, avoiding split-brain during cutover. Runtime default remains file-only; staging enablement is pending live migration/backfill/reconcile/dual-write/read-switch evidence. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r12-studio-tasks-primary-write/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

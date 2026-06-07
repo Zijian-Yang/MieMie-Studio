@@ -1,0 +1,46 @@
+{
+  "state": "local_passed",
+  "stage": "r12-studio-tasks-primary-write",
+  "runtime_default": "file_only",
+  "staging_enabled": false,
+  "implemented": [
+    "studio_task_primary_write_feature_flag",
+    "postgres_primary_save",
+    "postgres_primary_delete",
+    "optional_json_archive_mirror",
+    "primary_write_failure_prevents_json_split_brain"
+  ],
+  "verification": [
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_studio_task_primary_write.py -q",
+      "result": "4 passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_studio_task_primary_write.py backend/tests/test_studio_task_read_switch.py backend/tests/test_studio_task_dual_write.py backend/tests/test_studio_task_migration.py backend/tests/test_studio_task_repository.py backend/tests/test_studio_task_schema.py backend/tests/test_video_studio_task_primary_write.py backend/tests/test_storage_service.py backend/tests/test_studio_capabilities.py -q",
+      "result": "80 passed"
+    },
+    {
+      "command": "backend/.venv/bin/python -m py_compile backend/app/repositories/studio_task_runtime.py",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "docker compose config",
+      "result": "passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests -q",
+      "result": "280 passed"
+    }
+  ],
+  "pending": [
+    "staging_postgres_rollout",
+    "live_migration_backfill_reconcile",
+    "staging_dual_write_read_switch_primary_write_gates",
+    "next_local_domain_projects"
+  ],
+  "updated_at": "2026-06-07"
+}
