@@ -239,11 +239,42 @@ class StorageService:
     
     def get_character(self, character_id: str) -> Optional[Character]:
         """获取角色"""
+        from app.repositories.project_entities import CHARACTER
+        from app.repositories.project_entity_runtime import read_project_entity
+
+        return read_project_entity(
+            self._get_owner_user_id(),
+            CHARACTER,
+            character_id,
+            lambda: self._get_character_from_file(character_id),
+        )
+
+    def _get_character_from_file(self, character_id: str) -> Optional[Character]:
         file_path = self.characters_dir / f"{character_id}.json"
         data = self._read_json_with_lock(file_path)
         if data:
             return Character(**data)
         return None
+
+    def get_characters_by_project(self, project_id: str) -> List[Character]:
+        """获取项目所有角色"""
+        from app.repositories.project_entities import CHARACTER
+        from app.repositories.project_entity_runtime import read_project_entities_for_project
+
+        return read_project_entities_for_project(
+            self._get_owner_user_id(),
+            CHARACTER,
+            project_id,
+            lambda: self._get_characters_by_project_from_file(project_id),
+        )
+
+    def _get_characters_by_project_from_file(self, project_id: str) -> List[Character]:
+        characters = []
+        for file_path in self.characters_dir.glob("*.json"):
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("project_id") == project_id:
+                characters.append(Character(**data))
+        return sorted(characters, key=lambda item: item.created_at)
     
     def delete_character(self, character_id: str) -> None:
         """删除角色"""
@@ -270,11 +301,42 @@ class StorageService:
     
     def get_scene(self, scene_id: str) -> Optional[Scene]:
         """获取场景"""
+        from app.repositories.project_entities import SCENE
+        from app.repositories.project_entity_runtime import read_project_entity
+
+        return read_project_entity(
+            self._get_owner_user_id(),
+            SCENE,
+            scene_id,
+            lambda: self._get_scene_from_file(scene_id),
+        )
+
+    def _get_scene_from_file(self, scene_id: str) -> Optional[Scene]:
         file_path = self.scenes_dir / f"{scene_id}.json"
         data = self._read_json_with_lock(file_path)
         if data:
             return Scene(**data)
         return None
+
+    def get_scenes_by_project(self, project_id: str) -> List[Scene]:
+        """获取项目所有场景"""
+        from app.repositories.project_entities import SCENE
+        from app.repositories.project_entity_runtime import read_project_entities_for_project
+
+        return read_project_entities_for_project(
+            self._get_owner_user_id(),
+            SCENE,
+            project_id,
+            lambda: self._get_scenes_by_project_from_file(project_id),
+        )
+
+    def _get_scenes_by_project_from_file(self, project_id: str) -> List[Scene]:
+        scenes = []
+        for file_path in self.scenes_dir.glob("*.json"):
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("project_id") == project_id:
+                scenes.append(Scene(**data))
+        return sorted(scenes, key=lambda item: item.created_at)
     
     def delete_scene(self, scene_id: str) -> None:
         """删除场景"""
@@ -301,11 +363,42 @@ class StorageService:
     
     def get_prop(self, prop_id: str) -> Optional[Prop]:
         """获取道具"""
+        from app.repositories.project_entities import PROP
+        from app.repositories.project_entity_runtime import read_project_entity
+
+        return read_project_entity(
+            self._get_owner_user_id(),
+            PROP,
+            prop_id,
+            lambda: self._get_prop_from_file(prop_id),
+        )
+
+    def _get_prop_from_file(self, prop_id: str) -> Optional[Prop]:
         file_path = self.props_dir / f"{prop_id}.json"
         data = self._read_json_with_lock(file_path)
         if data:
             return Prop(**data)
         return None
+
+    def get_props_by_project(self, project_id: str) -> List[Prop]:
+        """获取项目所有道具"""
+        from app.repositories.project_entities import PROP
+        from app.repositories.project_entity_runtime import read_project_entities_for_project
+
+        return read_project_entities_for_project(
+            self._get_owner_user_id(),
+            PROP,
+            project_id,
+            lambda: self._get_props_by_project_from_file(project_id),
+        )
+
+    def _get_props_by_project_from_file(self, project_id: str) -> List[Prop]:
+        props = []
+        for file_path in self.props_dir.glob("*.json"):
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("project_id") == project_id:
+                props.append(Prop(**data))
+        return sorted(props, key=lambda item: item.created_at)
     
     def delete_prop(self, prop_id: str) -> None:
         """删除道具"""
@@ -332,6 +425,17 @@ class StorageService:
     
     def get_frame(self, frame_id: str) -> Optional[Frame]:
         """获取首帧"""
+        from app.repositories.project_entities import FRAME
+        from app.repositories.project_entity_runtime import read_project_entity
+
+        return read_project_entity(
+            self._get_owner_user_id(),
+            FRAME,
+            frame_id,
+            lambda: self._get_frame_from_file(frame_id),
+        )
+
+    def _get_frame_from_file(self, frame_id: str) -> Optional[Frame]:
         file_path = self.frames_dir / f"{frame_id}.json"
         data = self._read_json_with_lock(file_path)
         if data:
@@ -340,6 +444,18 @@ class StorageService:
     
     def get_frame_by_shot(self, project_id: str, shot_id: str) -> Optional[Frame]:
         """根据分镜ID获取首帧"""
+        from app.repositories.project_entities import FRAME
+        from app.repositories.project_entity_runtime import read_project_entity_from_project_list
+
+        return read_project_entity_from_project_list(
+            self._get_owner_user_id(),
+            FRAME,
+            project_id,
+            lambda frame: getattr(frame, "shot_id", None) == shot_id,
+            lambda: self._get_frame_by_shot_from_file(project_id, shot_id),
+        )
+
+    def _get_frame_by_shot_from_file(self, project_id: str, shot_id: str) -> Optional[Frame]:
         for file_path in self.frames_dir.glob("*.json"):
             data = self._read_json_with_lock(file_path)
             if data and data.get("project_id") == project_id and data.get("shot_id") == shot_id:
@@ -348,6 +464,17 @@ class StorageService:
     
     def get_frames_by_project(self, project_id: str) -> List[Frame]:
         """获取项目所有首帧"""
+        from app.repositories.project_entities import FRAME
+        from app.repositories.project_entity_runtime import read_project_entities_for_project
+
+        return read_project_entities_for_project(
+            self._get_owner_user_id(),
+            FRAME,
+            project_id,
+            lambda: self._get_frames_by_project_from_file(project_id),
+        )
+
+    def _get_frames_by_project_from_file(self, project_id: str) -> List[Frame]:
         frames = []
         for file_path in self.frames_dir.glob("*.json"):
             data = self._read_json_with_lock(file_path)
@@ -380,6 +507,17 @@ class StorageService:
     
     def get_video(self, video_id: str) -> Optional[Video]:
         """获取视频"""
+        from app.repositories.project_entities import VIDEO
+        from app.repositories.project_entity_runtime import read_project_entity
+
+        return read_project_entity(
+            self._get_owner_user_id(),
+            VIDEO,
+            video_id,
+            lambda: self._get_video_from_file(video_id),
+        )
+
+    def _get_video_from_file(self, video_id: str) -> Optional[Video]:
         file_path = self.videos_dir / f"{video_id}.json"
         data = self._read_json_with_lock(file_path)
         if data:
@@ -388,6 +526,17 @@ class StorageService:
 
     def get_video_by_task(self, task_id: str) -> Optional[Video]:
         """根据任务ID获取视频"""
+        from app.repositories.project_entities import VIDEO
+        from app.repositories.project_entity_runtime import read_project_entity_from_kind_list
+
+        return read_project_entity_from_kind_list(
+            self._get_owner_user_id(),
+            VIDEO,
+            lambda video: bool(getattr(video, "task", None) and video.task.task_id == task_id),
+            lambda: self._get_video_by_task_from_file(task_id),
+        )
+
+    def _get_video_by_task_from_file(self, task_id: str) -> Optional[Video]:
         for file_path in self.videos_dir.glob("*.json"):
             data = self._read_json_with_lock(file_path)
             if data:
@@ -398,6 +547,17 @@ class StorageService:
 
     def get_videos_by_project(self, project_id: str) -> List[Video]:
         """获取项目所有视频"""
+        from app.repositories.project_entities import VIDEO
+        from app.repositories.project_entity_runtime import read_project_entities_for_project
+
+        return read_project_entities_for_project(
+            self._get_owner_user_id(),
+            VIDEO,
+            project_id,
+            lambda: self._get_videos_by_project_from_file(project_id),
+        )
+
+    def _get_videos_by_project_from_file(self, project_id: str) -> List[Video]:
         videos = []
         for file_path in self.videos_dir.glob("*.json"):
             data = self._read_json_with_lock(file_path)
@@ -407,6 +567,18 @@ class StorageService:
 
     def get_video_by_shot(self, project_id: str, shot_id: str) -> Optional[Video]:
         """根据分镜ID获取视频"""
+        from app.repositories.project_entities import VIDEO
+        from app.repositories.project_entity_runtime import read_project_entity_from_project_list
+
+        return read_project_entity_from_project_list(
+            self._get_owner_user_id(),
+            VIDEO,
+            project_id,
+            lambda video: getattr(video, "shot_id", None) == shot_id,
+            lambda: self._get_video_by_shot_from_file(project_id, shot_id),
+        )
+
+    def _get_video_by_shot_from_file(self, project_id: str, shot_id: str) -> Optional[Video]:
         for file_path in self.videos_dir.glob("*.json"):
             data = self._read_json_with_lock(file_path)
             if data and data.get("project_id") == project_id and data.get("shot_id") == shot_id:
@@ -438,11 +610,42 @@ class StorageService:
     
     def get_style(self, style_id: str) -> Optional[Style]:
         """获取风格"""
+        from app.repositories.project_entities import STYLE
+        from app.repositories.project_entity_runtime import read_project_entity
+
+        return read_project_entity(
+            self._get_owner_user_id(),
+            STYLE,
+            style_id,
+            lambda: self._get_style_from_file(style_id),
+        )
+
+    def _get_style_from_file(self, style_id: str) -> Optional[Style]:
         file_path = self.styles_dir / f"{style_id}.json"
         data = self._read_json_with_lock(file_path)
         if data:
             return Style(**data)
         return None
+
+    def get_styles_by_project(self, project_id: str) -> List[Style]:
+        """获取项目所有风格"""
+        from app.repositories.project_entities import STYLE
+        from app.repositories.project_entity_runtime import read_project_entities_for_project
+
+        return read_project_entities_for_project(
+            self._get_owner_user_id(),
+            STYLE,
+            project_id,
+            lambda: self._get_styles_by_project_from_file(project_id),
+        )
+
+    def _get_styles_by_project_from_file(self, project_id: str) -> List[Style]:
+        styles = []
+        for file_path in self.styles_dir.glob("*.json"):
+            data = self._read_json_with_lock(file_path)
+            if data and data.get("project_id") == project_id:
+                styles.append(Style(**data))
+        return sorted(styles, key=lambda item: item.created_at)
     
     def delete_style(self, style_id: str) -> None:
         """删除风格"""

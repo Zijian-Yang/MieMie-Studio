@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R27 project entities read switch：新增角色、场景、道具、首帧、视频和风格 PostgreSQL 优先读开关与 JSON fallback，默认 file-only；显式开启后 get/list 以及 frame/video by-shot、video by-task 可优先读 PostgreSQL，后端全量 `342 passed`。
 - 数据库升级 R26 project entities runtime dual-write：新增角色、场景、道具、首帧、视频和风格写侧 feature flag，默认 file-only；显式开启后 JSON 主写/删除成功再 shadow 写 PostgreSQL，shadow 失败默认不打断 JSON 主路径，后端全量 `338 passed`。
 - 数据库升级 R25 project entities backfill/reconcile：新增角色、场景、道具、首帧、视频和风格 JSON 扫描、PostgreSQL upsert、脱敏 JSON/Markdown 对账摘要和两个维护脚本；摘要不包含名称、描述、prompt、text style body、provider task id、key/token/password 或私有 URL，后端全量 `334 passed`。
 - 数据库升级 R24 project entities 本地基础：新增 `project_entities` schema、Alembic migration `20260607_0005`、角色/场景/道具/首帧/视频/风格统一 repository boundary；运行态仍默认 JSON/file-only，后端全量 `331 passed`。
