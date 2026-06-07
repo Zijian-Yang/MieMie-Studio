@@ -1,0 +1,16 @@
+{
+  "state": "blocked",
+  "stage": "r40-staging-connectivity-after-user-config",
+  "updated_at": "2026-06-07T13:15:00+08:00",
+  "server_state_changed": false,
+  "reason": "operator network path still uses fake-IP/TUN; SSH banner and public health timed out",
+  "evidence": {
+    "dns_a": "198.18.2.211",
+    "route_interface": "utun1024",
+    "route_gateway": "198.18.0.1",
+    "tcp_22": "succeeded",
+    "ssh_command": "Connection timed out during banner exchange",
+    "public_health": "curl timeout after 20 seconds"
+  },
+  "next_step": "Retry server rollout only after local DNS/route/SSH/public health are stable."
+}

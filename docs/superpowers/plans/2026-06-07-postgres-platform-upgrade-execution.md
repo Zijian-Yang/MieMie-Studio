@@ -610,6 +610,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-07 note: local user/config PostgreSQL primary-write and optional JSON archive mirror are implemented through `backend/app/repositories/user_config_runtime.py`, `UserService` register/login/password-change paths, and `ConfigManager.save()`. Writes use PostgreSQL primary only when `MIEMIE_DATABASE_ENABLED=true` and `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=user_config` or global primary mode is explicitly enabled; `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` keeps a temporary JSON archive mirror. PostgreSQL primary failures propagate and do not write JSON. Sessions remain Redis + file fallback. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r39-user-config-primary-write/`.
 
+2026-06-07 note: R40 staging connectivity refresh remains blocked from the current operator path after user/config local gates. DNS for `pre-studio.miemie.co` returned fake-IP `198.18.2.211`, route to `47.79.99.190` used `utun1024`, TCP 22 succeeded, SSH command execution timed out during banner exchange, and public `/api/health` timed out after 20 seconds. No server state was changed. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r40-staging-connectivity-after-user-config/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

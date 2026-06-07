@@ -538,6 +538,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-07 追加：R37 已新增 user/config runtime dual-write feature flag。默认不启用；显式开启后 JSON 主写成功再 shadow 写 PostgreSQL。下一步补 user/config read-switch + JSON fallback。
 2026-06-07 追加：R38 已新增 user/config read-switch + JSON fallback。默认不启用；显式开启后用户 ID/token 恢复与 per-user config 可优先 PostgreSQL。下一步补 user/config PostgreSQL primary-write + JSON archive mirror。
 2026-06-07 追加：R39 已新增 user/config PostgreSQL primary-write + JSON archive mirror。user/config 本地域本地迁移门禁闭环；下一步优先恢复服务器 live rollout 或做本地 live database rehearsal。
+2026-06-07 追加：R40 staging 连通性复查仍阻塞服务器 rollout：DNS 返回 `198.18.2.211`，到 `47.79.99.190` 的路由走 `utun1024`，TCP 22 可达但 SSH banner 超时，公网 `/api/health` 20 秒无响应。本轮未修改服务器状态。恢复正常 DNS/route/SSH/public health 前，不执行 live rollout。
 
 ## 总体验收
 

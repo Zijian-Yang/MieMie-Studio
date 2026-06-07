@@ -666,6 +666,14 @@ pre 部署复验：
 - session 仍保持 Redis + file fallback，不在本地域 primary-write 中迁移。
 - 本地验证：RED gate 先因缺少 primary repository builder 失败；实现后 focused `7 passed`，user/config 目标集 `33 passed`，`py_compile` 通过，后端全量 `399 passed`。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r39-user-config-primary-write/`。
 
+2026-06-07 阶段 7 R40 staging 连通性复查：
+
+- user/config 本地门禁完成后，只读复查服务器 rollout 路径。
+- SSH 命令执行失败：TCP 22 可达，但 SSH banner exchange 超时。
+- 公网 `https://pre-studio.miemie.co/api/health` 20 秒无响应。
+- DNS 仍返回 `198.18.2.211`，到 `47.79.99.190` 的 route 使用 gateway `198.18.0.1` 和 interface `utun1024`。
+- 结论：当前 operator network path 仍不能安全执行服务器 live rollout，本轮未修改服务器状态。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r40-staging-connectivity-after-user-config/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -680,4 +688,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步优先级：服务器路径恢复前做本地 live database rehearsal 或补前端编辑域 smoke；恢复 SSH/public health 后收口 R1/R2 服务器 rollout、执行 live migration/backfill/reconcile、灰度启用双写、读切换和 primary-write。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 数据库升级本地分域门禁基本闭环，但尚未完成服务器最终切库。
+- 下一步优先级：服务器路径恢复前做本地 live database rehearsal 或补前端编辑域 smoke；恢复正常 DNS/route/SSH/public health 后收口 R1/R2 服务器 rollout、执行 live migration/backfill/reconcile、灰度启用双写、读切换和 primary-write。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 数据库升级本地分域门禁基本闭环，但尚未完成服务器最终切库。
