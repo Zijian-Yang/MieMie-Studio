@@ -1,0 +1,36 @@
+{
+  "state": "complete",
+  "stage": "r28-project-entities-primary-write",
+  "domain": "project_entities",
+  "scope": [
+    "character",
+    "scene",
+    "prop",
+    "frame",
+    "video",
+    "style"
+  ],
+  "feature_flags": {
+    "enabled": "MIEMIE_DATABASE_ENABLED=true and MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=project_entities",
+    "write_mode_aliases": [
+      "postgres",
+      "postgres_primary",
+      "primary"
+    ],
+    "json_archive_mirror": "MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true"
+  },
+  "runtime_default": "file-only",
+  "verification": {
+    "red_gate": "failed before implementation with missing build_project_entity_primary_repository",
+    "focused_primary_write": "4 passed",
+    "project_entity_target": "23 passed",
+    "cross_domain_database_regression": "29 passed",
+    "full_backend": "346 passed",
+    "py_compile": "passed"
+  },
+  "sensitive_data": "No tokens, passwords, API keys, private URLs, prompts, descriptions, provider task ids, or raw user payloads are stored in this artifact.",
+  "next": [
+    "staging live migration/backfill/reconcile when SSH/public health path is stable"
+  ],
+  "updated_at": "2026-06-07T11:01:19+0800"
+}

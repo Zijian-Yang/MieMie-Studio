@@ -520,7 +520,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 - [ ] 每个域单独回填/对账/读切换。
 - [ ] 用户和配置最后迁移。
 
-2026-06-07 进度：P5 编辑域已开始，`project_entities` 统一表、repository boundary、backfill/reconcile 工具、脱敏对账摘要、runtime dual-write 和 read-switch 已完成；下一步补 project entity primary-write。
+2026-06-07 进度：P5 编辑域已开始，`project_entities` 统一表、repository boundary、backfill/reconcile 工具、脱敏对账摘要、runtime dual-write、read-switch + JSON fallback 和 PostgreSQL primary-write + JSON archive mirror 已完成；默认运行态仍为 file-only。下一步恢复服务器灰度验证，并继续补前端编辑域 smoke / benchmark domain 迁移设计。
 
 ## 总体验收
 

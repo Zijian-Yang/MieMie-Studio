@@ -41,6 +41,17 @@ def project_entity_dual_write_enabled() -> bool:
     return write_mode in {"dual", "dual_write"} or DOMAIN in dual_domains
 
 
+def project_entity_primary_write_enabled() -> bool:
+    """Return true when project entity writes should use PostgreSQL primary."""
+
+    if not database_enabled():
+        return False
+
+    write_mode = os.getenv("MIEMIE_DATABASE_WRITE_MODE", "file").strip().lower()
+    primary_domains = _env_csv("MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS")
+    return write_mode in {"postgres", "postgres_primary", "primary"} or DOMAIN in primary_domains
+
+
 def project_entity_read_enabled() -> bool:
     """Return true when project entity reads should prefer PostgreSQL."""
 
@@ -56,6 +67,12 @@ def json_fallback_read_enabled() -> bool:
     """Return true when PostgreSQL read miss/error should fallback to JSON."""
 
     return _env_true("MIEMIE_DATABASE_JSON_FALLBACK_READ")
+
+
+def json_archive_writes_enabled() -> bool:
+    """Return true when PostgreSQL primary writes should maintain JSON archive mirrors."""
+
+    return _env_true("MIEMIE_DATABASE_JSON_ARCHIVE_WRITES")
 
 
 def strict_shadow_writes_enabled() -> bool:
@@ -84,6 +101,30 @@ def build_project_entity_shadow_repository(user_id: str) -> PostgresProjectEntit
 
 def build_project_entity_read_repository(user_id: str) -> PostgresProjectEntityRepository:
     return PostgresProjectEntityRepository(_runtime_engine(), user_id)
+
+
+def build_project_entity_primary_repository(user_id: str) -> PostgresProjectEntityRepository:
+    return PostgresProjectEntityRepository(_runtime_engine(), user_id)
+
+
+def save_project_entity_primary(user_id: str | None, entity_kind: str, entity: ProjectEntity) -> bool:
+    """Save a project editing entity to PostgreSQL as the primary store when enabled."""
+
+    if not user_id or not project_entity_primary_write_enabled():
+        return False
+
+    build_project_entity_primary_repository(user_id).save(entity_kind, entity)
+    return True
+
+
+def mark_project_entity_deleted_primary(user_id: str | None, entity_kind: str, entity_id: str) -> bool:
+    """Mark a project editing entity deleted in PostgreSQL primary mode."""
+
+    if not user_id or not project_entity_primary_write_enabled():
+        return False
+
+    build_project_entity_primary_repository(user_id).mark_deleted(entity_kind, entity_id)
+    return True
 
 
 def shadow_save_project_entity(user_id: str | None, entity_kind: str, entity: ProjectEntity) -> None:
