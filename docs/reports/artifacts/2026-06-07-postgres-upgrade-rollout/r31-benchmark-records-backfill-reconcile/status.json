@@ -1,0 +1,71 @@
+{
+  "state": "complete",
+  "stage": "r31-benchmark-records-backfill-reconcile",
+  "domain": "benchmark_records",
+  "scope": {
+    "benchmark_kinds": [
+      "image",
+      "video"
+    ],
+    "record_kinds": [
+      "dataset",
+      "suite",
+      "run"
+    ]
+  },
+  "runtime_default": "file-only",
+  "server_state_changed": false,
+  "sanitization": {
+    "forbidden_in_summaries": [
+      "prompts",
+      "provider payloads",
+      "canonical request bodies",
+      "request ids",
+      "provider task ids",
+      "keys",
+      "tokens",
+      "passwords",
+      "private URLs",
+      "dataset/suite/case/model names",
+      "descriptions"
+    ],
+    "safe_compare_fields": {
+      "dataset": [
+        "updated_at",
+        "project_id",
+        "task_kind",
+        "item_count"
+      ],
+      "suite": [
+        "updated_at",
+        "project_id",
+        "dataset_id",
+        "task_kind",
+        "status"
+      ],
+      "run": [
+        "updated_at",
+        "project_id",
+        "dataset_id",
+        "suite_id",
+        "task_kind",
+        "status",
+        "cell_count"
+      ]
+    }
+  },
+  "verification": {
+    "red_gate": "failed before implementation with missing backfill_benchmark_records module",
+    "focused_migration": "3 passed",
+    "benchmark_target": "8 passed",
+    "migration_regression": "23 passed",
+    "full_backend": "354 passed",
+    "py_compile": "passed"
+  },
+  "next": [
+    "benchmark runtime dual-write",
+    "benchmark read-switch and JSON fallback",
+    "benchmark primary-write with JSON archive mirror"
+  ],
+  "updated_at": "2026-06-07T11:29:31+0800"
+}

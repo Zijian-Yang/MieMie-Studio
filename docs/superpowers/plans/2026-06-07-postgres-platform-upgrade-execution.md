@@ -592,6 +592,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-07 note: local benchmark records schema/repository boundary is implemented with Alembic revision `20260607_0006_benchmark_records`, `backend/app/db/schema/benchmark_records.py`, and `backend/app/repositories/benchmark_records.py`. The table covers image/video benchmark dataset/suite/run records with safe index columns plus `raw_record_snapshot` JSONB. Runtime remains file-only; backfill/reconcile, dual-write, read-switch, and primary-write are still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r30-benchmark-records-local-schema-repository/`.
 
+2026-06-07 note: local benchmark records backfill/reconcile tooling is implemented through `backend/app/services/migration/backfill_benchmark_records.py`, `backend/app/services/migration/reconcile_benchmark_records.py`, `scripts/postgres_backfill_benchmark_records.py`, and `scripts/postgres_reconcile_benchmark_records.py`. Summaries are sanitized and avoid prompts, provider payloads, canonical request bodies, request ids, task ids, key/token/password values, private URLs, names, and descriptions. Runtime remains file-only; dual-write, read-switch, and primary-write are still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r31-benchmark-records-backfill-reconcile/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
