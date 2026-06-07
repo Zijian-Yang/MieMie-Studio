@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R32 benchmark records runtime dual-write：新增图片/视频测评 dataset、suite、run 的写侧 feature flag，默认 file-only；显式启用后 JSON 主写/删除成功再 shadow 写 PostgreSQL，shadow 失败默认不打断 JSON 主路径，后端全量 `358 passed`。
 - 数据库升级 R31 benchmark records backfill/reconcile：新增图片/视频测评 dataset、suite、run 的 JSON 扫描、PostgreSQL upsert、脱敏 JSON/Markdown 对账摘要和两个维护脚本；摘要不包含 prompt、provider payload、request id、task id、key/token/password、私有 URL、名称或描述，后端全量 `354 passed`。
 - 数据库升级 R30 benchmark records 本地基础：新增图片/视频测评 dataset、suite、run 的统一 PostgreSQL schema、Alembic migration `20260607_0006` 和 file/PostgreSQL repository boundary；运行态仍默认 JSON/file-only，后端全量 `351 passed`。
 - 数据库升级 R29 staging 连通性刷新：服务器 rollout 前置检查仍显示 operator path 经 Clash/fake-IP 与 `utun1024`，公网 health 超时，TCP 22 可达但 SSH 命令被远端关闭；本轮未修改服务器状态，证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r29-staging-connectivity-refresh/`。

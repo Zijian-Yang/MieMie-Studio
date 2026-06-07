@@ -594,6 +594,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-07 note: local benchmark records backfill/reconcile tooling is implemented through `backend/app/services/migration/backfill_benchmark_records.py`, `backend/app/services/migration/reconcile_benchmark_records.py`, `scripts/postgres_backfill_benchmark_records.py`, and `scripts/postgres_reconcile_benchmark_records.py`. Summaries are sanitized and avoid prompts, provider payloads, canonical request bodies, request ids, task ids, key/token/password values, private URLs, names, and descriptions. Runtime remains file-only; dual-write, read-switch, and primary-write are still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r31-benchmark-records-backfill-reconcile/`.
 
+2026-06-07 note: local benchmark records runtime dual-write is implemented through `backend/app/repositories/benchmark_record_runtime.py` and `StorageService` image/video benchmark dataset/suite/run save/delete methods. JSON remains primary; PostgreSQL shadow writes only run when `MIEMIE_DATABASE_ENABLED=true` and `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=benchmark_records` or `MIEMIE_DATABASE_WRITE_MODE=dual/dual_write`. Shadow failures default to warning-only, while `MIEMIE_DATABASE_RECONCILE_STRICT=true` propagates them after the JSON write succeeds. Read-switch and primary-write remain pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r32-benchmark-records-runtime-dual-write/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

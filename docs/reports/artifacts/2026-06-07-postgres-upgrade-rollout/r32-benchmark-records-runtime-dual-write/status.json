@@ -1,0 +1,22 @@
+{
+  "state": "passed",
+  "stage": "r32-benchmark-records-runtime-dual-write",
+  "domain": "benchmark_records",
+  "default_runtime": "file-only",
+  "enabled_by": [
+    "MIEMIE_DATABASE_ENABLED=true",
+    "MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=benchmark_records",
+    "MIEMIE_DATABASE_WRITE_MODE=dual",
+    "MIEMIE_DATABASE_WRITE_MODE=dual_write"
+  ],
+  "strict_shadow_failure_flag": "MIEMIE_DATABASE_RECONCILE_STRICT=true",
+  "focused_tests": {
+    "red_gate": "expected failure: missing app.repositories.benchmark_record_runtime",
+    "dual_write": "4 passed",
+    "target_set": "13 passed",
+    "py_compile": "passed"
+  },
+  "full_backend_tests": "358 passed",
+  "server_state_changed": false,
+  "updated_at": "2026-06-07T11:52:00+08:00"
+}

@@ -602,6 +602,14 @@ pre 部署复验：
 - 本轮不接入 runtime dual-write/read-switch/primary-write；默认运行态仍为 JSON/file-only。
 - 本地验证：RED gate 先因缺少 `backfill_benchmark_records` 模块失败；实现后 migration 测试 `3 passed`，benchmark 目标集 `8 passed`，跨域 migration 回归 `23 passed`，`py_compile` 通过，后端全量 `354 passed`。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r31-benchmark-records-backfill-reconcile/`。
 
+2026-06-07 阶段 7 R32 benchmark records runtime dual-write：
+
+- 新增 `backend/app/repositories/benchmark_record_runtime.py`，统一承载 `benchmark_records` 写侧开关、运行态 PostgreSQL repository 构造和 shadow 失败策略。
+- `StorageService` 图片/视频测评 dataset、suite、run 的保存/删除路径接入 shadow write；JSON 写入/删除仍先执行，显式启用 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=benchmark_records` 或 `MIEMIE_DATABASE_WRITE_MODE=dual|dual_write` 后才写 PostgreSQL。
+- `MIEMIE_DATABASE_RECONCILE_STRICT=false` 时 shadow 失败只记录 warning，不打断 JSON 主路径；`true` 时在 JSON 成功后冒泡 shadow 异常，供灰度/对账窗口使用。
+- 运行态仍默认 JSON/file-only；benchmark read-switch + JSON fallback 和 primary-write 尚未启用。
+- 本地验证：RED gate 先因缺少 `benchmark_record_runtime` 模块失败；实现后 dual-write 测试 `4 passed`，benchmark/storage 目标集 `13 passed`，`py_compile` 通过，后端全量 `358 passed`。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r32-benchmark-records-runtime-dual-write/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。

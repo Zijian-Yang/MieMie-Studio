@@ -524,6 +524,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-07 追加：R29 staging 连通性刷新仍显示 fake-IP/utun 路径、公网 health 超时和 SSH command closed；本轮未修改服务器状态。服务器恢复前继续本地 benchmark/user/config 域迁移。
 2026-06-07 追加：R30 已新增 `benchmark_records` 统一表、Alembic migration `20260607_0006` 和图片/视频测评 dataset/suite/run 的 file/PostgreSQL repository boundary；运行态仍为 file-only。下一步补 benchmark backfill/reconcile，摘要必须脱敏，不输出 prompt、provider payload、request id、task id、key/token/password 或私有 URL。
 2026-06-07 追加：R31 已新增 benchmark backfill/reconcile 服务和维护脚本，摘要保持脱敏，不输出 prompt、provider payload、request id、task id、key/token/password、私有 URL、名称或描述；运行态仍为 file-only。下一步补 benchmark runtime dual-write。
+2026-06-07 追加：R32 已新增 benchmark records runtime dual-write。图片/视频测评 dataset、suite、run 保存/删除仍以 JSON 为主，显式启用 `benchmark_records` 双写域后才 shadow 写 PostgreSQL；shadow 失败默认不打断 JSON 主路径，`MIEMIE_DATABASE_RECONCILE_STRICT=true` 可在对账/灰度窗口中冒泡失败。下一步补 benchmark read-switch + JSON fallback。
 
 ## 总体验收
 
