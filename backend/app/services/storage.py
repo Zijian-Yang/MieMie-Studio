@@ -407,6 +407,15 @@ class StorageService:
     
     def get_studio_task(self, task_id: str) -> Optional[StudioTask]:
         """获取图片工作室任务"""
+        from app.repositories.studio_task_runtime import read_studio_task
+
+        return read_studio_task(
+            self._get_owner_user_id(),
+            task_id,
+            lambda: self._get_studio_task_from_file(task_id),
+        )
+
+    def _get_studio_task_from_file(self, task_id: str) -> Optional[StudioTask]:
         file_path = self.studio_dir / f"{task_id}.json"
         data = self._read_json_with_lock(file_path)
         if data:
@@ -415,6 +424,15 @@ class StorageService:
 
     def get_studio_tasks_by_project(self, project_id: str) -> List[StudioTask]:
         """获取项目所有图片工作室任务"""
+        from app.repositories.studio_task_runtime import read_studio_tasks_for_project
+
+        return read_studio_tasks_for_project(
+            self._get_owner_user_id(),
+            project_id,
+            lambda: self._get_studio_tasks_by_project_from_file(project_id),
+        )
+
+    def _get_studio_tasks_by_project_from_file(self, project_id: str) -> List[StudioTask]:
         tasks = []
         for file_path in self.studio_dir.glob("*.json"):
             data = self._read_json_with_lock(file_path)

@@ -220,7 +220,7 @@ create index idx_video_studio_tasks_submit_attempt
 - Worker 写任务状态具备数据库路径。
 - 为未来统一 task event / SSE 打基础。
 
-2026-06-07 progress: `studio_tasks` 本地 schema、Alembic migration、file/PostgreSQL/dual repository 边界已完成并通过本地验证；本地 backfill/reconcile 服务和维护脚本已完成，摘要保持脱敏，不包含 prompt body、provider payload、token/key 或私有 URL；runtime dual-write feature flag 已接入，显式开启后 JSON 主写成功再 shadow 写 PostgreSQL。运行态默认仍为 JSON/file-only，尚未接入 read-switch 或 primary-write。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r8-studio-tasks-local-schema-repository/`、`docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r9-studio-tasks-backfill-reconcile/` 和 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r10-studio-tasks-runtime-dual-write/`。
+2026-06-07 progress: `studio_tasks` 本地 schema、Alembic migration、file/PostgreSQL/dual repository 边界已完成并通过本地验证；本地 backfill/reconcile 服务和维护脚本已完成，摘要保持脱敏，不包含 prompt body、provider payload、token/key 或私有 URL；runtime dual-write feature flag 已接入，显式开启后 JSON 主写成功再 shadow 写 PostgreSQL；read-switch + JSON fallback 已接入，显式开启后读取优先 PostgreSQL。运行态默认仍为 JSON/file-only，尚未接入 primary-write。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r8-studio-tasks-local-schema-repository/`、`docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r9-studio-tasks-backfill-reconcile/`、`docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r10-studio-tasks-runtime-dual-write/` 和 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r11-studio-tasks-read-switch/`。
 
 ### P3：项目表
 

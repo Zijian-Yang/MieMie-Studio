@@ -1,0 +1,44 @@
+{
+  "state": "local_passed",
+  "stage": "r11-studio-tasks-read-switch",
+  "runtime_default": "file_only",
+  "staging_enabled": false,
+  "implemented": [
+    "studio_task_read_switch_feature_flag",
+    "postgres_preferred_get",
+    "postgres_preferred_project_list",
+    "json_fallback_on_postgres_miss_or_error",
+    "strict_read_error_option_when_fallback_disabled"
+  ],
+  "verification": [
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_studio_task_read_switch.py -q",
+      "result": "4 passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_studio_task_read_switch.py backend/tests/test_studio_task_dual_write.py backend/tests/test_studio_task_migration.py backend/tests/test_studio_task_repository.py backend/tests/test_studio_task_schema.py backend/tests/test_video_studio_task_read_switch.py backend/tests/test_video_studio_task_dual_write.py backend/tests/test_video_studio_task_primary_write.py backend/tests/test_storage_service.py backend/tests/test_studio_capabilities.py -q",
+      "result": "83 passed"
+    },
+    {
+      "command": "backend/.venv/bin/python -m py_compile backend/app/repositories/studio_task_runtime.py",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "docker compose config >/tmp/miemie-compose-config-check.txt",
+      "result": "passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests -q",
+      "result": "276 passed"
+    }
+  ],
+  "pending": [
+    "studio_tasks_primary_write",
+    "staging_postgres_rollout"
+  ],
+  "updated_at": "2026-06-07"
+}
