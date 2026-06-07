@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Optional, Protocol
+from typing import Any, Optional, Protocol
 
 from app.models.project import Project
 from app.models.gallery import GalleryImage
@@ -146,3 +146,20 @@ class TextItemRepository(Protocol):
 
     def mark_deleted(self, item_id: str) -> None:
         """Mark a text item deleted, using soft delete when supported."""
+
+
+class ProjectEntityRepository(Protocol):
+    def save(self, entity_kind: str, entity: Any) -> None:
+        """Persist a project editing entity."""
+
+    def get(self, entity_kind: str, entity_id: str) -> Optional[Any]:
+        """Return an entity by kind/id, or None."""
+
+    def list_for_project(self, entity_kind: str, project_id: str) -> list[Any]:
+        """Return entities for a project in the legacy list order."""
+
+    def delete(self, entity_kind: str, entity_id: str) -> None:
+        """Delete an entity."""
+
+    def mark_deleted(self, entity_kind: str, entity_id: str) -> None:
+        """Mark an entity deleted, using soft delete when supported."""

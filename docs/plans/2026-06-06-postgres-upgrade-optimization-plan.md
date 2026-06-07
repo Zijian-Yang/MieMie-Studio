@@ -256,6 +256,8 @@ create index idx_video_studio_tasks_submit_attempt
 - 每一类实体单独开关、单独对账。
 - 不一次性替换所有 StorageService 方法。
 
+2026-06-07 progress: 角色、场景、道具、首帧、视频和风格的本地 PostgreSQL schema/repository boundary 已完成。R24 采用统一 `project_entities` 表，按 `entity_kind` 区分实体类型，保留共享索引列和完整 `raw_entity_snapshot` JSONB；Alembic migration `20260607_0005_project_entities` 已加入迁移链。运行态默认仍为 JSON/file-only，backfill/reconcile、runtime dual-write、read-switch、primary-write 和前端 smoke 尚未完成。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r24-project-entities-local-schema-repository/`。
+
 ### P6：用户、配置、审计
 
 最后迁用户账号和配置，原因是安全敏感且回滚成本高。
@@ -517,6 +519,8 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 - [ ] 每个域单独 schema。
 - [ ] 每个域单独回填/对账/读切换。
 - [ ] 用户和配置最后迁移。
+
+2026-06-07 进度：P5 编辑域已开始，`project_entities` 统一表和 repository boundary 已完成第一刀；下一步补 project entity backfill/reconcile。
 
 ## 总体验收
 

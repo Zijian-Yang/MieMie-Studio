@@ -1,0 +1,33 @@
+{
+  "state": "passed",
+  "stage": "r24-project-entities-local-schema-repository",
+  "domain": "project_entities",
+  "runtime_mode": "file_only",
+  "server_state_changed": false,
+  "summary": "Local project editing entity PostgreSQL schema, Alembic migration, and repository boundary added for characters, scenes, props, frames, videos, and styles.",
+  "entity_kinds": [
+    "character",
+    "scene",
+    "prop",
+    "frame",
+    "video",
+    "style"
+  ],
+  "verification": {
+    "red_collection_gate": "failed before implementation with missing project_entities schema and repository modules",
+    "focused_project_entity_tests": "7 passed",
+    "schema_repository_target_tests": "16 passed",
+    "alembic_offline_sql": "generated through 20260607_0005",
+    "full_backend_tests": "331 passed",
+    "py_compile": "passed",
+    "docker_compose_config": "passed"
+  },
+  "pending": [
+    "project entity backfill/reconcile",
+    "project entity runtime dual-write",
+    "project entity read-switch with JSON fallback",
+    "project entity PostgreSQL primary-write with JSON archive mirror",
+    "server live migration/backfill/reconcile/read-switch/primary-write gates"
+  ],
+  "updated_at": "2026-06-07T10:08:00+0800"
+}
