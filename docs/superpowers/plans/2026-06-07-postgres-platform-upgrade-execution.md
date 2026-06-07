@@ -568,6 +568,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-07 note: staging connectivity refresh remains blocked from the current operator path. SSH command execution returned `Connection closed by 47.79.99.190 port 22`, public `/api/health` timed out, DNS resolved `pre-studio.miemie.co` to fake-IP `198.18.2.211`, and route to `47.79.99.190` used `utun1024`; TCP 22 was reachable but insufficient for rollout automation. No server state was changed. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r18-staging-connectivity-refresh/`.
 
+2026-06-07 note: local media metadata schema/repository boundary is implemented. `media_assets` covers gallery images, audio library items, and video library items with shared URL/metadata/index columns plus `raw_media_snapshot`; `text_items` covers text library content and versions with `raw_text_snapshot`. Alembic revision `20260607_0004` is added, runtime remains file-only, and backfill/reconcile plus read/write flags are still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r19-media-metadata-local-schema-repository/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

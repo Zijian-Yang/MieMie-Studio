@@ -498,9 +498,11 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 - Create: media repositories
 - Modify: gallery/video_library/audio/text_library routers
 
-- [ ] 统一 media metadata 表或共享字段。
-- [ ] 不迁文件本体。
+- [x] 统一 media metadata 表或共享字段。
+- [x] 不迁文件本体。
 - [ ] 素材选择相关接口读切换后复跑前端 smoke。
+
+2026-06-07 进度：media metadata 第一刀已完成本地 schema/repository boundary。`media_assets` 覆盖图库图片、音频库和视频库 metadata，`text_items` 独立覆盖文本库内容与版本快照；文件本体继续留在 OSS/URL，不迁入 PostgreSQL。运行态默认仍为 file-only，backfill/reconcile、runtime dual-write、read-switch、primary-write 和前端 smoke 尚未完成。
 
 ### Task 10：剩余 domain 逐步迁移
 
