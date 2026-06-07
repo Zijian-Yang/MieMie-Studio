@@ -612,6 +612,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-07 note: R40 staging connectivity refresh remains blocked from the current operator path after user/config local gates. DNS for `pre-studio.miemie.co` returned fake-IP `198.18.2.211`, route to `47.79.99.190` used `utun1024`, TCP 22 succeeded, SSH command execution timed out during banner exchange, and public `/api/health` timed out after 20 seconds. No server state was changed. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r40-staging-connectivity-after-user-config/`.
 
+2026-06-07 note: R41 adds `scripts/postgres_live_rehearsal.sh`, a repeatable local live database rehearsal gate. The script creates a temporary non-committed Compose env and host-port override, starts PostgreSQL, runs `alembic upgrade head`, executes all domain backfill/reconcile scripts, and rehearses backup/restore. The current local run stopped at `docker-precheck` because the Docker daemon is unavailable; no business data, server state, raw password, token, key, or private user data was modified or written to artifacts. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r41-local-live-database-rehearsal/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

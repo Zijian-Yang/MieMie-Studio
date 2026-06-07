@@ -674,6 +674,13 @@ pre 部署复验：
 - DNS 仍返回 `198.18.2.211`，到 `47.79.99.190` 的 route 使用 gateway `198.18.0.1` 和 interface `utun1024`。
 - 结论：当前 operator network path 仍不能安全执行服务器 live rollout，本轮未修改服务器状态。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r40-staging-connectivity-after-user-config/`。
 
+2026-06-07 阶段 7 R41 本地 live database rehearsal：
+
+- 新增 `scripts/postgres_live_rehearsal.sh`，将本地临时 Compose PostgreSQL、`alembic upgrade head`、全域 backfill/reconcile、备份和恢复演练串成一个可复跑门禁。
+- 脚本使用 `/tmp/<run_id>/compose.env` 保存临时强密码，并只把脱敏 env、status、commands 和错误摘要写入 artifact；不会把 raw key、token、PostgreSQL password、session 或私有用户数据写入仓库。
+- 本机实跑结果为 `state=blocked`、`stage=docker-precheck`，原因是 Docker daemon 不可用：`Cannot connect to the Docker daemon at unix:///Users/zane/.docker/run/docker.sock`。
+- 本轮未修改业务数据或服务器状态。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r41-local-live-database-rehearsal/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -688,4 +695,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步优先级：服务器路径恢复前做本地 live database rehearsal 或补前端编辑域 smoke；恢复正常 DNS/route/SSH/public health 后收口 R1/R2 服务器 rollout、执行 live migration/backfill/reconcile、灰度启用双写、读切换和 primary-write。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 数据库升级本地分域门禁基本闭环，但尚未完成服务器最终切库。
+- 下一步优先级：启动本机 Docker 后直接复跑 R41 live database rehearsal，或恢复正常 DNS/route/SSH/public health 后在服务器收口 R1/R2 rollout、执行 live migration/backfill/reconcile、灰度启用双写、读切换和 primary-write。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 数据库升级本地分域门禁基本闭环，但尚未完成实库演练、服务器 live gates 和最终切库。

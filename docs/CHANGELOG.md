@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R41 本地实库演练脚本：新增 `scripts/postgres_live_rehearsal.sh`，可在临时 Compose PostgreSQL 上串联 `alembic upgrade head`、全域 backfill/reconcile、备份和恢复演练；本机实跑因 Docker daemon 不可用在 `docker-precheck` 产出 blocked artifact，未修改业务数据或服务器状态。
 - 数据库升级 R40 staging 连通性复查：user/config 本地门禁完成后只读复查服务器路径，DNS 仍返回 `198.18.2.211`、源站路由走 `utun1024`、TCP 22 可达但 SSH banner 超时，公网 `/api/health` 20 秒超时；本轮未修改服务器状态。
 - 数据库升级 R39 user/config PostgreSQL primary-write：新增 `user_config` 主写开关和可选 JSON archive mirror；显式启用后注册、登录更新、改密码和 per-user config 保存以 PostgreSQL 为主，主写失败不落 JSON 分叉状态，focused `7 passed`，目标回归 `33 passed`，后端全量 `399 passed`。
 - 数据库升级 R38 user/config read-switch：新增 `user_config` 读侧 feature flag 与 JSON fallback；用户 ID/token 恢复和 per-user config 读取可显式优先 PostgreSQL，登录密码校验仍保持 JSON 主路径，focused `7 passed`，目标回归 `26 passed`，后端全量 `392 passed`。

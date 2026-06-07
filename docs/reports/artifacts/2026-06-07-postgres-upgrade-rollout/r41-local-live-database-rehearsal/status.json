@@ -1,0 +1,13 @@
+{
+  "run_id": "r41-local-live-database-rehearsal-20260607",
+  "state": "blocked",
+  "stage": "docker-precheck",
+  "reason": "docker daemon unavailable; see docker-info.err",
+  "artifact_dir": "/Users/zane/Project/Miemie-studio-ha-lab/docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r41-local-live-database-rehearsal",
+  "tmp_dir": "/tmp/r41-local-live-database-rehearsal-20260607",
+  "project_name": "miemie-postgres-rehearsal",
+  "postgres_host": "127.0.0.1",
+  "postgres_host_port": "15432",
+  "keep_rehearsal_db": "false",
+  "updated_at": "2026-06-07T05:21:04Z"
+}
