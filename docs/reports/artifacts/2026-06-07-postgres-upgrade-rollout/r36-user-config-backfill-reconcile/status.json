@@ -1,0 +1,25 @@
+{
+  "state": "passed",
+  "stage": "r36-user-config-backfill-reconcile",
+  "updated_at": "2026-06-07T12:35:00+08:00",
+  "runtime_changed": false,
+  "checks": [
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_user_config_migration.py -q",
+      "result": "5 passed"
+    },
+    {
+      "command": "backend/.venv/bin/python -m py_compile backend/app/services/migration/backfill_user_config.py backend/app/services/migration/reconcile_user_config.py scripts/postgres_backfill_user_config.py scripts/postgres_reconcile_user_config.py backend/app/repositories/user_config.py",
+      "result": "passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_user_config_schema.py backend/tests/test_user_config_repository.py backend/tests/test_user_config_migration.py -q",
+      "result": "13 passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests -q",
+      "result": "379 passed"
+    }
+  ],
+  "next_step": "Run full backend verification, then proceed to user/config runtime dual-write only after migration/reconcile gates are ready."
+}

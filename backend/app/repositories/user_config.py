@@ -150,6 +150,12 @@ class PostgresUserRepository:
             row = conn.execute(statement).mappings().first()
         return row_to_user(row) if row else None
 
+    def list_all(self) -> list[User]:
+        statement = select(users).where(users.c.deleted_at.is_(None)).order_by(users.c.username)
+        with self._engine.connect() as conn:
+            rows = conn.execute(statement).mappings().all()
+        return [row_to_user(row) for row in rows]
+
     def mark_deleted(self, user_id: str) -> None:
         statement = (
             update(users)
@@ -195,6 +201,15 @@ class PostgresUserConfigRepository:
         with self._engine.connect() as conn:
             row = conn.execute(statement).mappings().first()
         return row_to_config(row) if row else None
+
+    def list_all(self) -> dict[str, AppConfig]:
+        statement = select(user_configs).where(user_configs.c.deleted_at.is_(None))
+        with self._engine.connect() as conn:
+            rows = conn.execute(statement).mappings().all()
+        return {
+            row["user_id"]: row_to_config(row)
+            for row in rows
+        }
 
     def mark_deleted(self, user_id: str) -> None:
         statement = (

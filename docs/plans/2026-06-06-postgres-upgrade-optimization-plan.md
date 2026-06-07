@@ -269,6 +269,7 @@ create index idx_video_studio_tasks_submit_attempt
 - `audit_events` 记录关键写操作、登录、迁移差异和回滚动作。
 
 2026-06-07 progress: R35 已新增 `users` 与 `user_configs` PostgreSQL schema、Alembic migration `20260607_0007` 和用户/配置 repository boundary。配置表只暴露 `api_region`、`has_dashscope_key`、`has_oss_config` 等安全索引字段；完整配置快照只用于后续数据库主数据源迁移，不写入 artifact 摘要。登录、session 和 `ConfigManager` 运行态仍默认走现有 JSON/Redis 路径。下一步补 user/config backfill/reconcile，摘要必须脱敏，不输出 password hash、key/token、完整配置或私有用户数据。
+2026-06-07 progress: R36 已新增 user/config backfill/reconcile 服务和维护脚本。回填读取 `users.json` 和可选 `users/{user_id}/config.json`；对账只比较账号安全字段、password hash 字段名、配置安全索引和缺失计数，不输出 hash 值、raw key/token、完整配置快照或私有用户数据。`sessions.json` 暂不迁移，active session 继续 Redis + file fallback。运行态仍默认 JSON/Redis/file-only。
 
 ## 代码架构计划
 
@@ -530,6 +531,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-07 追加：R33 已新增 benchmark records read-switch + JSON fallback。显式启用 `MIEMIE_DATABASE_READ_DOMAINS=benchmark_records` 或 `MIEMIE_DATABASE_READ_MODE=postgres` 后，图片/视频测评 dataset、suite、run 的单条读取、项目列表和 suite run 列表优先读 PostgreSQL；miss/空列表/异常可按 `MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 回退 JSON。下一步补 benchmark PostgreSQL primary-write + JSON archive mirror。
 2026-06-07 追加：R34 已新增 benchmark records PostgreSQL primary-write + JSON archive mirror。显式启用 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=benchmark_records` 或 PostgreSQL 主写模式后，保存/删除先写 PostgreSQL，默认不写 JSON；`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` 可在切换窗口保留临时 JSON 镜像。benchmark records 本地域已具备 schema、backfill/reconcile、dual-write、read-switch 和 primary-write 闭环；下一步进入 user/config 域设计与迁移，或在服务器路径恢复后执行 live rollout。
 2026-06-07 追加：R35 已新增 user/config 本地 schema/repository boundary。`users` 保存账号安全索引与 hash 字段，`user_configs` 保存安全索引和配置快照；运行态仍默认 JSON/Redis/file-only，尚未切登录、session 或配置读取。下一步补 user/config backfill/reconcile。
+2026-06-07 追加：R36 已新增 user/config backfill/reconcile。摘要保持脱敏，不输出 password hash 值、key/token、完整配置或私有用户数据；session 主路径继续 Redis + file fallback。下一步补 user/config runtime dual-write feature flag。
 
 ## 总体验收
 
