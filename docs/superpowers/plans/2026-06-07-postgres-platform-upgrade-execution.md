@@ -550,6 +550,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-07 note: local `studio_tasks` backfill/reconcile tooling is implemented and covered by `backend/tests/test_studio_task_migration.py`; summaries are sanitized and avoid prompt bodies, raw provider payloads, key/token/password values, and private URLs. Runtime remains file-only; dual-write, read-switch, and primary-write flags are still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r9-studio-tasks-backfill-reconcile/`.
 
+2026-06-07 note: local `studio_tasks` runtime dual-write is implemented through `backend/app/repositories/studio_task_runtime.py` and `StorageService.save_studio_task()` / `delete_studio_task()`. JSON remains primary; PostgreSQL shadow writes only run when `MIEMIE_DATABASE_ENABLED=true` and `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=studio_tasks` or `MIEMIE_DATABASE_WRITE_MODE=dual/dual_write`. Read-switch and primary-write flags are still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r10-studio-tasks-runtime-dual-write/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

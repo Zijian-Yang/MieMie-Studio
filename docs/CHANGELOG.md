@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R10 `studio_tasks` runtime dual-write：新增图片工作室任务写侧 feature flag，默认 file-only；显式启用后 JSON 主写/删除成功再 shadow 写 PostgreSQL，shadow 失败默认不打断 JSON 主路径，后端全量 `272 passed`。
 - 数据库升级 R9 `studio_tasks` backfill/reconcile：新增图片工作室任务 JSON 扫描、PostgreSQL repository upsert、脱敏 JSON/Markdown 对账摘要和两个维护脚本；摘要不包含 prompt、raw provider payload、key/token/password 或私有 URL，后端全量 `269 passed`。
 - 数据库升级 R8 `studio_tasks` 本地基础：新增图片工作室任务 PostgreSQL schema、Alembic migration `20260607_0002`、`StudioTaskRepository` 协议和 file/PostgreSQL/dual repository；运行态仍默认 JSON/file-only，后端全量 `266 passed`。
 - 数据库升级 R7 staging precheck 记录：尝试恢复服务器 live rollout，但本机 Clash TUN/fake-ip 路径导致 SSH banner timeout、公网 health 超时；本轮未修改服务器状态，证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r7-staging-precheck/`。

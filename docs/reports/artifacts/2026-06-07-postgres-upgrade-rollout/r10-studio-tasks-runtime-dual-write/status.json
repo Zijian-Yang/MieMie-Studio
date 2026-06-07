@@ -1,0 +1,45 @@
+{
+  "state": "local_passed",
+  "stage": "r10-studio-tasks-runtime-dual-write",
+  "runtime_default": "file_only",
+  "staging_enabled": false,
+  "implemented": [
+    "studio_task_runtime_dual_write_feature_flag",
+    "json_primary_shadow_postgres_save",
+    "json_primary_shadow_postgres_delete",
+    "strict_shadow_write_option",
+    "non_strict_shadow_failure_keeps_json_primary"
+  ],
+  "verification": [
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_studio_task_dual_write.py -q",
+      "result": "3 passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_studio_task_dual_write.py backend/tests/test_studio_task_migration.py backend/tests/test_studio_task_repository.py backend/tests/test_studio_task_schema.py backend/tests/test_video_studio_task_dual_write.py backend/tests/test_video_studio_task_read_switch.py backend/tests/test_video_studio_task_primary_write.py backend/tests/test_storage_service.py backend/tests/test_studio_capabilities.py -q",
+      "result": "79 passed"
+    },
+    {
+      "command": "backend/.venv/bin/python -m py_compile backend/app/repositories/studio_task_runtime.py",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "docker compose config >/tmp/miemie-compose-config-check.txt",
+      "result": "passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests -q",
+      "result": "272 passed"
+    }
+  ],
+  "pending": [
+    "studio_tasks_read_switch",
+    "studio_tasks_primary_write",
+    "staging_postgres_rollout"
+  ],
+  "updated_at": "2026-06-07"
+}

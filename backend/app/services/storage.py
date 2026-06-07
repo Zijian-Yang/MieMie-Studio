@@ -397,10 +397,13 @@ class StorageService:
     
     def save_studio_task(self, task: StudioTask) -> None:
         """保存图片工作室任务（线程安全）"""
+        from app.repositories.studio_task_runtime import shadow_save_studio_task
+
         with self._lock:
             task.updated_at = datetime.now()
             file_path = self.studio_dir / f"{task.id}.json"
             self._write_json_with_lock(file_path, task.model_dump())
+        shadow_save_studio_task(self._get_owner_user_id(), task)
     
     def get_studio_task(self, task_id: str) -> Optional[StudioTask]:
         """获取图片工作室任务"""
@@ -421,9 +424,12 @@ class StorageService:
     
     def delete_studio_task(self, task_id: str) -> None:
         """删除图片工作室任务"""
+        from app.repositories.studio_task_runtime import shadow_mark_studio_task_deleted
+
         file_path = self.studio_dir / f"{task_id}.json"
         if file_path.exists():
             file_path.unlink()
+        shadow_mark_studio_task_deleted(self._get_owner_user_id(), task_id)
     
     # ============ Audio Library ============
     
