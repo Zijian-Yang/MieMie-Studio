@@ -604,6 +604,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-07 note: local user/config backfill and reconcile tooling is implemented through `backend/app/services/migration/backfill_user_config.py`, `backend/app/services/migration/reconcile_user_config.py`, `scripts/postgres_backfill_user_config.py`, and `scripts/postgres_reconcile_user_config.py`. Summaries are sanitized and avoid password hash values, raw keys, tokens, full config snapshots, sessions, and private user data. Runtime remains JSON/Redis/file-only; dual-write/read-switch/primary-write flags are still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r36-user-config-backfill-reconcile/`.
 
+2026-06-07 note: local user/config runtime dual-write is implemented through `backend/app/repositories/user_config_runtime.py`, `UserService` register/login/password-change save paths, and `ConfigManager.save()`. JSON remains primary; PostgreSQL shadow writes only run when `MIEMIE_DATABASE_ENABLED=true` and `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=user_config` or global dual-write mode is explicitly enabled. Sessions remain Redis + file fallback. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r37-user-config-runtime-dual-write/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

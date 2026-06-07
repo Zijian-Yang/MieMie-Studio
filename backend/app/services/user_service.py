@@ -51,6 +51,11 @@ class UserService:
         """保存所有用户（原子写入）"""
         self._write_json_with_lock(self.users_file, users)
 
+    def _shadow_save_user(self, user: User):
+        from app.repositories.user_config_runtime import shadow_save_user
+
+        shadow_save_user(user)
+
     def _lock_file_path(self, file_path: Path) -> Path:
         return file_path.with_suffix(file_path.suffix + '.lock')
 
@@ -220,6 +225,7 @@ class UserService:
             
             users[user.id] = user.model_dump()
             self._save_users(users)
+            self._shadow_save_user(user)
             
             # 创建用户数据目录
             self._ensure_user_data_dir(user.id)
@@ -247,6 +253,7 @@ class UserService:
                     user_data['last_login'] = datetime.now().isoformat()
                     users[user_id] = user_data
                     self._save_users(users)
+                    self._shadow_save_user(User(**user_data))
                     
                     # 生成 token（带过期时间）
                     token = self._generate_token(user_id)
@@ -368,6 +375,7 @@ class UserService:
             user_data['password'] = self._hash_password(new_password)
             users[user_id] = user_data
             self._save_users(users)
+            self._shadow_save_user(User(**user_data))
             self._delete_user_sessions(user_id)
             
             return True, "密码修改成功"

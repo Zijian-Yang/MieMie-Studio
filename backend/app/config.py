@@ -1049,6 +1049,10 @@ class ConfigManager:
         """保存配置"""
         with self._lock:
             self._write_with_lock(config.model_dump())
+            from app.repositories.user_config_runtime import shadow_save_config
+            from app.services.storage import get_current_user_id
+
+            shadow_save_config(get_current_user_id(), config)
     
     def update(self, **kwargs) -> AppConfig:
         """更新配置"""
