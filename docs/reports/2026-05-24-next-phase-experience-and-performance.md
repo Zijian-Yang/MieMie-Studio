@@ -610,6 +610,14 @@ pre 部署复验：
 - 运行态仍默认 JSON/file-only；benchmark read-switch + JSON fallback 和 primary-write 尚未启用。
 - 本地验证：RED gate 先因缺少 `benchmark_record_runtime` 模块失败；实现后 dual-write 测试 `4 passed`，benchmark/storage 目标集 `13 passed`，`py_compile` 通过，后端全量 `358 passed`。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r32-benchmark-records-runtime-dual-write/`。
 
+2026-06-07 阶段 7 R33 benchmark records read-switch：
+
+- `benchmark_record_runtime.py` 新增 read-switch 和 JSON fallback 开关，复用 `PostgresBenchmarkRecordRepository` 作为读仓库。
+- `StorageService` 图片/视频测评 dataset、suite、run 的单条读取、项目列表读取和 suite run 列表读取均可在显式开关下优先读 PostgreSQL。
+- `MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 时，PostgreSQL miss、空列表或异常回退 JSON；关闭 fallback 时 PostgreSQL 读异常会冒泡，便于灰度门禁发现数据/连接问题。
+- 运行态仍默认 JSON/file-only；benchmark PostgreSQL primary-write + JSON archive mirror 尚未启用。
+- 本地验证：RED gate 先因缺少 `build_benchmark_record_read_repository` 失败；实现后 read-switch 测试 `4 passed`，benchmark/storage 目标集 `17 passed`，`py_compile` 通过，后端全量 `362 passed`。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r33-benchmark-records-read-switch/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。

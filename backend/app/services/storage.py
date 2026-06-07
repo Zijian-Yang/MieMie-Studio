@@ -1399,6 +1399,27 @@ class StorageService:
 
         shadow_mark_benchmark_record_deleted(self._get_owner_user_id(), benchmark_kind, record_kind, record_id)
 
+    def _read_benchmark_record(self, benchmark_kind: str, record_kind: str, record_id: str, json_loader):
+        from app.repositories.benchmark_record_runtime import read_benchmark_record
+
+        return read_benchmark_record(self._get_owner_user_id(), benchmark_kind, record_kind, record_id, json_loader)
+
+    def _read_benchmark_records_for_project(self, benchmark_kind: str, record_kind: str, project_id: str, json_loader):
+        from app.repositories.benchmark_record_runtime import read_benchmark_records_for_project
+
+        return read_benchmark_records_for_project(
+            self._get_owner_user_id(),
+            benchmark_kind,
+            record_kind,
+            project_id,
+            json_loader,
+        )
+
+    def _read_benchmark_runs_for_suite(self, benchmark_kind: str, suite_id: str, json_loader):
+        from app.repositories.benchmark_record_runtime import read_benchmark_runs_for_suite
+
+        return read_benchmark_runs_for_suite(self._get_owner_user_id(), benchmark_kind, suite_id, json_loader)
+
     # ============ Image Benchmark Dataset ============
 
     def save_image_benchmark_dataset(self, dataset: ImageBenchmarkDataset) -> None:
@@ -1413,20 +1434,30 @@ class StorageService:
 
     def get_image_benchmark_dataset(self, dataset_id: str) -> Optional[ImageBenchmarkDataset]:
         """获取图片测评数据集"""
-        file_path = self.image_benchmark_datasets_dir / f"{dataset_id}.json"
-        data = self._read_json_with_lock(file_path)
-        if data:
-            return ImageBenchmarkDataset(**data)
-        return None
+        from app.repositories.benchmark_records import BENCHMARK_IMAGE, RECORD_DATASET
+
+        def load_json():
+            file_path = self.image_benchmark_datasets_dir / f"{dataset_id}.json"
+            data = self._read_json_with_lock(file_path)
+            if data:
+                return ImageBenchmarkDataset(**data)
+            return None
+
+        return self._read_benchmark_record(BENCHMARK_IMAGE, RECORD_DATASET, dataset_id, load_json)
 
     def get_image_benchmark_datasets(self, project_id: str) -> List[ImageBenchmarkDataset]:
         """获取项目下的图片测评数据集"""
-        datasets = []
-        for file_path in self.image_benchmark_datasets_dir.glob("*.json"):
-            data = self._read_json_with_lock(file_path)
-            if data and data.get("project_id") == project_id:
-                datasets.append(ImageBenchmarkDataset(**data))
-        return sorted(datasets, key=lambda item: item.updated_at, reverse=True)
+        from app.repositories.benchmark_records import BENCHMARK_IMAGE, RECORD_DATASET
+
+        def load_json():
+            datasets = []
+            for file_path in self.image_benchmark_datasets_dir.glob("*.json"):
+                data = self._read_json_with_lock(file_path)
+                if data and data.get("project_id") == project_id:
+                    datasets.append(ImageBenchmarkDataset(**data))
+            return sorted(datasets, key=lambda item: item.updated_at, reverse=True)
+
+        return self._read_benchmark_records_for_project(BENCHMARK_IMAGE, RECORD_DATASET, project_id, load_json)
 
     def delete_image_benchmark_dataset(self, dataset_id: str) -> None:
         """删除图片测评数据集"""
@@ -1451,20 +1482,30 @@ class StorageService:
 
     def get_image_benchmark_suite(self, suite_id: str) -> Optional[ImageBenchmarkSuite]:
         """获取图片测评配置"""
-        file_path = self.image_benchmark_suites_dir / f"{suite_id}.json"
-        data = self._read_json_with_lock(file_path)
-        if data:
-            return ImageBenchmarkSuite(**data)
-        return None
+        from app.repositories.benchmark_records import BENCHMARK_IMAGE, RECORD_SUITE
+
+        def load_json():
+            file_path = self.image_benchmark_suites_dir / f"{suite_id}.json"
+            data = self._read_json_with_lock(file_path)
+            if data:
+                return ImageBenchmarkSuite(**data)
+            return None
+
+        return self._read_benchmark_record(BENCHMARK_IMAGE, RECORD_SUITE, suite_id, load_json)
 
     def get_image_benchmark_suites(self, project_id: str) -> List[ImageBenchmarkSuite]:
         """获取项目下的图片测评配置"""
-        suites = []
-        for file_path in self.image_benchmark_suites_dir.glob("*.json"):
-            data = self._read_json_with_lock(file_path)
-            if data and data.get("project_id") == project_id:
-                suites.append(ImageBenchmarkSuite(**data))
-        return sorted(suites, key=lambda item: item.updated_at, reverse=True)
+        from app.repositories.benchmark_records import BENCHMARK_IMAGE, RECORD_SUITE
+
+        def load_json():
+            suites = []
+            for file_path in self.image_benchmark_suites_dir.glob("*.json"):
+                data = self._read_json_with_lock(file_path)
+                if data and data.get("project_id") == project_id:
+                    suites.append(ImageBenchmarkSuite(**data))
+            return sorted(suites, key=lambda item: item.updated_at, reverse=True)
+
+        return self._read_benchmark_records_for_project(BENCHMARK_IMAGE, RECORD_SUITE, project_id, load_json)
 
     def delete_image_benchmark_suite(self, suite_id: str) -> None:
         """删除图片测评配置"""
@@ -1489,29 +1530,44 @@ class StorageService:
 
     def get_image_benchmark_run(self, run_id: str) -> Optional[ImageBenchmarkRun]:
         """获取图片测评运行记录"""
-        file_path = self.image_benchmark_runs_dir / f"{run_id}.json"
-        data = self._read_json_with_lock(file_path)
-        if data:
-            return ImageBenchmarkRun(**data)
-        return None
+        from app.repositories.benchmark_records import BENCHMARK_IMAGE, RECORD_RUN
+
+        def load_json():
+            file_path = self.image_benchmark_runs_dir / f"{run_id}.json"
+            data = self._read_json_with_lock(file_path)
+            if data:
+                return ImageBenchmarkRun(**data)
+            return None
+
+        return self._read_benchmark_record(BENCHMARK_IMAGE, RECORD_RUN, run_id, load_json)
 
     def get_image_benchmark_runs_by_suite(self, suite_id: str) -> List[ImageBenchmarkRun]:
         """获取某个测评配置下的所有运行记录"""
-        runs = []
-        for file_path in self.image_benchmark_runs_dir.glob("*.json"):
-            data = self._read_json_with_lock(file_path)
-            if data and data.get("suite_id") == suite_id:
-                runs.append(ImageBenchmarkRun(**data))
-        return sorted(runs, key=lambda item: item.created_at, reverse=True)
+        from app.repositories.benchmark_records import BENCHMARK_IMAGE
+
+        def load_json():
+            runs = []
+            for file_path in self.image_benchmark_runs_dir.glob("*.json"):
+                data = self._read_json_with_lock(file_path)
+                if data and data.get("suite_id") == suite_id:
+                    runs.append(ImageBenchmarkRun(**data))
+            return sorted(runs, key=lambda item: item.created_at, reverse=True)
+
+        return self._read_benchmark_runs_for_suite(BENCHMARK_IMAGE, suite_id, load_json)
 
     def get_image_benchmark_runs_by_project(self, project_id: str) -> List[ImageBenchmarkRun]:
         """获取项目下的所有图片测评运行记录"""
-        runs = []
-        for file_path in self.image_benchmark_runs_dir.glob("*.json"):
-            data = self._read_json_with_lock(file_path)
-            if data and data.get("project_id") == project_id:
-                runs.append(ImageBenchmarkRun(**data))
-        return sorted(runs, key=lambda item: item.created_at, reverse=True)
+        from app.repositories.benchmark_records import BENCHMARK_IMAGE, RECORD_RUN
+
+        def load_json():
+            runs = []
+            for file_path in self.image_benchmark_runs_dir.glob("*.json"):
+                data = self._read_json_with_lock(file_path)
+                if data and data.get("project_id") == project_id:
+                    runs.append(ImageBenchmarkRun(**data))
+            return sorted(runs, key=lambda item: item.created_at, reverse=True)
+
+        return self._read_benchmark_records_for_project(BENCHMARK_IMAGE, RECORD_RUN, project_id, load_json)
 
     def delete_image_benchmark_run(self, run_id: str) -> None:
         """删除图片测评运行记录"""
@@ -1536,20 +1592,30 @@ class StorageService:
 
     def get_video_benchmark_dataset(self, dataset_id: str) -> Optional[VideoBenchmarkDataset]:
         """获取视频测评数据集"""
-        file_path = self.video_benchmark_datasets_dir / f"{dataset_id}.json"
-        data = self._read_json_with_lock(file_path)
-        if data:
-            return VideoBenchmarkDataset(**data)
-        return None
+        from app.repositories.benchmark_records import BENCHMARK_VIDEO, RECORD_DATASET
+
+        def load_json():
+            file_path = self.video_benchmark_datasets_dir / f"{dataset_id}.json"
+            data = self._read_json_with_lock(file_path)
+            if data:
+                return VideoBenchmarkDataset(**data)
+            return None
+
+        return self._read_benchmark_record(BENCHMARK_VIDEO, RECORD_DATASET, dataset_id, load_json)
 
     def get_video_benchmark_datasets(self, project_id: str) -> List[VideoBenchmarkDataset]:
         """获取项目下的视频测评数据集"""
-        datasets = []
-        for file_path in self.video_benchmark_datasets_dir.glob("*.json"):
-            data = self._read_json_with_lock(file_path)
-            if data and data.get("project_id") == project_id:
-                datasets.append(VideoBenchmarkDataset(**data))
-        return sorted(datasets, key=lambda item: item.updated_at, reverse=True)
+        from app.repositories.benchmark_records import BENCHMARK_VIDEO, RECORD_DATASET
+
+        def load_json():
+            datasets = []
+            for file_path in self.video_benchmark_datasets_dir.glob("*.json"):
+                data = self._read_json_with_lock(file_path)
+                if data and data.get("project_id") == project_id:
+                    datasets.append(VideoBenchmarkDataset(**data))
+            return sorted(datasets, key=lambda item: item.updated_at, reverse=True)
+
+        return self._read_benchmark_records_for_project(BENCHMARK_VIDEO, RECORD_DATASET, project_id, load_json)
 
     def delete_video_benchmark_dataset(self, dataset_id: str) -> None:
         """删除视频测评数据集"""
@@ -1574,20 +1640,30 @@ class StorageService:
 
     def get_video_benchmark_suite(self, suite_id: str) -> Optional[VideoBenchmarkSuite]:
         """获取视频测评配置"""
-        file_path = self.video_benchmark_suites_dir / f"{suite_id}.json"
-        data = self._read_json_with_lock(file_path)
-        if data:
-            return VideoBenchmarkSuite(**data)
-        return None
+        from app.repositories.benchmark_records import BENCHMARK_VIDEO, RECORD_SUITE
+
+        def load_json():
+            file_path = self.video_benchmark_suites_dir / f"{suite_id}.json"
+            data = self._read_json_with_lock(file_path)
+            if data:
+                return VideoBenchmarkSuite(**data)
+            return None
+
+        return self._read_benchmark_record(BENCHMARK_VIDEO, RECORD_SUITE, suite_id, load_json)
 
     def get_video_benchmark_suites(self, project_id: str) -> List[VideoBenchmarkSuite]:
         """获取项目下的视频测评配置"""
-        suites = []
-        for file_path in self.video_benchmark_suites_dir.glob("*.json"):
-            data = self._read_json_with_lock(file_path)
-            if data and data.get("project_id") == project_id:
-                suites.append(VideoBenchmarkSuite(**data))
-        return sorted(suites, key=lambda item: item.updated_at, reverse=True)
+        from app.repositories.benchmark_records import BENCHMARK_VIDEO, RECORD_SUITE
+
+        def load_json():
+            suites = []
+            for file_path in self.video_benchmark_suites_dir.glob("*.json"):
+                data = self._read_json_with_lock(file_path)
+                if data and data.get("project_id") == project_id:
+                    suites.append(VideoBenchmarkSuite(**data))
+            return sorted(suites, key=lambda item: item.updated_at, reverse=True)
+
+        return self._read_benchmark_records_for_project(BENCHMARK_VIDEO, RECORD_SUITE, project_id, load_json)
 
     def delete_video_benchmark_suite(self, suite_id: str) -> None:
         """删除视频测评配置"""
@@ -1612,29 +1688,44 @@ class StorageService:
 
     def get_video_benchmark_run(self, run_id: str) -> Optional[VideoBenchmarkRun]:
         """获取视频测评运行记录"""
-        file_path = self.video_benchmark_runs_dir / f"{run_id}.json"
-        data = self._read_json_with_lock(file_path)
-        if data:
-            return VideoBenchmarkRun(**data)
-        return None
+        from app.repositories.benchmark_records import BENCHMARK_VIDEO, RECORD_RUN
+
+        def load_json():
+            file_path = self.video_benchmark_runs_dir / f"{run_id}.json"
+            data = self._read_json_with_lock(file_path)
+            if data:
+                return VideoBenchmarkRun(**data)
+            return None
+
+        return self._read_benchmark_record(BENCHMARK_VIDEO, RECORD_RUN, run_id, load_json)
 
     def get_video_benchmark_runs_by_suite(self, suite_id: str) -> List[VideoBenchmarkRun]:
         """获取某个视频测评配置下的所有运行记录"""
-        runs = []
-        for file_path in self.video_benchmark_runs_dir.glob("*.json"):
-            data = self._read_json_with_lock(file_path)
-            if data and data.get("suite_id") == suite_id:
-                runs.append(VideoBenchmarkRun(**data))
-        return sorted(runs, key=lambda item: item.created_at, reverse=True)
+        from app.repositories.benchmark_records import BENCHMARK_VIDEO
+
+        def load_json():
+            runs = []
+            for file_path in self.video_benchmark_runs_dir.glob("*.json"):
+                data = self._read_json_with_lock(file_path)
+                if data and data.get("suite_id") == suite_id:
+                    runs.append(VideoBenchmarkRun(**data))
+            return sorted(runs, key=lambda item: item.created_at, reverse=True)
+
+        return self._read_benchmark_runs_for_suite(BENCHMARK_VIDEO, suite_id, load_json)
 
     def get_video_benchmark_runs_by_project(self, project_id: str) -> List[VideoBenchmarkRun]:
         """获取项目下的所有视频测评运行记录"""
-        runs = []
-        for file_path in self.video_benchmark_runs_dir.glob("*.json"):
-            data = self._read_json_with_lock(file_path)
-            if data and data.get("project_id") == project_id:
-                runs.append(VideoBenchmarkRun(**data))
-        return sorted(runs, key=lambda item: item.created_at, reverse=True)
+        from app.repositories.benchmark_records import BENCHMARK_VIDEO, RECORD_RUN
+
+        def load_json():
+            runs = []
+            for file_path in self.video_benchmark_runs_dir.glob("*.json"):
+                data = self._read_json_with_lock(file_path)
+                if data and data.get("project_id") == project_id:
+                    runs.append(VideoBenchmarkRun(**data))
+            return sorted(runs, key=lambda item: item.created_at, reverse=True)
+
+        return self._read_benchmark_records_for_project(BENCHMARK_VIDEO, RECORD_RUN, project_id, load_json)
 
     def delete_video_benchmark_run(self, run_id: str) -> None:
         """删除视频测评运行记录"""

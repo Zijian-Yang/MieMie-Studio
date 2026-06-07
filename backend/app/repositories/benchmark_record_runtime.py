@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from functools import lru_cache
+from typing import Callable
 
 from sqlalchemy.pool import NullPool
 
@@ -40,6 +41,23 @@ def benchmark_record_dual_write_enabled() -> bool:
     return write_mode in {"dual", "dual_write"} or DOMAIN in dual_domains
 
 
+def benchmark_record_read_enabled() -> bool:
+    """Return true when benchmark record reads should prefer PostgreSQL."""
+
+    if not database_enabled():
+        return False
+
+    read_mode = os.getenv("MIEMIE_DATABASE_READ_MODE", "file").strip().lower()
+    read_domains = _env_csv("MIEMIE_DATABASE_READ_DOMAINS")
+    return read_mode == "postgres" or DOMAIN in read_domains
+
+
+def json_fallback_read_enabled() -> bool:
+    """Return true when PostgreSQL read miss/error should fallback to JSON."""
+
+    return _env_true("MIEMIE_DATABASE_JSON_FALLBACK_READ")
+
+
 def strict_shadow_writes_enabled() -> bool:
     """Return true when PostgreSQL shadow write failures should be propagated."""
 
@@ -61,6 +79,10 @@ def clear_runtime_database_engine() -> None:
 
 
 def build_benchmark_record_shadow_repository(user_id: str) -> PostgresBenchmarkRecordRepository:
+    return PostgresBenchmarkRecordRepository(_runtime_engine(), user_id)
+
+
+def build_benchmark_record_read_repository(user_id: str) -> PostgresBenchmarkRecordRepository:
     return PostgresBenchmarkRecordRepository(_runtime_engine(), user_id)
 
 
@@ -118,3 +140,118 @@ def shadow_mark_benchmark_record_deleted(
                 "error": exc.__class__.__name__,
             },
         )
+
+
+def read_benchmark_record(
+    user_id: str | None,
+    benchmark_kind: str,
+    record_kind: str,
+    record_id: str,
+    json_loader: Callable[[], BenchmarkRecord | None],
+) -> BenchmarkRecord | None:
+    """Read one benchmark record from PostgreSQL when enabled."""
+
+    if not user_id or not benchmark_record_read_enabled():
+        return json_loader()
+
+    try:
+        record = build_benchmark_record_read_repository(user_id).get(benchmark_kind, record_kind, record_id)
+        if record is not None:
+            return record
+        if json_fallback_read_enabled():
+            logger.warning(
+                "benchmark_record_postgres_read_miss_json_fallback",
+                extra={
+                    "user_id": user_id,
+                    "benchmark_kind": benchmark_kind,
+                    "record_kind": record_kind,
+                    "record_id": record_id,
+                },
+            )
+            return json_loader()
+        return None
+    except Exception as exc:
+        if not json_fallback_read_enabled():
+            raise
+        logger.warning(
+            "benchmark_record_postgres_read_failed_json_fallback",
+            extra={
+                "user_id": user_id,
+                "benchmark_kind": benchmark_kind,
+                "record_kind": record_kind,
+                "record_id": record_id,
+                "error": exc.__class__.__name__,
+            },
+        )
+        return json_loader()
+
+
+def read_benchmark_records_for_project(
+    user_id: str | None,
+    benchmark_kind: str,
+    record_kind: str,
+    project_id: str,
+    json_loader: Callable[[], list[BenchmarkRecord]],
+) -> list[BenchmarkRecord]:
+    """Read benchmark records for a project from PostgreSQL when enabled."""
+
+    if not user_id or not benchmark_record_read_enabled():
+        return json_loader()
+
+    try:
+        records = build_benchmark_record_read_repository(user_id).list_for_project(
+            benchmark_kind,
+            record_kind,
+            project_id,
+        )
+        if records or not json_fallback_read_enabled():
+            return records
+        logger.warning(
+            "benchmark_record_postgres_project_empty_json_fallback",
+            extra={"user_id": user_id, "benchmark_kind": benchmark_kind, "record_kind": record_kind, "project_id": project_id},
+        )
+        return json_loader()
+    except Exception as exc:
+        if not json_fallback_read_enabled():
+            raise
+        logger.warning(
+            "benchmark_record_postgres_project_read_failed_json_fallback",
+            extra={
+                "user_id": user_id,
+                "benchmark_kind": benchmark_kind,
+                "record_kind": record_kind,
+                "project_id": project_id,
+                "error": exc.__class__.__name__,
+            },
+        )
+        return json_loader()
+
+
+def read_benchmark_runs_for_suite(
+    user_id: str | None,
+    benchmark_kind: str,
+    suite_id: str,
+    json_loader: Callable[[], list[BenchmarkRecord]],
+) -> list[BenchmarkRecord]:
+    """Read benchmark runs for a suite from PostgreSQL when enabled."""
+
+    if not user_id or not benchmark_record_read_enabled():
+        return json_loader()
+
+    try:
+        records = build_benchmark_record_read_repository(user_id).list_runs_for_suite(benchmark_kind, suite_id)
+        if records or not json_fallback_read_enabled():
+            return records
+        logger.warning(
+            "benchmark_record_postgres_suite_empty_json_fallback",
+            extra={"user_id": user_id, "benchmark_kind": benchmark_kind, "suite_id": suite_id},
+        )
+        return json_loader()
+    except Exception as exc:
+        if not json_fallback_read_enabled():
+            raise
+        logger.warning(
+            "benchmark_record_postgres_suite_read_failed_json_fallback",
+            extra={"user_id": user_id, "benchmark_kind": benchmark_kind, "suite_id": suite_id, "error": exc.__class__.__name__},
+        )
+        return json_loader()

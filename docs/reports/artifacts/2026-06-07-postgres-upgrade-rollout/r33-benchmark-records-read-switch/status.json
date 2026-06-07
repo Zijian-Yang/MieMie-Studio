@@ -1,0 +1,21 @@
+{
+  "state": "passed",
+  "stage": "r33-benchmark-records-read-switch",
+  "domain": "benchmark_records",
+  "default_runtime": "file-only",
+  "enabled_by": [
+    "MIEMIE_DATABASE_ENABLED=true",
+    "MIEMIE_DATABASE_READ_DOMAINS=benchmark_records",
+    "MIEMIE_DATABASE_READ_MODE=postgres"
+  ],
+  "json_fallback_flag": "MIEMIE_DATABASE_JSON_FALLBACK_READ=true",
+  "focused_tests": {
+    "red_gate": "expected failure: missing build_benchmark_record_read_repository",
+    "read_switch": "4 passed",
+    "target_set": "17 passed",
+    "py_compile": "passed"
+  },
+  "full_backend_tests": "362 passed",
+  "server_state_changed": false,
+  "updated_at": "2026-06-07T12:04:00+08:00"
+}

@@ -596,6 +596,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-07 note: local benchmark records runtime dual-write is implemented through `backend/app/repositories/benchmark_record_runtime.py` and `StorageService` image/video benchmark dataset/suite/run save/delete methods. JSON remains primary; PostgreSQL shadow writes only run when `MIEMIE_DATABASE_ENABLED=true` and `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=benchmark_records` or `MIEMIE_DATABASE_WRITE_MODE=dual/dual_write`. Shadow failures default to warning-only, while `MIEMIE_DATABASE_RECONCILE_STRICT=true` propagates them after the JSON write succeeds. Read-switch and primary-write remain pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r32-benchmark-records-runtime-dual-write/`.
 
+2026-06-07 note: local benchmark records read-switch and JSON fallback are implemented through `backend/app/repositories/benchmark_record_runtime.py` and `StorageService` image/video benchmark dataset/suite/run get/list methods. Reads prefer PostgreSQL only when `MIEMIE_DATABASE_ENABLED=true` and `MIEMIE_DATABASE_READ_DOMAINS=benchmark_records` or `MIEMIE_DATABASE_READ_MODE=postgres`; `MIEMIE_DATABASE_JSON_FALLBACK_READ=true` falls back to JSON on miss, empty project/suite list, or PostgreSQL read error. Primary-write remains pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r33-benchmark-records-read-switch/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
