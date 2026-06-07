@@ -410,10 +410,13 @@ class StorageService:
     
     def save_gallery_image(self, image: GalleryImage) -> None:
         """保存图库图片（线程安全）"""
+        from app.repositories.media_asset_runtime import shadow_save_gallery_image
+
         with self._lock:
             image.updated_at = datetime.now()
             file_path = self.gallery_dir / f"{image.id}.json"
             self._write_json_with_lock(file_path, image.model_dump())
+        shadow_save_gallery_image(self._get_owner_user_id(), image)
     
     def get_gallery_image(self, image_id: str) -> Optional[GalleryImage]:
         """获取图库图片"""
@@ -434,9 +437,12 @@ class StorageService:
     
     def delete_gallery_image(self, image_id: str) -> None:
         """删除图库图片"""
+        from app.repositories.media_asset_runtime import shadow_mark_media_asset_deleted
+
         file_path = self.gallery_dir / f"{image_id}.json"
         if file_path.exists():
             file_path.unlink()
+        shadow_mark_media_asset_deleted(self._get_owner_user_id(), image_id)
     
     # ============ Studio Task ============
     
@@ -524,10 +530,13 @@ class StorageService:
     
     def save_audio_item(self, audio: AudioItem) -> None:
         """保存音频项（线程安全）"""
+        from app.repositories.media_asset_runtime import shadow_save_audio_item
+
         with self._lock:
             audio.updated_at = datetime.now()
             file_path = self.audio_dir / f"{audio.id}.json"
             self._write_json_with_lock(file_path, audio.model_dump())
+        shadow_save_audio_item(self._get_owner_user_id(), audio)
     
     def get_audio_item(self, audio_id: str) -> Optional[AudioItem]:
         """获取音频项"""
@@ -548,18 +557,24 @@ class StorageService:
     
     def delete_audio_item(self, audio_id: str) -> None:
         """删除音频项"""
+        from app.repositories.media_asset_runtime import shadow_mark_media_asset_deleted
+
         file_path = self.audio_dir / f"{audio_id}.json"
         if file_path.exists():
             file_path.unlink()
+        shadow_mark_media_asset_deleted(self._get_owner_user_id(), audio_id)
     
     # ============ Video Library ============
     
     def save_video_item(self, video: VideoItem) -> None:
         """保存视频项（线程安全）"""
+        from app.repositories.media_asset_runtime import shadow_save_video_item
+
         with self._lock:
             video.updated_at = datetime.now()
             file_path = self.video_library_dir / f"{video.id}.json"
             self._write_json_with_lock(file_path, video.model_dump())
+        shadow_save_video_item(self._get_owner_user_id(), video)
     
     def get_video_item(self, video_id: str) -> Optional[VideoItem]:
         """获取视频项"""
@@ -580,18 +595,24 @@ class StorageService:
     
     def delete_video_item(self, video_id: str) -> None:
         """删除视频项"""
+        from app.repositories.media_asset_runtime import shadow_mark_media_asset_deleted
+
         file_path = self.video_library_dir / f"{video_id}.json"
         if file_path.exists():
             file_path.unlink()
+        shadow_mark_media_asset_deleted(self._get_owner_user_id(), video_id)
     
     # ============ Text Library ============
     
     def save_text_item(self, text: TextItem) -> None:
         """保存文本项（线程安全）"""
+        from app.repositories.media_asset_runtime import shadow_save_text_item
+
         with self._lock:
             text.updated_at = datetime.now()
             file_path = self.text_library_dir / f"{text.id}.json"
             self._write_json_with_lock(file_path, text.model_dump())
+        shadow_save_text_item(self._get_owner_user_id(), text)
     
     def get_text_item(self, text_id: str) -> Optional[TextItem]:
         """获取文本项"""
@@ -612,9 +633,12 @@ class StorageService:
     
     def delete_text_item(self, text_id: str) -> None:
         """删除文本项"""
+        from app.repositories.media_asset_runtime import shadow_mark_text_item_deleted
+
         file_path = self.text_library_dir / f"{text_id}.json"
         if file_path.exists():
             file_path.unlink()
+        shadow_mark_text_item_deleted(self._get_owner_user_id(), text_id)
     
     # ============ Video Studio ============
     

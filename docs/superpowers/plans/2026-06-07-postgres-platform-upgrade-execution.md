@@ -572,6 +572,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-07 note: local media metadata backfill/reconcile tooling is implemented through `backend/app/services/migration/backfill_media_metadata.py`, `backend/app/services/migration/reconcile_media_metadata.py`, `scripts/postgres_backfill_media_metadata.py`, and `scripts/postgres_reconcile_media_metadata.py`. Summaries are sanitized and compare only safe indexed fields; they avoid text contents, prompts, provider payloads, key/token/password values, and private URLs. Runtime remains file-only; dual-write, read-switch, primary-write, and frontend smoke are still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r20-media-metadata-backfill-reconcile/`.
 
+2026-06-07 note: local media metadata runtime dual-write is implemented through `backend/app/repositories/media_asset_runtime.py` and `StorageService` gallery/audio/video/text save/delete methods. JSON remains primary; PostgreSQL shadow writes only run when `MIEMIE_DATABASE_ENABLED=true` and `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=media_metadata` or `MIEMIE_DATABASE_WRITE_MODE=dual/dual_write`. Read-switch, primary-write, and frontend smoke are still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r21-media-metadata-runtime-dual-write/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

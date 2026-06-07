@@ -1,0 +1,34 @@
+{
+  "state": "passed",
+  "stage": "r21-media-metadata-runtime-dual-write",
+  "domain": "media_metadata",
+  "runtime_mode": "file_primary_dual_write_available",
+  "server_state_changed": false,
+  "summary": "Media metadata runtime dual-write is available behind explicit feature flags; JSON remains primary by default.",
+  "feature_flags": {
+    "enabled_by": [
+      "MIEMIE_DATABASE_ENABLED=true",
+      "MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=media_metadata"
+    ],
+    "global_dual_modes": [
+      "MIEMIE_DATABASE_WRITE_MODE=dual",
+      "MIEMIE_DATABASE_WRITE_MODE=dual_write"
+    ],
+    "strict_shadow_failures": "MIEMIE_DATABASE_RECONCILE_STRICT=true"
+  },
+  "verification": {
+    "red_import_gate": "failed before implementation with ModuleNotFoundError",
+    "focused_dual_write_tests": "3 passed",
+    "media_target_tests": "16 passed",
+    "wider_db_target_tests": "39 passed",
+    "full_backend_tests": "316 passed",
+    "py_compile": "passed",
+    "docker_compose_config": "passed"
+  },
+  "pending": [
+    "media metadata read-switch with JSON fallback",
+    "media metadata PostgreSQL primary-write with JSON archive mirror",
+    "frontend smoke after asset selector read-switch"
+  ],
+  "updated_at": "2026-06-07T09:43:00+0800"
+}
