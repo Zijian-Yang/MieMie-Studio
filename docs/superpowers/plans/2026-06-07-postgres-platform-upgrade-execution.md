@@ -580,6 +580,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-07 note: local project editing entity schema/repository boundary is implemented. `project_entities` covers `character`, `scene`, `prop`, `frame`, `video`, and `style` with shared index columns plus `raw_entity_snapshot`; Alembic revision `20260607_0005` is added, runtime remains file-only, and backfill/reconcile plus read/write flags are still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r24-project-entities-local-schema-repository/`.
 
+2026-06-07 note: local project editing entity backfill/reconcile tooling is implemented through `backend/app/services/migration/backfill_project_entities.py`, `backend/app/services/migration/reconcile_project_entities.py`, `scripts/postgres_backfill_project_entities.py`, and `scripts/postgres_reconcile_project_entities.py`. Summaries are sanitized and compare only safe indexed fields; they avoid names, descriptions, prompts, text style bodies, provider task ids, key/token/password values, and private URLs. Runtime remains file-only; dual-write, read-switch, primary-write, and frontend smoke are still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r25-project-entities-backfill-reconcile/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

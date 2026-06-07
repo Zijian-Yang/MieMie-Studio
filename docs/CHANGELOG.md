@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R25 project entities backfill/reconcile：新增角色、场景、道具、首帧、视频和风格 JSON 扫描、PostgreSQL upsert、脱敏 JSON/Markdown 对账摘要和两个维护脚本；摘要不包含名称、描述、prompt、text style body、provider task id、key/token/password 或私有 URL，后端全量 `334 passed`。
 - 数据库升级 R24 project entities 本地基础：新增 `project_entities` schema、Alembic migration `20260607_0005`、角色/场景/道具/首帧/视频/风格统一 repository boundary；运行态仍默认 JSON/file-only，后端全量 `331 passed`。
 - 数据库升级 R23 media metadata PostgreSQL primary write：新增图库、音频库、视频库和文本库主写开关和可选 JSON archive mirror；显式启用后保存/删除先写 PostgreSQL，默认不再写 JSON，主写失败不落 JSON 分叉状态，后端全量 `324 passed`。
 - 数据库升级 R22 media metadata read switch：新增图库、音频库、视频库和文本库 PostgreSQL 优先读开关与 JSON fallback，默认 file-only；显式启用后 get/list 可优先读 PostgreSQL，miss/空列表/异常可回退 JSON，后端全量 `320 passed`。

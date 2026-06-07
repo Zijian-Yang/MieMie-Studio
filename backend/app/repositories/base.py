@@ -158,6 +158,9 @@ class ProjectEntityRepository(Protocol):
     def list_for_project(self, entity_kind: str, project_id: str) -> list[Any]:
         """Return entities for a project in the legacy list order."""
 
+    def list_all(self, entity_kind: str) -> list[Any]:
+        """Return all entities of a kind in the current user namespace."""
+
     def delete(self, entity_kind: str, entity_id: str) -> None:
         """Delete an entity."""
 

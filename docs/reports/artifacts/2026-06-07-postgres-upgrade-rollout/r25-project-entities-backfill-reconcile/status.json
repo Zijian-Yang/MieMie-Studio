@@ -1,0 +1,31 @@
+{
+  "state": "passed",
+  "stage": "r25-project-entities-backfill-reconcile",
+  "domain": "project_entities",
+  "runtime_mode": "file_only",
+  "server_state_changed": false,
+  "summary": "Local project editing entity backfill and sanitized reconcile tooling added for characters, scenes, props, frames, videos, and styles.",
+  "entity_kinds": [
+    "character",
+    "scene",
+    "prop",
+    "frame",
+    "video",
+    "style"
+  ],
+  "verification": {
+    "red_import_gate": "failed before implementation with missing backfill_project_entities module",
+    "focused_migration_tests": "3 passed",
+    "project_entity_target_tests": "10 passed",
+    "cross_domain_migration_target_tests": "22 passed",
+    "full_backend_tests": "334 passed",
+    "py_compile": "passed"
+  },
+  "pending": [
+    "project entity runtime dual-write",
+    "project entity read-switch with JSON fallback",
+    "project entity PostgreSQL primary-write with JSON archive mirror",
+    "server live migration/backfill/reconcile/read-switch/primary-write gates"
+  ],
+  "updated_at": "2026-06-07T10:42:00+0800"
+}

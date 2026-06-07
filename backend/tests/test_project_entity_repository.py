@@ -154,9 +154,11 @@ def test_file_project_entity_repository_preserves_storage_behavior(tmp_path):
     assert repo.get_character("character-1").id == "character-1"
     assert repo.get_scene("scene-1").id == "scene-1"
     assert repo.get_prop("prop-1").id == "prop-1"
+    assert [character.id for character in repo.list_all(CHARACTER)] == ["character-1"]
     assert repo.get_frame("newer").id == "newer"
     assert repo.get_frame_by_shot("project-1", "shot-1").id == "newer"
     assert [frame.id for frame in repo.list_frames_for_project("project-1")] == ["older", "newer"]
+    assert [frame.id for frame in repo.list_all(FRAME)] == ["older", "newer"]
     assert repo.get_video("video-1").id == "video-1"
     assert repo.get_video_by_shot("project-1", "shot-1").id == "video-1"
     assert repo.get_video_by_task("provider-task-1").id == "video-1"
@@ -192,6 +194,13 @@ class _RecordingRepository:
             if kind == entity_kind and entity.project_id == project_id
         ]
 
+    def list_all(self, entity_kind):
+        return [
+            entity
+            for (kind, _), entity in self.entities.items()
+            if kind == entity_kind
+        ]
+
     def delete(self, entity_kind, entity_id):
         self.deleted.append((entity_kind, entity_id))
         self.entities.pop((entity_kind, entity_id), None)
@@ -211,6 +220,7 @@ def test_dual_project_entity_repository_saves_file_first_and_tolerates_shadow_fa
     assert primary.saved == [(CHARACTER, "character-1")]
     assert shadow.saved == []
     assert repo.get(CHARACTER, "character-1") == character
+    assert repo.list_all(CHARACTER) == [character]
 
 
 def test_dual_project_entity_repository_can_enforce_strict_shadow_writes():

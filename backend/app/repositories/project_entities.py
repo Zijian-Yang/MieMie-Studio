@@ -170,6 +170,21 @@ class FileProjectEntityRepository:
             return self.list_styles_for_project(project_id)
         raise ValueError(f"Unsupported project entity kind: {entity_kind}")
 
+    def list_all(self, entity_kind: str) -> list[ProjectEntity]:
+        if entity_kind == CHARACTER:
+            return self._list_all_dir(self._storage.characters_dir, Character, lambda item: item.created_at)
+        if entity_kind == SCENE:
+            return self._list_all_dir(self._storage.scenes_dir, Scene, lambda item: item.created_at)
+        if entity_kind == PROP:
+            return self._list_all_dir(self._storage.props_dir, Prop, lambda item: item.created_at)
+        if entity_kind == FRAME:
+            return self._list_all_dir(self._storage.frames_dir, Frame, lambda item: (item.project_id, item.shot_number))
+        if entity_kind == VIDEO:
+            return self._list_all_dir(self._storage.videos_dir, Video, lambda item: (item.project_id, item.shot_number))
+        if entity_kind == STYLE:
+            return self._list_all_dir(self._storage.styles_dir, Style, lambda item: item.created_at)
+        raise ValueError(f"Unsupported project entity kind: {entity_kind}")
+
     def delete(self, entity_kind: str, entity_id: str) -> None:
         if entity_kind == CHARACTER:
             self.delete_character(entity_id)
@@ -200,6 +215,19 @@ class FileProjectEntityRepository:
         for file_path in directory.glob("*.json"):
             data = self._storage._read_json_with_lock(file_path)
             if data and data.get("project_id") == project_id:
+                items.append(model(**data))
+        return sorted(items, key=sort_key)
+
+    def _list_all_dir(
+        self,
+        directory,
+        model: type[EntityT],
+        sort_key: Callable[[EntityT], Any],
+    ) -> list[EntityT]:
+        items = []
+        for file_path in directory.glob("*.json"):
+            data = self._storage._read_json_with_lock(file_path)
+            if data:
                 items.append(model(**data))
         return sorted(items, key=sort_key)
 
@@ -338,6 +366,25 @@ class PostgresProjectEntityRepository:
             rows = connection.execute(statement).mappings().all()
         return [row_to_entity(row) for row in rows]
 
+    def list_all(self, entity_kind: str) -> list[ProjectEntity]:
+        statement = (
+            select(project_entities)
+            .where(project_entities.c.user_id == self._user_id)
+            .where(project_entities.c.entity_kind == entity_kind)
+            .where(project_entities.c.deleted_at.is_(None))
+        )
+        if entity_kind in {FRAME, VIDEO}:
+            statement = statement.order_by(
+                project_entities.c.project_id.asc(),
+                project_entities.c.shot_number.asc(),
+                project_entities.c.created_at.asc(),
+            )
+        else:
+            statement = statement.order_by(project_entities.c.updated_at.desc())
+        with self._engine.connect() as connection:
+            rows = connection.execute(statement).mappings().all()
+        return [row_to_entity(row) for row in rows]
+
     def delete(self, entity_kind: str, entity_id: str) -> None:
         self.mark_deleted(entity_kind, entity_id)
 
@@ -390,6 +437,9 @@ class DualProjectEntityRepository:
 
     def list_for_project(self, entity_kind: str, project_id: str) -> list[ProjectEntity]:
         return self._primary.list_for_project(entity_kind, project_id)
+
+    def list_all(self, entity_kind: str) -> list[ProjectEntity]:
+        return self._primary.list_all(entity_kind)
 
     def delete(self, entity_kind: str, entity_id: str) -> None:
         self.mark_deleted(entity_kind, entity_id)

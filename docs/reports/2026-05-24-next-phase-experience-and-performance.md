@@ -546,6 +546,14 @@ pre 部署复验：
 - 本轮不接入 runtime dual-write/read-switch/primary-write；默认运行态仍为 JSON/file-only。
 - 本地验证：RED collection gate 先因缺少 `project_entities` schema/repository 模块失败；实现后 project entity 测试 `7 passed`，schema/repository 目标集 `16 passed`，`py_compile`、`docker compose config` 均通过，后端全量 `331 passed`。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r24-project-entities-local-schema-repository/`。
 
+2026-06-07 阶段 7 R25 project entities backfill/reconcile：
+
+- 新增 `backend/app/services/migration/backfill_project_entities.py`，扫描角色、场景、道具、首帧、视频和风格 JSON，并按 `entity_kind` upsert 到 project entity repository。
+- 新增 `backend/app/services/migration/reconcile_project_entities.py`，输出 JSON/Markdown 对账摘要；摘要只比较安全索引字段，不包含名称、描述、prompt、text style body、provider task id、token/key/password 或私有 URL。
+- 新增 `scripts/postgres_backfill_project_entities.py` 和 `scripts/postgres_reconcile_project_entities.py` 两个维护脚本；默认 artifact 目录指向本轮 R25 证据目录。
+- 本轮不接入 runtime dual-write/read-switch/primary-write；默认运行态仍为 JSON/file-only。
+- 本地验证：RED import gate 先以 `ModuleNotFoundError` 失败；实现后 migration 测试 `3 passed`，project entity 目标集 `10 passed`，跨域 migration 目标集 `22 passed`，`py_compile` 通过，后端全量 `334 passed`。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r25-project-entities-backfill-reconcile/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -560,4 +568,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步优先级有两条线：恢复 SSH/public health 后收口 R1/R2 服务器 rollout、执行 live migration/backfill/reconcile、灰度启用双写、读切换和 primary-write；若服务器路径仍阻塞，本地继续补 project entities backfill/reconcile。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 数据库升级仍在进行中，尚未完成最终切库。
+- 下一步优先级有两条线：恢复 SSH/public health 后收口 R1/R2 服务器 rollout、执行 live migration/backfill/reconcile、灰度启用双写、读切换和 primary-write；若服务器路径仍阻塞，本地继续补 project entities runtime dual-write。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 数据库升级仍在进行中，尚未完成最终切库。
