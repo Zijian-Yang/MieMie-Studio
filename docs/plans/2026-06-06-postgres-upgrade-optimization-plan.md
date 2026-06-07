@@ -232,6 +232,8 @@ create index idx_video_studio_tasks_submit_attempt
 - 初期继续从 JSON 回填。
 - 级联删除先不完全交给数据库外键，保留应用层删除逻辑，避免第一阶段行为差异。
 
+2026-06-07 progress: `projects` 本地 schema、Alembic migration `20260607_0003_projects`、`ProjectRepository` 协议和 file/PostgreSQL/dual repository 边界已完成；表采用项目索引列 + `raw_project_snapshot` JSONB 的过渡模式，默认运行态仍为 JSON/file-only，尚未接入 backfill/reconcile、dual-write、read-switch 或 primary-write。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r13-projects-local-schema-repository/`。
+
 ### P4：媒体库 metadata
 
 迁图库、视频库、音频库、文本库 metadata。

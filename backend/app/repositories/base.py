@@ -5,6 +5,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Optional, Protocol
 
+from app.models.project import Project
 from app.models.media import VideoStudioTask
 from app.models.studio import StudioTask
 
@@ -57,3 +58,20 @@ class StudioTaskRepository(Protocol):
 
     def mark_deleted(self, task_id: str) -> None:
         """Mark a task deleted, using soft delete when supported."""
+
+
+class ProjectRepository(Protocol):
+    def save(self, project: Project) -> None:
+        """Persist a project."""
+
+    def get(self, project_id: str) -> Optional[Project]:
+        """Return a project by id, or None when it does not exist."""
+
+    def list_all(self) -> list[Project]:
+        """Return all projects in the legacy list order."""
+
+    def delete(self, project_id: str) -> None:
+        """Delete a project."""
+
+    def mark_deleted(self, project_id: str) -> None:
+        """Mark a project deleted, using soft delete when supported."""

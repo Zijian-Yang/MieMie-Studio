@@ -1,0 +1,53 @@
+{
+  "state": "local_passed",
+  "stage": "r13-projects-local-schema-repository",
+  "runtime_default": "file_only",
+  "staging_enabled": false,
+  "implemented": [
+    "projects_sqlalchemy_schema",
+    "alembic_revision_20260607_0003_projects",
+    "project_repository_protocol",
+    "file_project_repository",
+    "postgres_project_repository",
+    "dual_project_repository",
+    "raw_project_snapshot_jsonb"
+  ],
+  "verification": [
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_project_schema.py backend/tests/test_project_repository.py -q",
+      "result": "7 passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests/test_project_schema.py backend/tests/test_project_repository.py backend/tests/test_studio_task_schema.py backend/tests/test_studio_task_repository.py backend/tests/test_studio_task_migration.py backend/tests/test_studio_task_dual_write.py backend/tests/test_studio_task_read_switch.py backend/tests/test_studio_task_primary_write.py backend/tests/test_video_studio_task_schema.py backend/tests/test_video_studio_task_repository.py backend/tests/test_video_studio_task_migration.py backend/tests/test_video_studio_task_dual_write.py backend/tests/test_video_studio_task_read_switch.py backend/tests/test_video_studio_task_primary_write.py backend/tests/test_database_health.py -q",
+      "result": "52 passed"
+    },
+    {
+      "command": "backend/.venv/bin/python -m py_compile backend/app/db/schema/projects.py backend/app/repositories/projects.py backend/app/db/migrations/versions/20260607_0003_projects.py",
+      "result": "passed"
+    },
+    {
+      "command": "MIEMIE_DATABASE_URL=postgresql+psycopg://miemie:example@postgres:5432/miemie backend/.venv/bin/alembic -c backend/alembic.ini upgrade head --sql",
+      "result": "generated SQL through 20260607_0003"
+    },
+    {
+      "command": "docker compose config",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "backend/.venv/bin/pytest backend/tests -q",
+      "result": "287 passed"
+    }
+  ],
+  "pending": [
+    "projects_backfill_reconcile",
+    "projects_runtime_dual_write",
+    "projects_read_switch",
+    "projects_primary_write",
+    "staging_postgres_rollout"
+  ],
+  "updated_at": "2026-06-07"
+}
