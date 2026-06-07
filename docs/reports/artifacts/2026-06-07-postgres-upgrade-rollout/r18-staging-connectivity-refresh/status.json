@@ -1,0 +1,36 @@
+{
+  "state": "blocked",
+  "stage": "r18-staging-connectivity-refresh",
+  "server_mutated": false,
+  "ssh": {
+    "state": "blocked",
+    "result": "Connection closed by 47.79.99.190 port 22"
+  },
+  "dns": {
+    "hostname": "pre-studio.miemie.co",
+    "a_records": ["198.18.2.211"],
+    "state": "fake-ip"
+  },
+  "route": {
+    "target": "47.79.99.190",
+    "interface": "utun1024",
+    "gateway": "198.18.0.1",
+    "state": "tun"
+  },
+  "tcp_22": "reachable",
+  "public_health": {
+    "state": "timeout",
+    "url": "https://pre-studio.miemie.co/api/health",
+    "timeout_seconds": 20
+  },
+  "blocked_items": [
+    "remote compose ps",
+    "server-local api health",
+    "postgres container health",
+    "live migration",
+    "live backfill/reconcile",
+    "backup/restore rehearsal",
+    "staging dual-write/read-switch/primary-write gates"
+  ],
+  "updated_at": "2026-06-07T09:10:00+08:00"
+}

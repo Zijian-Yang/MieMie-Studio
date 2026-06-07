@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R18 staging 连通性刷新：只读检查显示本机仍经 Clash TUN/fake-IP 路径，SSH 命令被远端关闭、公网 health 超时，TCP 22 可达但不足以执行服务器 rollout；本轮未修改服务器状态，证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r18-staging-connectivity-refresh/`。
 - 数据库升级 R17 `projects` PostgreSQL primary write：新增项目主写开关和可选 JSON archive mirror；显式启用后项目保存/删除先写 PostgreSQL，默认不再写 JSON，主写失败不落 JSON 分叉状态，后端全量 `301 passed`。
 - 数据库升级 R16 `projects` read switch：新增项目 PostgreSQL 优先读开关与 JSON fallback，默认 file-only；显式启用后项目详情与项目列表优先读 PostgreSQL，miss/空列表/异常可回退 JSON，后端全量 `297 passed`。
 - 数据库升级 R15 `projects` runtime dual-write：新增项目写侧 feature flag，默认 file-only；显式启用后 JSON 主写/删除成功再 shadow 写 PostgreSQL，shadow 失败默认不打断 JSON 主路径，后端全量 `293 passed`。
