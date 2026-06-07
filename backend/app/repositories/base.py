@@ -88,6 +88,9 @@ class MediaAssetRepository(Protocol):
     def list_gallery_images_for_project(self, project_id: str) -> list[GalleryImage]:
         """Return gallery images for a project in the legacy list order."""
 
+    def list_all_gallery_images(self) -> list[GalleryImage]:
+        """Return all gallery images in this user namespace."""
+
     def delete_gallery_image(self, image_id: str) -> None:
         """Delete a gallery image."""
 
@@ -100,6 +103,9 @@ class MediaAssetRepository(Protocol):
     def list_audio_items_for_project(self, project_id: str) -> list[AudioItem]:
         """Return audio items for a project in the legacy list order."""
 
+    def list_all_audio_items(self) -> list[AudioItem]:
+        """Return all audio items in this user namespace."""
+
     def delete_audio_item(self, audio_id: str) -> None:
         """Delete an audio item."""
 
@@ -111,6 +117,9 @@ class MediaAssetRepository(Protocol):
 
     def list_video_items_for_project(self, project_id: str) -> list[VideoItem]:
         """Return video items for a project in the legacy list order."""
+
+    def list_all_video_items(self) -> list[VideoItem]:
+        """Return all video items in this user namespace."""
 
     def delete_video_item(self, video_id: str) -> None:
         """Delete a video item."""
@@ -128,6 +137,9 @@ class TextItemRepository(Protocol):
 
     def list_for_project(self, project_id: str) -> list[TextItem]:
         """Return text items for a project in the legacy list order."""
+
+    def list_all(self) -> list[TextItem]:
+        """Return all text items in this user namespace."""
 
     def delete(self, item_id: str) -> None:
         """Delete a text item."""

@@ -570,6 +570,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-07 note: local media metadata schema/repository boundary is implemented. `media_assets` covers gallery images, audio library items, and video library items with shared URL/metadata/index columns plus `raw_media_snapshot`; `text_items` covers text library content and versions with `raw_text_snapshot`. Alembic revision `20260607_0004` is added, runtime remains file-only, and backfill/reconcile plus read/write flags are still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r19-media-metadata-local-schema-repository/`.
 
+2026-06-07 note: local media metadata backfill/reconcile tooling is implemented through `backend/app/services/migration/backfill_media_metadata.py`, `backend/app/services/migration/reconcile_media_metadata.py`, `scripts/postgres_backfill_media_metadata.py`, and `scripts/postgres_reconcile_media_metadata.py`. Summaries are sanitized and compare only safe indexed fields; they avoid text contents, prompts, provider payloads, key/token/password values, and private URLs. Runtime remains file-only; dual-write, read-switch, primary-write, and frontend smoke are still pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r20-media-metadata-backfill-reconcile/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

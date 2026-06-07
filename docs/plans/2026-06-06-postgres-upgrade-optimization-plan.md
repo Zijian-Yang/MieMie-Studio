@@ -244,6 +244,8 @@ create index idx_video_studio_tasks_submit_attempt
 - DB 存 URL、project_id、user_id、source、size、duration、metadata、created_at。
 - 列表查询走 DB 后，素材选择面板会明显受益。
 
+2026-06-07 progress: media metadata 本地 schema/repository boundary 已完成；`media_assets` 覆盖图库、音频库和视频库 metadata，`text_items` 覆盖文本库内容与版本快照，文件本体继续保留在 OSS/URL。本地 backfill/reconcile 服务和维护脚本已完成，摘要保持脱敏，只比较安全索引字段，不包含文本内容、prompt、provider payload、token/key/password 或私有 URL。运行态默认仍为 JSON/file-only，runtime dual-write、read-switch + JSON fallback、PostgreSQL primary-write + JSON archive mirror 和前端 smoke 尚未完成。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r19-media-metadata-local-schema-repository/` 和 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r20-media-metadata-backfill-reconcile/`。
+
 ### P5：角色/场景/道具/分镜/视频/风格
 
 项目主数据稳定后迁这些编辑域。
@@ -503,6 +505,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 - [ ] 素材选择相关接口读切换后复跑前端 smoke。
 
 2026-06-07 进度：media metadata 第一刀已完成本地 schema/repository boundary。`media_assets` 覆盖图库图片、音频库和视频库 metadata，`text_items` 独立覆盖文本库内容与版本快照；文件本体继续留在 OSS/URL，不迁入 PostgreSQL。运行态默认仍为 file-only，backfill/reconcile、runtime dual-write、read-switch、primary-write 和前端 smoke 尚未完成。
+2026-06-07 追加进度：media metadata backfill/reconcile 已完成本地实现和维护脚本，摘要保持脱敏并只比较安全字段；运行态默认仍为 file-only。下一步是 media metadata runtime dual-write，然后 read-switch + JSON fallback，再进入 primary-write + JSON archive mirror。
 
 ### Task 10：剩余 domain 逐步迁移
 

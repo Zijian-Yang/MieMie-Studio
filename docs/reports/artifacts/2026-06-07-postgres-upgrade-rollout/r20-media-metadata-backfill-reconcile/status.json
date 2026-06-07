@@ -1,0 +1,25 @@
+{
+  "state": "passed",
+  "stage": "r20-media-metadata-backfill-reconcile",
+  "domain": "media_metadata",
+  "runtime_mode": "file_only",
+  "server_state_changed": false,
+  "summary": "Local media metadata backfill and sanitized reconcile tooling added for media_assets and text_items.",
+  "verification": {
+    "red_import_gate": "failed before implementation with ModuleNotFoundError",
+    "focused_migration_tests": "3 passed",
+    "media_target_tests": "13 passed",
+    "wider_db_target_tests": "36 passed",
+    "full_backend_tests": "313 passed",
+    "py_compile": "passed",
+    "git_diff_check": "passed",
+    "docker_compose_config": "passed"
+  },
+  "pending": [
+    "media metadata runtime dual-write",
+    "media metadata read-switch with JSON fallback",
+    "media metadata PostgreSQL primary-write with JSON archive mirror",
+    "frontend smoke after asset selector read-switch"
+  ],
+  "updated_at": "2026-06-07T09:30:33+0800"
+}

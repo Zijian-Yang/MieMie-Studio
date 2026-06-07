@@ -183,6 +183,14 @@ class FileMediaAssetRepository:
     def list_gallery_images_for_project(self, project_id: str) -> list[GalleryImage]:
         return self._storage.get_gallery_images_by_project(project_id)
 
+    def list_all_gallery_images(self) -> list[GalleryImage]:
+        images = []
+        for file_path in self._storage.gallery_dir.glob("*.json"):
+            data = self._storage._read_json_with_lock(file_path)
+            if data:
+                images.append(GalleryImage(**data))
+        return sorted(images, key=lambda image: image.created_at, reverse=True)
+
     def delete_gallery_image(self, image_id: str) -> None:
         self._storage.delete_gallery_image(image_id)
 
@@ -195,6 +203,14 @@ class FileMediaAssetRepository:
     def list_audio_items_for_project(self, project_id: str) -> list[AudioItem]:
         return self._storage.get_audio_items(project_id)
 
+    def list_all_audio_items(self) -> list[AudioItem]:
+        audios = []
+        for file_path in self._storage.audio_dir.glob("*.json"):
+            data = self._storage._read_json_with_lock(file_path)
+            if data:
+                audios.append(AudioItem(**data))
+        return sorted(audios, key=lambda audio: audio.created_at, reverse=True)
+
     def delete_audio_item(self, audio_id: str) -> None:
         self._storage.delete_audio_item(audio_id)
 
@@ -206,6 +222,14 @@ class FileMediaAssetRepository:
 
     def list_video_items_for_project(self, project_id: str) -> list[VideoItem]:
         return self._storage.get_video_items(project_id)
+
+    def list_all_video_items(self) -> list[VideoItem]:
+        videos = []
+        for file_path in self._storage.video_library_dir.glob("*.json"):
+            data = self._storage._read_json_with_lock(file_path)
+            if data:
+                videos.append(VideoItem(**data))
+        return sorted(videos, key=lambda video: video.created_at, reverse=True)
 
     def delete_video_item(self, video_id: str) -> None:
         self._storage.delete_video_item(video_id)
@@ -233,6 +257,14 @@ class FileTextItemRepository:
 
     def list_for_project(self, project_id: str) -> list[TextItem]:
         return self._storage.get_text_items(project_id)
+
+    def list_all(self) -> list[TextItem]:
+        texts = []
+        for file_path in self._storage.text_library_dir.glob("*.json"):
+            data = self._storage._read_json_with_lock(file_path)
+            if data:
+                texts.append(TextItem(**data))
+        return sorted(texts, key=lambda text: text.created_at, reverse=True)
 
     def delete(self, item_id: str) -> None:
         self._storage.delete_text_item(item_id)
@@ -296,6 +328,22 @@ class PostgresMediaAssetRepository:
             rows = connection.execute(statement).mappings().all()
         return [restore(row) for row in rows]
 
+    def _list_all(
+        self,
+        asset_kind: str,
+        restore: Callable[[Mapping[str, Any]], AssetT],
+    ) -> list[AssetT]:
+        statement = (
+            select(media_assets)
+            .where(media_assets.c.user_id == self._user_id)
+            .where(media_assets.c.asset_kind == asset_kind)
+            .where(media_assets.c.deleted_at.is_(None))
+            .order_by(media_assets.c.created_at.desc())
+        )
+        with self._engine.connect() as connection:
+            rows = connection.execute(statement).mappings().all()
+        return [restore(row) for row in rows]
+
     def save_gallery_image(self, image: GalleryImage) -> None:
         self._save_row(gallery_image_to_media_row(self._user_id, image))
 
@@ -304,6 +352,9 @@ class PostgresMediaAssetRepository:
 
     def list_gallery_images_for_project(self, project_id: str) -> list[GalleryImage]:
         return self._list_for_project(project_id, GALLERY_IMAGE, row_to_gallery_image)
+
+    def list_all_gallery_images(self) -> list[GalleryImage]:
+        return self._list_all(GALLERY_IMAGE, row_to_gallery_image)
 
     def delete_gallery_image(self, image_id: str) -> None:
         self.mark_deleted(image_id)
@@ -317,6 +368,9 @@ class PostgresMediaAssetRepository:
     def list_audio_items_for_project(self, project_id: str) -> list[AudioItem]:
         return self._list_for_project(project_id, AUDIO, row_to_audio_item)
 
+    def list_all_audio_items(self) -> list[AudioItem]:
+        return self._list_all(AUDIO, row_to_audio_item)
+
     def delete_audio_item(self, audio_id: str) -> None:
         self.mark_deleted(audio_id)
 
@@ -328,6 +382,9 @@ class PostgresMediaAssetRepository:
 
     def list_video_items_for_project(self, project_id: str) -> list[VideoItem]:
         return self._list_for_project(project_id, VIDEO, row_to_video_item)
+
+    def list_all_video_items(self) -> list[VideoItem]:
+        return self._list_all(VIDEO, row_to_video_item)
 
     def delete_video_item(self, video_id: str) -> None:
         self.mark_deleted(video_id)
@@ -389,6 +446,17 @@ class PostgresTextItemRepository:
             select(text_items)
             .where(text_items.c.user_id == self._user_id)
             .where(text_items.c.project_id == project_id)
+            .where(text_items.c.deleted_at.is_(None))
+            .order_by(text_items.c.created_at.desc())
+        )
+        with self._engine.connect() as connection:
+            rows = connection.execute(statement).mappings().all()
+        return [row_to_text_item(row) for row in rows]
+
+    def list_all(self) -> list[TextItem]:
+        statement = (
+            select(text_items)
+            .where(text_items.c.user_id == self._user_id)
             .where(text_items.c.deleted_at.is_(None))
             .order_by(text_items.c.created_at.desc())
         )

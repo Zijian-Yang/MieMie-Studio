@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R20 media metadata backfill/reconcile：新增图库、音频库、视频库和文本库 metadata 的 JSON 扫描、PostgreSQL upsert、脱敏 JSON/Markdown 对账摘要和两个维护脚本；对账只比较安全索引字段，不包含文本内容、prompt、provider payload、key/token/password 或私有 URL，后端全量 `313 passed`。
 - 数据库升级 R19 media metadata 本地基础：新增 `media_assets` 与 `text_items` schema、Alembic migration `20260607_0004`、图库/音频库/视频库/文本库 file/PostgreSQL repository boundary；文件本体仍留在 OSS/URL，运行态默认 file-only，后端全量 `310 passed`。
 - 数据库升级 R18 staging 连通性刷新：只读检查显示本机仍经 Clash TUN/fake-IP 路径，SSH 命令被远端关闭、公网 health 超时，TCP 22 可达但不足以执行服务器 rollout；本轮未修改服务器状态，证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r18-staging-connectivity-refresh/`。
 - 数据库升级 R17 `projects` PostgreSQL primary write：新增项目主写开关和可选 JSON archive mirror；显式启用后项目保存/删除先写 PostgreSQL，默认不再写 JSON，主写失败不落 JSON 分叉状态，后端全量 `301 passed`。
