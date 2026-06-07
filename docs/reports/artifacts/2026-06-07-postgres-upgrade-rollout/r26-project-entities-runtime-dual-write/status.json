@@ -1,0 +1,27 @@
+{
+  "state": "passed",
+  "stage": "r26-project-entities-runtime-dual-write",
+  "domain": "project_entities",
+  "runtime_mode": "file_only_by_default",
+  "server_state_changed": false,
+  "summary": "Local project editing entity runtime dual-write added for characters, scenes, props, frames, videos, and styles.",
+  "feature_flags": {
+    "enabled": "MIEMIE_DATABASE_ENABLED=true and MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=project_entities",
+    "global_write_mode": "MIEMIE_DATABASE_WRITE_MODE=dual or dual_write",
+    "strict_shadow_writes": "MIEMIE_DATABASE_RECONCILE_STRICT=true"
+  },
+  "verification": {
+    "red_gate": "failed before implementation with missing project_entity_runtime module",
+    "focused_dual_write_tests": "4 passed",
+    "project_entity_storage_target_tests": "15 passed",
+    "cross_domain_dual_write_target_tests": "23 passed",
+    "full_backend_tests": "338 passed",
+    "py_compile": "passed"
+  },
+  "pending": [
+    "project entity read-switch with JSON fallback",
+    "project entity PostgreSQL primary-write with JSON archive mirror",
+    "server live migration/backfill/reconcile/read-switch/primary-write gates"
+  ],
+  "updated_at": "2026-06-07T10:50:00+0800"
+}

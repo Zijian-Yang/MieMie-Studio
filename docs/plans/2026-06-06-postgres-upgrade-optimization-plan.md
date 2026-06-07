@@ -256,7 +256,7 @@ create index idx_video_studio_tasks_submit_attempt
 - 每一类实体单独开关、单独对账。
 - 不一次性替换所有 StorageService 方法。
 
-2026-06-07 progress: 角色、场景、道具、首帧、视频和风格的本地 PostgreSQL schema/repository boundary 已完成。R24 采用统一 `project_entities` 表，按 `entity_kind` 区分实体类型，保留共享索引列和完整 `raw_entity_snapshot` JSONB；Alembic migration `20260607_0005_project_entities` 已加入迁移链。R25 已新增 project entities backfill/reconcile 服务和维护脚本，摘要保持脱敏，只比较安全索引字段，不包含名称、描述、prompt、text style body、provider task id、token/key/password 或私有 URL。运行态默认仍为 JSON/file-only，runtime dual-write、read-switch、primary-write 和前端 smoke 尚未完成。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r24-project-entities-local-schema-repository/` 和 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r25-project-entities-backfill-reconcile/`。
+2026-06-07 progress: 角色、场景、道具、首帧、视频和风格的本地 PostgreSQL schema/repository boundary 已完成。R24 采用统一 `project_entities` 表，按 `entity_kind` 区分实体类型，保留共享索引列和完整 `raw_entity_snapshot` JSONB；Alembic migration `20260607_0005_project_entities` 已加入迁移链。R25 已新增 project entities backfill/reconcile 服务和维护脚本，摘要保持脱敏，只比较安全索引字段，不包含名称、描述、prompt、text style body、provider task id、token/key/password 或私有 URL。R26 已接入 runtime dual-write feature flag，显式开启后 JSON 主写/删除成功再 shadow 写 PostgreSQL。运行态默认仍为 JSON/file-only，read-switch、primary-write 和前端 smoke 尚未完成。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r24-project-entities-local-schema-repository/`、`docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r25-project-entities-backfill-reconcile/` 和 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r26-project-entities-runtime-dual-write/`。
 
 ### P6：用户、配置、审计
 
@@ -520,7 +520,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 - [ ] 每个域单独回填/对账/读切换。
 - [ ] 用户和配置最后迁移。
 
-2026-06-07 进度：P5 编辑域已开始，`project_entities` 统一表、repository boundary、backfill/reconcile 工具和脱敏对账摘要已完成；下一步补 project entity runtime dual-write。
+2026-06-07 进度：P5 编辑域已开始，`project_entities` 统一表、repository boundary、backfill/reconcile 工具、脱敏对账摘要和 runtime dual-write 已完成；下一步补 project entity read-switch。
 
 ## 总体验收
 

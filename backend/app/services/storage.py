@@ -228,10 +228,14 @@ class StorageService:
     
     def save_character(self, character: Character) -> None:
         """保存角色（线程安全）"""
+        from app.repositories.project_entities import CHARACTER
+        from app.repositories.project_entity_runtime import shadow_save_project_entity
+
         with self._lock:
             character.updated_at = datetime.now()
             file_path = self.characters_dir / f"{character.id}.json"
             self._write_json_with_lock(file_path, character.model_dump())
+        shadow_save_project_entity(self._get_owner_user_id(), CHARACTER, character)
     
     def get_character(self, character_id: str) -> Optional[Character]:
         """获取角色"""
@@ -243,18 +247,26 @@ class StorageService:
     
     def delete_character(self, character_id: str) -> None:
         """删除角色"""
+        from app.repositories.project_entities import CHARACTER
+        from app.repositories.project_entity_runtime import shadow_mark_project_entity_deleted
+
         file_path = self.characters_dir / f"{character_id}.json"
         if file_path.exists():
             file_path.unlink()
+        shadow_mark_project_entity_deleted(self._get_owner_user_id(), CHARACTER, character_id)
     
     # ============ Scene ============
     
     def save_scene(self, scene: Scene) -> None:
         """保存场景（线程安全）"""
+        from app.repositories.project_entities import SCENE
+        from app.repositories.project_entity_runtime import shadow_save_project_entity
+
         with self._lock:
             scene.updated_at = datetime.now()
             file_path = self.scenes_dir / f"{scene.id}.json"
             self._write_json_with_lock(file_path, scene.model_dump())
+        shadow_save_project_entity(self._get_owner_user_id(), SCENE, scene)
     
     def get_scene(self, scene_id: str) -> Optional[Scene]:
         """获取场景"""
@@ -266,18 +278,26 @@ class StorageService:
     
     def delete_scene(self, scene_id: str) -> None:
         """删除场景"""
+        from app.repositories.project_entities import SCENE
+        from app.repositories.project_entity_runtime import shadow_mark_project_entity_deleted
+
         file_path = self.scenes_dir / f"{scene_id}.json"
         if file_path.exists():
             file_path.unlink()
+        shadow_mark_project_entity_deleted(self._get_owner_user_id(), SCENE, scene_id)
     
     # ============ Prop ============
     
     def save_prop(self, prop: Prop) -> None:
         """保存道具（线程安全）"""
+        from app.repositories.project_entities import PROP
+        from app.repositories.project_entity_runtime import shadow_save_project_entity
+
         with self._lock:
             prop.updated_at = datetime.now()
             file_path = self.props_dir / f"{prop.id}.json"
             self._write_json_with_lock(file_path, prop.model_dump())
+        shadow_save_project_entity(self._get_owner_user_id(), PROP, prop)
     
     def get_prop(self, prop_id: str) -> Optional[Prop]:
         """获取道具"""
@@ -289,18 +309,26 @@ class StorageService:
     
     def delete_prop(self, prop_id: str) -> None:
         """删除道具"""
+        from app.repositories.project_entities import PROP
+        from app.repositories.project_entity_runtime import shadow_mark_project_entity_deleted
+
         file_path = self.props_dir / f"{prop_id}.json"
         if file_path.exists():
             file_path.unlink()
+        shadow_mark_project_entity_deleted(self._get_owner_user_id(), PROP, prop_id)
     
     # ============ Frame ============
     
     def save_frame(self, frame: Frame) -> None:
         """保存首帧（线程安全）"""
+        from app.repositories.project_entities import FRAME
+        from app.repositories.project_entity_runtime import shadow_save_project_entity
+
         with self._lock:
             frame.updated_at = datetime.now()
             file_path = self.frames_dir / f"{frame.id}.json"
             self._write_json_with_lock(file_path, frame.model_dump())
+        shadow_save_project_entity(self._get_owner_user_id(), FRAME, frame)
     
     def get_frame(self, frame_id: str) -> Optional[Frame]:
         """获取首帧"""
@@ -329,18 +357,26 @@ class StorageService:
     
     def delete_frame(self, frame_id: str) -> None:
         """删除首帧"""
+        from app.repositories.project_entities import FRAME
+        from app.repositories.project_entity_runtime import shadow_mark_project_entity_deleted
+
         file_path = self.frames_dir / f"{frame_id}.json"
         if file_path.exists():
             file_path.unlink()
+        shadow_mark_project_entity_deleted(self._get_owner_user_id(), FRAME, frame_id)
     
     # ============ Video ============
     
     def save_video(self, video: Video) -> None:
         """保存视频（线程安全）"""
+        from app.repositories.project_entities import VIDEO
+        from app.repositories.project_entity_runtime import shadow_save_project_entity
+
         with self._lock:
             video.updated_at = datetime.now()
             file_path = self.videos_dir / f"{video.id}.json"
             self._write_json_with_lock(file_path, video.model_dump())
+        shadow_save_project_entity(self._get_owner_user_id(), VIDEO, video)
     
     def get_video(self, video_id: str) -> Optional[Video]:
         """获取视频"""
@@ -379,18 +415,26 @@ class StorageService:
     
     def delete_video(self, video_id: str) -> None:
         """删除视频"""
+        from app.repositories.project_entities import VIDEO
+        from app.repositories.project_entity_runtime import shadow_mark_project_entity_deleted
+
         file_path = self.videos_dir / f"{video_id}.json"
         if file_path.exists():
             file_path.unlink()
+        shadow_mark_project_entity_deleted(self._get_owner_user_id(), VIDEO, video_id)
     
     # ============ Style ============
     
     def save_style(self, style: Style) -> None:
         """保存风格（线程安全）"""
+        from app.repositories.project_entities import STYLE
+        from app.repositories.project_entity_runtime import shadow_save_project_entity
+
         with self._lock:
             style.updated_at = datetime.now()
             file_path = self.styles_dir / f"{style.id}.json"
             self._write_json_with_lock(file_path, style.model_dump())
+        shadow_save_project_entity(self._get_owner_user_id(), STYLE, style)
     
     def get_style(self, style_id: str) -> Optional[Style]:
         """获取风格"""
@@ -402,9 +446,13 @@ class StorageService:
     
     def delete_style(self, style_id: str) -> None:
         """删除风格"""
+        from app.repositories.project_entities import STYLE
+        from app.repositories.project_entity_runtime import shadow_mark_project_entity_deleted
+
         file_path = self.styles_dir / f"{style_id}.json"
         if file_path.exists():
             file_path.unlink()
+        shadow_mark_project_entity_deleted(self._get_owner_user_id(), STYLE, style_id)
     
     # ============ Gallery ============
     
