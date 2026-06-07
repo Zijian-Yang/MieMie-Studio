@@ -52,10 +52,27 @@ def benchmark_record_read_enabled() -> bool:
     return read_mode == "postgres" or DOMAIN in read_domains
 
 
+def benchmark_record_primary_write_enabled() -> bool:
+    """Return true when benchmark record writes should use PostgreSQL primary."""
+
+    if not database_enabled():
+        return False
+
+    write_mode = os.getenv("MIEMIE_DATABASE_WRITE_MODE", "file").strip().lower()
+    primary_domains = _env_csv("MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS")
+    return write_mode in {"postgres", "postgres_primary", "primary"} or DOMAIN in primary_domains
+
+
 def json_fallback_read_enabled() -> bool:
     """Return true when PostgreSQL read miss/error should fallback to JSON."""
 
     return _env_true("MIEMIE_DATABASE_JSON_FALLBACK_READ")
+
+
+def json_archive_writes_enabled() -> bool:
+    """Return true when PostgreSQL primary writes should maintain JSON archive mirrors."""
+
+    return _env_true("MIEMIE_DATABASE_JSON_ARCHIVE_WRITES")
 
 
 def strict_shadow_writes_enabled() -> bool:
@@ -84,6 +101,40 @@ def build_benchmark_record_shadow_repository(user_id: str) -> PostgresBenchmarkR
 
 def build_benchmark_record_read_repository(user_id: str) -> PostgresBenchmarkRecordRepository:
     return PostgresBenchmarkRecordRepository(_runtime_engine(), user_id)
+
+
+def build_benchmark_record_primary_repository(user_id: str) -> PostgresBenchmarkRecordRepository:
+    return PostgresBenchmarkRecordRepository(_runtime_engine(), user_id)
+
+
+def save_benchmark_record_primary(
+    user_id: str | None,
+    benchmark_kind: str,
+    record_kind: str,
+    record: BenchmarkRecord,
+) -> bool:
+    """Save a benchmark record to PostgreSQL as the primary store when enabled."""
+
+    if not user_id or not benchmark_record_primary_write_enabled():
+        return False
+
+    build_benchmark_record_primary_repository(user_id).save(benchmark_kind, record_kind, record)
+    return True
+
+
+def mark_benchmark_record_deleted_primary(
+    user_id: str | None,
+    benchmark_kind: str,
+    record_kind: str,
+    record_id: str,
+) -> bool:
+    """Mark a benchmark record deleted in PostgreSQL primary mode."""
+
+    if not user_id or not benchmark_record_primary_write_enabled():
+        return False
+
+    build_benchmark_record_primary_repository(user_id).mark_deleted(benchmark_kind, record_kind, record_id)
+    return True
 
 
 def shadow_save_benchmark_record(

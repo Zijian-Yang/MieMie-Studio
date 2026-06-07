@@ -1,0 +1,23 @@
+{
+  "state": "passed",
+  "stage": "r34-benchmark-records-primary-write",
+  "domain": "benchmark_records",
+  "default_runtime": "file-only",
+  "enabled_by": [
+    "MIEMIE_DATABASE_ENABLED=true",
+    "MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=benchmark_records",
+    "MIEMIE_DATABASE_WRITE_MODE=postgres",
+    "MIEMIE_DATABASE_WRITE_MODE=postgres_primary",
+    "MIEMIE_DATABASE_WRITE_MODE=primary"
+  ],
+  "json_archive_flag": "MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true",
+  "focused_tests": {
+    "red_gate": "expected failure: missing build_benchmark_record_primary_repository",
+    "primary_write": "4 passed",
+    "target_set": "21 passed",
+    "py_compile": "passed"
+  },
+  "full_backend_tests": "366 passed",
+  "server_state_changed": false,
+  "updated_at": "2026-06-07T12:17:00+08:00"
+}

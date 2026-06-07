@@ -618,6 +618,14 @@ pre 部署复验：
 - 运行态仍默认 JSON/file-only；benchmark PostgreSQL primary-write + JSON archive mirror 尚未启用。
 - 本地验证：RED gate 先因缺少 `build_benchmark_record_read_repository` 失败；实现后 read-switch 测试 `4 passed`，benchmark/storage 目标集 `17 passed`，`py_compile` 通过，后端全量 `362 passed`。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r33-benchmark-records-read-switch/`。
 
+2026-06-07 阶段 7 R34 benchmark records PostgreSQL primary-write：
+
+- `benchmark_record_runtime.py` 新增 primary-write 开关、primary repository builder、保存和软删除主写 helper。
+- `StorageService` 图片/视频测评 dataset、suite、run 的保存/删除路径支持显式 PostgreSQL 主写；默认不维护 JSON，`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` 时才保留临时 JSON archive mirror。
+- PostgreSQL 主写失败会直接冒泡，且不会写 JSON，避免切换窗口产生 PostgreSQL 失败但 JSON 成功的分叉状态。
+- benchmark records 本地域已完成 schema/repository、backfill/reconcile、runtime dual-write、read-switch/JSON fallback 和 PostgreSQL primary-write/JSON archive mirror；运行态默认仍为 JSON/file-only，服务器 live rollout 尚未闭环。
+- 本地验证：RED gate 先因缺少 `build_benchmark_record_primary_repository` 失败；实现后 primary-write 测试 `4 passed`，benchmark/storage 目标集 `21 passed`，`py_compile` 通过，后端全量 `366 passed`。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r34-benchmark-records-primary-write/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。

@@ -1420,14 +1420,36 @@ class StorageService:
 
         return read_benchmark_runs_for_suite(self._get_owner_user_id(), benchmark_kind, suite_id, json_loader)
 
+    def _save_benchmark_record_primary(self, benchmark_kind: str, record_kind: str, record) -> bool:
+        from app.repositories.benchmark_record_runtime import save_benchmark_record_primary
+
+        return save_benchmark_record_primary(self._get_owner_user_id(), benchmark_kind, record_kind, record)
+
+    def _mark_benchmark_record_deleted_primary(self, benchmark_kind: str, record_kind: str, record_id: str) -> bool:
+        from app.repositories.benchmark_record_runtime import mark_benchmark_record_deleted_primary
+
+        return mark_benchmark_record_deleted_primary(self._get_owner_user_id(), benchmark_kind, record_kind, record_id)
+
+    def _benchmark_json_archive_writes_enabled(self) -> bool:
+        from app.repositories.benchmark_record_runtime import json_archive_writes_enabled
+
+        return json_archive_writes_enabled()
+
     # ============ Image Benchmark Dataset ============
 
     def save_image_benchmark_dataset(self, dataset: ImageBenchmarkDataset) -> None:
         """保存图片测评数据集"""
         from app.repositories.benchmark_records import BENCHMARK_IMAGE, RECORD_DATASET
 
+        dataset.updated_at = datetime.now()
+        if self._save_benchmark_record_primary(BENCHMARK_IMAGE, RECORD_DATASET, dataset):
+            if self._benchmark_json_archive_writes_enabled():
+                with self._lock:
+                    file_path = self.image_benchmark_datasets_dir / f"{dataset.id}.json"
+                    self._write_json_with_lock(file_path, dataset.model_dump())
+            return
+
         with self._lock:
-            dataset.updated_at = datetime.now()
             file_path = self.image_benchmark_datasets_dir / f"{dataset.id}.json"
             self._write_json_with_lock(file_path, dataset.model_dump())
         self._shadow_save_benchmark_record(BENCHMARK_IMAGE, RECORD_DATASET, dataset)
@@ -1463,6 +1485,13 @@ class StorageService:
         """删除图片测评数据集"""
         from app.repositories.benchmark_records import BENCHMARK_IMAGE, RECORD_DATASET
 
+        if self._mark_benchmark_record_deleted_primary(BENCHMARK_IMAGE, RECORD_DATASET, dataset_id):
+            if self._benchmark_json_archive_writes_enabled():
+                file_path = self.image_benchmark_datasets_dir / f"{dataset_id}.json"
+                if file_path.exists():
+                    file_path.unlink()
+            return
+
         file_path = self.image_benchmark_datasets_dir / f"{dataset_id}.json"
         if file_path.exists():
             file_path.unlink()
@@ -1474,8 +1503,15 @@ class StorageService:
         """保存图片测评配置"""
         from app.repositories.benchmark_records import BENCHMARK_IMAGE, RECORD_SUITE
 
+        suite.updated_at = datetime.now()
+        if self._save_benchmark_record_primary(BENCHMARK_IMAGE, RECORD_SUITE, suite):
+            if self._benchmark_json_archive_writes_enabled():
+                with self._lock:
+                    file_path = self.image_benchmark_suites_dir / f"{suite.id}.json"
+                    self._write_json_with_lock(file_path, suite.model_dump())
+            return
+
         with self._lock:
-            suite.updated_at = datetime.now()
             file_path = self.image_benchmark_suites_dir / f"{suite.id}.json"
             self._write_json_with_lock(file_path, suite.model_dump())
         self._shadow_save_benchmark_record(BENCHMARK_IMAGE, RECORD_SUITE, suite)
@@ -1511,6 +1547,13 @@ class StorageService:
         """删除图片测评配置"""
         from app.repositories.benchmark_records import BENCHMARK_IMAGE, RECORD_SUITE
 
+        if self._mark_benchmark_record_deleted_primary(BENCHMARK_IMAGE, RECORD_SUITE, suite_id):
+            if self._benchmark_json_archive_writes_enabled():
+                file_path = self.image_benchmark_suites_dir / f"{suite_id}.json"
+                if file_path.exists():
+                    file_path.unlink()
+            return
+
         file_path = self.image_benchmark_suites_dir / f"{suite_id}.json"
         if file_path.exists():
             file_path.unlink()
@@ -1522,8 +1565,15 @@ class StorageService:
         """保存图片测评运行记录"""
         from app.repositories.benchmark_records import BENCHMARK_IMAGE, RECORD_RUN
 
+        run.updated_at = datetime.now()
+        if self._save_benchmark_record_primary(BENCHMARK_IMAGE, RECORD_RUN, run):
+            if self._benchmark_json_archive_writes_enabled():
+                with self._lock:
+                    file_path = self.image_benchmark_runs_dir / f"{run.id}.json"
+                    self._write_json_with_lock(file_path, run.model_dump())
+            return
+
         with self._lock:
-            run.updated_at = datetime.now()
             file_path = self.image_benchmark_runs_dir / f"{run.id}.json"
             self._write_json_with_lock(file_path, run.model_dump())
         self._shadow_save_benchmark_record(BENCHMARK_IMAGE, RECORD_RUN, run)
@@ -1573,6 +1623,13 @@ class StorageService:
         """删除图片测评运行记录"""
         from app.repositories.benchmark_records import BENCHMARK_IMAGE, RECORD_RUN
 
+        if self._mark_benchmark_record_deleted_primary(BENCHMARK_IMAGE, RECORD_RUN, run_id):
+            if self._benchmark_json_archive_writes_enabled():
+                file_path = self.image_benchmark_runs_dir / f"{run_id}.json"
+                if file_path.exists():
+                    file_path.unlink()
+            return
+
         file_path = self.image_benchmark_runs_dir / f"{run_id}.json"
         if file_path.exists():
             file_path.unlink()
@@ -1584,8 +1641,15 @@ class StorageService:
         """保存视频测评数据集"""
         from app.repositories.benchmark_records import BENCHMARK_VIDEO, RECORD_DATASET
 
+        dataset.updated_at = datetime.now()
+        if self._save_benchmark_record_primary(BENCHMARK_VIDEO, RECORD_DATASET, dataset):
+            if self._benchmark_json_archive_writes_enabled():
+                with self._lock:
+                    file_path = self.video_benchmark_datasets_dir / f"{dataset.id}.json"
+                    self._write_json_with_lock(file_path, dataset.model_dump())
+            return
+
         with self._lock:
-            dataset.updated_at = datetime.now()
             file_path = self.video_benchmark_datasets_dir / f"{dataset.id}.json"
             self._write_json_with_lock(file_path, dataset.model_dump())
         self._shadow_save_benchmark_record(BENCHMARK_VIDEO, RECORD_DATASET, dataset)
@@ -1621,6 +1685,13 @@ class StorageService:
         """删除视频测评数据集"""
         from app.repositories.benchmark_records import BENCHMARK_VIDEO, RECORD_DATASET
 
+        if self._mark_benchmark_record_deleted_primary(BENCHMARK_VIDEO, RECORD_DATASET, dataset_id):
+            if self._benchmark_json_archive_writes_enabled():
+                file_path = self.video_benchmark_datasets_dir / f"{dataset_id}.json"
+                if file_path.exists():
+                    file_path.unlink()
+            return
+
         file_path = self.video_benchmark_datasets_dir / f"{dataset_id}.json"
         if file_path.exists():
             file_path.unlink()
@@ -1632,8 +1703,15 @@ class StorageService:
         """保存视频测评配置"""
         from app.repositories.benchmark_records import BENCHMARK_VIDEO, RECORD_SUITE
 
+        suite.updated_at = datetime.now()
+        if self._save_benchmark_record_primary(BENCHMARK_VIDEO, RECORD_SUITE, suite):
+            if self._benchmark_json_archive_writes_enabled():
+                with self._lock:
+                    file_path = self.video_benchmark_suites_dir / f"{suite.id}.json"
+                    self._write_json_with_lock(file_path, suite.model_dump())
+            return
+
         with self._lock:
-            suite.updated_at = datetime.now()
             file_path = self.video_benchmark_suites_dir / f"{suite.id}.json"
             self._write_json_with_lock(file_path, suite.model_dump())
         self._shadow_save_benchmark_record(BENCHMARK_VIDEO, RECORD_SUITE, suite)
@@ -1669,6 +1747,13 @@ class StorageService:
         """删除视频测评配置"""
         from app.repositories.benchmark_records import BENCHMARK_VIDEO, RECORD_SUITE
 
+        if self._mark_benchmark_record_deleted_primary(BENCHMARK_VIDEO, RECORD_SUITE, suite_id):
+            if self._benchmark_json_archive_writes_enabled():
+                file_path = self.video_benchmark_suites_dir / f"{suite_id}.json"
+                if file_path.exists():
+                    file_path.unlink()
+            return
+
         file_path = self.video_benchmark_suites_dir / f"{suite_id}.json"
         if file_path.exists():
             file_path.unlink()
@@ -1680,8 +1765,15 @@ class StorageService:
         """保存视频测评运行记录"""
         from app.repositories.benchmark_records import BENCHMARK_VIDEO, RECORD_RUN
 
+        run.updated_at = datetime.now()
+        if self._save_benchmark_record_primary(BENCHMARK_VIDEO, RECORD_RUN, run):
+            if self._benchmark_json_archive_writes_enabled():
+                with self._lock:
+                    file_path = self.video_benchmark_runs_dir / f"{run.id}.json"
+                    self._write_json_with_lock(file_path, run.model_dump())
+            return
+
         with self._lock:
-            run.updated_at = datetime.now()
             file_path = self.video_benchmark_runs_dir / f"{run.id}.json"
             self._write_json_with_lock(file_path, run.model_dump())
         self._shadow_save_benchmark_record(BENCHMARK_VIDEO, RECORD_RUN, run)
@@ -1730,6 +1822,13 @@ class StorageService:
     def delete_video_benchmark_run(self, run_id: str) -> None:
         """删除视频测评运行记录"""
         from app.repositories.benchmark_records import BENCHMARK_VIDEO, RECORD_RUN
+
+        if self._mark_benchmark_record_deleted_primary(BENCHMARK_VIDEO, RECORD_RUN, run_id):
+            if self._benchmark_json_archive_writes_enabled():
+                file_path = self.video_benchmark_runs_dir / f"{run_id}.json"
+                if file_path.exists():
+                    file_path.unlink()
+            return
 
         file_path = self.video_benchmark_runs_dir / f"{run_id}.json"
         if file_path.exists():

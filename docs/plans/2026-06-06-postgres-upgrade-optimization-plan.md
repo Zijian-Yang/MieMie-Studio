@@ -526,6 +526,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-07 追加：R31 已新增 benchmark backfill/reconcile 服务和维护脚本，摘要保持脱敏，不输出 prompt、provider payload、request id、task id、key/token/password、私有 URL、名称或描述；运行态仍为 file-only。下一步补 benchmark runtime dual-write。
 2026-06-07 追加：R32 已新增 benchmark records runtime dual-write。图片/视频测评 dataset、suite、run 保存/删除仍以 JSON 为主，显式启用 `benchmark_records` 双写域后才 shadow 写 PostgreSQL；shadow 失败默认不打断 JSON 主路径，`MIEMIE_DATABASE_RECONCILE_STRICT=true` 可在对账/灰度窗口中冒泡失败。下一步补 benchmark read-switch + JSON fallback。
 2026-06-07 追加：R33 已新增 benchmark records read-switch + JSON fallback。显式启用 `MIEMIE_DATABASE_READ_DOMAINS=benchmark_records` 或 `MIEMIE_DATABASE_READ_MODE=postgres` 后，图片/视频测评 dataset、suite、run 的单条读取、项目列表和 suite run 列表优先读 PostgreSQL；miss/空列表/异常可按 `MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 回退 JSON。下一步补 benchmark PostgreSQL primary-write + JSON archive mirror。
+2026-06-07 追加：R34 已新增 benchmark records PostgreSQL primary-write + JSON archive mirror。显式启用 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=benchmark_records` 或 PostgreSQL 主写模式后，保存/删除先写 PostgreSQL，默认不写 JSON；`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` 可在切换窗口保留临时 JSON 镜像。benchmark records 本地域已具备 schema、backfill/reconcile、dual-write、read-switch 和 primary-write 闭环；下一步进入 user/config 域设计与迁移，或在服务器路径恢复后执行 live rollout。
 
 ## 总体验收
 
