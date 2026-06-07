@@ -521,6 +521,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 - [ ] 用户和配置最后迁移。
 
 2026-06-07 进度：P5 编辑域已开始，`project_entities` 统一表、repository boundary、backfill/reconcile 工具、脱敏对账摘要、runtime dual-write、read-switch + JSON fallback 和 PostgreSQL primary-write + JSON archive mirror 已完成；默认运行态仍为 file-only。下一步恢复服务器灰度验证，并继续补前端编辑域 smoke / benchmark domain 迁移设计。
+2026-06-07 追加：R29 staging 连通性刷新仍显示 fake-IP/utun 路径、公网 health 超时和 SSH command closed；本轮未修改服务器状态。服务器恢复前继续本地 benchmark/user/config 域迁移。
 
 ## 总体验收
 

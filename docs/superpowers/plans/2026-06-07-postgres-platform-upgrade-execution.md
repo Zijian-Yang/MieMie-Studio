@@ -588,6 +588,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-07 note: local project editing entity PostgreSQL primary-write and optional JSON archive mirror are implemented through `backend/app/repositories/project_entity_runtime.py` and `StorageService` character/scene/prop/frame/video/style save/delete methods. Writes use PostgreSQL primary only when `MIEMIE_DATABASE_ENABLED=true` and `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=project_entities` or `MIEMIE_DATABASE_WRITE_MODE=postgres/postgres_primary/primary`; `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` keeps a temporary JSON archive mirror. PostgreSQL primary failures propagate and do not write JSON, avoiding split-brain during cutover. Runtime default remains file-only; frontend smoke and staging enablement are pending. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r28-project-entities-primary-write/`.
 
+2026-06-07 note: R29 staging connectivity refresh still blocks server rollout from the current operator path. DNS for `pre-studio.miemie.co` returned fake-IP `198.18.2.211`, route to `47.79.99.190` used `utun1024`, public `/api/health` timed out, and SSH command execution was closed by the remote host despite TCP 22 being reachable. No server state was changed. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r29-staging-connectivity-refresh/`. Continue local benchmark/user/config migration work until SSH command execution and public health are both stable.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

@@ -1,0 +1,34 @@
+{
+  "state": "blocked",
+  "stage": "r29-staging-connectivity-refresh",
+  "scope": "staging rollout preflight only",
+  "server_state_changed": false,
+  "public_health": {
+    "url": "https://pre-studio.miemie.co/api/health",
+    "result": "timeout",
+    "error": "curl: (28) Operation timed out after 20004 milliseconds with 0 bytes received"
+  },
+  "dns": {
+    "host": "pre-studio.miemie.co",
+    "a_records": [
+      "198.18.2.211"
+    ],
+    "classification": "fake-ip"
+  },
+  "route": {
+    "origin_ip": "47.79.99.190",
+    "gateway": "198.18.0.1",
+    "interface": "utun1024"
+  },
+  "ssh": {
+    "tcp_22": "reachable",
+    "command": "ssh -o StrictHostKeyChecking=accept-new root@47.79.99.190 'echo ok'",
+    "result": "Connection closed by 47.79.99.190 port 22"
+  },
+  "decision": "Do not run live migration/backfill/reconcile or server rollout from the current operator path.",
+  "next": [
+    "continue local database migration work",
+    "retry staging rollout only after SSH command execution and public health are stable"
+  ],
+  "updated_at": "2026-06-07T11:10:03+0800"
+}
