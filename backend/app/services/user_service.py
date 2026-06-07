@@ -56,6 +56,16 @@ class UserService:
 
         shadow_save_user(user)
 
+    def _load_user_from_json(self, user_id: str) -> Optional[User]:
+        users = self._load_users()
+        user_data = users.get(user_id)
+        return User(**user_data) if user_data else None
+
+    def _read_user(self, user_id: str) -> Optional[User]:
+        from app.repositories.user_config_runtime import read_user
+
+        return read_user(user_id, lambda: self._load_user_from_json(user_id))
+
     def _lock_file_path(self, file_path: Path) -> Path:
         return file_path.with_suffix(file_path.suffix + '.lock')
 
@@ -314,22 +324,17 @@ class UserService:
             if not user_id:
                 return None
             
-            users = self._load_users()
-            user_data = users.get(user_id)
-            if user_data:
+            user = self._read_user(user_id)
+            if user:
                 if token not in self.sessions:
                     self._save_session(token, {"user_id": user_id, "created_at": session.get("created_at", datetime.now().isoformat())})
-                return User(**user_data)
+                return user
             return None
     
     def get_user_by_id(self, user_id: str) -> Optional[User]:
         """通过 ID 获取用户"""
         with self._lock:
-            users = self._load_users()
-            user_data = users.get(user_id)
-            if user_data:
-                return User(**user_data)
-            return None
+            return self._read_user(user_id)
     
     def to_response(self, user: User) -> UserResponse:
         """转换为响应对象（不包含密码）"""

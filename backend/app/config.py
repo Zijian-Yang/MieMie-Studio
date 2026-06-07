@@ -1032,18 +1032,25 @@ class ConfigManager:
     def load(self) -> AppConfig:
         """加载配置（每次都从文件读取，确保最新）"""
         with self._lock:
-            data = self._read_with_lock()
-            # 如果文件为空或内容为空字典，则使用默认配置
-            if data and len(data) > 0:
-                try:
-                    return AppConfig(**data)
-                except Exception as e:
-                    # 如果数据格式错误，使用默认配置并记录警告
-                    logger.warning(f"配置文件格式错误，使用默认配置: {e}")
-            # 创建并保存默认配置
-            config = AppConfig()
-            self.save(config)
-            return config
+            from app.repositories.user_config_runtime import read_config
+            from app.services.storage import get_current_user_id
+
+            return read_config(get_current_user_id(), self._load_from_file)
+
+    def _load_from_file(self) -> AppConfig:
+        """Load config from the current JSON file, creating defaults when needed."""
+        data = self._read_with_lock()
+        # 如果文件为空或内容为空字典，则使用默认配置
+        if data and len(data) > 0:
+            try:
+                return AppConfig(**data)
+            except Exception as e:
+                # 如果数据格式错误，使用默认配置并记录警告
+                logger.warning(f"配置文件格式错误，使用默认配置: {e}")
+        # 创建并保存默认配置
+        config = AppConfig()
+        self.save(config)
+        return config
     
     def save(self, config: AppConfig) -> None:
         """保存配置"""
