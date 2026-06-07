@@ -42,6 +42,23 @@ def media_metadata_dual_write_enabled() -> bool:
     return write_mode in {"dual", "dual_write"} or DOMAIN in dual_domains
 
 
+def media_metadata_read_enabled() -> bool:
+    """Return true when media metadata reads should prefer PostgreSQL."""
+
+    if not database_enabled():
+        return False
+
+    read_mode = os.getenv("MIEMIE_DATABASE_READ_MODE", "file").strip().lower()
+    read_domains = _env_csv("MIEMIE_DATABASE_READ_DOMAINS")
+    return read_mode == "postgres" or DOMAIN in read_domains
+
+
+def json_fallback_read_enabled() -> bool:
+    """Return true when PostgreSQL read miss/error should fallback to JSON."""
+
+    return _env_true("MIEMIE_DATABASE_JSON_FALLBACK_READ")
+
+
 def strict_shadow_writes_enabled() -> bool:
     """Return true when PostgreSQL shadow write failures should be propagated."""
 
@@ -67,6 +84,14 @@ def build_media_asset_shadow_repository(user_id: str) -> PostgresMediaAssetRepos
 
 
 def build_text_item_shadow_repository(user_id: str) -> PostgresTextItemRepository:
+    return PostgresTextItemRepository(_runtime_engine(), user_id)
+
+
+def build_media_asset_read_repository(user_id: str) -> PostgresMediaAssetRepository:
+    return PostgresMediaAssetRepository(_runtime_engine(), user_id)
+
+
+def build_text_item_read_repository(user_id: str) -> PostgresTextItemRepository:
     return PostgresTextItemRepository(_runtime_engine(), user_id)
 
 
@@ -170,3 +195,211 @@ def shadow_mark_text_item_deleted(user_id: str | None, item_id: str) -> None:
             "media_metadata_shadow_delete_text_failed",
             extra={"user_id": user_id, "item_id": item_id, "error": exc.__class__.__name__},
         )
+
+
+def read_gallery_image(user_id: str | None, image_id: str, json_loader) -> GalleryImage | None:
+    """Read one gallery image from PostgreSQL when enabled, with optional JSON fallback."""
+
+    if not user_id or not media_metadata_read_enabled():
+        return json_loader()
+
+    try:
+        image = build_media_asset_read_repository(user_id).get_gallery_image(image_id)
+        if image is not None:
+            return image
+        if json_fallback_read_enabled():
+            logger.warning(
+                "media_metadata_gallery_read_miss_json_fallback",
+                extra={"user_id": user_id, "asset_id": image_id},
+            )
+            return json_loader()
+        return None
+    except Exception as exc:
+        if not json_fallback_read_enabled():
+            raise
+        logger.warning(
+            "media_metadata_gallery_read_failed_json_fallback",
+            extra={"user_id": user_id, "asset_id": image_id, "error": exc.__class__.__name__},
+        )
+        return json_loader()
+
+
+def read_gallery_images_for_project(user_id: str | None, project_id: str, json_loader) -> list[GalleryImage]:
+    """Read project gallery images from PostgreSQL when enabled, with optional JSON fallback."""
+
+    if not user_id or not media_metadata_read_enabled():
+        return json_loader()
+
+    try:
+        images = build_media_asset_read_repository(user_id).list_gallery_images_for_project(project_id)
+        if images or not json_fallback_read_enabled():
+            return images
+        logger.warning(
+            "media_metadata_gallery_list_empty_json_fallback",
+            extra={"user_id": user_id, "project_id": project_id},
+        )
+        return json_loader()
+    except Exception as exc:
+        if not json_fallback_read_enabled():
+            raise
+        logger.warning(
+            "media_metadata_gallery_list_failed_json_fallback",
+            extra={"user_id": user_id, "project_id": project_id, "error": exc.__class__.__name__},
+        )
+        return json_loader()
+
+
+def read_audio_item(user_id: str | None, audio_id: str, json_loader) -> AudioItem | None:
+    """Read one audio item from PostgreSQL when enabled, with optional JSON fallback."""
+
+    if not user_id or not media_metadata_read_enabled():
+        return json_loader()
+
+    try:
+        audio = build_media_asset_read_repository(user_id).get_audio_item(audio_id)
+        if audio is not None:
+            return audio
+        if json_fallback_read_enabled():
+            logger.warning(
+                "media_metadata_audio_read_miss_json_fallback",
+                extra={"user_id": user_id, "asset_id": audio_id},
+            )
+            return json_loader()
+        return None
+    except Exception as exc:
+        if not json_fallback_read_enabled():
+            raise
+        logger.warning(
+            "media_metadata_audio_read_failed_json_fallback",
+            extra={"user_id": user_id, "asset_id": audio_id, "error": exc.__class__.__name__},
+        )
+        return json_loader()
+
+
+def read_audio_items_for_project(user_id: str | None, project_id: str, json_loader) -> list[AudioItem]:
+    """Read project audio items from PostgreSQL when enabled, with optional JSON fallback."""
+
+    if not user_id or not media_metadata_read_enabled():
+        return json_loader()
+
+    try:
+        audios = build_media_asset_read_repository(user_id).list_audio_items_for_project(project_id)
+        if audios or not json_fallback_read_enabled():
+            return audios
+        logger.warning(
+            "media_metadata_audio_list_empty_json_fallback",
+            extra={"user_id": user_id, "project_id": project_id},
+        )
+        return json_loader()
+    except Exception as exc:
+        if not json_fallback_read_enabled():
+            raise
+        logger.warning(
+            "media_metadata_audio_list_failed_json_fallback",
+            extra={"user_id": user_id, "project_id": project_id, "error": exc.__class__.__name__},
+        )
+        return json_loader()
+
+
+def read_video_item(user_id: str | None, video_id: str, json_loader) -> VideoItem | None:
+    """Read one video item from PostgreSQL when enabled, with optional JSON fallback."""
+
+    if not user_id or not media_metadata_read_enabled():
+        return json_loader()
+
+    try:
+        video = build_media_asset_read_repository(user_id).get_video_item(video_id)
+        if video is not None:
+            return video
+        if json_fallback_read_enabled():
+            logger.warning(
+                "media_metadata_video_read_miss_json_fallback",
+                extra={"user_id": user_id, "asset_id": video_id},
+            )
+            return json_loader()
+        return None
+    except Exception as exc:
+        if not json_fallback_read_enabled():
+            raise
+        logger.warning(
+            "media_metadata_video_read_failed_json_fallback",
+            extra={"user_id": user_id, "asset_id": video_id, "error": exc.__class__.__name__},
+        )
+        return json_loader()
+
+
+def read_video_items_for_project(user_id: str | None, project_id: str, json_loader) -> list[VideoItem]:
+    """Read project video items from PostgreSQL when enabled, with optional JSON fallback."""
+
+    if not user_id or not media_metadata_read_enabled():
+        return json_loader()
+
+    try:
+        videos = build_media_asset_read_repository(user_id).list_video_items_for_project(project_id)
+        if videos or not json_fallback_read_enabled():
+            return videos
+        logger.warning(
+            "media_metadata_video_list_empty_json_fallback",
+            extra={"user_id": user_id, "project_id": project_id},
+        )
+        return json_loader()
+    except Exception as exc:
+        if not json_fallback_read_enabled():
+            raise
+        logger.warning(
+            "media_metadata_video_list_failed_json_fallback",
+            extra={"user_id": user_id, "project_id": project_id, "error": exc.__class__.__name__},
+        )
+        return json_loader()
+
+
+def read_text_item(user_id: str | None, item_id: str, json_loader) -> TextItem | None:
+    """Read one text item from PostgreSQL when enabled, with optional JSON fallback."""
+
+    if not user_id or not media_metadata_read_enabled():
+        return json_loader()
+
+    try:
+        item = build_text_item_read_repository(user_id).get(item_id)
+        if item is not None:
+            return item
+        if json_fallback_read_enabled():
+            logger.warning(
+                "media_metadata_text_read_miss_json_fallback",
+                extra={"user_id": user_id, "item_id": item_id},
+            )
+            return json_loader()
+        return None
+    except Exception as exc:
+        if not json_fallback_read_enabled():
+            raise
+        logger.warning(
+            "media_metadata_text_read_failed_json_fallback",
+            extra={"user_id": user_id, "item_id": item_id, "error": exc.__class__.__name__},
+        )
+        return json_loader()
+
+
+def read_text_items_for_project(user_id: str | None, project_id: str, json_loader) -> list[TextItem]:
+    """Read project text items from PostgreSQL when enabled, with optional JSON fallback."""
+
+    if not user_id or not media_metadata_read_enabled():
+        return json_loader()
+
+    try:
+        items = build_text_item_read_repository(user_id).list_for_project(project_id)
+        if items or not json_fallback_read_enabled():
+            return items
+        logger.warning(
+            "media_metadata_text_list_empty_json_fallback",
+            extra={"user_id": user_id, "project_id": project_id},
+        )
+        return json_loader()
+    except Exception as exc:
+        if not json_fallback_read_enabled():
+            raise
+        logger.warning(
+            "media_metadata_text_list_failed_json_fallback",
+            extra={"user_id": user_id, "project_id": project_id, "error": exc.__class__.__name__},
+        )
+        return json_loader()

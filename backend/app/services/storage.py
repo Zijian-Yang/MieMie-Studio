@@ -420,6 +420,15 @@ class StorageService:
     
     def get_gallery_image(self, image_id: str) -> Optional[GalleryImage]:
         """获取图库图片"""
+        from app.repositories.media_asset_runtime import read_gallery_image
+
+        return read_gallery_image(
+            self._get_owner_user_id(),
+            image_id,
+            lambda: self._get_gallery_image_from_file(image_id),
+        )
+
+    def _get_gallery_image_from_file(self, image_id: str) -> Optional[GalleryImage]:
         file_path = self.gallery_dir / f"{image_id}.json"
         data = self._read_json_with_lock(file_path)
         if data:
@@ -428,6 +437,15 @@ class StorageService:
 
     def get_gallery_images_by_project(self, project_id: str) -> List[GalleryImage]:
         """获取项目所有图库图片"""
+        from app.repositories.media_asset_runtime import read_gallery_images_for_project
+
+        return read_gallery_images_for_project(
+            self._get_owner_user_id(),
+            project_id,
+            lambda: self._get_gallery_images_by_project_from_file(project_id),
+        )
+
+    def _get_gallery_images_by_project_from_file(self, project_id: str) -> List[GalleryImage]:
         images = []
         for file_path in self.gallery_dir.glob("*.json"):
             data = self._read_json_with_lock(file_path)
@@ -540,6 +558,15 @@ class StorageService:
     
     def get_audio_item(self, audio_id: str) -> Optional[AudioItem]:
         """获取音频项"""
+        from app.repositories.media_asset_runtime import read_audio_item
+
+        return read_audio_item(
+            self._get_owner_user_id(),
+            audio_id,
+            lambda: self._get_audio_item_from_file(audio_id),
+        )
+
+    def _get_audio_item_from_file(self, audio_id: str) -> Optional[AudioItem]:
         file_path = self.audio_dir / f"{audio_id}.json"
         data = self._read_json_with_lock(file_path)
         if data:
@@ -548,6 +575,15 @@ class StorageService:
 
     def get_audio_items(self, project_id: str) -> List[AudioItem]:
         """获取项目所有音频"""
+        from app.repositories.media_asset_runtime import read_audio_items_for_project
+
+        return read_audio_items_for_project(
+            self._get_owner_user_id(),
+            project_id,
+            lambda: self._get_audio_items_from_file(project_id),
+        )
+
+    def _get_audio_items_from_file(self, project_id: str) -> List[AudioItem]:
         audios = []
         for file_path in self.audio_dir.glob("*.json"):
             data = self._read_json_with_lock(file_path)
@@ -578,6 +614,15 @@ class StorageService:
     
     def get_video_item(self, video_id: str) -> Optional[VideoItem]:
         """获取视频项"""
+        from app.repositories.media_asset_runtime import read_video_item
+
+        return read_video_item(
+            self._get_owner_user_id(),
+            video_id,
+            lambda: self._get_video_item_from_file(video_id),
+        )
+
+    def _get_video_item_from_file(self, video_id: str) -> Optional[VideoItem]:
         file_path = self.video_library_dir / f"{video_id}.json"
         data = self._read_json_with_lock(file_path)
         if data:
@@ -586,6 +631,15 @@ class StorageService:
 
     def get_video_items(self, project_id: str) -> List[VideoItem]:
         """获取项目所有视频"""
+        from app.repositories.media_asset_runtime import read_video_items_for_project
+
+        return read_video_items_for_project(
+            self._get_owner_user_id(),
+            project_id,
+            lambda: self._get_video_items_from_file(project_id),
+        )
+
+    def _get_video_items_from_file(self, project_id: str) -> List[VideoItem]:
         videos = []
         for file_path in self.video_library_dir.glob("*.json"):
             data = self._read_json_with_lock(file_path)
@@ -616,6 +670,15 @@ class StorageService:
     
     def get_text_item(self, text_id: str) -> Optional[TextItem]:
         """获取文本项"""
+        from app.repositories.media_asset_runtime import read_text_item
+
+        return read_text_item(
+            self._get_owner_user_id(),
+            text_id,
+            lambda: self._get_text_item_from_file(text_id),
+        )
+
+    def _get_text_item_from_file(self, text_id: str) -> Optional[TextItem]:
         file_path = self.text_library_dir / f"{text_id}.json"
         data = self._read_json_with_lock(file_path)
         if data:
@@ -624,6 +687,15 @@ class StorageService:
 
     def get_text_items(self, project_id: str) -> List[TextItem]:
         """获取项目所有文本"""
+        from app.repositories.media_asset_runtime import read_text_items_for_project
+
+        return read_text_items_for_project(
+            self._get_owner_user_id(),
+            project_id,
+            lambda: self._get_text_items_from_file(project_id),
+        )
+
+    def _get_text_items_from_file(self, project_id: str) -> List[TextItem]:
         texts = []
         for file_path in self.text_library_dir.glob("*.json"):
             data = self._read_json_with_lock(file_path)

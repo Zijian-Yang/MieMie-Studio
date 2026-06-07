@@ -1,0 +1,31 @@
+{
+  "state": "passed",
+  "stage": "r22-media-metadata-read-switch",
+  "domain": "media_metadata",
+  "runtime_mode": "postgres_read_available_with_json_fallback",
+  "server_state_changed": false,
+  "summary": "Media metadata PostgreSQL-first reads are available behind explicit feature flags with JSON fallback.",
+  "feature_flags": {
+    "enabled_by": [
+      "MIEMIE_DATABASE_ENABLED=true",
+      "MIEMIE_DATABASE_READ_DOMAINS=media_metadata"
+    ],
+    "global_read_mode": "MIEMIE_DATABASE_READ_MODE=postgres",
+    "fallback": "MIEMIE_DATABASE_JSON_FALLBACK_READ=true"
+  },
+  "verification": {
+    "red_read_builder_gate": "failed before implementation with missing build_media_asset_read_repository",
+    "focused_read_switch_tests": "4 passed",
+    "media_target_tests": "20 passed",
+    "wider_db_target_tests": "43 passed",
+    "full_backend_tests": "320 passed",
+    "py_compile": "passed",
+    "docker_compose_config": "passed"
+  },
+  "pending": [
+    "media metadata PostgreSQL primary-write with JSON archive mirror",
+    "frontend smoke after asset selector read-switch",
+    "server live migration/backfill/reconcile/read-switch gates"
+  ],
+  "updated_at": "2026-06-07T09:50:00+0800"
+}
