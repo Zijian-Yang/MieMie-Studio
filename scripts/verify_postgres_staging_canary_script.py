@@ -67,6 +67,28 @@ def run_missing_env_precheck() -> None:
             raise AssertionError(f"precheck touched docker unexpectedly:\n{commands}")
 
 
+def compile_embedded_python_blocks() -> None:
+    content = SCRIPT.read_text(encoding="utf-8")
+    blocks: list[str] = []
+    current: list[str] | None = None
+    for line in content.splitlines():
+        if current is None and "<<'PY'" in line:
+            current = []
+            continue
+        if current is not None and line == "PY":
+            blocks.append("\n".join(current))
+            current = None
+            continue
+        if current is not None:
+            current.append(line)
+
+    if current is not None:
+        raise AssertionError("unterminated embedded Python heredoc")
+
+    for index, block in enumerate(blocks, start=1):
+        compile(block, f"{SCRIPT}:heredoc:{index}", "exec")
+
+
 def check_safety_contract() -> None:
     content = SCRIPT.read_text(encoding="utf-8")
     required_fragments = [
@@ -75,7 +97,16 @@ def check_safety_contract() -> None:
         'set_env_value MIEMIE_DATABASE_ENABLED false',
         'set_env_value MIEMIE_DATABASE_DUAL_WRITE_DOMAINS "$DOMAIN"',
         'set_env_value MIEMIE_DATABASE_READ_DOMAINS ""',
+        'set_env_value MIEMIE_DATABASE_READ_DOMAINS "$DOMAIN"',
+        "read-switch-canary",
+        "rollback-read-switch",
+        "run_read_switch_storage_canary",
+        "run_rollback_read_storage_canary",
+        '"expected_read_source": "postgres"',
+        '"expected_read_source": "json"',
         "storage.save_video_studio_task(task)",
+        "storage._save_video_studio_task_to_file(json_task)",
+        "storage._delete_video_studio_task_from_file(task_id)",
         "/api/video-studio/preview-payload",
         "POSTGRES_PASSWORD",
         "<redacted>",
@@ -97,6 +128,7 @@ def check_safety_contract() -> None:
 def main() -> int:
     run_shell_syntax_check()
     run_missing_env_precheck()
+    compile_embedded_python_blocks()
     check_safety_contract()
     print("postgres staging canary script verifier: passed")
     return 0

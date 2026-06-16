@@ -1,0 +1,18 @@
+{
+  "state": "ready_for_server_retry",
+  "stage": "read-switch-rollback-automation",
+  "script": "scripts/postgres_staging_video_task_canary.sh",
+  "verifier": "scripts/verify_postgres_staging_canary_script.py",
+  "new_modes": [
+    "read-switch-canary",
+    "rollback-read-switch"
+  ],
+  "checks": {
+    "shell_syntax": "passed",
+    "canary_verifier": "passed",
+    "embedded_python_compile": "passed",
+    "provider_calls": "not_exercised"
+  },
+  "server_execution": "not_run_pending_ssh_recovery",
+  "updated_at": "2026-06-16T17:00:00Z"
+}

@@ -626,6 +626,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-17 note: R47/R48 reran the local live database rehearsal after Docker daemon access was available outside the sandbox. R47 found the root cause of a false backup failure: `postgres_backup.sh` writes `.sql`, while `postgres_live_rehearsal.sh` searched for `*.dump`. R48 fixed the lookup and passed temporary Compose PostgreSQL startup, Alembic upgrade head, all-domain backfill/reconcile, `.sql` backup, restore rehearsal, and cleanup. Raw local outputs were not committed because they include local user UUIDs; sanitized summaries are archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r47-local-live-database-rehearsal-failed/` and `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r48-local-live-database-rehearsal/`.
 
+2026-06-17 note: R49 extended `scripts/postgres_staging_video_task_canary.sh` with `read-switch-canary` and `rollback-read-switch` modes. The read-switch gate enables `MIEMIE_DATABASE_READ_DOMAINS=video_studio_tasks` and proves PostgreSQL is the read source by creating divergent JSON/PG canary task states; rollback clears read domains and proves JSON reads with the same divergent-source pattern. The verifier now compiles every embedded Python heredoc block. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r49-staging-read-switch-rollback-automation/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

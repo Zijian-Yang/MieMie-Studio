@@ -26,7 +26,9 @@ cleanup_sensitive_tmp() {
     "$TMP_DIR/project.json" \
     "$TMP_DIR/preview.json" \
     "$TMP_DIR/token.txt" \
-    "$TMP_DIR/project-id.txt"
+    "$TMP_DIR/project-id.txt" \
+    "$TMP_DIR/read-switch.json" \
+    "$TMP_DIR/rollback-read.json"
 }
 trap cleanup_sensitive_tmp EXIT
 
@@ -265,6 +267,32 @@ configure_dual_write() {
   redact_env_file "$ARTIFACT_DIR/compose.env.dual-write.sanitized"
 }
 
+configure_read_switch() {
+  set_env_value MIEMIE_DATABASE_ENABLED true
+  set_env_value MIEMIE_DATABASE_WRITE_MODE file
+  set_env_value MIEMIE_DATABASE_READ_MODE file
+  set_env_value MIEMIE_DATABASE_DUAL_WRITE_DOMAINS "$DOMAIN"
+  set_env_value MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS ""
+  set_env_value MIEMIE_DATABASE_READ_DOMAINS "$DOMAIN"
+  set_env_value MIEMIE_DATABASE_JSON_FALLBACK_READ true
+  set_env_value MIEMIE_DATABASE_JSON_ARCHIVE_WRITES false
+  set_env_value MIEMIE_DATABASE_RECONCILE_STRICT false
+  redact_env_file "$ARTIFACT_DIR/compose.env.read-switch.sanitized"
+}
+
+configure_read_rollback() {
+  set_env_value MIEMIE_DATABASE_ENABLED true
+  set_env_value MIEMIE_DATABASE_WRITE_MODE file
+  set_env_value MIEMIE_DATABASE_READ_MODE file
+  set_env_value MIEMIE_DATABASE_DUAL_WRITE_DOMAINS "$DOMAIN"
+  set_env_value MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS ""
+  set_env_value MIEMIE_DATABASE_READ_DOMAINS ""
+  set_env_value MIEMIE_DATABASE_JSON_FALLBACK_READ true
+  set_env_value MIEMIE_DATABASE_JSON_ARCHIVE_WRITES false
+  set_env_value MIEMIE_DATABASE_RECONCILE_STRICT false
+  redact_env_file "$ARTIFACT_DIR/compose.env.rollback-read.sanitized"
+}
+
 run_storage_canary() {
   local canary_user="r44_canary_$(date +%Y%m%d%H%M%S)_$RANDOM"
   local canary_project="r44_project_$(date +%Y%m%d%H%M%S)_$RANDOM"
@@ -322,6 +350,160 @@ print(json.dumps({
     "json_primary_write_observed": json_present,
     "postgres_shadow_write_observed": pg_present,
     "postgres_shadow_delete_observed": pg_after_delete is None,
+    "timestamp": datetime.utcnow().isoformat() + "Z",
+}, ensure_ascii=False, indent=2))
+if not ok:
+    raise SystemExit(1)
+PY
+}
+
+run_read_switch_storage_canary() {
+  local canary_user="r49_read_$(date +%Y%m%d%H%M%S)_$RANDOM"
+  local canary_project="r49_read_project_$(date +%Y%m%d%H%M%S)_$RANDOM"
+  local canary_task="r49_read_task_$(date +%Y%m%d%H%M%S)_$RANDOM"
+  "${COMPOSE[@]}" exec -T \
+    -e CANARY_USER_ID="$canary_user" \
+    -e CANARY_PROJECT_ID="$canary_project" \
+    -e CANARY_TASK_ID="$canary_task" \
+    api /opt/venv/bin/python - <<'PY' > "$ARTIFACT_DIR/read-switch-canary.json"
+import json
+import os
+from datetime import datetime
+
+from app.db.engine import create_database_engine
+from app.models.media import VideoStudioTask
+from app.repositories.video_studio_tasks import PostgresVideoStudioTaskRepository
+from app.services.storage import get_user_storage, set_current_user
+
+user_id = os.environ["CANARY_USER_ID"]
+project_id = os.environ["CANARY_PROJECT_ID"]
+task_id = os.environ["CANARY_TASK_ID"]
+
+def make_task(status: str) -> VideoStudioTask:
+    return VideoStudioTask(
+        id=task_id,
+        project_id=project_id,
+        name="R49 video_studio_tasks read-switch canary",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-t2v",
+        model="wan2.7-t2v",
+        prompt="R49 PostgreSQL read switch canary",
+        normalized_params={"resolution": "720P", "duration": 5, "prompt_extend": False, "watermark": False},
+        status=status,
+        group_count=1,
+    )
+
+set_current_user(user_id)
+storage = get_user_storage(user_id)
+json_task = make_task("json_read_canary")
+pg_task = make_task("postgres_read_canary")
+
+engine = create_database_engine()
+repo = None
+try:
+    repo = PostgresVideoStudioTaskRepository(engine, user_id)
+    storage._save_video_studio_task_to_file(json_task)
+    repo.save(pg_task)
+    by_id = storage.get_video_studio_task(task_id)
+    listed = storage.get_video_studio_tasks(project_id)
+finally:
+    storage._delete_video_studio_task_from_file(task_id)
+    if repo is not None:
+        repo.mark_deleted(task_id)
+    engine.dispose()
+
+listed_statuses = [task.status for task in listed]
+ok = bool(
+    by_id
+    and by_id.status == "postgres_read_canary"
+    and listed_statuses
+    and listed_statuses[0] == "postgres_read_canary"
+)
+print(json.dumps({
+    "ok": ok,
+    "domain": "video_studio_tasks",
+    "expected_read_source": "postgres",
+    "read_by_id_source": "postgres" if by_id and by_id.status == "postgres_read_canary" else "json_or_missing",
+    "list_source": "postgres" if listed_statuses and listed_statuses[0] == "postgres_read_canary" else "json_or_missing",
+    "timestamp": datetime.utcnow().isoformat() + "Z",
+}, ensure_ascii=False, indent=2))
+if not ok:
+    raise SystemExit(1)
+PY
+}
+
+run_rollback_read_storage_canary() {
+  local canary_user="r49_rollback_$(date +%Y%m%d%H%M%S)_$RANDOM"
+  local canary_project="r49_rollback_project_$(date +%Y%m%d%H%M%S)_$RANDOM"
+  local canary_task="r49_rollback_task_$(date +%Y%m%d%H%M%S)_$RANDOM"
+  "${COMPOSE[@]}" exec -T \
+    -e CANARY_USER_ID="$canary_user" \
+    -e CANARY_PROJECT_ID="$canary_project" \
+    -e CANARY_TASK_ID="$canary_task" \
+    api /opt/venv/bin/python - <<'PY' > "$ARTIFACT_DIR/rollback-read-canary.json"
+import json
+import os
+from datetime import datetime
+
+from app.db.engine import create_database_engine
+from app.models.media import VideoStudioTask
+from app.repositories.video_studio_tasks import PostgresVideoStudioTaskRepository
+from app.services.storage import get_user_storage, set_current_user
+
+user_id = os.environ["CANARY_USER_ID"]
+project_id = os.environ["CANARY_PROJECT_ID"]
+task_id = os.environ["CANARY_TASK_ID"]
+
+def make_task(status: str) -> VideoStudioTask:
+    return VideoStudioTask(
+        id=task_id,
+        project_id=project_id,
+        name="R49 video_studio_tasks rollback read canary",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-t2v",
+        model="wan2.7-t2v",
+        prompt="R49 JSON read rollback canary",
+        normalized_params={"resolution": "720P", "duration": 5, "prompt_extend": False, "watermark": False},
+        status=status,
+        group_count=1,
+    )
+
+set_current_user(user_id)
+storage = get_user_storage(user_id)
+json_task = make_task("json_read_canary")
+pg_task = make_task("postgres_read_canary")
+
+engine = create_database_engine()
+repo = None
+try:
+    repo = PostgresVideoStudioTaskRepository(engine, user_id)
+    storage._save_video_studio_task_to_file(json_task)
+    repo.save(pg_task)
+    by_id = storage.get_video_studio_task(task_id)
+    listed = storage.get_video_studio_tasks(project_id)
+finally:
+    storage._delete_video_studio_task_from_file(task_id)
+    if repo is not None:
+        repo.mark_deleted(task_id)
+    engine.dispose()
+
+listed_statuses = [task.status for task in listed]
+ok = bool(
+    by_id
+    and by_id.status == "json_read_canary"
+    and listed_statuses
+    and listed_statuses[0] == "json_read_canary"
+)
+print(json.dumps({
+    "ok": ok,
+    "domain": "video_studio_tasks",
+    "expected_read_source": "json",
+    "read_by_id_source": "json" if by_id and by_id.status == "json_read_canary" else "postgres_or_missing",
+    "list_source": "json" if listed_statuses and listed_statuses[0] == "json_read_canary" else "postgres_or_missing",
     "timestamp": datetime.utcnow().isoformat() + "Z",
 }, ensure_ascii=False, indent=2))
 if not ok:
@@ -416,6 +598,36 @@ dual_write_canary() {
   write_status "passed" "dual-write-canary" ""
 }
 
+read_switch_canary() {
+  write_status "running" "read-switch-canary" ""
+  local head
+  head="$(repo_head)"
+  health_check "pre-read-switch" "$head" || blocked "pre-read-switch" "runtime does not report current repo head; run MODE=roll-runtime first"
+  backup_env
+  configure_read_switch
+  run_logged "docker-compose-up-read-switch" "${COMPOSE[@]}" up -d api worker worker-video
+  wait_for_health "read-switch" "$head" 30 || fail "read-switch-health" "read-switch runtime health failed"
+  run_read_switch_storage_canary
+  run_api_preview_smoke
+  audit_state
+  write_status "passed" "read-switch-canary" ""
+}
+
+rollback_read_switch() {
+  write_status "running" "rollback-read-switch" ""
+  local head
+  head="$(repo_head)"
+  health_check "pre-rollback-read" "$head" || blocked "pre-rollback-read" "runtime does not report current repo head; run MODE=roll-runtime first"
+  backup_env
+  configure_read_rollback
+  run_logged "docker-compose-up-rollback-read" "${COMPOSE[@]}" up -d api worker worker-video
+  wait_for_health "rollback-read" "$head" 30 || fail "rollback-read-health" "rollback-read runtime health failed"
+  run_rollback_read_storage_canary
+  run_api_preview_smoke
+  audit_state
+  write_status "passed" "rollback-read-switch" ""
+}
+
 case "$MODE" in
   audit)
     ensure_preconditions
@@ -429,8 +641,16 @@ case "$MODE" in
     ensure_preconditions
     dual_write_canary
     ;;
+  read-switch-canary)
+    ensure_preconditions
+    read_switch_canary
+    ;;
+  rollback-read-switch)
+    ensure_preconditions
+    rollback_read_switch
+    ;;
   *)
-    printf 'usage: MODE=audit|roll-runtime|dual-write-canary %s\n' "$0" >&2
+    printf 'usage: MODE=audit|roll-runtime|dual-write-canary|read-switch-canary|rollback-read-switch %s\n' "$0" >&2
     exit 64
     ;;
 esac
