@@ -821,6 +821,13 @@ pre 部署复验：
 - 运行态默认仍为 Redis + file fallback；本轮不做 session read-switch 或 primary-write，不修改服务器业务开关，日志不记录 raw token。
 - 本地验证：R60 focused `5 passed`，auth/session target `63 passed`，schema/repository/migration target `87 passed`，后端全量 `413 passed`，`py_compile` 通过。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r60-sessions-runtime-dual-write/`。
 
+2026-06-17 阶段 7 R61 sessions read-switch：
+
+- 新增 `sessions` 读侧 feature flag：显式 `MIEMIE_DATABASE_READ_DOMAINS=sessions` 或全局 `MIEMIE_DATABASE_READ_MODE=postgres` 后，`UserService.get_user_by_token()` 可优先读取 PostgreSQL session。
+- `MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 时，PostgreSQL miss/error 会回退现有 Redis/file session 路径；未开启 fallback 时沿用数据库读失败即失败的灰度策略。
+- 运行态默认仍不变：Redis/file 仍是默认 auth session 路径；本轮不做 sessions primary-write，不启用服务器业务开关，不记录 raw token。
+- 本地验证：RED 先确认缺少 `build_session_read_repository`；实现后 R61 focused `4 passed`，sessions runtime combined `18 passed`，auth/session target `67 passed`，schema/repository/migration target `91 passed`，`py_compile` 通过。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r61-sessions-read-switch/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。

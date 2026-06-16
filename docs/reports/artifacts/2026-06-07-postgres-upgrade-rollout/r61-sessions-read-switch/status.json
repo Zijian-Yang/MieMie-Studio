@@ -1,0 +1,19 @@
+{
+  "state": "passed",
+  "stage": "local-sessions-read-switch",
+  "domain": "sessions",
+  "default_runtime_changed": false,
+  "runtime_switch": "read-switch opt-in only",
+  "server_state_changed": false,
+  "database_business_flags_changed": false,
+  "fallback": "Redis/file current session path when MIEMIE_DATABASE_JSON_FALLBACK_READ=true",
+  "tests": {
+    "red": "missing build_session_read_repository before implementation",
+    "session_runtime_read_switch": "4 passed",
+    "session_runtime_combined": "18 passed",
+    "auth_session_target": "67 passed",
+    "database_schema_repository_migration_target": "91 passed",
+    "py_compile": "passed"
+  },
+  "updated_at": "2026-06-16T19:42:46Z"
+}

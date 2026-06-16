@@ -642,6 +642,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-17 note: R60 adds opt-in sessions runtime dual-write without changing default auth behavior. `backend/app/repositories/session_runtime.py` gates shadow saves/deletes behind `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=sessions` or global dual-write mode; `UserService` now shadow-saves on login, shadow-deletes on logout, and shadow-deletes all user sessions after password change. Shadow failures remain warning-only unless `MIEMIE_DATABASE_RECONCILE_STRICT=true`; raw tokens are not logged. Local verification passed focused R60 tests (`5 passed`), auth/session target (`63 passed`), database schema/repository/migration target (`87 passed`), full backend pytest (`413 passed`), and py_compile. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r60-sessions-runtime-dual-write/`.
 
+2026-06-17 note: R61 adds opt-in sessions read-switch without changing default auth behavior. `session_runtime.read_session()` prefers PostgreSQL only when `MIEMIE_DATABASE_READ_DOMAINS=sessions` or global PostgreSQL read mode is enabled; `MIEMIE_DATABASE_JSON_FALLBACK_READ=true` falls back to the current Redis/file session path on miss/error. Local verification passed focused R61 tests (`4 passed`), combined sessions runtime tests (`18 passed`), auth/session target (`67 passed`), database schema/repository/migration target (`91 passed`), and py_compile. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r61-sessions-read-switch/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

@@ -275,6 +275,7 @@ create index idx_video_studio_tasks_submit_attempt
 2026-06-07 progress: R39 已新增 user/config PostgreSQL primary-write + JSON archive mirror。显式启用 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=user_config` 或 PostgreSQL 主写模式后，注册、登录更新、改密码和 per-user config 保存以 PostgreSQL 为主；默认不写 JSON，`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` 可保留临时 JSON 镜像。主写失败直接冒泡且不写 JSON。user/config 本地域已具备 schema、backfill/reconcile、dual-write、read-switch 和 primary-write 本地闭环；session 仍为 Redis + file fallback。
 2026-06-17 progress: R59 已新增 sessions PostgreSQL shadow/audit 基础。`sessions` 表只保存 `token_hash`、安全索引时间和 `raw_session_snapshot`，不保存 raw token；backfill/reconcile 输出仅包含计数、字段名、错误类型和 token hash。`postgres_live_rehearsal.sh` 已把 `sessions` 加入全域演练序列。运行态仍保持 Redis + file fallback，后续是否切 session 主路径需单独设计 TTL、Redis/DB 一致性、登出和改密清理策略。
 2026-06-17 progress: R60 已新增 sessions runtime dual-write。默认不启用；显式开启 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=sessions` 或全局 dual-write 后，登录保存、登出删除和改密清理会 shadow 写 PostgreSQL。Shadow 失败默认不打断 Redis/file 主路径，严格模式可在对账窗口冒泡；日志不记录 raw token。session read-switch / primary-write 仍待单独设计。
+2026-06-17 progress: R61 已新增 sessions read-switch + Redis/file fallback。默认不启用；显式开启 `MIEMIE_DATABASE_READ_DOMAINS=sessions` 或全局 PostgreSQL read mode 后，token 恢复可优先读 PostgreSQL session；`MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 时 miss/error 回退当前 Redis/file session 路径。session primary-write 仍待单独设计。
 
 ## 代码架构计划
 
@@ -551,6 +552,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-17 追加：R53 新增 `scripts/pre_studio_remote_postgres_sequence.sh` 与 verifier，将 R52 preflight 和 R51 sequence 串成远程编排入口。默认 dry-run；显式 `CONFIRM_REMOTE_SEQUENCE=run` 后先跑本地 preflight，通过后才 SSH 到 `/opt/miemie-pre`，用 `git merge --ff-only origin/pre` 同步并执行服务器 sequence。当前实跑停在本地 preflight，没有远程命令执行。
 2026-06-17 追加：R59 已补 sessions 本地 schema/repository/backfill/reconcile 基础，数据库只保存 `token_hash` 且运行态仍保持 Redis + file fallback；同轮复测本机 DIRECT 后 preflight 仍 blocked，DNS `198.18.0.124`、route `utun1024`、SSH banner 和公网 health 超时，服务器 sequence 未执行。
 2026-06-17 追加：R60 已补 sessions runtime dual-write feature flag，登录保存、登出删除和改密清理可选择性 shadow 写 PostgreSQL；默认运行态不变，服务器业务开关未启用。
+2026-06-17 追加：R61 已补 sessions read-switch feature flag，token 用户恢复可选择性优先读 PostgreSQL session；默认运行态不变，服务器业务开关未启用。
 
 ## 总体验收
 

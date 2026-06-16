@@ -322,15 +322,19 @@ class UserService:
         """通过 token 获取用户（支持多 worker：每次从文件读取，含过期检查）"""
         with self._lock:
             self._load_sessions()
-            session = None
-            if self._redis_sessions:
-                try:
-                    redis_record = self._redis_sessions.get(token)
-                    if redis_record:
-                        session = redis_record.to_dict()
-                except Exception as exc:
-                    logger.warning("[会话] Redis session 读取失败，回退文件会话: %s", exc)
-            session = session or self.sessions.get(token)
+
+            def load_current_session():
+                session = None
+                if self._redis_sessions:
+                    try:
+                        redis_record = self._redis_sessions.get(token)
+                        if redis_record:
+                            session = redis_record.to_dict()
+                    except Exception as exc:
+                        logger.warning("[会话] Redis session 读取失败，回退文件会话: %s", exc)
+                return session or self.sessions.get(token)
+
+            session = session_runtime.read_session(token, load_current_session)
             if not session:
                 return None
             

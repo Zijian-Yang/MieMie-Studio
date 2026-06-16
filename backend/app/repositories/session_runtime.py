@@ -41,6 +41,23 @@ def session_dual_write_enabled() -> bool:
     return write_mode in {"dual", "dual_write"} or DOMAIN in dual_domains
 
 
+def session_read_enabled() -> bool:
+    """Return true when session reads should prefer PostgreSQL."""
+
+    if not database_enabled():
+        return False
+
+    read_mode = os.getenv("MIEMIE_DATABASE_READ_MODE", "file").strip().lower()
+    read_domains = _env_csv("MIEMIE_DATABASE_READ_DOMAINS")
+    return read_mode == "postgres" or DOMAIN in read_domains
+
+
+def json_fallback_read_enabled() -> bool:
+    """Return true when PostgreSQL read miss/error should fallback to Redis/file."""
+
+    return _env_true("MIEMIE_DATABASE_JSON_FALLBACK_READ")
+
+
 def strict_shadow_writes_enabled() -> bool:
     """Return true when PostgreSQL shadow write failures should be propagated."""
 
@@ -63,6 +80,34 @@ def clear_runtime_database_engine() -> None:
 
 def build_session_shadow_repository() -> PostgresSessionRepository:
     return PostgresSessionRepository(_runtime_engine())
+
+
+def build_session_read_repository() -> PostgresSessionRepository:
+    return PostgresSessionRepository(_runtime_engine())
+
+
+def read_session(token: str, current_loader) -> dict | None:
+    """Read a session from PostgreSQL when enabled, with optional Redis/file fallback."""
+
+    if not token or not session_read_enabled():
+        return current_loader()
+
+    try:
+        record = build_session_read_repository().get(token)
+        if record is not None:
+            return record.to_dict()
+        if json_fallback_read_enabled():
+            logger.warning("session_runtime_postgres_miss_current_fallback")
+            return current_loader()
+        return None
+    except Exception as exc:
+        if not json_fallback_read_enabled():
+            raise
+        logger.warning(
+            "session_runtime_postgres_read_failed_current_fallback",
+            extra={"error": exc.__class__.__name__},
+        )
+        return current_loader()
 
 
 def shadow_save_session(token: str, record: SessionRecord | None) -> None:
