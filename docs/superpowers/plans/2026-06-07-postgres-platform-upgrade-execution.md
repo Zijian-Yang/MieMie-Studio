@@ -622,6 +622,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-17 note: R45 added `scripts/postgres_staging_video_task_canary.sh` to make the R44 recovery and first canary repeatable. The script has explicit `audit`, `roll-runtime`, and `dual-write-canary` modes. The canary write smoke uses an in-container `StorageService.save_video_studio_task()` maintenance write and direct PostgreSQL repository check, avoiding real provider calls; API smoke uses `preview-payload` only. Local verification passed `bash -n`, and a no-`compose.env` dry precheck exited blocked as expected. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r45-staging-canary-automation-script/`.
 
+2026-06-17 note: R46 added `scripts/verify_postgres_staging_canary_script.py` as an app-free local verifier for the R45 shell script. It checks shell syntax, missing-env blocked precheck, no Docker touch before precheck, default read-only audit mode, runtime-disabled database switches, single-domain dual-write canary scope, no-provider smoke usage, and redaction markers. Server execution remains pending SSH banner recovery; no container restart or database business switch occurred. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r46-staging-canary-verifier/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

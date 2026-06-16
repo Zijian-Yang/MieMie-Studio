@@ -1,0 +1,14 @@
+{
+  "state": "ready_for_server_retry",
+  "stage": "local-canary-verifier",
+  "script": "scripts/postgres_staging_video_task_canary.sh",
+  "verifier": "scripts/verify_postgres_staging_canary_script.py",
+  "server_execution": "blocked_by_ssh_banner_timeout",
+  "checks": {
+    "verifier": "passed",
+    "shell_syntax": "passed",
+    "missing_env_precheck": "blocked_without_docker",
+    "provider_calls": "not_exercised"
+  },
+  "updated_at": "2026-06-16T16:20:19Z"
+}

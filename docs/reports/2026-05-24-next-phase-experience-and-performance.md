@@ -716,6 +716,14 @@ pre 部署复验：
 - 本地验证：`bash -n scripts/postgres_staging_video_task_canary.sh` 通过；本机缺少服务器 `compose.env` 时 `MODE=audit` 按预期写入 blocked status，未尝试 Docker/Compose 操作。
 - 当前本机路径仍显示 `198.18.*`/`utun1024`，SSH 仍在 banner exchange 超时；服务器实跑待直连 SSH 恢复。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r45-staging-canary-automation-script/`。
 
+2026-06-17 阶段 7 R46 staging canary verifier：
+
+- 新增 `scripts/verify_postgres_staging_canary_script.py`，作为 R45 shell 脚本的 app-free 本地 verifier。
+- verifier 覆盖 shell 语法、缺少 `compose.env` 时的 blocked precheck、不触碰 Docker/Compose、默认只读 `audit`、`roll-runtime` 数据库业务开关关闭、`dual-write-canary` 单域双写和 no-provider smoke 契约。
+- 本地验证：`python3 scripts/verify_postgres_staging_canary_script.py` 通过；`bash -n scripts/postgres_staging_video_task_canary.sh` 通过。
+- 早先尝试把相同检查放入 `backend/tests/test_run_script.py` 时，后端全局 `conftest.py` 加载 app/OSS/PyCryptodome 栈并在本机原生模块加载阶段被 macOS system policy 拦住；该环境问题不属于 canary 脚本本身，因此本轮改为独立 verifier。
+- R46 未执行服务器命令、未重启容器、未启用数据库业务开关；证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r46-staging-canary-verifier/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -730,4 +738,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步优先级：先恢复直连 SSH 路径并在服务器运行 `MODE=audit scripts/postgres_staging_video_task_canary.sh`，审计 R44 interrupted build/image/container/health 状态；确认后运行 `MODE=roll-runtime`，再运行 `MODE=dual-write-canary` 进入 `video_studio_tasks` staging 双写，随后补 reconcile 和保守查询门禁，再考虑 read-switch。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 已完成服务器 live migration/backfill/reconcile，但尚未完成业务开关灰度和最终切库。
+- 下一步优先级：先恢复直连 SSH 路径并在服务器运行 `MODE=audit scripts/postgres_staging_video_task_canary.sh`，审计 R44 interrupted build/image/container/health 状态；确认后运行 `MODE=roll-runtime`，再运行 `MODE=dual-write-canary` 进入 `video_studio_tasks` staging 双写，随后补 reconcile 和保守查询门禁，再考虑 read-switch。R45/R46 已把这条恢复路径固化成脚本和本地 verifier。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 已完成服务器 live migration/backfill/reconcile，但尚未完成业务开关灰度和最终切库。
