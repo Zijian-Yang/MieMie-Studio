@@ -1,0 +1,69 @@
+{
+  "state": "passed",
+  "domains": {
+    "video_studio_tasks": {
+      "backfill_json_count": 2,
+      "backfill_upserted_count": 2,
+      "reconcile_json_count": 2,
+      "reconcile_postgres_count": 2,
+      "ok": true
+    },
+    "studio_tasks": {
+      "backfill_json_count": 0,
+      "backfill_upserted_count": 0,
+      "reconcile_json_count": 0,
+      "reconcile_postgres_count": 0,
+      "ok": true
+    },
+    "projects": {
+      "backfill_json_count": 1,
+      "backfill_upserted_count": 1,
+      "reconcile_json_count": 1,
+      "reconcile_postgres_count": 1,
+      "ok": true
+    },
+    "media_metadata": {
+      "backfill_json_count": 0,
+      "backfill_upserted_count": 0,
+      "reconcile_json_count": 0,
+      "reconcile_postgres_count": 0,
+      "ok": true
+    },
+    "project_entities": {
+      "backfill_json_count": 0,
+      "backfill_upserted_count": 0,
+      "reconcile_json_count": 0,
+      "reconcile_postgres_count": 0,
+      "ok": true
+    },
+    "benchmark_records": {
+      "backfill_json_count": 0,
+      "backfill_upserted_count": 0,
+      "reconcile_json_count": 0,
+      "reconcile_postgres_count": 0,
+      "ok": true
+    },
+    "user_config": {
+      "backfill_user_json_count": 1,
+      "backfill_config_json_count": 1,
+      "backfill_users_upserted_count": 1,
+      "backfill_configs_upserted_count": 1,
+      "reconcile_json_user_count": 1,
+      "reconcile_postgres_user_count": 1,
+      "reconcile_json_config_count": 1,
+      "reconcile_postgres_config_count": 1,
+      "ok": true
+    }
+  },
+  "reconcile_failures": {
+    "missing_in_postgres": 0,
+    "missing_in_json": 0,
+    "field_differences": 0,
+    "load_failures": 0
+  },
+  "backup_restore": {
+    "backup_extension": ".sql",
+    "restore_database": "miemie_restore_check",
+    "select_1": "passed"
+  }
+}

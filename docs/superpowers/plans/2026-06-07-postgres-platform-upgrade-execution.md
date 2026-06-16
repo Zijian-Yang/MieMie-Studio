@@ -624,6 +624,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-17 note: R46 added `scripts/verify_postgres_staging_canary_script.py` as an app-free local verifier for the R45 shell script. It checks shell syntax, missing-env blocked precheck, no Docker touch before precheck, default read-only audit mode, runtime-disabled database switches, single-domain dual-write canary scope, no-provider smoke usage, and redaction markers. Server execution remains pending SSH banner recovery; no container restart or database business switch occurred. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r46-staging-canary-verifier/`.
 
+2026-06-17 note: R47/R48 reran the local live database rehearsal after Docker daemon access was available outside the sandbox. R47 found the root cause of a false backup failure: `postgres_backup.sh` writes `.sql`, while `postgres_live_rehearsal.sh` searched for `*.dump`. R48 fixed the lookup and passed temporary Compose PostgreSQL startup, Alembic upgrade head, all-domain backfill/reconcile, `.sql` backup, restore rehearsal, and cleanup. Raw local outputs were not committed because they include local user UUIDs; sanitized summaries are archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r47-local-live-database-rehearsal-failed/` and `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r48-local-live-database-rehearsal/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

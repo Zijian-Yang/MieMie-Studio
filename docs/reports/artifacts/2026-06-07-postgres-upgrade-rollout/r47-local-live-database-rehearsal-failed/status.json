@@ -1,0 +1,11 @@
+{
+  "state": "failed",
+  "stage": "postgres-backup",
+  "reason": "backup discovery looked for *.dump while postgres_backup.sh produced *.sql",
+  "docker_daemon": "available_outside_sandbox",
+  "alembic_upgrade_head": "passed",
+  "backfill_reconcile": "passed",
+  "backup_sql_created": true,
+  "raw_outputs_committed": false,
+  "updated_at": "2026-06-16T16:30:54Z"
+}

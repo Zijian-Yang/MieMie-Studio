@@ -243,7 +243,7 @@ done
 mkdir -p "$BACKUP_DIR"
 run_logged "postgres-backup" env PROJECT_NAME="$PROJECT_NAME" ENV_FILE="$ENV_FILE" COMPOSE_FILE_1=docker-compose.yml COMPOSE_FILE_2="$OVERRIDE_FILE" BACKUP_DIR="$BACKUP_DIR" scripts/postgres_backup.sh
 
-LATEST_DUMP="$(find "$BACKUP_DIR" -type f -name '*.dump' -print | sort | tail -n 1)"
+LATEST_DUMP="$(find "$BACKUP_DIR" -type f -name '*.sql' -print | sort | tail -n 1)"
 if [[ -z "$LATEST_DUMP" ]]; then
   mark_failed "postgres-backup" "backup dump was not created"
 fi

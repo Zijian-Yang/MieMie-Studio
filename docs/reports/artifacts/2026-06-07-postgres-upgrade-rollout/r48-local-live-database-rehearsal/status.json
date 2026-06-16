@@ -1,0 +1,14 @@
+{
+  "state": "passed",
+  "stage": "done",
+  "run_id": "r48-local-live-database-rehearsal-20260617",
+  "script": "scripts/postgres_live_rehearsal.sh",
+  "docker_daemon": "available_outside_sandbox",
+  "alembic_upgrade_head": "passed",
+  "backfill_reconcile": "passed",
+  "backup": "miemie-postgres-*.sql created",
+  "restore_rehearsal": "passed",
+  "temporary_containers_remaining": 0,
+  "raw_outputs_committed": false,
+  "updated_at": "2026-06-16T16:32:54Z"
+}
