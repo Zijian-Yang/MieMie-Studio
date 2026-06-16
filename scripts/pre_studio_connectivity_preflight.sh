@@ -112,6 +112,16 @@ sanitize_proxy_env() {
 
 write_remediation_summary() {
   local state="$1"
+  local route_detail route_uses_wide_tun_route
+  route_detail=""
+  route_uses_wide_tun_route="false"
+  if [[ -f "$ARTIFACT_DIR/route-origin.txt" ]]; then
+    route_detail="$(grep -E 'destination:|mask:|gateway:|interface:' "$ARTIFACT_DIR/route-origin.txt" 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]*$//' || true)"
+    if grep -Eq 'destination:[[:space:]]*32\.0\.0\.0' "$ARTIFACT_DIR/route-origin.txt" \
+      && grep -Eq 'mask:[[:space:]]*224\.0\.0\.0' "$ARTIFACT_DIR/route-origin.txt"; then
+      route_uses_wide_tun_route="true"
+    fi
+  fi
   {
     printf '# Pre-studio Connectivity Remediation\n\n'
     printf -- '- Run ID: `%s`\n' "$RUN_ID"
@@ -147,6 +157,10 @@ write_remediation_summary() {
     fi
     if grep -Eq '^route[[:space:]]+blocked[[:space:]]+TUN/fake-ip route detected' "$RESULTS_FILE"; then
       printf -- '- Route to the origin IP is still going through TUN/fake-IP. Add a direct route/bypass for `%s` or temporarily disable Clash TUN, then re-check `route -n get %s` until the interface is the physical network interface, not `utun*`.\n' "$ORIGIN_IP" "$ORIGIN_IP"
+      printf -- '- Recommended Clash rule: `IP-CIDR,%s/32,DIRECT,no-resolve`. Put it before broad proxy/fake-IP rules and before any Rule Providers that may catch `32.0.0.0/3` or other large IP ranges.\n' "$ORIGIN_IP"
+      if [[ "$route_uses_wide_tun_route" == "true" ]]; then
+        printf -- '- Current route looks like the wide TUN catch-all range `32.0.0.0/3` is still winning over the host-specific rule. Route detail: `%s`.\n' "$route_detail"
+      fi
     fi
     if grep -Eq '^tcp_ssh[[:space:]]+passed' "$RESULTS_FILE" && grep -Eq '^ssh_banner[[:space:]]+blocked' "$RESULTS_FILE"; then
       printf -- '- TCP 22 is reachable but SSH banner did not complete. After DNS/route are clean, retry SSH. If it still blocks, check Alibaba Cloud security group, server firewall, sshd limits, and `/var/log/auth.log` on the origin host.\n'

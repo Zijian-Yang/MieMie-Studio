@@ -106,9 +106,17 @@ write_plan() {
       printf 'exit 64\n'
     fi
     printf 'test -f %s\n' "$(shell_quote "$SEQUENCE_RUNNER")"
+    printf 'grep -q live-data-gate %s\n' "$(shell_quote "$SEQUENCE_RUNNER")"
+    printf 'test -f scripts/postgres_staging_live_data_gate.sh\n'
     printf 'CONFIRM_STAGING_SEQUENCE=run RUN_ID=%s ARTIFACT_DIR=%s TMP_DIR=%s bash %s\n' \
       "$(shell_quote "$RUN_ID")" "$(shell_quote "$ARTIFACT_DIR/sequence")" "$(shell_quote "$TMP_DIR/sequence")" "$(shell_quote "$SEQUENCE_RUNNER")"
   } > "$PLAN_FILE"
+}
+
+verify_sequence_runner_contract() {
+  [[ -f "$SEQUENCE_RUNNER" ]] || blocked "precheck" "missing sequence runner: $SEQUENCE_RUNNER"
+  [[ -f scripts/postgres_staging_live_data_gate.sh ]] || blocked "precheck" "missing live data gate script: scripts/postgres_staging_live_data_gate.sh"
+  grep -q "live-data-gate" "$SEQUENCE_RUNNER" || blocked "precheck" "sequence runner does not include live-data-gate"
 }
 
 verify_server_context() {
@@ -117,7 +125,7 @@ verify_server_context() {
   [[ -f docker-compose.yml ]] || blocked "precheck" "missing docker-compose.yml"
   [[ -f compose.env ]] || blocked "precheck" "missing compose.env"
   [[ -f docker-compose.pre.override.yml ]] || blocked "precheck" "missing docker-compose.pre.override.yml"
-  [[ -f "$SEQUENCE_RUNNER" ]] || blocked "precheck" "missing sequence runner: $SEQUENCE_RUNNER"
+  verify_sequence_runner_contract
   local branch
   branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
   [[ "$branch" == "$SERVER_BRANCH" ]] || blocked "precheck" "expected branch $SERVER_BRANCH, got ${branch:-unknown}"
@@ -137,7 +145,7 @@ execute_plan() {
       ;;
   esac
 
-  [[ -f "$SEQUENCE_RUNNER" ]] || blocked "precheck" "missing sequence runner after sync: $SEQUENCE_RUNNER"
+  verify_sequence_runner_contract
   log_line "+ CONFIRM_STAGING_SEQUENCE=run RUN_ID=$RUN_ID ARTIFACT_DIR=$ARTIFACT_DIR/sequence TMP_DIR=$TMP_DIR/sequence bash $SEQUENCE_RUNNER"
   set +e
   CONFIRM_STAGING_SEQUENCE=run \

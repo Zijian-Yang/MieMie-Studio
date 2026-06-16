@@ -142,6 +142,68 @@ def run_network_scope_contract() -> None:
         assert "Network-only checks are clear" in remediation
 
 
+def run_tun_route_remediation_contract() -> None:
+    with tempfile.TemporaryDirectory(prefix="miemie-preflight-tun-") as temp_dir:
+        temp = Path(temp_dir)
+        bin_dir = temp / "bin"
+        artifact_dir = temp / "artifact"
+        tmp_dir = temp / "tmp"
+        bin_dir.mkdir()
+
+        write_executable(
+            bin_dir / "dig",
+            "#!/usr/bin/env bash\nprintf '%s\\n' 104.21.85.29 172.67.201.59\n",
+        )
+        write_executable(
+            bin_dir / "route",
+            "#!/usr/bin/env bash\n"
+            "cat <<'OUT'\n"
+            "   route to: 47.79.99.190\n"
+            "destination: 32.0.0.0\n"
+            "       mask: 224.0.0.0\n"
+            "    gateway: 198.18.0.1\n"
+            "  interface: utun1024\n"
+            "OUT\n",
+        )
+        for forbidden in ("nc", "ssh", "curl"):
+            write_executable(
+                bin_dir / forbidden,
+                f"#!/usr/bin/env bash\necho '{forbidden} should not run in network scope' >&2\nexit 99\n",
+            )
+
+        env = {
+            "PATH": f"{bin_dir}:{os.environ.get('PATH', '/usr/bin:/bin:/usr/sbin:/sbin')}",
+            "RUN_ID": "verify-tun-route-remediation",
+            "ARTIFACT_DIR": str(artifact_dir),
+            "TMP_DIR": str(tmp_dir),
+            "MIEMIE_PREFLIGHT_SCOPE": "network",
+        }
+        result = subprocess.run(
+            ["bash", str(SCRIPT)],
+            cwd=ROOT_DIR,
+            check=False,
+            text=True,
+            capture_output=True,
+            env=env,
+        )
+        if result.returncode != 2:
+            raise AssertionError(
+                f"expected network scope to exit 2, got {result.returncode}\n"
+                f"stdout={result.stdout}\nstderr={result.stderr}"
+            )
+
+        status = json.loads((artifact_dir / "status.json").read_text(encoding="utf-8"))
+        results = (artifact_dir / "results.tsv").read_text(encoding="utf-8")
+        remediation = (artifact_dir / "remediation.md").read_text(encoding="utf-8")
+
+        assert status["state"] == "blocked"
+        assert status["stage"] == "network"
+        assert "route\tblocked\tTUN/fake-ip route detected" in results
+        assert "32.0.0.0/3" in remediation
+        assert "IP-CIDR,47.79.99.190/32,DIRECT,no-resolve" in remediation
+        assert "Rule Providers" in remediation
+
+
 def check_safety_contract() -> None:
     content = SCRIPT.read_text(encoding="utf-8")
     required_fragments = [
@@ -153,6 +215,8 @@ def check_safety_contract() -> None:
         "198\\.18\\.|198\\.19\\.",
         "interface:[[:space:]]*utun",
         "gateway:[[:space:]]*198\\.18\\.",
+        "IP-CIDR,%s/32,DIRECT,no-resolve",
+        "32.0.0.0/3",
         "nc -vz",
         "ssh -o BatchMode=yes",
         'curl --noproxy "*"',
@@ -172,6 +236,7 @@ def main() -> int:
     run_shell_syntax_check()
     run_dry_run_contract()
     run_network_scope_contract()
+    run_tun_route_remediation_contract()
     check_safety_contract()
     print("pre-studio connectivity preflight verifier: passed")
     return 0

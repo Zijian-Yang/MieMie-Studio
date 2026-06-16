@@ -183,7 +183,8 @@ curl http://127.0.0.1:8000/api/health
   - 视频工作室任务双写的服务器启用顺序必须是：PostgreSQL health 通过、`alembic upgrade head` 通过、backfill/reconcile 干净后，再设置 `MIEMIE_DATABASE_ENABLED=true` 与 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=video_studio_tasks`；回滚双写只需清空 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS` 并保持 `MIEMIE_DATABASE_WRITE_MODE=file`。
   - 视频工作室任务读切换必须在双写和再次对账干净后启用：设置 `MIEMIE_DATABASE_READ_DOMAINS=video_studio_tasks`；回滚读切换只需清空 `MIEMIE_DATABASE_READ_DOMAINS`，保留 `MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 可在 PostgreSQL miss/异常时回退 JSON。
   - 视频工作室任务 PostgreSQL 主写必须在读切换和再次对账干净后启用：设置 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=video_studio_tasks`，必要时临时设置 `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` 保留 JSON 归档镜像；回滚主写只需清空 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS` 并恢复前一阶段双写/读切换组合。
-  - 如果本机 SSH 因 Clash/TUN/fake-IP 路径无法稳定执行远程 wrapper，可登录服务器后在 `/opt/miemie-pre` 运行：`CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`。该入口会先做服务器上下文检查和 `git merge --ff-only origin/pre`，再串行执行同一套 staging canary/rollback sequence。
+  - 如果本机 SSH 因 Clash/TUN/fake-IP 路径无法稳定执行远程 wrapper，可登录服务器后在 `/opt/miemie-pre` 运行：`CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`。该入口会先做服务器上下文检查和 `git merge --ff-only origin/pre`，确认 sequence 包含 `live-data-gate` 后，再串行执行同一套 staging live-data/canary/rollback sequence。
+  - 如果 `scripts/pre_studio_connectivity_preflight.sh` 显示 route 被 `32.0.0.0/3` 或 `utun*` 捕获，可在 Clash 规则前部加入 `IP-CIDR,47.79.99.190/32,DIRECT,no-resolve`，并确保它位于宽泛代理规则和 Rule Providers 之前；只有 `route -n get 47.79.99.190` 显示物理网卡后，才继续本机远程 wrapper。
 
 ---
 

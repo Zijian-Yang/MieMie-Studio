@@ -61,6 +61,8 @@ def run_dry_run_contract() -> None:
         assert status["confirm"] == "dry-run"
         assert "set CONFIRM_SERVER_SEQUENCE=run" in status["reason"]
         assert "git merge --ff-only origin/pre" in plan
+        assert "live-data-gate" in plan
+        assert "postgres_staging_live_data_gate.sh" in plan
         assert "CONFIRM_STAGING_SEQUENCE=run" in plan
         assert "scripts/postgres_staging_video_task_sequence.sh" in plan
         if re.search(r"\b(docker|curl|ssh|scp|nc|git fetch|git merge)\b", commands):
@@ -73,6 +75,8 @@ def check_safety_contract() -> None:
         'CONFIRM_SERVER_SEQUENCE="${CONFIRM_SERVER_SEQUENCE:-dry-run}"',
         'ARTIFACT_DIR="${ARTIFACT_DIR:-$ROOT_DIR/validation-artifacts/$RUN_ID}"',
         "git merge --ff-only",
+        "live-data-gate",
+        "postgres_staging_live_data_gate.sh",
         'failed "sync"',
         "CONFIRM_STAGING_SEQUENCE=run",
         "verify_server_context",

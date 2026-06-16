@@ -557,6 +557,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-17 追加：R61 已补 sessions read-switch feature flag，token 用户恢复可选择性优先读 PostgreSQL session；默认运行态不变，服务器业务开关未启用。
 2026-06-17 追加：R63 已补 sessions primary-write feature flag 与 JSON archive mirror；session 域本地已具备 schema/repository、backfill/reconcile、dual-write、read-switch 和 primary-write 闭环。服务器最终切库仍待 staging sequence 恢复。
 2026-06-17 追加：R64 已新增服务器侧 live data gate 并插入 staging sequence。恢复服务器执行后，sequence 会在 app-level canary 前先跑 Alembic head、全域 backfill/reconcile、PostgreSQL 备份和恢复演练，覆盖 sessions migration `20260607_0008` 之后的 live data state；本轮仅本地 dry-run/verifier 通过，服务器业务开关仍未启用。
+2026-06-17 追加：R65 已加强 operator preflight remediation 与服务器 fallback 契约。当前本机 route 仍被 `32.0.0.0/3` TUN catch-all 捕获，preflight 会输出精确 `IP-CIDR,47.79.99.190/32,DIRECT,no-resolve` 建议；服务器自运行入口会显式验证 sequence 含 `live-data-gate` 后才执行。服务器业务开关仍未启用。
 
 ## 总体验收
 

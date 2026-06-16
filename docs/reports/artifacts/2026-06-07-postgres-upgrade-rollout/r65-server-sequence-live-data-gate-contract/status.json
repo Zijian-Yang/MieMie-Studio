@@ -1,0 +1,15 @@
+{
+  "run_id": "r65-server-sequence-dry-run-20260617",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_SERVER_SEQUENCE=run to execute on the server",
+  "branch": "pre",
+  "head": "8046d4532c2f0171ac1e2586a4a822a14c7113a1",
+  "server_branch": "pre",
+  "server_sync": "ff-only",
+  "confirm": "dry-run",
+  "sequence_runner": "scripts/postgres_staging_video_task_sequence.sh",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r65-server-sequence-live-data-gate-contract",
+  "tmp_dir": "/tmp/r65-server-sequence-dry-run-20260617",
+  "updated_at": "2026-06-16T20:39:49Z"
+}
