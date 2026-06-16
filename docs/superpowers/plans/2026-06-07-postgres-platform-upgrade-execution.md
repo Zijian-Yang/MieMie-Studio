@@ -620,6 +620,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-16 note: R44 attempted to start the first application-level dual-write canary for `video_studio_tasks`, but stopped before any canary traffic. The server `compose.env` was backed up, `MIEMIE_RUNTIME_GIT_COMMIT` was updated to `e731245`, and `MIEMIE_DATABASE_ENABLED` stayed `false`. A `miemie-studio:pre-local` build was started, then the SSH session timed out before build completion was observed; follow-up SSH attempts timed out during banner exchange while the local route used `utun1024` / fake-IP. No container restart, no database business switch, and no dual-write canary occurred. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r44-staging-dual-write-canary-interrupted/`.
 
+2026-06-17 note: R45 added `scripts/postgres_staging_video_task_canary.sh` to make the R44 recovery and first canary repeatable. The script has explicit `audit`, `roll-runtime`, and `dual-write-canary` modes. The canary write smoke uses an in-container `StorageService.save_video_studio_task()` maintenance write and direct PostgreSQL repository check, avoiding real provider calls; API smoke uses `preview-payload` only. Local verification passed `bash -n`, and a no-`compose.env` dry precheck exited blocked as expected. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r45-staging-canary-automation-script/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

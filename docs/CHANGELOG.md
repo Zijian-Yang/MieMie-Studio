@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R45 staging canary 自动化：新增 `scripts/postgres_staging_video_task_canary.sh`，把 R44 恢复后的审计、新镜像滚动和 `video_studio_tasks` dual-write canary 固化为三段显式模式；默认只读 `audit`，`roll-runtime` 保持 `MIEMIE_DATABASE_ENABLED=false`，`dual-write-canary` 才开启单域双写，并通过容器内维护写入验证 JSON 主写与 PostgreSQL shadow 写，不触发真实供应商调用。
 - 数据库升级 R44 staging dual-write canary 预备中断：尝试进入 `video_studio_tasks` dual-write canary 前，先将服务器 `compose.env` 的 runtime commit 更新为 `e731245` 并保持 `MIEMIE_DATABASE_ENABLED=false`；构建 `miemie-studio:pre-local` 期间 SSH 会话超时，后续 SSH banner 仍因本机 `utun1024`/fake-IP 路径超时。本轮未重启容器，未启用数据库业务开关，未开始 dual-write canary。
 - 数据库升级 R43 staging live migration/backfill/reconcile：服务器 PostgreSQL 已执行 Alembic 到 `20260607_0007`，全域 backfill/reconcile 均通过，备份与恢复演练通过；应用运行态仍未启用数据库读写开关，现有本机和 Cloudflare health 均为 `200`。
 - 数据库升级 R42 staging 恢复：服务器 SSH 一度恢复后，`/opt/miemie-pre` 已 fast-forward 到 `e731245`，并启动 `postgres` 服务且 `pg_isready` 接受连接；现有 API health 仍为 `200`，但在 build 最新 `api` 镜像期间 SSH 控制面再次 banner 超时，尚未执行 Alembic/backfill/reconcile，也未启用任何数据库业务开关。
