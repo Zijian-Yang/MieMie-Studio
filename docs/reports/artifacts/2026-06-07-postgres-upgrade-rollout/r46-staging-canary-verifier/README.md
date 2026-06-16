@@ -31,3 +31,12 @@ An earlier focused attempt to place these checks under `backend/tests/test_run_s
 ## Current Blocker
 
 Server execution is still waiting on a clean direct SSH path. The latest local probe showed TCP 22 reachable, but SSH timed out during banner exchange while the route still used the local TUN/fake-IP path. No container restart, no database business switch, and no staging canary traffic occurred in R46.
+
+## Latest Server Retry
+
+2026-06-16T16:25:48Z retry:
+
+- `pre-studio.miemie.co` resolved to `198.18.2.63`.
+- route to `47.79.99.190` used gateway `198.18.0.1` on `utun1024`.
+- `nc -vz -w 10 47.79.99.190 22` succeeded.
+- `ssh -o BatchMode=yes ... root@47.79.99.190 'echo ok; date'` failed with `Connection timed out during banner exchange`.
