@@ -276,6 +276,7 @@ create index idx_video_studio_tasks_submit_attempt
 2026-06-17 progress: R59 已新增 sessions PostgreSQL shadow/audit 基础。`sessions` 表只保存 `token_hash`、安全索引时间和 `raw_session_snapshot`，不保存 raw token；backfill/reconcile 输出仅包含计数、字段名、错误类型和 token hash。`postgres_live_rehearsal.sh` 已把 `sessions` 加入全域演练序列。运行态仍保持 Redis + file fallback，后续是否切 session 主路径需单独设计 TTL、Redis/DB 一致性、登出和改密清理策略。
 2026-06-17 progress: R60 已新增 sessions runtime dual-write。默认不启用；显式开启 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=sessions` 或全局 dual-write 后，登录保存、登出删除和改密清理会 shadow 写 PostgreSQL。Shadow 失败默认不打断 Redis/file 主路径，严格模式可在对账窗口冒泡；日志不记录 raw token。session read-switch / primary-write 仍待单独设计。
 2026-06-17 progress: R61 已新增 sessions read-switch + Redis/file fallback。默认不启用；显式开启 `MIEMIE_DATABASE_READ_DOMAINS=sessions` 或全局 PostgreSQL read mode 后，token 恢复可优先读 PostgreSQL session；`MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 时 miss/error 回退当前 Redis/file session 路径。session primary-write 仍待单独设计。
+2026-06-17 progress: R62 复测新增 Clash 直连规则后的本机 operator path，network preflight 仍 blocked：DNS 为 `198.18.0.124`，源站 route 仍走 `utun1024`；手动 TCP 22 可达但 SSH banner exchange 仍超时。远程 sequence 未执行，服务器状态未修改。证据归档于 `docs/reports/artifacts/2026-06-17-postgres-connectivity-direct-rule/`。
 
 ## 代码架构计划
 

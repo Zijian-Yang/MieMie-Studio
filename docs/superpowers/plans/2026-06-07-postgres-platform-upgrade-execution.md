@@ -644,6 +644,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-17 note: R61 adds opt-in sessions read-switch without changing default auth behavior. `session_runtime.read_session()` prefers PostgreSQL only when `MIEMIE_DATABASE_READ_DOMAINS=sessions` or global PostgreSQL read mode is enabled; `MIEMIE_DATABASE_JSON_FALLBACK_READ=true` falls back to the current Redis/file session path on miss/error. Local verification passed focused R61 tests (`4 passed`), combined sessions runtime tests (`18 passed`), auth/session target (`67 passed`), database schema/repository/migration target (`91 passed`), and py_compile. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r61-sessions-read-switch/`.
 
+2026-06-17 note: R62 rechecked the local operator path after another Clash direct-rule change. The network-scope preflight still blocks because DNS returns fake-IP `198.18.0.124` and the origin route uses gateway `198.18.0.1` / interface `utun1024`. Manual TCP 22 succeeds, but SSH command execution still times out during banner exchange after the TCP connection is established. No remote PostgreSQL sequence was executed and no server state changed. Evidence is archived in `docs/reports/artifacts/2026-06-17-postgres-connectivity-direct-rule/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R62 连通性复测：新增 Clash 直连规则后，network preflight 仍显示 fake-IP/TUN 路径；手动 TCP 22 可达但 SSH banner exchange 超时，远程 PostgreSQL sequence 未执行，证据归档到 `docs/reports/artifacts/2026-06-17-postgres-connectivity-direct-rule/`。
 - 数据库升级 R61 sessions read-switch：新增 `sessions` 读侧 feature flag，显式开启 `MIEMIE_DATABASE_READ_DOMAINS=sessions` 或全局 PostgreSQL read mode 后，`get_user_by_token()` 可优先读取 PostgreSQL session；`MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 时 miss/error 回退现有 Redis/file session 路径，默认运行态不变。
 - 数据库升级 R60 sessions runtime dual-write：新增 `session_runtime` feature flag 边界，显式开启 `sessions` 双写域后，登录 session 保存、登出删除和改密清理会 shadow 写入 PostgreSQL；默认仍为 Redis + file fallback，shadow 失败默认不打断主路径，严格模式才冒泡，日志不记录 raw token。
 - 数据库升级 R59 sessions PostgreSQL 本地基础：新增 `sessions` schema、Alembic migration `20260607_0008`、`PostgresSessionRepository`、脱敏 backfill/reconcile 服务和维护脚本；数据库仅保存 `token_hash`，不落 raw token，运行态仍保持 Redis + file fallback。`postgres_live_rehearsal.sh` 已纳入 `sessions` 域；本机新增 DIRECT 规则后 preflight 仍 blocked，DNS `198.18.0.124`、route `utun1024`、SSH banner 和公网 health 超时，未执行服务器命令或业务开关。

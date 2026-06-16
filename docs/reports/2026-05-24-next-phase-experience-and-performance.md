@@ -828,6 +828,13 @@ pre 部署复验：
 - 运行态默认仍不变：Redis/file 仍是默认 auth session 路径；本轮不做 sessions primary-write，不启用服务器业务开关，不记录 raw token。
 - 本地验证：RED 先确认缺少 `build_session_read_repository`；实现后 R61 focused `4 passed`，sessions runtime combined `18 passed`，auth/session target `67 passed`，schema/repository/migration target `91 passed`，`py_compile` 通过。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r61-sessions-read-switch/`。
 
+2026-06-17 阶段 7 R62 connectivity direct-rule recheck：
+
+- 用户新增 Clash 直连规则后，重跑 network-scope preflight；沙盒内首次因 `dig`/`route` socket 权限被拒，提升权限后得到真实结果。
+- 结果仍为 blocked：DNS 返回 `198.18.0.124`，到源站 `47.79.99.190` 的 route 仍走 `198.18.0.1` / `utun1024`。
+- 手动分层检查显示 TCP 22 可达，但 `ssh root@47.79.99.190 'echo ok'` 仍在 banner exchange 阶段超时；verbose SSH 已建立 TCP 并发送本地 version string，但服务端 banner 未返回。
+- 本轮未执行 remote PostgreSQL sequence、未修改服务器状态、未重启容器、未启用数据库业务开关。证据归档到 `docs/reports/artifacts/2026-06-17-postgres-connectivity-direct-rule/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。

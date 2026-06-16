@@ -1,0 +1,18 @@
+{
+  "run_id": "pre-studio-connectivity-direct-rule-20260617-network",
+  "state": "blocked",
+  "stage": "network",
+  "reason": "2 network check(s) failed or blocked",
+  "host": "pre-studio.miemie.co",
+  "origin_ip": "47.79.99.190",
+  "ssh_target": "root@47.79.99.190",
+  "public_health_url": "https://pre-studio.miemie.co/api/health",
+  "scope": "network",
+  "dns_a": "198.18.0.124",
+  "route_origin": "    gateway: 198.18.0.1   interface: utun1024",
+  "public_health": "",
+  "remediation_file": "docs/reports/artifacts/2026-06-17-postgres-connectivity-direct-rule/remediation.md",
+  "artifact_dir": "docs/reports/artifacts/2026-06-17-postgres-connectivity-direct-rule",
+  "tmp_dir": "/tmp/pre-studio-connectivity-direct-rule-20260617-network",
+  "updated_at": "2026-06-16T19:51:20Z"
+}
