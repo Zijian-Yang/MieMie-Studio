@@ -813,6 +813,14 @@ pre 部署复验：
 - 本地验证：session focused `9 passed`，session + user/config target `22 passed`，schema/repository/migration target `82 passed`，auth/session target `52 passed`，后端全量 `408 passed`，`py_compile`、shell syntax 和 Alembic offline SQL 均通过。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r59-sessions-local-schema-repository/`。
 - 用户再次补本地 DIRECT 规则后复跑完整 preflight 仍 blocked：DNS `198.18.0.124`，route `utun1024`，TCP 22 可达但 SSH banner 超时，公网 health 20 秒超时；服务器 sequence 未执行，证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r59-connectivity-after-direct-rule/`。
 
+2026-06-17 阶段 7 R60 sessions runtime dual-write：
+
+- 新增 `backend/app/repositories/session_runtime.py`，沿用现有数据库 feature flag 模式：默认关闭，显式 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=sessions` 或全局 `MIEMIE_DATABASE_WRITE_MODE=dual/dual_write` 后才启用。
+- `UserService` 登录保存 session 后会 shadow-save 到 PostgreSQL；登出会 shadow-delete 单个 session；改密清理会 shadow-delete 用户所有 sessions。
+- Shadow 失败默认 warning-only，不打断 Redis/file 主路径；`MIEMIE_DATABASE_RECONCILE_STRICT=true` 时在主路径写入完成后冒泡，便于灰度/对账窗口发现问题。
+- 运行态默认仍为 Redis + file fallback；本轮不做 session read-switch 或 primary-write，不修改服务器业务开关，日志不记录 raw token。
+- 本地验证：R60 focused `5 passed`，auth/session target `63 passed`，schema/repository/migration target `87 passed`，后端全量 `413 passed`，`py_compile` 通过。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r60-sessions-runtime-dual-write/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。

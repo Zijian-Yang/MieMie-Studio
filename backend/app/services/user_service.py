@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 import bcrypt
 
 from app.models.user import User, UserResponse
+from app.repositories import session_runtime
 from app.services.session_store import RedisSessionStore, SessionRecord
 
 logger = logging.getLogger(__name__)
@@ -162,14 +163,15 @@ class UserService:
     def _save_session(self, token: str, session: Dict[str, str]):
         """保存单个 session：Redis 优先用于多 worker，文件保留兜底。"""
         self.sessions[token] = session
+        record = SessionRecord.from_raw(session)
         if self._redis_sessions:
             try:
-                record = SessionRecord.from_raw(session)
                 if record:
                     self._redis_sessions.set(token, record)
             except Exception as exc:
                 logger.warning("[会话] Redis session 写入失败，保留文件兜底: %s", exc)
         self._save_sessions()
+        session_runtime.shadow_save_session(token, record)
 
     def _delete_session(self, token: str):
         session = self.sessions.pop(token, None)
@@ -180,6 +182,7 @@ class UserService:
                 logger.warning("[会话] Redis session 删除失败: %s", exc)
         if session is not None:
             self._save_sessions()
+        session_runtime.shadow_delete_session(token)
 
     def _delete_user_sessions(self, user_id: str):
         tokens = []
@@ -196,6 +199,7 @@ class UserService:
                 self._redis_sessions.delete_user_sessions(user_id)
             except Exception as exc:
                 logger.warning("[会话] Redis 用户 session 清理失败: %s", exc)
+        session_runtime.shadow_delete_user_sessions(user_id)
     
     def _cleanup_expired_sessions(self):
         """清理过期的会话"""
@@ -308,6 +312,7 @@ class UserService:
                 try:
                     if self._redis_sessions.get(token):
                         self._redis_sessions.delete(token)
+                        session_runtime.shadow_delete_session(token)
                         return True
                 except Exception as exc:
                     logger.warning("[会话] Redis logout 查询失败: %s", exc)

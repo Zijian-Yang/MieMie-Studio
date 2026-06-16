@@ -1,0 +1,18 @@
+{
+  "state": "passed",
+  "stage": "local-sessions-runtime-dual-write",
+  "domain": "sessions",
+  "default_runtime_changed": false,
+  "runtime_switch": "dual-write opt-in only",
+  "server_state_changed": false,
+  "database_business_flags_changed": false,
+  "raw_token_logging": false,
+  "tests": {
+    "session_runtime_dual_write": "5 passed",
+    "auth_session_target": "63 passed",
+    "database_schema_repository_migration_target": "87 passed",
+    "backend_full": "413 passed",
+    "py_compile": "passed"
+  },
+  "updated_at": "2026-06-16T19:31:14Z"
+}
