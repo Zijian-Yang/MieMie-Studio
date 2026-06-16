@@ -1,0 +1,6 @@
+check	state	detail
+dns	blocked	fake-ip detected
+route	blocked	TUN/fake-ip route detected
+tcp_ssh	passed	tcp 22 reachable
+ssh_banner	blocked	Connection timed out during banner exchange
+public_health	failed	curl failed: curl: (28) Operation timed out after 20004 milliseconds with 0 bytes received
