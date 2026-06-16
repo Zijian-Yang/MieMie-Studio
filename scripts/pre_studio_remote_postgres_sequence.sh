@@ -14,7 +14,7 @@ REMOTE_DIR="${REMOTE_DIR:-/opt/miemie-pre}"
 REMOTE_BRANCH="${REMOTE_BRANCH:-pre}"
 REMOTE_ARTIFACT_DIR="${REMOTE_ARTIFACT_DIR:-$REMOTE_DIR/validation-artifacts/$RUN_ID}"
 REMOTE_TMP_DIR="${REMOTE_TMP_DIR:-/tmp/$RUN_ID}"
-REMOTE_RUNNER="${REMOTE_RUNNER:-scripts/postgres_staging_video_task_sequence.sh}"
+REMOTE_RUNNER="${REMOTE_RUNNER:-scripts/pre_studio_server_postgres_sequence.sh}"
 LOCAL_PREFLIGHT_SCRIPT="${LOCAL_PREFLIGHT_SCRIPT:-$ROOT_DIR/scripts/pre_studio_connectivity_preflight.sh}"
 CONFIRM_REMOTE_SEQUENCE="${CONFIRM_REMOTE_SEQUENCE:-dry-run}"
 REMOTE_SYNC="${REMOTE_SYNC:-ff-only}"
@@ -98,7 +98,7 @@ build_remote_command() {
       printf 'exit 64\n'
     fi
     printf 'test -f %s\n' "$quoted_runner"
-    printf 'CONFIRM_STAGING_SEQUENCE=run RUN_ID=%s ARTIFACT_DIR=%s TMP_DIR=%s bash %s\n' \
+    printf 'CONFIRM_SERVER_SEQUENCE=run SERVER_SYNC=none RUN_ID=%s ARTIFACT_DIR=%s TMP_DIR=%s bash %s\n' \
       "$quoted_run_id" "$quoted_artifact_dir" "$quoted_tmp_dir" "$quoted_runner"
   } > "$REMOTE_COMMAND_FILE"
 }

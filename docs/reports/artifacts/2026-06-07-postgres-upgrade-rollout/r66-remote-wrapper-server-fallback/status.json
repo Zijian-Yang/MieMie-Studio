@@ -1,0 +1,15 @@
+{
+  "run_id": "r66-remote-wrapper-server-fallback-20260617",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_REMOTE_SEQUENCE=run to execute local preflight and remote sequence",
+  "ssh_target": "root@47.79.99.190",
+  "remote_dir": "/opt/miemie-pre",
+  "remote_branch": "pre",
+  "remote_artifact_dir": "/opt/miemie-pre/validation-artifacts/r66-remote-wrapper-server-fallback-20260617",
+  "remote_sync": "ff-only",
+  "confirm": "dry-run",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r66-remote-wrapper-server-fallback",
+  "tmp_dir": "/tmp/r66-remote-wrapper-server-fallback-20260617",
+  "updated_at": "2026-06-16T20:48:45Z"
+}

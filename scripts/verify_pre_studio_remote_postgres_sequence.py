@@ -61,8 +61,10 @@ def run_dry_run_contract() -> None:
         assert status["confirm"] == "dry-run"
         assert "set CONFIRM_REMOTE_SEQUENCE=run" in status["reason"]
         assert "git merge --ff-only origin/pre" in remote_command
-        assert "CONFIRM_STAGING_SEQUENCE=run" in remote_command
-        assert "scripts/postgres_staging_video_task_sequence.sh" in remote_command
+        assert "CONFIRM_SERVER_SEQUENCE=run" in remote_command
+        assert "SERVER_SYNC=none" in remote_command
+        assert "scripts/pre_studio_server_postgres_sequence.sh" in remote_command
+        assert "scripts/postgres_staging_video_task_sequence.sh" not in remote_command
         if re.search(r"\b(ssh|scp|dig|route|nc|curl)\b", commands):
             raise AssertionError(f"dry-run executed network command unexpectedly:\n{commands}")
 
@@ -75,7 +77,9 @@ def check_safety_contract() -> None:
         "run_local_preflight",
         "git merge --ff-only",
         "REMOTE_SYNC",
-        "CONFIRM_STAGING_SEQUENCE=run",
+        "CONFIRM_SERVER_SEQUENCE=run",
+        "SERVER_SYNC=none",
+        "pre_studio_server_postgres_sequence.sh",
         "BatchMode=yes",
         "ConnectTimeout",
         "PULL_REMOTE_ARTIFACTS",

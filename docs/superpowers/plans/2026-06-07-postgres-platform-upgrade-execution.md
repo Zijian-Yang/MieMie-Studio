@@ -652,6 +652,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-17 note: R65 tightens the blocked operator-path handoff. `scripts/pre_studio_connectivity_preflight.sh` now emits an exact `IP-CIDR,47.79.99.190/32,DIRECT,no-resolve` recommendation when the route is captured by a wide TUN range such as `32.0.0.0/3`. `scripts/pre_studio_server_postgres_sequence.sh` now verifies that the sequence runner includes `live-data-gate` and that `scripts/postgres_staging_live_data_gate.sh` exists. Live network-scope evidence still shows DNS `198.18.0.124` and route `32.0.0.0/3 -> 198.18.0.1 -> utun1024`, so no server sequence or business switch ran. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r65-connectivity-ip-cidr-remediation/` and `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r65-server-sequence-live-data-gate-contract/`.
 
+2026-06-17 note: R66 aligns the local remote PostgreSQL wrapper with the server-terminal fallback. `scripts/pre_studio_remote_postgres_sequence.sh` still performs local connectivity preflight and remote `git merge --ff-only origin/pre`, but now invokes `CONFIRM_SERVER_SEQUENCE=run SERVER_SYNC=none scripts/pre_studio_server_postgres_sequence.sh` on the server. This keeps the local remote path and direct server-terminal path on the same live-data/canary/rollback contract. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r66-remote-wrapper-server-fallback/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R66 remote wrapper 对齐：`scripts/pre_studio_remote_postgres_sequence.sh` 现在默认在远端同步 `origin/pre` 后调用 `CONFIRM_SERVER_SEQUENCE=run SERVER_SYNC=none scripts/pre_studio_server_postgres_sequence.sh`，复用 R65 server fallback 的 `live-data-gate` 契约；本轮仅 dry-run/verifier 通过，服务器未执行。
 - 数据库升级 R65 连通性 remediation 与服务器 fallback 契约：`pre_studio_connectivity_preflight.sh` 现在会在 route 被 `32.0.0.0/3` TUN 捕获时输出精确 `IP-CIDR,47.79.99.190/32,DIRECT,no-resolve` 建议；`pre_studio_server_postgres_sequence.sh` 在 dry-run 和 run precheck 中显式检查 sequence 包含 `live-data-gate` 且 live gate 脚本存在。本轮真实 network-scope preflight 仍 blocked，服务器未执行。
 - 数据库升级 R64 staging live data gate：新增 `scripts/postgres_staging_live_data_gate.sh` 与 `scripts/verify_postgres_staging_live_data_gate.py`，在 app-level canary 前先执行服务器侧 Alembic、全域 backfill/reconcile、PostgreSQL 备份和恢复演练；`scripts/postgres_staging_video_task_sequence.sh` 默认序列更新为 `audit -> roll-runtime -> live-data-gate -> dual-write-canary -> read-switch-canary -> rollback-read-switch -> primary-write-canary -> rollback-primary-write`。本轮仅本地 dry-run/verifier 通过，服务器未执行。
 - 数据库升级 R63 sessions primary-write：新增 `sessions` 主写 feature flag，显式开启后 session 保存/删除/按用户清理以 PostgreSQL 为主，Redis 保持热 cache，`sessions.json` 默认不写、仅在 `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` 时作为临时归档镜像；默认运行态不变。
