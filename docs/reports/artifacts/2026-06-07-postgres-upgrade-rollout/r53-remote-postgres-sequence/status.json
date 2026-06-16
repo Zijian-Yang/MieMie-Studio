@@ -1,0 +1,32 @@
+{
+  "state": "blocked",
+  "stage": "preflight",
+  "script": "scripts/pre_studio_remote_postgres_sequence.sh",
+  "verifier": "scripts/verify_pre_studio_remote_postgres_sequence.py",
+  "confirm": "run",
+  "remote": {
+    "ssh_target": "root@47.79.99.190",
+    "remote_dir": "/opt/miemie-pre",
+    "remote_branch": "pre",
+    "remote_sync": "ff-only",
+    "remote_artifact_dir": "/opt/miemie-pre/validation-artifacts/r53-remote-sequence-live-20260617"
+  },
+  "preflight": {
+    "state": "blocked",
+    "dns_a": "198.18.0.80",
+    "route_origin": "gateway: 198.18.0.1; interface: utun1024",
+    "tcp_ssh": "passed",
+    "ssh_banner": "blocked_banner_timeout",
+    "public_health": "failed_timeout_after_20s"
+  },
+  "checks": {
+    "remote_shell_syntax": "passed",
+    "remote_verifier": "passed",
+    "connectivity_preflight_verifier": "passed",
+    "staging_sequence_verifier": "passed",
+    "remote_commands": "not_executed",
+    "server_commands": "not_executed",
+    "provider_calls": "not_exercised"
+  },
+  "updated_at": "2026-06-16T17:35:20Z"
+}

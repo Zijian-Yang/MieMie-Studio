@@ -1,0 +1,7 @@
+check	state	detail
+wrapper	blocked	local connectivity preflight exited with 2
+preflight_dns	blocked	fake-ip detected
+preflight_route	blocked	TUN/fake-ip route detected
+preflight_tcp_ssh	passed	tcp 22 reachable
+preflight_ssh_banner	blocked	Connection timed out during banner exchange
+preflight_public_health	failed	curl failed: curl timed out after 20 seconds with no bytes received
