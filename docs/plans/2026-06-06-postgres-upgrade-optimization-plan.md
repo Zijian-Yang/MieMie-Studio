@@ -544,6 +544,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-16 追加：R43 已完成服务器 PostgreSQL live migration/backfill/reconcile：Alembic 升级到 `20260607_0007`，全域 backfill/reconcile 为 `ok=true`，备份和恢复演练通过，现有本机与 Cloudflare health 均为 200。应用业务开关仍关闭，下一步进入 staging dual-write 小域灰度。
 2026-06-16 追加：R44 进入 staging dual-write 前置镜像滚动时中断：服务器 `compose.env` 已备份并把 `MIEMIE_RUNTIME_GIT_COMMIT` 更新到 `e731245`，同时保持 `MIEMIE_DATABASE_ENABLED=false`；`miemie-studio:pre-local` build 过程中 SSH 会话超时，后续本机 route 仍走 `utun1024`/fake-IP 且 SSH banner 超时。未重启容器，未启用 dual-write。恢复后第一步必须只读审计 build/image/container/health 状态。
 2026-06-17 追加：R45 新增 `scripts/postgres_staging_video_task_canary.sh`，将恢复后的服务器审计、新运行态滚动和 `video_studio_tasks` dual-write canary 拆成 `audit`、`roll-runtime`、`dual-write-canary` 三个显式模式；默认只读，双写 smoke 通过容器内维护写入验证 JSON 主写与 PostgreSQL shadow 写，不触发真实供应商调用。本地验证 `bash -n` 通过，缺少服务器 `compose.env` 时按预期 blocked。
+2026-06-17 追加：R49/R50 已继续补齐 `read-switch-canary`、`rollback-read-switch`、`primary-write-canary` 和 `rollback-primary-write`，覆盖读切换、读回滚、PostgreSQL 主写和主写回滚的维护 canary。R51 新增 `scripts/postgres_staging_video_task_sequence.sh`，默认 dry-run，显式 `CONFIRM_STAGING_SEQUENCE=run` 后按 `audit -> roll-runtime -> dual-write-canary -> read-switch-canary -> rollback-read-switch -> primary-write-canary -> rollback-primary-write` 串行执行并失败即停。本轮服务器 SSH 仍在 banner exchange 超时，DNS/route 仍走 fake-IP/TUN，未修改服务器状态。
 
 ## 总体验收
 

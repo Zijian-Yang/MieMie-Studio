@@ -749,6 +749,13 @@ pre 部署复验：
 - 两段 canary 均继续使用 `/api/video-studio/preview-payload` 做 no-provider API smoke；不会触发真实供应商生成。
 - 本地验证：`bash -n scripts/postgres_staging_video_task_canary.sh`、`python3 scripts/verify_postgres_staging_canary_script.py`、`python3 -m py_compile scripts/verify_postgres_staging_canary_script.py` 均通过；`backend/.venv/bin/pytest backend/tests/test_video_studio_task_primary_write.py backend/tests/test_video_studio_task_read_switch.py backend/tests/test_video_studio_task_dual_write.py -q` 通过 11 项 runtime 语义测试。R50 未执行服务器命令、未重启容器、未启用业务开关；证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r50-staging-primary-write-rollback-automation/`。
 
+2026-06-17 阶段 7 R51 staging sequence runner 与连通性复查：
+
+- 复查服务器路径时，`nc -vz 47.79.99.190 22` TCP 成功，但 `ssh -o BatchMode=yes -o ConnectTimeout=12 ...` 仍在 banner exchange 超时；`pre-studio.miemie.co` DNS 仍返回 `198.18.2.63`，到源站 IP 的 route 仍走 `utun1024`，public health 20 秒无响应。本轮没有进入远端命令执行，也没有修改服务器。
+- 新增 `scripts/postgres_staging_video_task_sequence.sh`，把 `audit -> roll-runtime -> dual-write-canary -> read-switch-canary -> rollback-read-switch -> primary-write-canary -> rollback-primary-write` 串成服务器序列 runner。默认 `CONFIRM_STAGING_SEQUENCE=dry-run` 只写计划；显式 `CONFIRM_STAGING_SEQUENCE=run` 才执行，并在任一阶段非 0 时停止。
+- 新增 `scripts/verify_postgres_staging_canary_sequence.py`，验证 runner shell 语法、dry-run 不触碰 Docker/子 canary、默认序列和显式执行开关。
+- 本地验证：`bash -n scripts/postgres_staging_video_task_sequence.sh`、`python3 scripts/verify_postgres_staging_canary_sequence.py`、`python3 scripts/verify_postgres_staging_canary_script.py` 均通过；本地 dry-run 写入预期 sequence。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r51-staging-sequence-runner-and-connectivity/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -763,4 +770,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步优先级：先恢复直连 SSH 路径并在服务器运行 `MODE=audit scripts/postgres_staging_video_task_canary.sh`，审计 R44 interrupted build/image/container/health 状态；确认后运行 `MODE=roll-runtime`，再运行 `MODE=dual-write-canary`、`MODE=read-switch-canary`、`MODE=rollback-read-switch`、`MODE=primary-write-canary`、`MODE=rollback-primary-write`，进入 `video_studio_tasks` staging 双写/读切换/主写/回滚验证，随后补 reconcile 和保守查询门禁。R45/R46/R49/R50 已把这条恢复路径固化成脚本和本地 verifier；R48 已补齐本地全域实库演练通过证据。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 已完成服务器 live migration/backfill/reconcile，但尚未完成业务开关灰度和最终切库。
+- 下一步优先级：先恢复直连 SSH 路径并在服务器运行 `MODE=audit scripts/postgres_staging_video_task_canary.sh`，或直接用 `CONFIRM_STAGING_SEQUENCE=run scripts/postgres_staging_video_task_sequence.sh` 串行执行审计、运行态滚动、双写、读切换、回滚、主写和主写回滚门禁，随后补 reconcile 和保守查询门禁。R45/R46/R49/R50/R51 已把这条恢复路径固化成脚本和本地 verifier；R48 已补齐本地全域实库演练通过证据。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 已完成服务器 live migration/backfill/reconcile，但尚未完成业务开关灰度和最终切库。

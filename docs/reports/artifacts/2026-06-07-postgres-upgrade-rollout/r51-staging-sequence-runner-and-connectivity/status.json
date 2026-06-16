@@ -1,0 +1,36 @@
+{
+  "state": "blocked_on_ssh_path",
+  "stage": "staging-sequence-runner",
+  "scripts": {
+    "runner": "scripts/postgres_staging_video_task_sequence.sh",
+    "runner_verifier": "scripts/verify_postgres_staging_canary_sequence.py",
+    "canary": "scripts/postgres_staging_video_task_canary.sh",
+    "canary_verifier": "scripts/verify_postgres_staging_canary_script.py"
+  },
+  "connectivity": {
+    "ssh": "banner_timeout_before_remote_command",
+    "tcp_22": "succeeded",
+    "public_health": "timeout_after_20s_no_bytes",
+    "dns_a": "198.18.2.63",
+    "route_interface": "utun1024",
+    "route_gateway": "198.18.0.1"
+  },
+  "checks": {
+    "sequence_shell_syntax": "passed",
+    "sequence_verifier": "passed",
+    "canary_verifier": "passed",
+    "sequence_dry_run": "passed",
+    "server_commands": "not_executed",
+    "provider_calls": "not_exercised"
+  },
+  "default_sequence": [
+    "audit",
+    "roll-runtime",
+    "dual-write-canary",
+    "read-switch-canary",
+    "rollback-read-switch",
+    "primary-write-canary",
+    "rollback-primary-write"
+  ],
+  "updated_at": "2026-06-16T17:06:26Z"
+}

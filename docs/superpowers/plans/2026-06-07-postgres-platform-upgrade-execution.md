@@ -630,6 +630,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-17 note: R50 extended `scripts/postgres_staging_video_task_canary.sh` with `primary-write-canary` and `rollback-primary-write` modes. The primary-write gate enables `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=video_studio_tasks` plus read domains and proves PostgreSQL primary writes with no JSON archive file; rollback clears primary/read domains and proves JSON primary writes plus PostgreSQL shadow writes. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r50-staging-primary-write-rollback-automation/`.
 
+2026-06-17 note: R51 retried the staging command path and still hit SSH banner timeout before remote execution while TCP 22 succeeded and local DNS/route remained fake-IP/TUN (`198.18.2.63`, `utun1024`). No server state changed. R51 added `scripts/postgres_staging_video_task_sequence.sh`, a default dry-run sequence runner that executes the full `audit -> roll-runtime -> dual-write-canary -> read-switch-canary -> rollback-read-switch -> primary-write-canary -> rollback-primary-write` chain only when `CONFIRM_STAGING_SEQUENCE=run`, stopping on the first non-zero stage. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r51-staging-sequence-runner-and-connectivity/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
