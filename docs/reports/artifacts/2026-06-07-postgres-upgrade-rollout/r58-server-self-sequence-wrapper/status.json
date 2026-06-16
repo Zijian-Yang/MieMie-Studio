@@ -1,0 +1,15 @@
+{
+  "run_id": "r58-server-self-sequence-wrapper-20260617",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_SERVER_SEQUENCE=run to execute on the server",
+  "branch": "pre",
+  "head": "fea4b29d9215bdbc3a99cc8d56356995c346c226",
+  "server_branch": "pre",
+  "server_sync": "ff-only",
+  "confirm": "dry-run",
+  "sequence_runner": "scripts/postgres_staging_video_task_sequence.sh",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r58-server-self-sequence-wrapper",
+  "tmp_dir": "/tmp/r58-server-self-sequence-wrapper-20260617",
+  "updated_at": "2026-06-16T18:47:16Z"
+}

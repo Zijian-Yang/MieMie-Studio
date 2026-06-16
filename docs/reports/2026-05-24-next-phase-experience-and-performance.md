@@ -797,6 +797,12 @@ pre 部署复验：
 - verifier 新增 fake-bin 契约，证明 network scope 只调用 `dig` 与 `route`，不会误触发 `nc`、`ssh`、`curl`。
 - 真实 network scope 实跑 0.16 秒返回 blocked：DNS 仍为 `198.18.0.100`，route 仍走 gateway `198.18.0.1` / interface `utun1024`；远端 PostgreSQL sequence 未执行。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r57-network-scope-preflight/`。
 
+2026-06-17 阶段 7 R58 服务器自运行 sequence 入口：
+
+- 用户继续补 DIRECT 规则后，实跑完整 `scripts/pre_studio_connectivity_preflight.sh` 仍 blocked：DNS 为 `198.18.0.100`，route 仍走 gateway `198.18.0.1` / interface `utun1024`，TCP 22 可达但 SSH banner 超时，公网 health 20 秒超时。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r58-connectivity-after-direct-rule/`。
+- 新增 `scripts/pre_studio_server_postgres_sequence.sh`，作为服务器终端后备入口：在 `/opt/miemie-pre` 内默认 dry-run，显式 `CONFIRM_SERVER_SEQUENCE=run` 后校验 branch/files、`git merge --ff-only origin/pre`，再执行 R51 `CONFIRM_STAGING_SEQUENCE=run scripts/postgres_staging_video_task_sequence.sh`。
+- 新增 `scripts/verify_pre_studio_server_postgres_sequence.py`，验证 shell 语法、dry-run 不执行 git fetch/merge 或 Docker/网络命令、确认变量和安全契约。dry-run 证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r58-server-self-sequence-wrapper/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -811,4 +817,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步优先级：新 Mac 或新服务器先跑 `./run.sh doctor`，Compose 路径补 `DOCTOR_PROFILE=compose ./run.sh doctor`；数据库灰度恢复时先用 `MIEMIE_PREFLIGHT_SCOPE=network scripts/pre_studio_connectivity_preflight.sh` 快速确认 DNS 与 route 干净，再让完整 `scripts/pre_studio_connectivity_preflight.sh` 退出 `0`，最后运行 `CONFIRM_REMOTE_SEQUENCE=run scripts/pre_studio_remote_postgres_sequence.sh`，由 wrapper 同步服务器 repo 并串行执行审计、运行态滚动、双写、读切换、回滚、主写和主写回滚门禁，随后补 reconcile 和保守查询门禁。R45/R46/R49/R50/R51/R52/R53 已把这条恢复路径固化成脚本和本地 verifier，R54 补齐部署环境自检，R55 补齐 blocked 时的 remediation 输出，R56 证明当前 Clash DIRECT 规则尚未作用到命令行路径，R57 增加快速 network scope；R48 已补齐本地全域实库演练通过证据。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 已完成服务器 live migration/backfill/reconcile，但尚未完成业务开关灰度和最终切库。
+- 下一步优先级：新 Mac 或新服务器先跑 `./run.sh doctor`，Compose 路径补 `DOCTOR_PROFILE=compose ./run.sh doctor`；数据库灰度恢复有两条路：若继续从本机执行，先用 `MIEMIE_PREFLIGHT_SCOPE=network scripts/pre_studio_connectivity_preflight.sh` 快速确认 DNS 与 route 干净，再让完整 preflight 退出 `0`，最后运行 `CONFIRM_REMOTE_SEQUENCE=run scripts/pre_studio_remote_postgres_sequence.sh`；若本机 Clash/TUN 仍阻塞，则直接在服务器 `/opt/miemie-pre` 中运行 `CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`。两条路最终都会串行执行审计、运行态滚动、双写、读切换、回滚、主写和主写回滚门禁，随后补 reconcile 和保守查询门禁。R45/R46/R49/R50/R51/R52/R53 已把本机远程路径固化成脚本和 verifier，R54 补齐部署环境自检，R55 补齐 blocked 时的 remediation 输出，R56/R58 证明当前 Clash DIRECT 规则尚未作用到命令行路径，R57 增加快速 network scope，R58 增加服务器终端自运行后备入口；R48 已补齐本地全域实库演练通过证据。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 已完成服务器 live migration/backfill/reconcile，但尚未完成业务开关灰度和最终切库。

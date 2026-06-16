@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R58 server self sequence wrapper：再次补 Clash DIRECT 规则后完整 preflight 仍 blocked，DNS `198.18.0.100`、route `utun1024`、SSH banner 和公网 health 超时；新增 `scripts/pre_studio_server_postgres_sequence.sh` 与 `scripts/verify_pre_studio_server_postgres_sequence.py`，允许在服务器 `/opt/miemie-pre` 直接 dry-run 或显式执行同一套 staging PostgreSQL sequence，证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r58-server-self-sequence-wrapper/`。
 - 数据库升级 R57 network-scope preflight：`scripts/pre_studio_connectivity_preflight.sh` 新增 `MIEMIE_PREFLIGHT_SCOPE=network`，可在几秒内只检查 DNS fake-IP 与源站 route/TUN，不再每次等待 SSH/public health 超时；当前实跑仍 blocked，DNS 为 `198.18.0.100`、route 走 `utun1024`，证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r57-network-scope-preflight/`。
 - 数据库升级 R56 DIRECT 规则复测：用户在 Clash 中添加 DIRECT 规则后复跑 `scripts/pre_studio_connectivity_preflight.sh`，本机命令路径仍 blocked，DNS 仍为 `198.18.0.100`、route 仍走 `utun1024`、SSH banner 超时、公网 health 20 秒超时；远端 PostgreSQL sequence 未执行，证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r56-direct-rule-still-blocked/`。
 - 数据库升级 R55 connectivity rediagnosis：`scripts/pre_studio_connectivity_preflight.sh` 新增 `remediation.md` 输出，自动汇总 fake-IP DNS、TUN route、SSH banner 和 public health timeout 的恢复动作；本轮实跑仍 blocked，DNS 为 `198.18.0.100`、route 走 `utun1024`、SSH banner 超时、公网 health 20 秒超时，未执行服务器命令或业务开关，证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r55-connectivity-preflight-rediagnosis/`。

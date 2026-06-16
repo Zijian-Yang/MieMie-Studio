@@ -636,6 +636,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-17 note: R53 added `scripts/pre_studio_remote_postgres_sequence.sh` and `scripts/verify_pre_studio_remote_postgres_sequence.py`, a local wrapper that runs R52 preflight first, then SSHes to `/opt/miemie-pre`, performs `git merge --ff-only origin/pre`, and runs `CONFIRM_STAGING_SEQUENCE=run scripts/postgres_staging_video_task_sequence.sh`. A confirmed live wrapper run stopped at local preflight and did not execute remote commands while the path remained fake-IP/TUN blocked. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r53-remote-postgres-sequence/`.
 
+2026-06-17 note: R58 confirmed that another local DIRECT rule still does not clean the command-line path: DNS remains `198.18.0.100`, route remains `utun1024`, SSH banner times out, and public health times out. R58 adds `scripts/pre_studio_server_postgres_sequence.sh` and `scripts/verify_pre_studio_server_postgres_sequence.py` as a server-terminal fallback. When run from `/opt/miemie-pre` with `CONFIRM_SERVER_SEQUENCE=run`, it verifies the server context, syncs `origin/pre` with `git merge --ff-only`, and executes `CONFIRM_STAGING_SEQUENCE=run scripts/postgres_staging_video_task_sequence.sh`. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r58-connectivity-after-direct-rule/` and `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r58-server-self-sequence-wrapper/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
@@ -647,3 +649,4 @@ Once goal mode starts, do not ask the user for routine information covered by th
 - Keep JSON primary until a task explicitly switches read/write flags.
 - For real provider tests, use only already configured server-side credentials; never ask the user to paste raw keys during automated execution.
 - If a prerequisite is missing, write `status.json` with `"state": "blocked"` and the exact missing item.
+- If the local operator path remains fake-IP/TUN blocked, run the server fallback from `/opt/miemie-pre`: `CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`.

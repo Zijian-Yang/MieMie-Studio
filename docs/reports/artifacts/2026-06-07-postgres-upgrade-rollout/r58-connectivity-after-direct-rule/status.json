@@ -1,0 +1,18 @@
+{
+  "run_id": "r58-after-direct-rule-20260617",
+  "state": "blocked",
+  "stage": "connectivity",
+  "reason": "4 preflight check(s) failed or blocked",
+  "host": "pre-studio.miemie.co",
+  "origin_ip": "47.79.99.190",
+  "ssh_target": "root@47.79.99.190",
+  "public_health_url": "https://pre-studio.miemie.co/api/health",
+  "scope": "full",
+  "dns_a": "198.18.0.100",
+  "route_origin": "    gateway: 198.18.0.1   interface: utun1024",
+  "public_health": "curl failed: curl: (28) Operation timed out after 20009 milliseconds with 0 bytes received",
+  "remediation_file": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r58-connectivity-after-direct-rule/remediation.md",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r58-connectivity-after-direct-rule",
+  "tmp_dir": "/tmp/r58-after-direct-rule-20260617",
+  "updated_at": "2026-06-16T18:45:49Z"
+}

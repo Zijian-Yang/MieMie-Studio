@@ -1,0 +1,8 @@
+   route to: 47.79.99.190
+destination: 32.0.0.0
+       mask: 224.0.0.0
+    gateway: 198.18.0.1
+  interface: utun1024
+      flags: <UP,GATEWAY,DONE,STATIC,PRCLONING>
+ recvpipe  sendpipe  ssthresh  rtt,msec    rttvar  hopcount      mtu     expire
+       0         0         0         0         0         0      1500         0
