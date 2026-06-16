@@ -628,6 +628,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-17 note: R49 extended `scripts/postgres_staging_video_task_canary.sh` with `read-switch-canary` and `rollback-read-switch` modes. The read-switch gate enables `MIEMIE_DATABASE_READ_DOMAINS=video_studio_tasks` and proves PostgreSQL is the read source by creating divergent JSON/PG canary task states; rollback clears read domains and proves JSON reads with the same divergent-source pattern. The verifier now compiles every embedded Python heredoc block. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r49-staging-read-switch-rollback-automation/`.
 
+2026-06-17 note: R50 extended `scripts/postgres_staging_video_task_canary.sh` with `primary-write-canary` and `rollback-primary-write` modes. The primary-write gate enables `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=video_studio_tasks` plus read domains and proves PostgreSQL primary writes with no JSON archive file; rollback clears primary/read domains and proves JSON primary writes plus PostgreSQL shadow writes. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r50-staging-primary-write-rollback-automation/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

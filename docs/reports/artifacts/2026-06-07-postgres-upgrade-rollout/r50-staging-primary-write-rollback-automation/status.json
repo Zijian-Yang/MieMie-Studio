@@ -1,0 +1,19 @@
+{
+  "state": "ready_for_server_retry",
+  "stage": "primary-write-rollback-automation",
+  "script": "scripts/postgres_staging_video_task_canary.sh",
+  "verifier": "scripts/verify_postgres_staging_canary_script.py",
+  "new_modes": [
+    "primary-write-canary",
+    "rollback-primary-write"
+  ],
+  "checks": {
+    "shell_syntax": "passed",
+    "canary_verifier": "passed",
+    "embedded_python_compile": "passed",
+    "video_studio_task_runtime_pytest": "passed_11",
+    "provider_calls": "not_exercised"
+  },
+  "server_execution": "not_run_pending_ssh_recovery",
+  "updated_at": "2026-06-16T16:53:30Z"
+}

@@ -28,7 +28,9 @@ cleanup_sensitive_tmp() {
     "$TMP_DIR/token.txt" \
     "$TMP_DIR/project-id.txt" \
     "$TMP_DIR/read-switch.json" \
-    "$TMP_DIR/rollback-read.json"
+    "$TMP_DIR/rollback-read.json" \
+    "$TMP_DIR/primary-write.json" \
+    "$TMP_DIR/rollback-primary.json"
 }
 trap cleanup_sensitive_tmp EXIT
 
@@ -293,6 +295,32 @@ configure_read_rollback() {
   redact_env_file "$ARTIFACT_DIR/compose.env.rollback-read.sanitized"
 }
 
+configure_primary_write() {
+  set_env_value MIEMIE_DATABASE_ENABLED true
+  set_env_value MIEMIE_DATABASE_WRITE_MODE file
+  set_env_value MIEMIE_DATABASE_READ_MODE file
+  set_env_value MIEMIE_DATABASE_DUAL_WRITE_DOMAINS ""
+  set_env_value MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS "$DOMAIN"
+  set_env_value MIEMIE_DATABASE_READ_DOMAINS "$DOMAIN"
+  set_env_value MIEMIE_DATABASE_JSON_FALLBACK_READ true
+  set_env_value MIEMIE_DATABASE_JSON_ARCHIVE_WRITES false
+  set_env_value MIEMIE_DATABASE_RECONCILE_STRICT false
+  redact_env_file "$ARTIFACT_DIR/compose.env.primary-write.sanitized"
+}
+
+configure_primary_rollback() {
+  set_env_value MIEMIE_DATABASE_ENABLED true
+  set_env_value MIEMIE_DATABASE_WRITE_MODE file
+  set_env_value MIEMIE_DATABASE_READ_MODE file
+  set_env_value MIEMIE_DATABASE_DUAL_WRITE_DOMAINS "$DOMAIN"
+  set_env_value MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS ""
+  set_env_value MIEMIE_DATABASE_READ_DOMAINS ""
+  set_env_value MIEMIE_DATABASE_JSON_FALLBACK_READ true
+  set_env_value MIEMIE_DATABASE_JSON_ARCHIVE_WRITES false
+  set_env_value MIEMIE_DATABASE_RECONCILE_STRICT false
+  redact_env_file "$ARTIFACT_DIR/compose.env.rollback-primary.sanitized"
+}
+
 run_storage_canary() {
   local canary_user="r44_canary_$(date +%Y%m%d%H%M%S)_$RANDOM"
   local canary_project="r44_project_$(date +%Y%m%d%H%M%S)_$RANDOM"
@@ -511,6 +539,168 @@ if not ok:
 PY
 }
 
+run_primary_write_storage_canary() {
+  local canary_user="r50_primary_$(date +%Y%m%d%H%M%S)_$RANDOM"
+  local canary_project="r50_primary_project_$(date +%Y%m%d%H%M%S)_$RANDOM"
+  local canary_task="r50_primary_task_$(date +%Y%m%d%H%M%S)_$RANDOM"
+  "${COMPOSE[@]}" exec -T \
+    -e CANARY_USER_ID="$canary_user" \
+    -e CANARY_PROJECT_ID="$canary_project" \
+    -e CANARY_TASK_ID="$canary_task" \
+    api /opt/venv/bin/python - <<'PY' > "$ARTIFACT_DIR/primary-write-canary.json"
+import json
+import os
+from datetime import datetime
+
+from app.db.engine import create_database_engine
+from app.models.media import VideoStudioTask
+from app.repositories.video_studio_tasks import PostgresVideoStudioTaskRepository
+from app.services.storage import get_user_storage, set_current_user
+
+user_id = os.environ["CANARY_USER_ID"]
+project_id = os.environ["CANARY_PROJECT_ID"]
+task_id = os.environ["CANARY_TASK_ID"]
+
+set_current_user(user_id)
+storage = get_user_storage(user_id)
+task = VideoStudioTask(
+    id=task_id,
+    project_id=project_id,
+    name="R50 video_studio_tasks primary-write canary",
+    task_type="text_to_video",
+    task_kind="text_to_video",
+    provider="wan",
+    model_id="wan2.7-t2v",
+    model="wan2.7-t2v",
+    prompt="R50 PostgreSQL primary write canary",
+    normalized_params={"resolution": "720P", "duration": 5, "prompt_extend": False, "watermark": False},
+    status="postgres_primary_canary",
+    group_count=1,
+)
+json_path = storage.video_studio_dir / f"{task_id}.json"
+
+engine = create_database_engine()
+repo = None
+try:
+    repo = PostgresVideoStudioTaskRepository(engine, user_id)
+    storage.save_video_studio_task(task)
+    pg_task = repo.get(task_id)
+    read_task = storage.get_video_studio_task(task_id)
+    json_present_after_save = json_path.exists()
+finally:
+    storage._delete_video_studio_task_from_file(task_id)
+    if repo is not None:
+        repo.mark_deleted(task_id)
+    engine.dispose()
+
+ok = bool(
+    pg_task
+    and pg_task.status == "postgres_primary_canary"
+    and read_task
+    and read_task.status == "postgres_primary_canary"
+    and not json_present_after_save
+)
+print(json.dumps({
+    "ok": ok,
+    "domain": "video_studio_tasks",
+    "expected_write_source": "postgres_primary",
+    "postgres_primary_write_observed": bool(pg_task and pg_task.status == "postgres_primary_canary"),
+    "read_after_write_source": "postgres" if read_task and read_task.status == "postgres_primary_canary" else "json_or_missing",
+    "json_archive_created": json_present_after_save,
+    "timestamp": datetime.utcnow().isoformat() + "Z",
+}, ensure_ascii=False, indent=2))
+if not ok:
+    raise SystemExit(1)
+PY
+}
+
+run_rollback_primary_storage_canary() {
+  local canary_user="r50_rollback_primary_$(date +%Y%m%d%H%M%S)_$RANDOM"
+  local canary_project="r50_rollback_primary_project_$(date +%Y%m%d%H%M%S)_$RANDOM"
+  local canary_task="r50_rollback_primary_task_$(date +%Y%m%d%H%M%S)_$RANDOM"
+  "${COMPOSE[@]}" exec -T \
+    -e CANARY_USER_ID="$canary_user" \
+    -e CANARY_PROJECT_ID="$canary_project" \
+    -e CANARY_TASK_ID="$canary_task" \
+    api /opt/venv/bin/python - <<'PY' > "$ARTIFACT_DIR/rollback-primary-canary.json"
+import json
+import os
+from datetime import datetime
+
+from app.db.engine import create_database_engine
+from app.models.media import VideoStudioTask
+from app.repositories.video_studio_tasks import PostgresVideoStudioTaskRepository
+from app.services.storage import get_user_storage, set_current_user
+
+user_id = os.environ["CANARY_USER_ID"]
+project_id = os.environ["CANARY_PROJECT_ID"]
+task_id = os.environ["CANARY_TASK_ID"]
+
+def make_task(status: str) -> VideoStudioTask:
+    return VideoStudioTask(
+        id=task_id,
+        project_id=project_id,
+        name="R50 video_studio_tasks primary rollback canary",
+        task_type="text_to_video",
+        task_kind="text_to_video",
+        provider="wan",
+        model_id="wan2.7-t2v",
+        model="wan2.7-t2v",
+        prompt="R50 JSON primary rollback canary",
+        normalized_params={"resolution": "720P", "duration": 5, "prompt_extend": False, "watermark": False},
+        status=status,
+        group_count=1,
+    )
+
+set_current_user(user_id)
+storage = get_user_storage(user_id)
+json_task = make_task("json_primary_after_rollback")
+pg_task = make_task("postgres_shadow_after_rollback")
+json_path = storage.video_studio_dir / f"{task_id}.json"
+
+engine = create_database_engine()
+repo = None
+try:
+    repo = PostgresVideoStudioTaskRepository(engine, user_id)
+    storage.save_video_studio_task(json_task)
+    repo.save(pg_task)
+    read_task = storage.get_video_studio_task(task_id)
+    pg_after_shadow = repo.get(task_id)
+    json_present_after_save = json_path.exists()
+    storage.delete_video_studio_task(task_id)
+    pg_after_delete = repo.get(task_id)
+    json_present_after_delete = json_path.exists()
+finally:
+    storage._delete_video_studio_task_from_file(task_id)
+    if repo is not None:
+        repo.mark_deleted(task_id)
+    engine.dispose()
+
+ok = bool(
+    json_present_after_save
+    and read_task
+    and read_task.status == "json_primary_after_rollback"
+    and pg_after_shadow
+    and pg_after_shadow.status == "postgres_shadow_after_rollback"
+    and pg_after_delete is None
+    and not json_present_after_delete
+)
+print(json.dumps({
+    "ok": ok,
+    "domain": "video_studio_tasks",
+    "expected_write_source": "json_primary",
+    "json_primary_write_observed": json_present_after_save,
+    "postgres_shadow_write_observed": bool(pg_after_shadow and pg_after_shadow.status == "postgres_shadow_after_rollback"),
+    "read_after_rollback_source": "json" if read_task and read_task.status == "json_primary_after_rollback" else "postgres_or_missing",
+    "json_delete_observed": not json_present_after_delete,
+    "postgres_shadow_delete_observed": pg_after_delete is None,
+    "timestamp": datetime.utcnow().isoformat() + "Z",
+}, ensure_ascii=False, indent=2))
+if not ok:
+    raise SystemExit(1)
+PY
+}
+
 run_api_preview_smoke() {
   local url token project_id register_body project_body
   url="$(base_url)"
@@ -628,6 +818,36 @@ rollback_read_switch() {
   write_status "passed" "rollback-read-switch" ""
 }
 
+primary_write_canary() {
+  write_status "running" "primary-write-canary" ""
+  local head
+  head="$(repo_head)"
+  health_check "pre-primary-write" "$head" || blocked "pre-primary-write" "runtime does not report current repo head; run MODE=roll-runtime first"
+  backup_env
+  configure_primary_write
+  run_logged "docker-compose-up-primary-write" "${COMPOSE[@]}" up -d api worker worker-video
+  wait_for_health "primary-write" "$head" 30 || fail "primary-write-health" "primary-write runtime health failed"
+  run_primary_write_storage_canary
+  run_api_preview_smoke
+  audit_state
+  write_status "passed" "primary-write-canary" ""
+}
+
+rollback_primary_write() {
+  write_status "running" "rollback-primary-write" ""
+  local head
+  head="$(repo_head)"
+  health_check "pre-rollback-primary" "$head" || blocked "pre-rollback-primary" "runtime does not report current repo head; run MODE=roll-runtime first"
+  backup_env
+  configure_primary_rollback
+  run_logged "docker-compose-up-rollback-primary" "${COMPOSE[@]}" up -d api worker worker-video
+  wait_for_health "rollback-primary" "$head" 30 || fail "rollback-primary-health" "rollback-primary runtime health failed"
+  run_rollback_primary_storage_canary
+  run_api_preview_smoke
+  audit_state
+  write_status "passed" "rollback-primary-write" ""
+}
+
 case "$MODE" in
   audit)
     ensure_preconditions
@@ -649,8 +869,16 @@ case "$MODE" in
     ensure_preconditions
     rollback_read_switch
     ;;
+  primary-write-canary)
+    ensure_preconditions
+    primary_write_canary
+    ;;
+  rollback-primary-write)
+    ensure_preconditions
+    rollback_primary_write
+    ;;
   *)
-    printf 'usage: MODE=audit|roll-runtime|dual-write-canary|read-switch-canary|rollback-read-switch %s\n' "$0" >&2
+    printf 'usage: MODE=audit|roll-runtime|dual-write-canary|read-switch-canary|rollback-read-switch|primary-write-canary|rollback-primary-write %s\n' "$0" >&2
     exit 64
     ;;
 esac

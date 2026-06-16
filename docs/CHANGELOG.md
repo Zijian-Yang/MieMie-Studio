@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R50 staging primary-write/rollback 自动化：扩展 `scripts/postgres_staging_video_task_canary.sh`，新增显式 `primary-write-canary` 与 `rollback-primary-write` 模式；primary canary 证明 PostgreSQL 主写且不生成 JSON archive，rollback canary 证明回到 JSON 主写并保留 PostgreSQL shadow 写。服务器业务开关仍未执行，等待 SSH 命令路径恢复。
 - 数据库升级 R49 staging read-switch/rollback 自动化：扩展 `scripts/postgres_staging_video_task_canary.sh`，新增显式 `read-switch-canary` 与 `rollback-read-switch` 模式；通过 JSON/PG 分叉状态 canary 证明读切换后读取 PostgreSQL、回滚后读取 JSON，并加强 verifier 自动编译脚本内嵌 Python。服务器业务开关仍未执行，等待 SSH 命令路径恢复。
 - 数据库升级 R48 本地实库演练通过：修复 `scripts/postgres_live_rehearsal.sh` 查找备份扩展名与 `postgres_backup.sh` 输出不一致的问题，重跑临时 Compose PostgreSQL、Alembic、全域 backfill/reconcile、`.sql` 备份和 restore rehearsal 全链路通过；原始本地用户明细不入库，只提交脱敏摘要。
 - 数据库升级 R46 staging canary verifier：新增 `scripts/verify_postgres_staging_canary_script.py`，在不加载后端 app、不依赖 Docker daemon 或服务器 `compose.env` 的情况下校验 R45 灰度脚本；覆盖 shell 语法、缺 env blocked precheck、不触碰 Docker、默认只读、安全开关和 no-provider smoke 契约。服务器 dual-write 仍未开启，等待 SSH banner 路径恢复后再执行脚本三段门禁。
