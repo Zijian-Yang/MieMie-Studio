@@ -1,4 +1,4 @@
-"""Runtime feature flags for session PostgreSQL shadow writes."""
+"""Runtime feature flags for session PostgreSQL migration."""
 
 from __future__ import annotations
 
@@ -49,13 +49,30 @@ def session_read_enabled() -> bool:
 
     read_mode = os.getenv("MIEMIE_DATABASE_READ_MODE", "file").strip().lower()
     read_domains = _env_csv("MIEMIE_DATABASE_READ_DOMAINS")
-    return read_mode == "postgres" or DOMAIN in read_domains
+    return read_mode == "postgres" or DOMAIN in read_domains or session_primary_write_enabled()
+
+
+def session_primary_write_enabled() -> bool:
+    """Return true when session writes should use PostgreSQL primary."""
+
+    if not database_enabled():
+        return False
+
+    write_mode = os.getenv("MIEMIE_DATABASE_WRITE_MODE", "file").strip().lower()
+    primary_domains = _env_csv("MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS")
+    return write_mode in {"postgres", "postgres_primary", "primary"} or DOMAIN in primary_domains
 
 
 def json_fallback_read_enabled() -> bool:
     """Return true when PostgreSQL read miss/error should fallback to Redis/file."""
 
     return _env_true("MIEMIE_DATABASE_JSON_FALLBACK_READ")
+
+
+def json_archive_writes_enabled() -> bool:
+    """Return true when PostgreSQL primary writes should maintain session JSON mirrors."""
+
+    return _env_true("MIEMIE_DATABASE_JSON_ARCHIVE_WRITES")
 
 
 def strict_shadow_writes_enabled() -> bool:
@@ -86,6 +103,10 @@ def build_session_read_repository() -> PostgresSessionRepository:
     return PostgresSessionRepository(_runtime_engine())
 
 
+def build_session_primary_repository() -> PostgresSessionRepository:
+    return PostgresSessionRepository(_runtime_engine())
+
+
 def read_session(token: str, current_loader) -> dict | None:
     """Read a session from PostgreSQL when enabled, with optional Redis/file fallback."""
 
@@ -108,6 +129,36 @@ def read_session(token: str, current_loader) -> dict | None:
             extra={"error": exc.__class__.__name__},
         )
         return current_loader()
+
+
+def save_session_primary(token: str, record: SessionRecord | None) -> bool:
+    """Save a session to PostgreSQL as the primary store when enabled."""
+
+    if not token or record is None or not session_primary_write_enabled():
+        return False
+
+    build_session_primary_repository().save(token, record)
+    return True
+
+
+def delete_session_primary(token: str) -> bool:
+    """Delete a session from PostgreSQL primary store when enabled."""
+
+    if not token or not session_primary_write_enabled():
+        return False
+
+    build_session_primary_repository().delete(token)
+    return True
+
+
+def delete_user_sessions_primary(user_id: str | None) -> bool:
+    """Delete all sessions for one user from PostgreSQL primary store when enabled."""
+
+    if not user_id or not session_primary_write_enabled():
+        return False
+
+    build_session_primary_repository().delete_user_sessions(user_id)
+    return True
 
 
 def shadow_save_session(token: str, record: SessionRecord | None) -> None:

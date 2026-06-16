@@ -277,6 +277,7 @@ create index idx_video_studio_tasks_submit_attempt
 2026-06-17 progress: R60 已新增 sessions runtime dual-write。默认不启用；显式开启 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=sessions` 或全局 dual-write 后，登录保存、登出删除和改密清理会 shadow 写 PostgreSQL。Shadow 失败默认不打断 Redis/file 主路径，严格模式可在对账窗口冒泡；日志不记录 raw token。session read-switch / primary-write 仍待单独设计。
 2026-06-17 progress: R61 已新增 sessions read-switch + Redis/file fallback。默认不启用；显式开启 `MIEMIE_DATABASE_READ_DOMAINS=sessions` 或全局 PostgreSQL read mode 后，token 恢复可优先读 PostgreSQL session；`MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 时 miss/error 回退当前 Redis/file session 路径。session primary-write 仍待单独设计。
 2026-06-17 progress: R62 复测新增 Clash 直连规则后的本机 operator path，network preflight 仍 blocked：DNS 为 `198.18.0.124`，源站 route 仍走 `utun1024`；手动 TCP 22 可达但 SSH banner exchange 仍超时。远程 sequence 未执行，服务器状态未修改。证据归档于 `docs/reports/artifacts/2026-06-17-postgres-connectivity-direct-rule/`。
+2026-06-17 progress: R63 已新增 sessions PostgreSQL primary-write + JSON archive mirror。显式启用 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=sessions` 或全局 PostgreSQL write mode 后，session 保存/删除/按用户清理以 PostgreSQL 为主；Redis 继续作为热 cache，默认不写 `sessions.json`，`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` 可保留临时 JSON 镜像。主写失败直接冒泡且不写 Redis/file fallback；默认运行态仍不变，服务器业务开关未启用。
 
 ## 代码架构计划
 
@@ -554,6 +555,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-17 追加：R59 已补 sessions 本地 schema/repository/backfill/reconcile 基础，数据库只保存 `token_hash` 且运行态仍保持 Redis + file fallback；同轮复测本机 DIRECT 后 preflight 仍 blocked，DNS `198.18.0.124`、route `utun1024`、SSH banner 和公网 health 超时，服务器 sequence 未执行。
 2026-06-17 追加：R60 已补 sessions runtime dual-write feature flag，登录保存、登出删除和改密清理可选择性 shadow 写 PostgreSQL；默认运行态不变，服务器业务开关未启用。
 2026-06-17 追加：R61 已补 sessions read-switch feature flag，token 用户恢复可选择性优先读 PostgreSQL session；默认运行态不变，服务器业务开关未启用。
+2026-06-17 追加：R63 已补 sessions primary-write feature flag 与 JSON archive mirror；session 域本地已具备 schema/repository、backfill/reconcile、dual-write、read-switch 和 primary-write 闭环。服务器最终切库仍待 staging sequence 恢复。
 
 ## 总体验收
 

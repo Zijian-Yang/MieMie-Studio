@@ -646,6 +646,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-17 note: R62 rechecked the local operator path after another Clash direct-rule change. The network-scope preflight still blocks because DNS returns fake-IP `198.18.0.124` and the origin route uses gateway `198.18.0.1` / interface `utun1024`. Manual TCP 22 succeeds, but SSH command execution still times out during banner exchange after the TCP connection is established. No remote PostgreSQL sequence was executed and no server state changed. Evidence is archived in `docs/reports/artifacts/2026-06-17-postgres-connectivity-direct-rule/`.
 
+2026-06-17 note: R63 adds opt-in sessions primary-write without changing default auth behavior. When `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=sessions` or global PostgreSQL write mode is enabled, session save/delete/user-session cleanup use PostgreSQL primary first; Redis remains a cache after primary save, `sessions.json` is only maintained with `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true`, and primary-write implies PostgreSQL reads. Local verification passed focused R63 tests (`7 passed`), sessions runtime combined (`25 passed`), auth/session target (`74 passed`), database schema/repository/migration target (`98 passed`), full backend pytest (`424 passed`), and py_compile. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r63-sessions-primary-write/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

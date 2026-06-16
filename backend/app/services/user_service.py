@@ -162,8 +162,20 @@ class UserService:
 
     def _save_session(self, token: str, session: Dict[str, str]):
         """保存单个 session：Redis 优先用于多 worker，文件保留兜底。"""
-        self.sessions[token] = session
         record = SessionRecord.from_raw(session)
+        if session_runtime.save_session_primary(token, record):
+            self.sessions[token] = session
+            if self._redis_sessions:
+                try:
+                    if record:
+                        self._redis_sessions.set(token, record)
+                except Exception as exc:
+                    logger.warning("[会话] Redis session 写入失败，PostgreSQL 主写已保留: %s", exc)
+            if session_runtime.json_archive_writes_enabled():
+                self._save_sessions()
+            return
+
+        self.sessions[token] = session
         if self._redis_sessions:
             try:
                 if record:
@@ -174,17 +186,20 @@ class UserService:
         session_runtime.shadow_save_session(token, record)
 
     def _delete_session(self, token: str):
+        primary_deleted = session_runtime.delete_session_primary(token)
         session = self.sessions.pop(token, None)
         if self._redis_sessions:
             try:
                 self._redis_sessions.delete(token)
             except Exception as exc:
                 logger.warning("[会话] Redis session 删除失败: %s", exc)
-        if session is not None:
+        if session is not None and (not primary_deleted or session_runtime.json_archive_writes_enabled()):
             self._save_sessions()
-        session_runtime.shadow_delete_session(token)
+        if not primary_deleted:
+            session_runtime.shadow_delete_session(token)
 
     def _delete_user_sessions(self, user_id: str):
+        primary_deleted = session_runtime.delete_user_sessions_primary(user_id)
         tokens = []
         for token, session in self.sessions.items():
             record = SessionRecord.from_raw(session)
@@ -192,14 +207,15 @@ class UserService:
                 tokens.append(token)
         for token in tokens:
             self.sessions.pop(token, None)
-        if tokens:
+        if tokens and (not primary_deleted or session_runtime.json_archive_writes_enabled()):
             self._save_sessions()
         if self._redis_sessions:
             try:
                 self._redis_sessions.delete_user_sessions(user_id)
             except Exception as exc:
                 logger.warning("[会话] Redis 用户 session 清理失败: %s", exc)
-        session_runtime.shadow_delete_user_sessions(user_id)
+        if not primary_deleted:
+            session_runtime.shadow_delete_user_sessions(user_id)
     
     def _cleanup_expired_sessions(self):
         """清理过期的会话"""
@@ -305,6 +321,11 @@ class UserService:
     def logout(self, token: str) -> bool:
         """用户登出"""
         with self._lock:
+            if session_runtime.session_primary_write_enabled():
+                session = session_runtime.read_session(token, lambda: self.sessions.get(token))
+                if session:
+                    self._delete_session(token)
+                    return True
             if token in self.sessions:
                 self._delete_session(token)
                 return True

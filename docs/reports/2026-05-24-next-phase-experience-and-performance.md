@@ -835,6 +835,14 @@ pre 部署复验：
 - 手动分层检查显示 TCP 22 可达，但 `ssh root@47.79.99.190 'echo ok'` 仍在 banner exchange 阶段超时；verbose SSH 已建立 TCP 并发送本地 version string，但服务端 banner 未返回。
 - 本轮未执行 remote PostgreSQL sequence、未修改服务器状态、未重启容器、未启用数据库业务开关。证据归档到 `docs/reports/artifacts/2026-06-17-postgres-connectivity-direct-rule/`。
 
+2026-06-17 阶段 7 R63 sessions primary-write：
+
+- 新增 `sessions` 主写 feature flag：显式 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=sessions` 或全局 PostgreSQL write mode 后，登录保存 session 会先写 PostgreSQL。
+- Redis 继续作为热 session cache；默认不再写 `sessions.json`，`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` 时才维护临时 JSON 归档镜像。
+- 主写失败会直接冒泡，且不写 Redis/file fallback，避免切换窗口出现分叉 session 状态；主写模式自动视为 PostgreSQL 读优先，避免写 PG 但读 JSON。
+- 登出和改密清理接入 PostgreSQL 主删；默认运行态仍不变，服务器业务开关未启用。
+- 本地验证：RED 先确认缺少 `build_session_primary_repository`；实现后 focused `7 passed`，sessions runtime combined `25 passed`，auth/session target `74 passed`，schema/repository/migration target `98 passed`，后端全量 `424 passed`，`py_compile` 通过。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r63-sessions-primary-write/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。

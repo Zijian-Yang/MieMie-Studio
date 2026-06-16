@@ -1,0 +1,20 @@
+{
+  "state": "passed",
+  "stage": "local-sessions-primary-write",
+  "domain": "sessions",
+  "default_runtime_changed": false,
+  "runtime_switch": "primary-write opt-in only",
+  "server_state_changed": false,
+  "database_business_flags_changed": false,
+  "json_archive_mode": "MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true keeps temporary sessions.json mirror",
+  "tests": {
+    "red": "missing build_session_primary_repository before implementation",
+    "session_runtime_primary_write": "7 passed",
+    "session_runtime_combined": "25 passed",
+    "auth_session_target": "74 passed",
+    "database_schema_repository_migration_target": "98 passed",
+    "full_backend": "424 passed",
+    "py_compile": "passed"
+  },
+  "updated_at": "2026-06-16T20:09:21Z"
+}
