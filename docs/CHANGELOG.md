@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R52 staging connectivity preflight：新增 `scripts/pre_studio_connectivity_preflight.sh` 与 `scripts/verify_pre_studio_connectivity_preflight.py`，在执行 R51 服务器灰度序列前统一检查 DNS fake-IP、TUN route、TCP 22、SSH banner 与公网 health。当前预检结果为 blocked：DNS `198.18.0.80`，route `utun1024`，TCP 22 可达但 SSH banner 被关闭，public health 出现 HTTP/2 framing error；未执行服务器命令或业务开关。
 - 数据库升级 R51 staging sequence runner 与连通性复查：新增 `scripts/postgres_staging_video_task_sequence.sh` 与 `scripts/verify_postgres_staging_canary_sequence.py`，默认 dry-run，显式 `CONFIRM_STAGING_SEQUENCE=run` 后按 `audit -> roll-runtime -> dual-write-canary -> read-switch-canary -> rollback-read-switch -> primary-write-canary -> rollback-primary-write` 逐级执行并失败即停。本轮 SSH 仍在 banner exchange 超时，DNS/route 仍走 fake-IP/TUN，未执行服务器命令或业务开关。
 - 数据库升级 R50 staging primary-write/rollback 自动化：扩展 `scripts/postgres_staging_video_task_canary.sh`，新增显式 `primary-write-canary` 与 `rollback-primary-write` 模式；primary canary 证明 PostgreSQL 主写且不生成 JSON archive，rollback canary 证明回到 JSON 主写并保留 PostgreSQL shadow 写。服务器业务开关仍未执行，等待 SSH 命令路径恢复。
 - 数据库升级 R49 staging read-switch/rollback 自动化：扩展 `scripts/postgres_staging_video_task_canary.sh`，新增显式 `read-switch-canary` 与 `rollback-read-switch` 模式；通过 JSON/PG 分叉状态 canary 证明读切换后读取 PostgreSQL、回滚后读取 JSON，并加强 verifier 自动编译脚本内嵌 Python。服务器业务开关仍未执行，等待 SSH 命令路径恢复。

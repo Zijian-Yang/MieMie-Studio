@@ -1,0 +1,6 @@
+check	state	detail
+dns	blocked	fake-ip detected
+route	blocked	TUN/fake-ip route detected
+tcp_ssh	passed	tcp 22 reachable
+ssh_banner	blocked	Connection closed by 47.79.99.190 port 22
+public_health	failed	curl failed: curl: (16) Error in the HTTP2 framing layer

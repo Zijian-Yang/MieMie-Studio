@@ -632,6 +632,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-17 note: R51 retried the staging command path and still hit SSH banner timeout before remote execution while TCP 22 succeeded and local DNS/route remained fake-IP/TUN (`198.18.2.63`, `utun1024`). No server state changed. R51 added `scripts/postgres_staging_video_task_sequence.sh`, a default dry-run sequence runner that executes the full `audit -> roll-runtime -> dual-write-canary -> read-switch-canary -> rollback-read-switch -> primary-write-canary -> rollback-primary-write` chain only when `CONFIRM_STAGING_SEQUENCE=run`, stopping on the first non-zero stage. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r51-staging-sequence-runner-and-connectivity/`.
 
+2026-06-17 note: R52 added `scripts/pre_studio_connectivity_preflight.sh` and `scripts/verify_pre_studio_connectivity_preflight.py` so the local operator path is checked before any R51 staging sequence. The live preflight is blocked: DNS resolves to fake-IP `198.18.0.80`, route to the origin uses gateway `198.18.0.1` and interface `utun1024`, TCP 22 is reachable, SSH banner closes, and public health returns an HTTP/2 framing error. No server state changed. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r52-connectivity-preflight/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

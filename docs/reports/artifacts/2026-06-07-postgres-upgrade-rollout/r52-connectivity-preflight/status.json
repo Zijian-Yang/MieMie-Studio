@@ -1,0 +1,20 @@
+{
+  "state": "blocked",
+  "stage": "connectivity",
+  "script": "scripts/pre_studio_connectivity_preflight.sh",
+  "verifier": "scripts/verify_pre_studio_connectivity_preflight.py",
+  "host": "pre-studio.miemie.co",
+  "origin_ip": "47.79.99.190",
+  "dns_a": "198.18.0.80",
+  "route_origin": "gateway: 198.18.0.1; interface: utun1024",
+  "checks": {
+    "dns": "blocked_fake_ip_detected",
+    "route": "blocked_tun_fake_ip_route",
+    "tcp_ssh": "passed",
+    "ssh_banner": "blocked_connection_closed",
+    "public_health": "failed_http2_framing_layer",
+    "server_commands": "not_executed",
+    "provider_calls": "not_exercised"
+  },
+  "updated_at": "2026-06-16T17:16:35Z"
+}

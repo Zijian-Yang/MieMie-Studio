@@ -756,6 +756,13 @@ pre 部署复验：
 - 新增 `scripts/verify_postgres_staging_canary_sequence.py`，验证 runner shell 语法、dry-run 不触碰 Docker/子 canary、默认序列和显式执行开关。
 - 本地验证：`bash -n scripts/postgres_staging_video_task_sequence.sh`、`python3 scripts/verify_postgres_staging_canary_sequence.py`、`python3 scripts/verify_postgres_staging_canary_script.py` 均通过；本地 dry-run 写入预期 sequence。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r51-staging-sequence-runner-and-connectivity/`。
 
+2026-06-17 阶段 7 R52 connectivity preflight：
+
+- 新增 `scripts/pre_studio_connectivity_preflight.sh`，在执行 R51 sequence 前检查代理环境脱敏摘要、DNS fake-IP、到源站 IP 的 route/TUN、TCP 22、SSH banner 和公网 `/api/health` header/body。
+- 新增 `scripts/verify_pre_studio_connectivity_preflight.py`，验证 preflight shell 语法、dry-run 不执行网络命令、代理环境脱敏和关键安全契约。
+- 沙盒内真实预检会遇到 DNS/permission 限制，因此本轮用提升权限实跑一次；结果为 blocked：DNS `198.18.0.80`，route gateway `198.18.0.1` / interface `utun1024`，TCP 22 可达，SSH banner 被 `47.79.99.190` 关闭，public health 返回 HTTP/2 framing layer error。
+- 本地验证：`bash -n scripts/pre_studio_connectivity_preflight.sh`、`python3 scripts/verify_pre_studio_connectivity_preflight.py`、`python3 scripts/verify_postgres_staging_canary_sequence.py` 均通过。R52 未执行服务器命令、未重启容器、未启用业务开关；证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r52-connectivity-preflight/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -770,4 +777,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步优先级：先恢复直连 SSH 路径并在服务器运行 `MODE=audit scripts/postgres_staging_video_task_canary.sh`，或直接用 `CONFIRM_STAGING_SEQUENCE=run scripts/postgres_staging_video_task_sequence.sh` 串行执行审计、运行态滚动、双写、读切换、回滚、主写和主写回滚门禁，随后补 reconcile 和保守查询门禁。R45/R46/R49/R50/R51 已把这条恢复路径固化成脚本和本地 verifier；R48 已补齐本地全域实库演练通过证据。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 已完成服务器 live migration/backfill/reconcile，但尚未完成业务开关灰度和最终切库。
+- 下一步优先级：先让 `scripts/pre_studio_connectivity_preflight.sh` 退出 `0`，再在服务器运行 `MODE=audit scripts/postgres_staging_video_task_canary.sh`，或直接用 `CONFIRM_STAGING_SEQUENCE=run scripts/postgres_staging_video_task_sequence.sh` 串行执行审计、运行态滚动、双写、读切换、回滚、主写和主写回滚门禁，随后补 reconcile 和保守查询门禁。R45/R46/R49/R50/R51/R52 已把这条恢复路径固化成脚本和本地 verifier；R48 已补齐本地全域实库演练通过证据。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 已完成服务器 live migration/backfill/reconcile，但尚未完成业务开关灰度和最终切库。
