@@ -648,6 +648,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-17 note: R63 adds opt-in sessions primary-write without changing default auth behavior. When `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=sessions` or global PostgreSQL write mode is enabled, session save/delete/user-session cleanup use PostgreSQL primary first; Redis remains a cache after primary save, `sessions.json` is only maintained with `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true`, and primary-write implies PostgreSQL reads. Local verification passed focused R63 tests (`7 passed`), sessions runtime combined (`25 passed`), auth/session target (`74 passed`), database schema/repository/migration target (`98 passed`), full backend pytest (`424 passed`), and py_compile. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r63-sessions-primary-write/`.
 
+2026-06-17 note: R64 adds `scripts/postgres_staging_live_data_gate.sh` plus `scripts/verify_postgres_staging_live_data_gate.py`, and inserts `live-data-gate` into `scripts/postgres_staging_video_task_sequence.sh` after `roll-runtime`. The gate is dry-run by default; confirmed server execution runs Alembic head, all-domain backfill/reconcile, PostgreSQL backup, and restore rehearsal before any app-level dual-write/read-switch/primary-write canary. Local verification passed both live-data-gate and sequence verifiers plus py_compile. A fresh SSH check after another direct-rule change still timed out during banner exchange while route used `utun1024`, so no server sequence or business switch ran. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r64-staging-live-data-gate/` and `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r64-staging-sequence-with-live-data-gate/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
@@ -659,4 +661,4 @@ Once goal mode starts, do not ask the user for routine information covered by th
 - Keep JSON primary until a task explicitly switches read/write flags.
 - For real provider tests, use only already configured server-side credentials; never ask the user to paste raw keys during automated execution.
 - If a prerequisite is missing, write `status.json` with `"state": "blocked"` and the exact missing item.
-- If the local operator path remains fake-IP/TUN blocked, run the server fallback from `/opt/miemie-pre`: `CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`.
+- If the local operator path remains fake-IP/TUN blocked, run the server fallback from `/opt/miemie-pre`: `CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`. The sequence now includes `live-data-gate` before app-level canaries.

@@ -1,0 +1,11 @@
+{
+  "run_id": "r64-staging-live-data-gate-local-dry-run",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_LIVE_DATA_GATE=run to execute",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r64-staging-live-data-gate",
+  "tmp_dir": "/tmp/r64-staging-live-data-gate-local-dry-run",
+  "domains": "video_studio_tasks studio_tasks projects media_metadata project_entities benchmark_records user_config sessions",
+  "confirm": "dry-run",
+  "updated_at": "2026-06-16T20:32:20Z"
+}

@@ -8,8 +8,9 @@ RUN_ID="${RUN_ID:-postgres-staging-video-task-sequence-$(date +%Y%m%d%H%M%S)}"
 ARTIFACT_DIR="${ARTIFACT_DIR:-$ROOT_DIR/docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r51-staging-video-task-sequence}"
 TMP_DIR="${TMP_DIR:-/tmp/$RUN_ID}"
 CANARY_SCRIPT="${CANARY_SCRIPT:-$ROOT_DIR/scripts/postgres_staging_video_task_canary.sh}"
+LIVE_DATA_GATE_SCRIPT="${LIVE_DATA_GATE_SCRIPT:-$ROOT_DIR/scripts/postgres_staging_live_data_gate.sh}"
 CONFIRM_STAGING_SEQUENCE="${CONFIRM_STAGING_SEQUENCE:-dry-run}"
-SEQUENCE="${SEQUENCE:-audit roll-runtime dual-write-canary read-switch-canary rollback-read-switch primary-write-canary rollback-primary-write}"
+SEQUENCE="${SEQUENCE:-audit roll-runtime live-data-gate dual-write-canary read-switch-canary rollback-read-switch primary-write-canary rollback-primary-write}"
 
 mkdir -p "$ARTIFACT_DIR" "$TMP_DIR"
 
@@ -90,14 +91,23 @@ run_stage() {
   mkdir -p "$stage_dir" "$stage_tmp"
 
   log_line "stage=$index mode=$mode artifact_dir=$stage_dir"
-  log_line "+ MODE=$mode RUN_ID=${RUN_ID}-${index}-${mode} ARTIFACT_DIR=$stage_dir TMP_DIR=$stage_tmp bash $CANARY_SCRIPT"
 
   set +e
-  MODE="$mode" \
-    RUN_ID="${RUN_ID}-${index}-${mode}" \
-    ARTIFACT_DIR="$stage_dir" \
-    TMP_DIR="$stage_tmp" \
-    bash "$CANARY_SCRIPT" >> "$COMMAND_LOG" 2>&1
+  if [[ "$mode" == "live-data-gate" ]]; then
+    log_line "+ CONFIRM_LIVE_DATA_GATE=run RUN_ID=${RUN_ID}-${index}-${mode} ARTIFACT_DIR=$stage_dir TMP_DIR=$stage_tmp bash $LIVE_DATA_GATE_SCRIPT"
+    CONFIRM_LIVE_DATA_GATE=run \
+      RUN_ID="${RUN_ID}-${index}-${mode}" \
+      ARTIFACT_DIR="$stage_dir" \
+      TMP_DIR="$stage_tmp" \
+      bash "$LIVE_DATA_GATE_SCRIPT" >> "$COMMAND_LOG" 2>&1
+  else
+    log_line "+ MODE=$mode RUN_ID=${RUN_ID}-${index}-${mode} ARTIFACT_DIR=$stage_dir TMP_DIR=$stage_tmp bash $CANARY_SCRIPT"
+    MODE="$mode" \
+      RUN_ID="${RUN_ID}-${index}-${mode}" \
+      ARTIFACT_DIR="$stage_dir" \
+      TMP_DIR="$stage_tmp" \
+      bash "$CANARY_SCRIPT" >> "$COMMAND_LOG" 2>&1
+  fi
   exit_code=$?
   set -e
 
@@ -114,6 +124,11 @@ main() {
   [[ -f "$CANARY_SCRIPT" ]] || {
     write_status "blocked" "precheck" "missing canary script: $CANARY_SCRIPT"
     printf 'missing canary script: %s\n' "$CANARY_SCRIPT" >&2
+    exit 2
+  }
+  [[ -f "$LIVE_DATA_GATE_SCRIPT" ]] || {
+    write_status "blocked" "precheck" "missing live data gate script: $LIVE_DATA_GATE_SCRIPT"
+    printf 'missing live data gate script: %s\n' "$LIVE_DATA_GATE_SCRIPT" >&2
     exit 2
   }
 
