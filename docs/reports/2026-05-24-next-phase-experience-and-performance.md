@@ -690,6 +690,16 @@ pre 部署复验：
 - 随后开始 build 最新 `api` 镜像，准备通过 one-off 容器执行 Alembic/backfill/reconcile；build 过程中 SSH 会话返回 `Timeout, server 47.79.99.190 not responding`，后续 SSH 检查继续在 banner exchange 阶段超时。
 - 本轮尚未执行 Alembic、backfill、reconcile、API/worker 重启或任何数据库业务读写开关。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r42-staging-postgres-live-resume/`。
 
+2026-06-16 阶段 7 R43 staging live migration/backfill/reconcile：
+
+- SSH 恢复后，只读确认服务器 repo 为 `e731245`，`postgres` healthy，现有 API health 仍为 `200`。
+- 由于当前线上镜像仍是 2026-06-01 旧镜像且缺少 Alembic，改用服务器 `/tmp/miemie-db-maint-venv-20260616` 临时维护 venv 执行迁移脚本，不替换线上运行镜像。
+- Alembic 已升级到 `20260607_0007`。
+- 全域 backfill/reconcile 均返回 `ok=true`；脱敏计数：`video_studio_tasks=6`、`studio_tasks=12`、`projects=9`、`users=46`、`user_configs=40`，其余 metadata/entity/benchmark 域当前 live JSON 计数为 0。
+- PostgreSQL backup 生成 `.sql` 备份；restore rehearsal 使用 `miemie_restore_check` 成功恢复并校验。
+- 迁移后服务器本机 health 和服务器侧 Cloudflare public health 均为 `200`；应用运行态仍是 `00091f21f5ee207f78a1092e7e5e164ab4567c7f`，业务数据库开关仍关闭。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r43-staging-live-migration-backfill-reconcile/`。
+- 23:27 CST closeout 只读复查：`api/postgres/redis/worker/worker-video` 均仍运行，服务器本机与 Cloudflare `/api/health` 继续为 `200`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -704,4 +714,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步优先级：先恢复 SSH 控制面并只读确认服务器 build 是否完成、容器是否健康、现有 API health 是否仍为 200；确认后继续 one-off Alembic/backfill/reconcile 和备份/恢复演练。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 数据库升级本地分域门禁基本闭环，服务器 PostgreSQL 已启动，但尚未完成 live migration/backfill/reconcile、业务开关灰度和最终切库。
+- 下一步优先级：进入 staging dual-write 小域灰度，建议先启用 `video_studio_tasks`，保持 JSON 主写与 PostgreSQL shadow 写，跑 health、preview/no-provider smoke、reconcile 和保守查询门禁后再考虑 read-switch。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 已完成服务器 live migration/backfill/reconcile，但尚未完成业务开关灰度和最终切库。

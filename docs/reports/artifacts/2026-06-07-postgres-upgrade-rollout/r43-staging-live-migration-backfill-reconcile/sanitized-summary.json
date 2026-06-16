@@ -1,0 +1,23 @@
+{
+  "state": "passed",
+  "stage": "live-migration-backfill-reconcile-backup-restore",
+  "repo_head": "e73124527eeb858c4d12aa8990f19c6574bfb9d4",
+  "runtime_deployment_version": "00091f21f5ee207f78a1092e7e5e164ab4567c7f",
+  "alembic_version": "20260607_0007",
+  "counts": {
+    "alembic_version": 1,
+    "video_studio_tasks": 6,
+    "studio_tasks": 12,
+    "projects": 9,
+    "media_assets": 0,
+    "text_items": 0,
+    "project_entities": 0,
+    "benchmark_records": 0,
+    "users": 46,
+    "user_configs": 40
+  },
+  "backfill_ok": true,
+  "reconcile_ok": true,
+  "backup_restore_ok": true,
+  "database_app_switch_enabled": false
+}

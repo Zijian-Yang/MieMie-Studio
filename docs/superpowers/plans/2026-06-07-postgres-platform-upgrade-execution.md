@@ -616,6 +616,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-16 note: R42 resumed staging live rollout after SSH temporarily recovered. The server repo fast-forwarded from `cb2d4ff` to `e731245`, `postgres` started successfully, `pg_isready` accepted connections, and existing server-local/public health stayed `200`. While building the latest `api` image for one-off Alembic/backfill/reconcile execution, SSH command execution timed out during banner exchange again. No Alembic migration, backfill/reconcile, API restart, or database business switch was executed after that point. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r42-staging-postgres-live-resume/`.
 
+2026-06-16 note: R43 completed staging live database gates without switching application traffic. A temporary server-side maintenance venv ran Alembic to `20260607_0007`, all domain backfill/reconcile scripts returned `ok=true`, PostgreSQL backup/restore rehearsal passed, and server-local/public health remained `200`. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r43-staging-live-migration-backfill-reconcile/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

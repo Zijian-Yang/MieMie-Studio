@@ -541,6 +541,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-07 追加：R40 staging 连通性复查仍阻塞服务器 rollout：DNS 返回 `198.18.2.211`，到 `47.79.99.190` 的路由走 `utun1024`，TCP 22 可达但 SSH banner 超时，公网 `/api/health` 20 秒无响应。本轮未修改服务器状态。恢复正常 DNS/route/SSH/public health 前，不执行 live rollout。
 2026-06-07 追加：R41 已新增 `scripts/postgres_live_rehearsal.sh`，用于本地临时 Compose PostgreSQL 串联 `alembic upgrade head`、全域 backfill/reconcile、备份和恢复演练。当前实跑因 Docker daemon 不可用在 `docker-precheck` 记录 blocked artifact；启动 Docker 后可直接复跑，或在服务器路径恢复后执行同等 live gates。
 2026-06-16 追加：R42 服务器路径短暂恢复，`/opt/miemie-pre` 已 fast-forward 到 `e731245`，`postgres` 服务已启动并通过 `pg_isready`，现有 API health 仍为 200；但 build 最新 `api` 镜像期间 SSH 控制面再次 banner 超时。尚未执行 Alembic、backfill/reconcile 或任何数据库业务开关。下一步必须先恢复 SSH 并只读确认 build/容器/health 状态，再继续 one-off migration/backfill/reconcile。
+2026-06-16 追加：R43 已完成服务器 PostgreSQL live migration/backfill/reconcile：Alembic 升级到 `20260607_0007`，全域 backfill/reconcile 为 `ok=true`，备份和恢复演练通过，现有本机与 Cloudflare health 均为 200。应用业务开关仍关闭，下一步进入 staging dual-write 小域灰度。
 
 ## 总体验收
 
