@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 部署体验 R54 deploy doctor：新增 `scripts/deploy_doctor.sh`、`scripts/verify_deploy_doctor.py` 与 `./run.sh doctor`，提供 Mac/单服务器/Compose 部署前只读自检；默认不安装依赖、不修改配置、不启动服务，检查工具链、关键文件、敏感文件误跟踪、`compose.env` 占位值、Docker/Compose 可用性和端口占用，本机实跑 `passed_with_warnings` 并归档到 `docs/reports/artifacts/2026-06-17-deploy-doctor/`。
 - 数据库升级 R53 remote PostgreSQL sequence wrapper：新增 `scripts/pre_studio_remote_postgres_sequence.sh` 与 `scripts/verify_pre_studio_remote_postgres_sequence.py`，把 R52 本地连通性 preflight 与 R51 服务器 sequence 串起来；默认 dry-run，显式 `CONFIRM_REMOTE_SEQUENCE=run` 后先跑 preflight，通过后才 SSH 到 `/opt/miemie-pre`，用 `git merge --ff-only origin/pre` 同步并执行 `CONFIRM_STAGING_SEQUENCE=run`。当前实跑停在本地 preflight，未进入远端命令。
 - 数据库升级 R52 staging connectivity preflight：新增 `scripts/pre_studio_connectivity_preflight.sh` 与 `scripts/verify_pre_studio_connectivity_preflight.py`，在执行 R51 服务器灰度序列前统一检查 DNS fake-IP、TUN route、TCP 22、SSH banner 与公网 health。当前预检结果为 blocked：DNS `198.18.0.80`，route `utun1024`，TCP 22 可达但 SSH banner 被关闭，public health 出现 HTTP/2 framing error；未执行服务器命令或业务开关。
 - 数据库升级 R51 staging sequence runner 与连通性复查：新增 `scripts/postgres_staging_video_task_sequence.sh` 与 `scripts/verify_postgres_staging_canary_sequence.py`，默认 dry-run，显式 `CONFIRM_STAGING_SEQUENCE=run` 后按 `audit -> roll-runtime -> dual-write-canary -> read-switch-canary -> rollback-read-switch -> primary-write-canary -> rollback-primary-write` 逐级执行并失败即停。本轮 SSH 仍在 banner exchange 超时，DNS/route 仍走 fake-IP/TUN，未执行服务器命令或业务开关。

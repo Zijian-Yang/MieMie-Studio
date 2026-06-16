@@ -98,6 +98,9 @@ cd MieMie-Studio
 # 添加执行权限（仅首次需要）
 chmod +x run.sh
 
+# 部署前只读自检（不会安装依赖或修改配置）
+./run.sh doctor
+
 # 启动服务（首次运行会自动安装依赖）
 ./run.sh start
 ```
@@ -175,6 +178,7 @@ npm run dev -- --host
 
 ```bash
 ./run.sh install    # 安装/重新安装依赖
+./run.sh doctor     # 部署前只读自检（Mac/服务器/Compose）
 ./run.sh optimize   # 检测服务器并应用推荐配置
 ./run.sh update     # 更新项目到最新版本（仅拉代码）
 ./run.sh update --apply  # 更新并立即应用到当前运行服务

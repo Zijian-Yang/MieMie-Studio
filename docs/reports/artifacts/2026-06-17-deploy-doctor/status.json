@@ -1,0 +1,19 @@
+{
+  "state": "passed_with_warnings",
+  "stage": "done",
+  "script": "scripts/deploy_doctor.sh",
+  "verifier": "scripts/verify_deploy_doctor.py",
+  "entrypoint": "./run.sh doctor",
+  "profile": "all",
+  "counts": {
+    "passed": 19,
+    "warn": 2,
+    "blocked": 0,
+    "failed": 0
+  },
+  "warnings": [
+    "compose.env missing; copy compose.env.example before Compose deployment",
+    "docker daemon check skipped by default"
+  ],
+  "updated_at": "2026-06-16T17:53:05Z"
+}

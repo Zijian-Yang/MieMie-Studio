@@ -103,8 +103,21 @@ cd MieMie-Studio
 
 ### 2. 一键安装
 
+首次部署建议先给脚本执行权限，再运行只读自检：
+
 ```bash
 chmod +x run.sh
+./run.sh doctor
+```
+
+它只检查当前 Mac/服务器是否具备基本部署条件，不安装依赖、不修改配置、不启动服务；报告默认写到 `/tmp/<run_id>/artifacts`。Compose 路径建议先复制 `compose.env` 后再跑一次：
+
+```bash
+cp compose.env.example compose.env
+DOCTOR_PROFILE=compose ./run.sh doctor
+```
+
+```bash
 ./run.sh install
 ```
 
@@ -145,6 +158,7 @@ chmod +x run.sh
 ```bash
 cp compose.env.example compose.env
 sed -i.bak "s/replace-with-git-commit/$(git rev-parse HEAD)/" compose.env
+DOCTOR_PROFILE=compose ./run.sh doctor
 docker compose --env-file compose.env up -d --build
 docker compose ps
 curl http://127.0.0.1:8000/api/health

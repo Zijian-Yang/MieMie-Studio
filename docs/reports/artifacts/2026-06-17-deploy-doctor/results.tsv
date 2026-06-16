@@ -1,0 +1,22 @@
+check	state	detail
+profile	passed	all
+git	passed	/usr/bin/git
+python	passed	Python 3.12.12
+node	passed	v25.9.0
+npm	passed	/opt/homebrew/bin/npm
+curl	passed	/usr/bin/curl
+screen	passed	/usr/bin/screen
+lsof	passed	/usr/sbin/lsof
+file:run.sh	passed	present
+file:requirements.txt	passed	present
+file:backend/app/main.py	passed	present
+file:frontend/package.json	passed	present
+file:Dockerfile	passed	present
+file:docker-compose.yml	passed	present
+file:compose.env.example	passed	present
+sensitive_tracked_files	passed	no tracked sensitive backend/data files
+compose_env	warn	missing compose.env; copy compose.env.example first
+docker	passed	Docker version 28.3.3, build 980b856
+docker_compose	passed	Docker Compose version v2.39.2-desktop.1
+docker_daemon	warn	skipped; set MIEMIE_DEPLOY_DOCTOR_RUN_DOCKER_INFO=true to check daemon
+port:8000	passed	available

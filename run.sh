@@ -7,7 +7,7 @@
 #   ./run.sh [命令]       - 直接执行命令（适用于脚本/自动化）
 #
 # 命令行模式:
-#   start [--prod]  stop  restart [--prod]  status  logs  install  test
+#   start [--prod]  stop  restart [--prod]  status  logs  install  doctor  test
 #   update [--auto]  auto-update [enable|disable|status]  rollback  optimize
 #   test-video-models [--provider ... --profile ... --scope ... --user-id ...]
 #   network [on|off|status]  port [backend|frontend] <端口>  version  help
@@ -2152,6 +2152,16 @@ run_tests() {
     return $exit_code
 }
 
+run_deploy_doctor() {
+    local doctor_script="$PROJECT_DIR/scripts/deploy_doctor.sh"
+    if [ ! -f "$doctor_script" ]; then
+        log_error "部署自检脚本不存在: $doctor_script"
+        return 1
+    fi
+    log_info "运行部署自检（只读，不安装依赖、不修改配置）..."
+    bash "$doctor_script"
+}
+
 run_video_model_tests() {
     log_info "运行视频模型真实验证..."
     PYTHON=$(check_python)
@@ -2718,9 +2728,10 @@ menu_maintenance() {
     echo -e "  ${GREEN}2${NC})  运行后端测试    ${DIM}— 运行 pytest 自动化测试${NC}"
     echo -e "  ${GREEN}3${NC})  清理与重置      ${DIM}— 清理日志、缓存，或重新安装依赖${NC}"
     echo -e "  ${GREEN}4${NC})  服务器优化建议  ${DIM}— 自动检测内核/内存并推荐配置${NC}"
+    echo -e "  ${GREEN}5${NC})  部署前自检      ${DIM}— 只读检查 Mac/服务器/Compose 准备情况${NC}"
     echo -e "  ${RED}0${NC})  返回"
     echo ""
-    read -p "  请选择 [0-4]: " choice
+    read -p "  请选择 [0-5]: " choice
 
     case "$choice" in
         1)
@@ -2740,6 +2751,11 @@ menu_maintenance() {
         4)
             echo ""
             maybe_offer_performance_profile "manual" "true"
+            wait_key
+            ;;
+        5)
+            echo ""
+            run_deploy_doctor
             wait_key
             ;;
         *) ;;
@@ -2765,6 +2781,7 @@ show_help() {
     echo "  status               查看服务状态"
     echo "  logs [backend|frontend]  查看日志"
     echo "  install              安装所有依赖"
+    echo "  doctor               部署前只读自检（Mac/服务器/Compose）"
     echo "  update [--apply] [--auto]  更新到最新版本"
     echo "  auto-update [enable|disable|status]"
     echo "  rollback             回滚到上一个版本"
@@ -2816,6 +2833,9 @@ main() {
             ;;
         install)
             install_all_deps
+            ;;
+        doctor)
+            run_deploy_doctor
             ;;
         update)
             shift

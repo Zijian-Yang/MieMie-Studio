@@ -20,6 +20,7 @@
 - **做扩容/性能改造**：`docs/specs/2026-04-step-00-capacity-baseline-and-slo.md` → `docs/playbooks/CAPACITY_BASELINE_AND_LOADTEST.md` → 对应步骤 spec
 - **验证 `pre` 实验分支服务器部署**：`docs/plans/2026-05-18-pre-server-validation-plan.md` → `docs/reports/2026-05-18-pre-server-validation.md`
 - **做发布或大改**：`docs/checklists/CHANGE_GATE.md` → `docs/checklists/RELEASE_READINESS.md`
+- **部署前自检**：优先运行 `./run.sh doctor`；Compose 路径可用 `DOCTOR_PROFILE=compose ./run.sh doctor` 做只读门禁
 
 ## 文档分层
 
@@ -36,6 +37,7 @@
 ## 当前结论
 
 - 平台已具备基本自动化验证链：后端 pytest、前端 `typecheck/lint/build`
+- 部署前只读自检已接入 `./run.sh doctor`，可在 Mac / 单服务器 / Compose 路径上提前发现缺失工具、敏感文件误跟踪、`compose.env` 占位值和端口占用
 - 当前主风险不在“代码完全不可用”，而在：
   - 复杂页面/路由/服务文件过大
   - 前端自动化测试缺口明显
@@ -105,6 +107,7 @@
 ### 常用命令
 
 ```bash
+./run.sh doctor
 ./run.sh start
 ./run.sh stop
 ./run.sh status
@@ -125,6 +128,7 @@ docker compose config
 - 前端验证：`npm run typecheck`、`npm run lint`、`npm run build`（2026-05-24 均通过；build 提示 Browserslist/caniuse-lite 数据约 6 个月未更新）
 - E2E helper：`npm run test:e2e:helper`（2026-04-24，2 passed）
 - E2E smoke：`npm run test:e2e`（2026-06-05，7 passed，覆盖登录/未登录跳转、项目列表、旧版视频页迁退提示、视频工作室空态、文生视频创建流程和成功任务详情；macOS 可自动发现本机 `ms-playwright` Chromium 缓存）
+- 部署前自检：`./run.sh doctor`（2026-06-17，本机实跑 `passed_with_warnings`：`compose.env` 缺失和 Docker daemon 默认跳过为 warning；不安装依赖、不修改配置、不启动服务）
 - Compose 静态校验：`docker compose config`（2026-05-24，通过）
 - 数据库升级本地进度：Compose PostgreSQL 基础设施、database health、Alembic schema、视频工作室任务 repository、backfill/reconcile、runtime dual-write、read-switch/JSON fallback 和 PostgreSQL primary-write/JSON archive mirror 均已落地；`studio_tasks` schema、Alembic migration、repository 边界、backfill/reconcile 工具、runtime dual-write、read-switch/JSON fallback 和 PostgreSQL primary-write/JSON archive mirror 也已落地；`projects` schema、Alembic migration `20260607_0003`、repository 边界、backfill/reconcile 工具、runtime dual-write、read-switch/JSON fallback 和 PostgreSQL primary-write/JSON archive mirror 已落地；media metadata 已新增 `media_assets`/`text_items` schema、Alembic migration `20260607_0004`、repository boundary、backfill/reconcile 工具、脱敏对账报告、runtime dual-write、read-switch/JSON fallback 和 PostgreSQL primary-write/JSON archive mirror；project entities 已新增 `project_entities` schema、Alembic migration `20260607_0005`、角色/场景/道具/首帧/视频/风格 repository boundary、backfill/reconcile 工具、脱敏对账报告、runtime dual-write、read-switch/JSON fallback 和 PostgreSQL primary-write/JSON archive mirror；benchmark records 已新增图片/视频测评 dataset、suite、run 的统一 schema、Alembic migration `20260607_0006`、repository boundary、backfill/reconcile 工具、脱敏对账报告、runtime dual-write、read-switch/JSON fallback 和 PostgreSQL primary-write/JSON archive mirror；默认运行态仍是 file-only，服务器 live migration/backfill/reconcile/dual-write/read-switch/primary-write 尚未闭环。2026-06-07 R29 staging connectivity refresh 因本机 Clash TUN/fake-IP、public health 超时和 SSH 命令被远端关闭仍不能执行服务器 rollout，本轮未修改服务器状态。
 - 数据库升级 R35：user/config 本地 schema/repository boundary 已新增 `users`、`user_configs`、Alembic migration `20260607_0007` 和安全索引映射；登录、session 和 per-user `config.json` 运行态仍默认走 JSON/Redis/file-only，下一步补 user/config backfill/reconcile。
@@ -165,4 +169,4 @@ docker compose config
 - 如果旧文档与新 spec 冲突，以 spec / ADR 为准，并尽快修正文档入口
 - 不要把聊天上下文当规范；规范必须落盘
 
-*最后更新：2026-06-07*
+*最后更新：2026-06-17*
