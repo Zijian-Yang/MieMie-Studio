@@ -152,6 +152,8 @@ PENDING_DOMAINS = [
             "backend/app/db/schema/audio_studio.py",
             "backend/app/repositories/audio_studio.py",
             "backend/app/repositories/audio_studio_runtime.py",
+            "backend/app/services/migration/backfill_audio_studio.py",
+            "backend/app/services/migration/reconcile_audio_studio.py",
             "scripts/postgres_backfill_audio_studio.py",
             "scripts/postgres_reconcile_audio_studio.py",
         ],
@@ -219,15 +221,18 @@ def audit_pending_domain(domain: dict[str, object]) -> dict[str, object]:
     storage_methods = [
         method for method in domain["storage_methods"] if f"def {method}(" in storage_text
     ]
+    present_expected_files = [path for path in expected_files if exists(path)]
+    missing_expected_files = [path for path in expected_files if not exists(path)]
+    status = "covered" if not missing_expected_files else "in_progress" if present_expected_files else "pending"
     return {
         "name": domain["name"],
         "summary": domain["summary"],
-        "status": "pending",
+        "status": status,
         "json_surfaces": domain["json_surfaces"],
         "current_files": [path for path in current_files if exists(path)],
         "missing_current_files": [path for path in current_files if not exists(path)],
-        "missing_expected_files": [path for path in expected_files if not exists(path)],
-        "present_expected_files": [path for path in expected_files if exists(path)],
+        "missing_expected_files": missing_expected_files,
+        "present_expected_files": present_expected_files,
         "storage_methods": storage_methods,
         "missing_storage_methods": [
             method for method in domain["storage_methods"] if method not in storage_methods
@@ -259,7 +264,7 @@ def build_summary(run_id: str) -> dict[str, object]:
     pending = [audit_pending_domain(domain) for domain in PENDING_DOMAINS]
     embedded = [audit_embedded_surface(surface) for surface in COVERED_EMBEDDED_SURFACES]
     migrated_covered = [domain for domain in migrated if domain["status"] == "covered"]
-    pending_names = [domain["name"] for domain in pending if domain["status"] == "pending"]
+    pending_names = [domain["name"] for domain in pending if domain["status"] != "covered"]
     return {
         "run_id": run_id,
         "updated_at": utc_now(),
@@ -297,6 +302,7 @@ def render_markdown(summary: dict[str, object]) -> str:
     pending_rows = [
         [
             f"`{domain['name']}`",
+            str(domain["status"]),
             ", ".join(f"`{surface}`" for surface in domain["json_surfaces"]),
             ", ".join(f"`{path}`" for path in domain["missing_expected_files"]),
         ]
@@ -316,7 +322,7 @@ def render_markdown(summary: dict[str, object]) -> str:
 
     return "\n".join(
         [
-            "# R67 PostgreSQL Domain Coverage Audit",
+            "# PostgreSQL Domain Coverage Audit",
             "",
             f"Run ID: `{summary['run_id']}`",
             f"Updated At: `{summary['updated_at']}`",
@@ -332,7 +338,7 @@ def render_markdown(summary: dict[str, object]) -> str:
             "## Pending Domains",
             "",
             markdown_table(
-                ["Domain", "JSON surfaces", "Missing PostgreSQL files"],
+                ["Domain", "Status", "JSON surfaces", "Missing PostgreSQL files"],
                 pending_rows,
             ),
             "",

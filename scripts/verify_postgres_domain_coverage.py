@@ -24,11 +24,16 @@ EXPECTED_MIGRATED_DOMAINS = {
 }
 
 AUDIO_EXPECTED_MISSING = {
-    "backend/app/db/schema/audio_studio.py",
-    "backend/app/repositories/audio_studio.py",
     "backend/app/repositories/audio_studio_runtime.py",
+    "backend/app/services/migration/backfill_audio_studio.py",
+    "backend/app/services/migration/reconcile_audio_studio.py",
     "scripts/postgres_backfill_audio_studio.py",
     "scripts/postgres_reconcile_audio_studio.py",
+}
+
+AUDIO_EXPECTED_PRESENT = {
+    "backend/app/db/schema/audio_studio.py",
+    "backend/app/repositories/audio_studio.py",
 }
 
 AUDIO_STORAGE_METHODS = {
@@ -95,8 +100,9 @@ def run_report_contract() -> None:
         pending = {item["name"]: item for item in summary["pending_domains"]}
         assert set(pending) == {"audio_studio"}
         audio = pending["audio_studio"]
-        assert audio["status"] == "pending"
+        assert audio["status"] == "in_progress"
         assert set(audio["missing_expected_files"]) == AUDIO_EXPECTED_MISSING
+        assert AUDIO_EXPECTED_PRESENT.issubset(set(audio["present_expected_files"]))
         assert AUDIO_STORAGE_METHODS.issubset(set(audio["storage_methods"]))
         assert "audio_studio/*.json" in audio["json_surfaces"]
         assert "voices/*.json" in audio["json_surfaces"]

@@ -9,6 +9,7 @@ from app.models.project import Project
 from app.models.gallery import GalleryImage
 from app.models.media import AudioItem, TextItem, VideoItem, VideoStudioTask
 from app.models.studio import StudioTask
+from app.models.audio_studio import AudioStudioTask, VoiceProfile
 
 
 class RepositoryMode(StrEnum):
@@ -166,3 +167,44 @@ class ProjectEntityRepository(Protocol):
 
     def mark_deleted(self, entity_kind: str, entity_id: str) -> None:
         """Mark an entity deleted, using soft delete when supported."""
+
+
+class AudioStudioRepository(Protocol):
+    def save_task(self, task: AudioStudioTask) -> None:
+        """Persist an audio studio task."""
+
+    def get_task(self, task_id: str) -> Optional[AudioStudioTask]:
+        """Return an audio studio task by id, or None."""
+
+    def list_tasks_for_project(self, project_id: str) -> list[AudioStudioTask]:
+        """Return audio studio tasks for a project in the legacy list order."""
+
+    def list_all_tasks(self) -> list[AudioStudioTask]:
+        """Return all audio studio tasks in this user namespace."""
+
+    def delete_task(self, task_id: str) -> None:
+        """Delete an audio studio task."""
+
+    def mark_task_deleted(self, task_id: str) -> None:
+        """Mark an audio studio task deleted, using soft delete when supported."""
+
+    def save_voice_profile(self, profile: VoiceProfile) -> None:
+        """Persist a voice profile."""
+
+    def get_voice_profile(self, profile_id: str) -> Optional[VoiceProfile]:
+        """Return a voice profile by id, or None."""
+
+    def get_voice_profile_by_voice_id(self, voice_id: str) -> Optional[VoiceProfile]:
+        """Return a voice profile by DashScope voice id, or None."""
+
+    def list_voice_profiles_for_project(self, project_id: str) -> list[VoiceProfile]:
+        """Return voice profiles for a project in the legacy list order."""
+
+    def list_all_voice_profiles(self) -> list[VoiceProfile]:
+        """Return all voice profiles in this user namespace."""
+
+    def delete_voice_profile(self, profile_id: str) -> None:
+        """Delete a voice profile."""
+
+    def mark_voice_profile_deleted(self, profile_id: str) -> None:
+        """Mark a voice profile deleted, using soft delete when supported."""

@@ -656,6 +656,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-17 note: R67 adds `scripts/postgres_domain_coverage.py` and `scripts/verify_postgres_domain_coverage.py` to make the migration coverage audit repeatable. The report confirms 8 migrated domains have local schema/repository/backfill/reconcile/runtime gates: `video_studio_tasks`, `studio_tasks`, `projects`, `media_metadata`, `project_entities`, `benchmark_records`, `user_config`, and `sessions`. The remaining clear JSON-only business-state domain is `audio_studio`, covering `audio_studio/*.json` and `voices/*.json`; the next local domain rollout should be `audio_studio` in R68-R72. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r67-postgres-domain-coverage/`.
 
+2026-06-17 note: R68 starts the `audio_studio` domain locally. `backend/app/db/schema/audio_studio.py` defines `audio_studio_tasks` and `voice_profiles`, Alembic revision `20260617_0009` appends those tables after `sessions`, and `backend/app/repositories/audio_studio.py` adds file/PostgreSQL/dual repository boundaries for audio tasks and voice profiles. Runtime remains JSON/file-only. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r68-audio-studio-local-schema-repository/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
