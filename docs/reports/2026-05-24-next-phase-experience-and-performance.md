@@ -700,6 +700,14 @@ pre 部署复验：
 - 迁移后服务器本机 health 和服务器侧 Cloudflare public health 均为 `200`；应用运行态仍是 `00091f21f5ee207f78a1092e7e5e164ab4567c7f`，业务数据库开关仍关闭。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r43-staging-live-migration-backfill-reconcile/`。
 - 23:27 CST closeout 只读复查：`api/postgres/redis/worker/worker-video` 均仍运行，服务器本机与 Cloudflare `/api/health` 继续为 `200`。
 
+2026-06-16 阶段 7 R44 staging dual-write canary 预备中断：
+
+- 目标是先滚动到包含数据库 feature flag 的新运行态，保持 `MIEMIE_DATABASE_ENABLED=false`，再启用 `video_studio_tasks` dual-write canary。
+- 服务器 `compose.env` 已备份为 `compose.env.bak-r44-dual-write-canary-20260616`，`MIEMIE_RUNTIME_GIT_COMMIT` 更新到 `e73124527eeb858c4d12aa8990f19c6574bfb9d4`，`MIEMIE_DATABASE_ENABLED` 明确保持 `false`。
+- 使用 `docker-compose.pre.override.yml` 构建 `miemie-studio:pre-local`，但 build SSH 会话在完成前超时；本轮没有执行 `docker compose up`，没有重启 API/worker，也没有启用数据库业务开关。
+- 随后本机 DNS/route 复现 fake-IP/TUN 症状：`pre-studio.miemie.co` 解析为 `198.18.2.63`，到 `47.79.99.190` 的 route 走 `utun1024`/`198.18.0.1`；TCP 22 可连但 SSH banner 超时。
+- 当前不能把 R44 视为 dual-write canary；恢复 SSH 后必须先只读审计镜像是否构建完成、容器是否仍旧、health 是否正常，再决定继续构建或滚动新镜像。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r44-staging-dual-write-canary-interrupted/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -714,4 +722,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步优先级：进入 staging dual-write 小域灰度，建议先启用 `video_studio_tasks`，保持 JSON 主写与 PostgreSQL shadow 写，跑 health、preview/no-provider smoke、reconcile 和保守查询门禁后再考虑 read-switch。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 已完成服务器 live migration/backfill/reconcile，但尚未完成业务开关灰度和最终切库。
+- 下一步优先级：先恢复直连 SSH 路径并只读审计 R44 interrupted build/image/container/health 状态；确认新镜像可用且 `MIEMIE_DATABASE_ENABLED=false` 的运行态 health 通过后，再进入 `video_studio_tasks` staging dual-write canary，保持 JSON 主写与 PostgreSQL shadow 写，跑 health、preview/no-provider smoke、reconcile 和保守查询门禁后再考虑 read-switch。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 已完成服务器 live migration/backfill/reconcile，但尚未完成业务开关灰度和最终切库。

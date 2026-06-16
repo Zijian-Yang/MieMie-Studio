@@ -1,0 +1,18 @@
+Timestamp: 2026-06-16 23:56:10 CST
+
+dig +short pre-studio.miemie.co A
+198.18.2.63
+
+route -n get 47.79.99.190
+route to: 47.79.99.190
+gateway: 198.18.0.1
+interface: utun1024
+
+nc -vz -w 10 47.79.99.190 22
+Connection to 47.79.99.190 port 22 [tcp/ssh] succeeded.
+
+ssh -vvv root@47.79.99.190 'echo ok'
+TCP connection established, then timed out during banner exchange.
+
+curl --resolve pre-studio.miemie.co:443:47.79.99.190 https://pre-studio.miemie.co/api/health
+Failed to connect to pre-studio.miemie.co port 443 immediately from the local TUN route.

@@ -618,6 +618,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-16 note: R43 completed staging live database gates without switching application traffic. A temporary server-side maintenance venv ran Alembic to `20260607_0007`, all domain backfill/reconcile scripts returned `ok=true`, PostgreSQL backup/restore rehearsal passed, and server-local/public health remained `200`. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r43-staging-live-migration-backfill-reconcile/`.
 
+2026-06-16 note: R44 attempted to start the first application-level dual-write canary for `video_studio_tasks`, but stopped before any canary traffic. The server `compose.env` was backed up, `MIEMIE_RUNTIME_GIT_COMMIT` was updated to `e731245`, and `MIEMIE_DATABASE_ENABLED` stayed `false`. A `miemie-studio:pre-local` build was started, then the SSH session timed out before build completion was observed; follow-up SSH attempts timed out during banner exchange while the local route used `utun1024` / fake-IP. No container restart, no database business switch, and no dual-write canary occurred. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r44-staging-dual-write-canary-interrupted/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

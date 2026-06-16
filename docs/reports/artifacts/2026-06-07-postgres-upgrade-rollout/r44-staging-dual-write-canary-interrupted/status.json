@@ -1,0 +1,15 @@
+{
+  "state": "interrupted",
+  "stage": "pre-image-rollout",
+  "updated_at": "2026-06-16T23:56:10+08:00",
+  "server_repo_head": "e73124527eeb858c4d12aa8990f19c6574bfb9d4",
+  "intended_domain": "video_studio_tasks",
+  "database_app_switch_enabled": false,
+  "dual_write_canary_started": false,
+  "container_restart_completed": false,
+  "observed_runtime_before_attempt": "00091f21f5ee207f78a1092e7e5e164ab4567c7f",
+  "compose_env_runtime_commit_updated": true,
+  "compose_env_backup": "compose.env.bak-r44-dual-write-canary-20260616",
+  "interruption_reason": "SSH session timed out during docker build; subsequent SSH attempts timed out during banner exchange while local route used utun1024/fake-ip path.",
+  "next_required_action": "Restore direct SSH, audit image/container/health state, then continue runtime image rollout before enabling video_studio_tasks dual-write."
+}
