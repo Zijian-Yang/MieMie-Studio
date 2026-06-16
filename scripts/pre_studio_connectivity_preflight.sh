@@ -14,6 +14,7 @@ SSH_PORT="${SSH_PORT:-22}"
 CONNECT_TIMEOUT="${CONNECT_TIMEOUT:-12}"
 PUBLIC_HEALTH_URL="${PUBLIC_HEALTH_URL:-https://$HOST/api/health}"
 MIEMIE_PREFLIGHT_DRY_RUN="${MIEMIE_PREFLIGHT_DRY_RUN:-false}"
+MIEMIE_PREFLIGHT_SCOPE="${MIEMIE_PREFLIGHT_SCOPE:-full}"
 
 mkdir -p "$ARTIFACT_DIR" "$TMP_DIR"
 
@@ -85,6 +86,7 @@ write_status() {
   "origin_ip": "$(json_escape "$ORIGIN_IP")",
   "ssh_target": "$(json_escape "$SSH_TARGET")",
   "public_health_url": "$(json_escape "$PUBLIC_HEALTH_URL")",
+  "scope": "$(json_escape "$MIEMIE_PREFLIGHT_SCOPE")",
   "dns_a": "$(json_escape "$dns_summary")",
   "route_origin": "$(json_escape "$route_summary")",
   "public_health": "$(json_escape "$health_summary")",
@@ -117,6 +119,7 @@ write_remediation_summary() {
     printf -- '- Host: `%s`\n' "$HOST"
     printf -- '- Origin IP: `%s`\n' "$ORIGIN_IP"
     printf -- '- SSH target: `%s`\n\n' "$SSH_TARGET"
+    printf -- '- Scope: `%s`\n\n' "$MIEMIE_PREFLIGHT_SCOPE"
 
     printf '## Results\n\n'
     if [[ -f "$RESULTS_FILE" ]]; then
@@ -127,7 +130,11 @@ write_remediation_summary() {
 
     printf '\n## Recommended Next Steps\n\n'
     if [[ "$state" == "passed" ]]; then
-      printf -- '- Connectivity is clear. Continue with `CONFIRM_REMOTE_SEQUENCE=run scripts/pre_studio_remote_postgres_sequence.sh`.\n'
+      if [[ "$MIEMIE_PREFLIGHT_SCOPE" == "network" ]]; then
+        printf -- '- Network-only checks are clear. Continue with the full preflight: `scripts/pre_studio_connectivity_preflight.sh`.\n'
+      else
+        printf -- '- Connectivity is clear. Continue with `CONFIRM_REMOTE_SEQUENCE=run scripts/pre_studio_remote_postgres_sequence.sh`.\n'
+      fi
       return
     fi
     if [[ "$state" == "dry_run" ]]; then
@@ -150,6 +157,9 @@ write_remediation_summary() {
       printf -- '- Public health timed out or failed from this client. Once DNS/route are clean, retry `curl --noproxy "*" -k -sS -D - -o /tmp/pre-studio-health.json --connect-timeout 10 --max-time 20 https://pre-studio.miemie.co/api/health`. If only this local network fails, verify from a target-market VPS or the server itself before changing application code.\n'
     elif grep -Eq '^public_health[[:space:]]+blocked' "$RESULTS_FILE"; then
       printf -- '- Public health could not be validated because a required local tool is missing. Install the missing tool or run the preflight on a prepared operator machine.\n'
+    fi
+    if [[ "$MIEMIE_PREFLIGHT_SCOPE" == "network" ]]; then
+      printf -- '- This was a network-only check. It intentionally stopped before TCP/SSH/public-health validation; run full preflight after DNS and route are clean.\n'
     fi
 
     printf '\nDo not run the remote PostgreSQL sequence until this preflight exits `0`.\n'
@@ -281,6 +291,18 @@ main() {
   sanitize_proxy_env
   date -u +%Y-%m-%dT%H:%M:%SZ > "$ARTIFACT_DIR/time.txt"
 
+  case "$MIEMIE_PREFLIGHT_SCOPE" in
+    full|network)
+      record_result "scope" "passed" "$MIEMIE_PREFLIGHT_SCOPE"
+      ;;
+    *)
+      record_result "scope" "blocked" "unsupported MIEMIE_PREFLIGHT_SCOPE=$MIEMIE_PREFLIGHT_SCOPE"
+      write_remediation_summary "blocked"
+      write_status "blocked" "precheck" "unsupported MIEMIE_PREFLIGHT_SCOPE"
+      return 2
+      ;;
+  esac
+
   if [[ "$MIEMIE_PREFLIGHT_DRY_RUN" == "true" ]]; then
     record_result "dry_run" "passed" "no network checks executed"
     write_remediation_summary "dry_run"
@@ -291,6 +313,18 @@ main() {
   local failures=0
   check_dns || failures=$((failures + 1))
   check_route || failures=$((failures + 1))
+
+  if [[ "$MIEMIE_PREFLIGHT_SCOPE" == "network" ]]; then
+    if [[ "$failures" == "0" ]]; then
+      write_remediation_summary "passed"
+      write_status "passed" "network" ""
+      return 0
+    fi
+    write_remediation_summary "blocked"
+    write_status "blocked" "network" "$failures network check(s) failed or blocked"
+    return 2
+  fi
+
   check_tcp_ssh || failures=$((failures + 1))
   check_ssh_banner || failures=$((failures + 1))
   check_public_health || failures=$((failures + 1))
