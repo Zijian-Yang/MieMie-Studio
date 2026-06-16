@@ -1,0 +1,190 @@
+{
+  "run_id": "r67-postgres-domain-coverage-20260617",
+  "updated_at": "2026-06-16T21:01:32Z",
+  "state": "ready_for_next_domain",
+  "next_recommended_domain": "audio_studio",
+  "migrated_domain_count": 8,
+  "pending_domain_count": 1,
+  "migrated_domains": [
+    {
+      "name": "video_studio_tasks",
+      "summary": "Video generation task state.",
+      "status": "covered",
+      "present_files": [
+        "backend/app/db/schema/video_studio_tasks.py",
+        "backend/app/repositories/video_studio_tasks.py",
+        "backend/app/repositories/video_studio_task_runtime.py",
+        "backend/app/services/migration/backfill_video_studio_tasks.py",
+        "backend/app/services/migration/reconcile_video_studio_tasks.py",
+        "scripts/postgres_backfill_video_studio_tasks.py",
+        "scripts/postgres_reconcile_video_studio_tasks.py"
+      ],
+      "missing_files": []
+    },
+    {
+      "name": "studio_tasks",
+      "summary": "Image studio task state.",
+      "status": "covered",
+      "present_files": [
+        "backend/app/db/schema/studio_tasks.py",
+        "backend/app/repositories/studio_tasks.py",
+        "backend/app/repositories/studio_task_runtime.py",
+        "backend/app/services/migration/backfill_studio_tasks.py",
+        "backend/app/services/migration/reconcile_studio_tasks.py",
+        "scripts/postgres_backfill_studio_tasks.py",
+        "scripts/postgres_reconcile_studio_tasks.py"
+      ],
+      "missing_files": []
+    },
+    {
+      "name": "projects",
+      "summary": "Project metadata, script snapshot, and project-level counters.",
+      "status": "covered",
+      "present_files": [
+        "backend/app/db/schema/projects.py",
+        "backend/app/repositories/projects.py",
+        "backend/app/repositories/project_runtime.py",
+        "backend/app/services/migration/backfill_projects.py",
+        "backend/app/services/migration/reconcile_projects.py",
+        "scripts/postgres_backfill_projects.py",
+        "scripts/postgres_reconcile_projects.py"
+      ],
+      "missing_files": []
+    },
+    {
+      "name": "media_metadata",
+      "summary": "Generated media metadata and project media references.",
+      "status": "covered",
+      "present_files": [
+        "backend/app/db/schema/media_assets.py",
+        "backend/app/repositories/media_assets.py",
+        "backend/app/repositories/media_asset_runtime.py",
+        "backend/app/services/migration/backfill_media_metadata.py",
+        "backend/app/services/migration/reconcile_media_metadata.py",
+        "scripts/postgres_backfill_media_metadata.py",
+        "scripts/postgres_reconcile_media_metadata.py"
+      ],
+      "missing_files": []
+    },
+    {
+      "name": "project_entities",
+      "summary": "Characters, scenes, props, frames, videos, styles, and gallery-like project entities.",
+      "status": "covered",
+      "present_files": [
+        "backend/app/db/schema/project_entities.py",
+        "backend/app/repositories/project_entities.py",
+        "backend/app/repositories/project_entity_runtime.py",
+        "backend/app/services/migration/backfill_project_entities.py",
+        "backend/app/services/migration/reconcile_project_entities.py",
+        "scripts/postgres_backfill_project_entities.py",
+        "scripts/postgres_reconcile_project_entities.py"
+      ],
+      "missing_files": []
+    },
+    {
+      "name": "benchmark_records",
+      "summary": "Image/video benchmark suite, run, and result records.",
+      "status": "covered",
+      "present_files": [
+        "backend/app/db/schema/benchmark_records.py",
+        "backend/app/repositories/benchmark_records.py",
+        "backend/app/repositories/benchmark_record_runtime.py",
+        "backend/app/services/migration/backfill_benchmark_records.py",
+        "backend/app/services/migration/reconcile_benchmark_records.py",
+        "scripts/postgres_backfill_benchmark_records.py",
+        "scripts/postgres_reconcile_benchmark_records.py"
+      ],
+      "missing_files": []
+    },
+    {
+      "name": "user_config",
+      "summary": "User account and per-user configuration state.",
+      "status": "covered",
+      "present_files": [
+        "backend/app/db/schema/user_config.py",
+        "backend/app/repositories/user_config.py",
+        "backend/app/repositories/user_config_runtime.py",
+        "backend/app/services/migration/backfill_user_config.py",
+        "backend/app/services/migration/reconcile_user_config.py",
+        "scripts/postgres_backfill_user_config.py",
+        "scripts/postgres_reconcile_user_config.py"
+      ],
+      "missing_files": []
+    },
+    {
+      "name": "sessions",
+      "summary": "Session metadata with token hashes only.",
+      "status": "covered",
+      "present_files": [
+        "backend/app/db/schema/sessions.py",
+        "backend/app/repositories/sessions.py",
+        "backend/app/repositories/session_runtime.py",
+        "backend/app/services/migration/backfill_sessions.py",
+        "backend/app/services/migration/reconcile_sessions.py",
+        "scripts/postgres_backfill_sessions.py",
+        "scripts/postgres_reconcile_sessions.py"
+      ],
+      "missing_files": []
+    }
+  ],
+  "pending_domains": [
+    {
+      "name": "audio_studio",
+      "summary": "Audio studio task state and cloned voice profile state.",
+      "status": "pending",
+      "json_surfaces": [
+        "audio_studio/*.json",
+        "voices/*.json"
+      ],
+      "current_files": [
+        "backend/app/routers/audio_studio.py",
+        "backend/app/models/audio_studio.py",
+        "backend/app/services/storage.py"
+      ],
+      "missing_current_files": [],
+      "missing_expected_files": [
+        "backend/app/db/schema/audio_studio.py",
+        "backend/app/repositories/audio_studio.py",
+        "backend/app/repositories/audio_studio_runtime.py",
+        "scripts/postgres_backfill_audio_studio.py",
+        "scripts/postgres_reconcile_audio_studio.py"
+      ],
+      "present_expected_files": [],
+      "storage_methods": [
+        "save_audio_studio_task",
+        "get_audio_studio_task",
+        "get_audio_studio_tasks",
+        "delete_audio_studio_task",
+        "save_voice_profile",
+        "get_voice_profile",
+        "get_voice_profiles",
+        "get_voice_profile_by_voice_id",
+        "delete_voice_profile"
+      ],
+      "missing_storage_methods": [],
+      "recommended_rollout": [
+        "R68 local schema/repository for audio tasks and voice profiles",
+        "R69 backfill/reconcile with redacted voice metadata",
+        "R70 runtime dual-write with JSON primary and PostgreSQL shadow writes",
+        "R71 read-switch canary with JSON fallback",
+        "R72 primary-write canary plus JSON archive mirror"
+      ]
+    }
+  ],
+  "covered_embedded_surfaces": [
+    {
+      "surface": "scripts/shots",
+      "covered_by": "projects.raw_project_snapshot",
+      "status": "covered",
+      "evidence_files": {
+        "backend/app/db/schema/projects.py": true,
+        "backend/app/repositories/projects.py": true
+      },
+      "note": "Project script and shot details are restored from the project JSONB snapshot; indexed shot count is stored separately."
+    }
+  ],
+  "notes": [
+    "Generated assets remain file/OSS objects, not database-primary business state.",
+    "Scripts and shots are covered through the projects domain snapshot rather than a separate first-class table in this phase."
+  ]
+}

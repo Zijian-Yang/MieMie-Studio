@@ -336,6 +336,8 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 
 2026-06-17 补充：R62 在用户新增 Clash 直连规则后复测本机 operator path，network preflight 仍 blocked：DNS 为 `198.18.0.124`，源站 route 仍走 `utun1024`；手动 TCP 22 可达，但 SSH banner exchange 仍超时。远程 PostgreSQL sequence 未执行，服务器状态未修改；证据归档到 `docs/reports/artifacts/2026-06-17-postgres-connectivity-direct-rule/`。
 
+2026-06-17 补充：R67 新增 PostgreSQL domain coverage audit，确认当前 8 个 domain 已具备本地迁移门禁；剩余明确 JSON-only 业务状态域为 `audio_studio`，包含 `audio_studio/*.json` 音频任务和 `voices/*.json` 音色档案。若服务器命令路径继续阻塞，下一步可在本地进入 `audio_studio` 的 R68-R72 小步迁移；证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r67-postgres-domain-coverage/`。
+
 需要回答的问题：
 
 1. 用现有 Compose 单机 + 轻量优化，是否已经能覆盖目标人数和体验？
@@ -374,6 +376,8 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 R62 复测后，上述判断不变：本机路径仍不能安全执行远程 wrapper，除非 network/full preflight 先退出 `0`；否则继续优先走服务器终端自运行 sequence。
 
 R65 复测后，上述判断仍不变：当前 route 被 `32.0.0.0/3 -> 198.18.0.1 -> utun1024` 捕获，除非 `IP-CIDR,47.79.99.190/32,DIRECT,no-resolve` 等规则真正让 `route -n get 47.79.99.190` 回到物理网卡，否则本机远程 wrapper 不可用；服务器终端 fallback 已校验会包含 `live-data-gate`。
+
+R67 覆盖审计后，服务器灰度恢复路径不变；本地继续推进时下一 domain 明确为 `audio_studio`，不再重新从已覆盖 domain 中选择。
 
 ## 暂不做
 

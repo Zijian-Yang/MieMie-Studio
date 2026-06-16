@@ -143,7 +143,7 @@ environment:
 | `projects` | `projects` | 第二批迁移 |
 | `video_studio` | `video_studio_tasks` | 第一批迁移 |
 | `studio` | `studio_tasks` | 第一批迁移后复用模式 |
-| `audio_studio` | `audio_studio_tasks` | 第三批迁移 |
+| `audio_studio` / `voices` | `audio_studio_tasks` + `voice_profiles` | R67 coverage audit 后确认的下一本地迁移域 |
 | `gallery` | `media_assets` + `gallery_images` | 第三批迁移 metadata |
 | `video_library` | `media_assets` + `video_items` | 第三批迁移 metadata |
 | `audio` | `media_assets` + `audio_items` | 第三批迁移 metadata |
@@ -559,6 +559,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-17 追加：R64 已新增服务器侧 live data gate 并插入 staging sequence。恢复服务器执行后，sequence 会在 app-level canary 前先跑 Alembic head、全域 backfill/reconcile、PostgreSQL 备份和恢复演练，覆盖 sessions migration `20260607_0008` 之后的 live data state；本轮仅本地 dry-run/verifier 通过，服务器业务开关仍未启用。
 2026-06-17 追加：R65 已加强 operator preflight remediation 与服务器 fallback 契约。当前本机 route 仍被 `32.0.0.0/3` TUN catch-all 捕获，preflight 会输出精确 `IP-CIDR,47.79.99.190/32,DIRECT,no-resolve` 建议；服务器自运行入口会显式验证 sequence 含 `live-data-gate` 后才执行。服务器业务开关仍未启用。
 2026-06-17 追加：R66 已将本机 remote wrapper 对齐到服务器自运行入口：本机 preflight 通过后远端先 `git merge --ff-only origin/pre`，再调用 `CONFIRM_SERVER_SEQUENCE=run SERVER_SYNC=none scripts/pre_studio_server_postgres_sequence.sh`。后续不论从本机远程执行还是直接在服务器终端执行，都会复用同一套 live-data/canary/rollback 门禁。
+2026-06-17 追加：R67 已新增 PostgreSQL domain coverage audit，确认当前 8 个已迁 domain 具备本地迁移门禁，剩余明确 JSON-only 业务状态域为 `audio_studio`（音频任务 `audio_studio/*.json` 与音色档案 `voices/*.json`）。下一本地迁移域建议为 `audio_studio`，计划拆为 R68 schema/repository、R69 backfill/reconcile、R70 runtime dual-write、R71 read-switch、R72 primary-write。
 
 ## 总体验收
 

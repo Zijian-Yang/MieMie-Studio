@@ -1,0 +1,9 @@
+{
+  "state": "ready_for_next_domain",
+  "stage": "domain-coverage",
+  "run_id": "r67-postgres-domain-coverage-20260617",
+  "updated_at": "2026-06-16T21:01:32Z",
+  "migrated_domain_count": 8,
+  "pending_domain_count": 1,
+  "next_recommended_domain": "audio_studio"
+}

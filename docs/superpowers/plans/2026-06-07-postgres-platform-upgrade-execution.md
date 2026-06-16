@@ -654,6 +654,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-17 note: R66 aligns the local remote PostgreSQL wrapper with the server-terminal fallback. `scripts/pre_studio_remote_postgres_sequence.sh` still performs local connectivity preflight and remote `git merge --ff-only origin/pre`, but now invokes `CONFIRM_SERVER_SEQUENCE=run SERVER_SYNC=none scripts/pre_studio_server_postgres_sequence.sh` on the server. This keeps the local remote path and direct server-terminal path on the same live-data/canary/rollback contract. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r66-remote-wrapper-server-fallback/`.
 
+2026-06-17 note: R67 adds `scripts/postgres_domain_coverage.py` and `scripts/verify_postgres_domain_coverage.py` to make the migration coverage audit repeatable. The report confirms 8 migrated domains have local schema/repository/backfill/reconcile/runtime gates: `video_studio_tasks`, `studio_tasks`, `projects`, `media_metadata`, `project_entities`, `benchmark_records`, `user_config`, and `sessions`. The remaining clear JSON-only business-state domain is `audio_studio`, covering `audio_studio/*.json` and `voices/*.json`; the next local domain rollout should be `audio_studio` in R68-R72. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r67-postgres-domain-coverage/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
