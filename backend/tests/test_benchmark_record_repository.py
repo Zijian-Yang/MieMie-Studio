@@ -150,7 +150,7 @@ def test_benchmark_record_row_mapping_keeps_safe_indexes_and_raw_snapshots():
 def test_file_benchmark_record_repository_preserves_storage_behavior(tmp_path):
     storage = StorageService(str(tmp_path))
     repo = FileBenchmarkRecordRepository(storage)
-    older_run = _image_run("older-run", created_at=datetime.now() - timedelta(days=2))
+    older_run = _image_run("older-run", created_at=datetime(2026, 6, 5, 12, 4, 0))
     newer_run = _image_run("newer-run")
 
     repo.save(BENCHMARK_IMAGE, RECORD_DATASET, _image_dataset())

@@ -1,0 +1,21 @@
+{
+  "state": "passed_with_server_connectivity_blocked",
+  "stage": "local-sessions-schema-repository",
+  "domain": "sessions",
+  "runtime_switch": "not_enabled",
+  "server_state_changed": false,
+  "database_business_flags_changed": false,
+  "token_storage": "sha256 token_hash only",
+  "tests": {
+    "session_focused": "9 passed",
+    "session_user_config_target": "22 passed",
+    "database_schema_repository_migration_target": "82 passed",
+    "auth_session_target": "52 passed",
+    "backend_full": "408 passed",
+    "py_compile": "passed",
+    "shell_syntax": "passed",
+    "alembic_offline_sql": "passed"
+  },
+  "connectivity_artifact": "../r59-connectivity-after-direct-rule/status.json",
+  "updated_at": "2026-06-16T19:16:00Z"
+}

@@ -803,6 +803,16 @@ pre 部署复验：
 - 新增 `scripts/pre_studio_server_postgres_sequence.sh`，作为服务器终端后备入口：在 `/opt/miemie-pre` 内默认 dry-run，显式 `CONFIRM_SERVER_SEQUENCE=run` 后校验 branch/files、`git merge --ff-only origin/pre`，再执行 R51 `CONFIRM_STAGING_SEQUENCE=run scripts/postgres_staging_video_task_sequence.sh`。
 - 新增 `scripts/verify_pre_studio_server_postgres_sequence.py`，验证 shell 语法、dry-run 不执行 git fetch/merge 或 Docker/网络命令、确认变量和安全契约。dry-run 证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r58-server-self-sequence-wrapper/`。
 
+2026-06-17 阶段 7 R59 sessions PostgreSQL 本地基础：
+
+- 新增 `sessions` PostgreSQL schema 与 Alembic revision `20260607_0008`，字段包括 `token_hash`、`user_id`、`raw_session_snapshot`、`created_at`、`last_seen_at`、`expires_at` 和 `deleted_at`，并建立 active user/expires partial indexes。
+- 新增 `PostgresSessionRepository`，数据库只保存 SHA-256 `token_hash`；raw session token 不入库、不进入 backfill/reconcile artifact。
+- 新增 `backend/app/services/migration/backfill_sessions.py`、`reconcile_sessions.py`、`scripts/postgres_backfill_sessions.py` 和 `scripts/postgres_reconcile_sessions.py`，支持 current/legacy `sessions.json` 形状，输出仅包含计数、字段名、错误类型和 token hash。
+- `scripts/postgres_live_rehearsal.sh` 的 domain 序列已加入 `sessions`，顺序在 user/config 后，避免外键缺失。
+- 运行态保持不变：auth session 仍是 Redis 优先 + file fallback；本轮未引入 session read/write switch，也未修改服务器业务开关。
+- 本地验证：session focused `9 passed`，session + user/config target `22 passed`，schema/repository/migration target `82 passed`，auth/session target `52 passed`，后端全量 `408 passed`，`py_compile`、shell syntax 和 Alembic offline SQL 均通过。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r59-sessions-local-schema-repository/`。
+- 用户再次补本地 DIRECT 规则后复跑完整 preflight 仍 blocked：DNS `198.18.0.124`，route `utun1024`，TCP 22 可达但 SSH banner 超时，公网 health 20 秒超时；服务器 sequence 未执行，证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r59-connectivity-after-direct-rule/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。

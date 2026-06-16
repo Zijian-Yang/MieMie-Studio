@@ -226,6 +226,7 @@ domains=(
   project_entities
   benchmark_records
   user_config
+  sessions
 )
 
 for domain in "${domains[@]}"; do

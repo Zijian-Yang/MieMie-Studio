@@ -137,7 +137,7 @@ def test_file_media_asset_repository_preserves_storage_behavior(tmp_path):
     older = _gallery_image(
         "older",
     )
-    older.created_at = datetime.now() - timedelta(days=2)
+    older.created_at = datetime(2026, 6, 5, 9, 0, 0)
     newer = _gallery_image("newer")
 
     repo.save_gallery_image(older)
@@ -159,7 +159,7 @@ def test_file_text_item_repository_preserves_storage_behavior(tmp_path):
     storage = StorageService(str(tmp_path))
     repo = FileTextItemRepository(storage)
     older = _text_item("older")
-    older.created_at = datetime.now() - timedelta(days=2)
+    older.created_at = datetime(2026, 6, 5, 9, 6, 0)
     newer = _text_item("newer")
 
     repo.save(newer)

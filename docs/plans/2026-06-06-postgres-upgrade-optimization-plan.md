@@ -151,7 +151,7 @@ environment:
 | `characters/scenes/props/frames/videos/styles` | 对应 domain tables | 项目表稳定后迁移 |
 | `image/video_benchmark_*` | benchmark tables | 最后迁移 |
 | `users.json/users/` | `users` + profile/config tables | 不做第一批，安全评估后迁移 |
-| `sessions` | Redis active sessions + optional `user_sessions` audit | 暂不迁主路径 |
+| `sessions` | Redis active sessions + PostgreSQL `sessions` shadow/audit table | 暂不迁主路径，先迁影子表和脱敏对账 |
 
 ### P1：任务索引与任务状态
 
@@ -273,6 +273,7 @@ create index idx_video_studio_tasks_submit_attempt
 2026-06-07 progress: R37 已新增 user/config runtime dual-write。注册、登录时 hash/last_login 更新、改密码和 per-user config 保存均保持 JSON 主写成功后再 shadow 写 PostgreSQL；显式启用 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=user_config` 或全局 dual-write 才生效。shadow 失败默认 warning-only，`MIEMIE_DATABASE_RECONCILE_STRICT=true` 可在灰度/对账窗口冒泡。session 不迁移，运行态默认仍为 JSON/Redis/file-only。
 2026-06-07 progress: R38 已新增 user/config read-switch + JSON fallback。显式启用 `MIEMIE_DATABASE_READ_DOMAINS=user_config` 或全局 PostgreSQL read mode 后，`get_user_by_id()`、token 用户恢复和 per-user `ConfigManager.load()` 可优先读 PostgreSQL；`MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 时 miss/error 回退 JSON。登录密码校验仍保持 JSON 主路径，session 继续 Redis + file fallback。
 2026-06-07 progress: R39 已新增 user/config PostgreSQL primary-write + JSON archive mirror。显式启用 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=user_config` 或 PostgreSQL 主写模式后，注册、登录更新、改密码和 per-user config 保存以 PostgreSQL 为主；默认不写 JSON，`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` 可保留临时 JSON 镜像。主写失败直接冒泡且不写 JSON。user/config 本地域已具备 schema、backfill/reconcile、dual-write、read-switch 和 primary-write 本地闭环；session 仍为 Redis + file fallback。
+2026-06-17 progress: R59 已新增 sessions PostgreSQL shadow/audit 基础。`sessions` 表只保存 `token_hash`、安全索引时间和 `raw_session_snapshot`，不保存 raw token；backfill/reconcile 输出仅包含计数、字段名、错误类型和 token hash。`postgres_live_rehearsal.sh` 已把 `sessions` 加入全域演练序列。运行态仍保持 Redis + file fallback，后续是否切 session 主路径需单独设计 TTL、Redis/DB 一致性、登出和改密清理策略。
 
 ## 代码架构计划
 
@@ -547,6 +548,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-17 追加：R49/R50 已继续补齐 `read-switch-canary`、`rollback-read-switch`、`primary-write-canary` 和 `rollback-primary-write`，覆盖读切换、读回滚、PostgreSQL 主写和主写回滚的维护 canary。R51 新增 `scripts/postgres_staging_video_task_sequence.sh`，默认 dry-run，显式 `CONFIRM_STAGING_SEQUENCE=run` 后按 `audit -> roll-runtime -> dual-write-canary -> read-switch-canary -> rollback-read-switch -> primary-write-canary -> rollback-primary-write` 串行执行并失败即停。本轮服务器 SSH 仍在 banner exchange 超时，DNS/route 仍走 fake-IP/TUN，未修改服务器状态。
 2026-06-17 追加：R52 新增 `scripts/pre_studio_connectivity_preflight.sh` 与 verifier，在 R51 灰度序列前检查 DNS fake-IP、TUN route、TCP 22、SSH banner 和公网 health。当前实跑 blocked：DNS `198.18.0.80`，route `utun1024`，TCP 22 可达但 SSH banner 被关闭，public health 为 HTTP/2 framing error；未修改服务器状态。后续必须先让该 preflight 退出 `0`，再执行 R51 sequence。
 2026-06-17 追加：R53 新增 `scripts/pre_studio_remote_postgres_sequence.sh` 与 verifier，将 R52 preflight 和 R51 sequence 串成远程编排入口。默认 dry-run；显式 `CONFIRM_REMOTE_SEQUENCE=run` 后先跑本地 preflight，通过后才 SSH 到 `/opt/miemie-pre`，用 `git merge --ff-only origin/pre` 同步并执行服务器 sequence。当前实跑停在本地 preflight，没有远程命令执行。
+2026-06-17 追加：R59 已补 sessions 本地 schema/repository/backfill/reconcile 基础，数据库只保存 `token_hash` 且运行态仍保持 Redis + file fallback；同轮复测本机 DIRECT 后 preflight 仍 blocked，DNS `198.18.0.124`、route `utun1024`、SSH banner 和公网 health 超时，服务器 sequence 未执行。
 
 ## 总体验收
 

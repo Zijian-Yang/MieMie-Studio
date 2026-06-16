@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from pathlib import Path
 
 from app.config import AppConfig, ConfigManager
@@ -127,7 +128,10 @@ def test_token_user_read_switch_prefers_postgres_user(tmp_path, monkeypatch):
         lambda: repo,
     )
     service = _user_service(tmp_path, json_user)
-    service.sessions["token"] = {"user_id": "user-1", "created_at": "2026-06-07T08:00:00"}
+    service.sessions["token"] = {
+        "user_id": "user-1",
+        "created_at": datetime.now().isoformat(),
+    }
     _write_json(tmp_path / "sessions.json", service.sessions)
 
     result = service.get_user_by_token("token")
