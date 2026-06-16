@@ -20,6 +20,7 @@ mkdir -p "$ARTIFACT_DIR" "$TMP_DIR"
 STATUS_FILE="$ARTIFACT_DIR/status.json"
 RESULTS_FILE="$ARTIFACT_DIR/results.tsv"
 COMMAND_LOG="$ARTIFACT_DIR/commands.log"
+REMEDIATION_FILE="$ARTIFACT_DIR/remediation.md"
 : > "$COMMAND_LOG"
 printf 'check\tstate\tdetail\n' > "$RESULTS_FILE"
 
@@ -87,6 +88,7 @@ write_status() {
   "dns_a": "$(json_escape "$dns_summary")",
   "route_origin": "$(json_escape "$route_summary")",
   "public_health": "$(json_escape "$health_summary")",
+  "remediation_file": "$(json_escape "$REMEDIATION_FILE")",
   "artifact_dir": "$(json_escape "$ARTIFACT_DIR")",
   "tmp_dir": "$(json_escape "$TMP_DIR")",
   "updated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -104,6 +106,54 @@ sanitize_proxy_env() {
       fi
     done
   } > "$ARTIFACT_DIR/proxy-env.sanitized"
+}
+
+write_remediation_summary() {
+  local state="$1"
+  {
+    printf '# Pre-studio Connectivity Remediation\n\n'
+    printf -- '- Run ID: `%s`\n' "$RUN_ID"
+    printf -- '- State: `%s`\n' "$state"
+    printf -- '- Host: `%s`\n' "$HOST"
+    printf -- '- Origin IP: `%s`\n' "$ORIGIN_IP"
+    printf -- '- SSH target: `%s`\n\n' "$SSH_TARGET"
+
+    printf '## Results\n\n'
+    if [[ -f "$RESULTS_FILE" ]]; then
+      sed 's/\t/ | /g' "$RESULTS_FILE"
+    else
+      printf 'No results were written.\n'
+    fi
+
+    printf '\n## Recommended Next Steps\n\n'
+    if [[ "$state" == "passed" ]]; then
+      printf -- '- Connectivity is clear. Continue with `CONFIRM_REMOTE_SEQUENCE=run scripts/pre_studio_remote_postgres_sequence.sh`.\n'
+      return
+    fi
+    if [[ "$state" == "dry_run" ]]; then
+      printf -- '- Dry run only. Re-run without `MIEMIE_PREFLIGHT_DRY_RUN=true` to execute network checks.\n'
+      return
+    fi
+
+    if grep -Eq '^dns[[:space:]]+blocked[[:space:]]+fake-ip detected' "$RESULTS_FILE"; then
+      printf -- '- DNS is returning a Clash fake-IP (`198.18.0.0/15`). Disable TUN/fake-IP for this run, or configure `pre-studio.miemie.co` to bypass proxy DNS. Re-check with `dig +short pre-studio.miemie.co A` until it returns real Cloudflare A records instead of `198.18.*`.\n'
+    fi
+    if grep -Eq '^route[[:space:]]+blocked[[:space:]]+TUN/fake-ip route detected' "$RESULTS_FILE"; then
+      printf -- '- Route to the origin IP is still going through TUN/fake-IP. Add a direct route/bypass for `%s` or temporarily disable Clash TUN, then re-check `route -n get %s` until the interface is the physical network interface, not `utun*`.\n' "$ORIGIN_IP" "$ORIGIN_IP"
+    fi
+    if grep -Eq '^tcp_ssh[[:space:]]+passed' "$RESULTS_FILE" && grep -Eq '^ssh_banner[[:space:]]+blocked' "$RESULTS_FILE"; then
+      printf -- '- TCP 22 is reachable but SSH banner did not complete. After DNS/route are clean, retry SSH. If it still blocks, check Alibaba Cloud security group, server firewall, sshd limits, and `/var/log/auth.log` on the origin host.\n'
+    elif grep -Eq '^tcp_ssh[[:space:]]+(failed|blocked)' "$RESULTS_FILE"; then
+      printf -- '- TCP 22 is not reachable from this client. Check local network policy first, then cloud security group/firewall rules for `%s:%s`.\n' "$ORIGIN_IP" "$SSH_PORT"
+    fi
+    if grep -Eq '^public_health[[:space:]]+failed' "$RESULTS_FILE"; then
+      printf -- '- Public health timed out or failed from this client. Once DNS/route are clean, retry `curl --noproxy "*" -k -sS -D - -o /tmp/pre-studio-health.json --connect-timeout 10 --max-time 20 https://pre-studio.miemie.co/api/health`. If only this local network fails, verify from a target-market VPS or the server itself before changing application code.\n'
+    elif grep -Eq '^public_health[[:space:]]+blocked' "$RESULTS_FILE"; then
+      printf -- '- Public health could not be validated because a required local tool is missing. Install the missing tool or run the preflight on a prepared operator machine.\n'
+    fi
+
+    printf '\nDo not run the remote PostgreSQL sequence until this preflight exits `0`.\n'
+  } > "$REMEDIATION_FILE"
 }
 
 check_dns() {
@@ -232,8 +282,9 @@ main() {
   date -u +%Y-%m-%dT%H:%M:%SZ > "$ARTIFACT_DIR/time.txt"
 
   if [[ "$MIEMIE_PREFLIGHT_DRY_RUN" == "true" ]]; then
-    write_status "dry_run" "planned" "set MIEMIE_PREFLIGHT_DRY_RUN=false to execute checks"
     record_result "dry_run" "passed" "no network checks executed"
+    write_remediation_summary "dry_run"
+    write_status "dry_run" "planned" "set MIEMIE_PREFLIGHT_DRY_RUN=false to execute checks"
     return 0
   fi
 
@@ -245,9 +296,11 @@ main() {
   check_public_health || failures=$((failures + 1))
 
   if [[ "$failures" == "0" ]]; then
+    write_remediation_summary "passed"
     write_status "passed" "done" ""
     return 0
   fi
+  write_remediation_summary "blocked"
   write_status "blocked" "connectivity" "$failures preflight check(s) failed or blocked"
   return 2
 }

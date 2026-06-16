@@ -1,0 +1,16 @@
+{
+  "run_id": "r55-preflight-rediagnosis-20260617",
+  "state": "blocked",
+  "stage": "connectivity",
+  "reason": "4 preflight check(s) failed or blocked",
+  "host": "pre-studio.miemie.co",
+  "origin_ip": "47.79.99.190",
+  "ssh_target": "root@47.79.99.190",
+  "public_health_url": "https://pre-studio.miemie.co/api/health",
+  "dns_a": "198.18.0.100",
+  "route_origin": "gateway: 198.18.0.1 interface: utun1024",
+  "public_health": "curl failed: curl: (28) Operation timed out after 20010 milliseconds with 0 bytes received",
+  "remediation_file": "remediation.md",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r55-connectivity-preflight-rediagnosis",
+  "updated_at": "2026-06-16T18:17:10Z"
+}

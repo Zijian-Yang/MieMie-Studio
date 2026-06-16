@@ -58,13 +58,16 @@ def run_dry_run_contract() -> None:
         results = (artifact_dir / "results.tsv").read_text(encoding="utf-8")
         commands = (artifact_dir / "commands.log").read_text(encoding="utf-8")
         proxy_env = (artifact_dir / "proxy-env.sanitized").read_text(encoding="utf-8")
+        remediation = (artifact_dir / "remediation.md").read_text(encoding="utf-8")
 
         assert status["state"] == "dry_run"
         assert status["stage"] == "planned"
         assert "set MIEMIE_PREFLIGHT_DRY_RUN=false" in status["reason"]
+        assert status["remediation_file"].endswith("remediation.md")
         assert "dry_run\tpassed\tno network checks executed" in results
         assert "HTTP_PROXY=<set>" in proxy_env
         assert "password" not in proxy_env
+        assert "Dry run only" in remediation
         if re.search(r"\b(ssh|curl|dig|route|nc)\b", commands):
             raise AssertionError(f"dry-run executed network command unexpectedly:\n{commands}")
 
@@ -83,6 +86,9 @@ def check_safety_contract() -> None:
         'curl --noproxy "*"',
         "x-request-id:",
         "x-deployment-version:",
+        "remediation.md",
+        "DNS is returning a Clash fake-IP",
+        "Do not run the remote PostgreSQL sequence",
         '"blocked" "connectivity"',
     ]
     for fragment in required_fragments:
