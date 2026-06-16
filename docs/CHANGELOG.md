@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R42 staging 恢复：服务器 SSH 一度恢复后，`/opt/miemie-pre` 已 fast-forward 到 `e731245`，并启动 `postgres` 服务且 `pg_isready` 接受连接；现有 API health 仍为 `200`，但在 build 最新 `api` 镜像期间 SSH 控制面再次 banner 超时，尚未执行 Alembic/backfill/reconcile，也未启用任何数据库业务开关。
 - 数据库升级 R41 本地实库演练脚本：新增 `scripts/postgres_live_rehearsal.sh`，可在临时 Compose PostgreSQL 上串联 `alembic upgrade head`、全域 backfill/reconcile、备份和恢复演练；本机实跑因 Docker daemon 不可用在 `docker-precheck` 产出 blocked artifact，未修改业务数据或服务器状态。
 - 数据库升级 R40 staging 连通性复查：user/config 本地门禁完成后只读复查服务器路径，DNS 仍返回 `198.18.2.211`、源站路由走 `utun1024`、TCP 22 可达但 SSH banner 超时，公网 `/api/health` 20 秒超时；本轮未修改服务器状态。
 - 数据库升级 R39 user/config PostgreSQL primary-write：新增 `user_config` 主写开关和可选 JSON archive mirror；显式启用后注册、登录更新、改密码和 per-user config 保存以 PostgreSQL 为主，主写失败不落 JSON 分叉状态，focused `7 passed`，目标回归 `33 passed`，后端全量 `399 passed`。

@@ -681,6 +681,15 @@ pre 部署复验：
 - 本机实跑结果为 `state=blocked`、`stage=docker-precheck`，原因是 Docker daemon 不可用：`Cannot connect to the Docker daemon at unix:///Users/zane/.docker/run/docker.sock`。
 - 本轮未修改业务数据或服务器状态。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r41-local-live-database-rehearsal/`。
 
+2026-06-16 阶段 7 R42 staging PostgreSQL live resume：
+
+- 用户指出最终应在服务器测试后，恢复服务器侧 live gates。
+- SSH 一度恢复，服务器本机 `/api/health` 为 `200`，Cloudflare public health 从服务器侧访问为 `200`，Compose 中 API/Redis/worker/worker-video 均运行。
+- `/opt/miemie-pre` 从 `cb2d4ff0f5e00d2eb7fbb84a6b411408014107f0` fast-forward 到 `e73124527eeb858c4d12aa8990f19c6574bfb9d4`。
+- `postgres` 服务已通过 Compose 启动，`pg_isready` 返回 `accepting connections`；启动后现有 API health 仍为 `200`，运行态 `x-deployment-version` 仍是 `00091f21f5ee207f78a1092e7e5e164ab4567c7f`。
+- 随后开始 build 最新 `api` 镜像，准备通过 one-off 容器执行 Alembic/backfill/reconcile；build 过程中 SSH 会话返回 `Timeout, server 47.79.99.190 not responding`，后续 SSH 检查继续在 banner exchange 阶段超时。
+- 本轮尚未执行 Alembic、backfill、reconcile、API/worker 重启或任何数据库业务读写开关。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r42-staging-postgres-live-resume/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -695,4 +704,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步优先级：启动本机 Docker 后直接复跑 R41 live database rehearsal，或恢复正常 DNS/route/SSH/public health 后在服务器收口 R1/R2 rollout、执行 live migration/backfill/reconcile、灰度启用双写、读切换和 primary-write。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 数据库升级本地分域门禁基本闭环，但尚未完成实库演练、服务器 live gates 和最终切库。
+- 下一步优先级：先恢复 SSH 控制面并只读确认服务器 build 是否完成、容器是否健康、现有 API health 是否仍为 200；确认后继续 one-off Alembic/backfill/reconcile 和备份/恢复演练。应用 500 已清零，Cloudflare 100 VU 已恢复通过，300 VU 主要瓶颈已收窄到源站公网/Cloudflare 边缘链路。本地跨境直连与美国代理样本均已补齐为风险记录。W2 平台侧阶段可收口；阶段 7 数据库升级本地分域门禁基本闭环，服务器 PostgreSQL 已启动，但尚未完成 live migration/backfill/reconcile、业务开关灰度和最终切库。
