@@ -38,6 +38,7 @@
 
 - 平台已具备基本自动化验证链：后端 pytest、前端 `typecheck/lint/build`
 - 部署前只读自检已接入 `./run.sh doctor`，可在 Mac / 单服务器 / Compose 路径上提前发现缺失工具、敏感文件误跟踪、`compose.env` 占位值和端口占用
+- Compose PostgreSQL 迁移仍默认 file-only；`audio_studio` 已完成本地 schema/repository 与 backfill/reconcile，下一步是 R70 runtime dual-write，不是服务器切库
 - 当前主风险不在“代码完全不可用”，而在：
   - 复杂页面/路由/服务文件过大
   - 前端自动化测试缺口明显

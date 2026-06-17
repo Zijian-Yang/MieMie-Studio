@@ -340,6 +340,8 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 
 2026-06-17 补充：R68 已完成 `audio_studio` 本地 schema/repository 第一刀，新增 `audio_studio_tasks`、`voice_profiles`、Alembic migration `20260617_0009` 和 file/PostgreSQL/dual repository boundary；运行态仍默认 JSON/file-only，服务器业务开关未启用。下一本地步骤为 R69 backfill/reconcile；证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r68-audio-studio-local-schema-repository/`。
 
+2026-06-17 补充：R69 已完成 `audio_studio` 本地 backfill/reconcile，覆盖 `audio_studio/*.json` 音频任务与 `voices/*.json` 音色档案；维护脚本已加入 live rehearsal / live data gate 默认域列表，对账摘要保持脱敏。运行态仍默认 JSON/file-only，服务器业务开关未启用。下一本地步骤为 R70 runtime dual-write；证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r69-audio-studio-backfill-reconcile/`。
+
 需要回答的问题：
 
 1. 用现有 Compose 单机 + 轻量优化，是否已经能覆盖目标人数和体验？
@@ -382,6 +384,8 @@ R65 复测后，上述判断仍不变：当前 route 被 `32.0.0.0/3 -> 198.18.0
 R67 覆盖审计后，服务器灰度恢复路径不变；本地继续推进时下一 domain 明确为 `audio_studio`，不再重新从已覆盖 domain 中选择。
 
 R68 后，本地 `audio_studio` 已进入迁移中状态；下一步不是再建 schema，而是补音频任务和音色档案的脱敏 backfill/reconcile。
+
+R69 后，本地 `audio_studio` 已具备 schema/repository/backfill/reconcile 基础；下一步是接入运行态双写 feature flag，继续保持 JSON 主写、PostgreSQL shadow 写。
 
 ## 暂不做
 

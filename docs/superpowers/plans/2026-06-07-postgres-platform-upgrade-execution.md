@@ -658,6 +658,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-17 note: R68 starts the `audio_studio` domain locally. `backend/app/db/schema/audio_studio.py` defines `audio_studio_tasks` and `voice_profiles`, Alembic revision `20260617_0009` appends those tables after `sessions`, and `backend/app/repositories/audio_studio.py` adds file/PostgreSQL/dual repository boundaries for audio tasks and voice profiles. Runtime remains JSON/file-only. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r68-audio-studio-local-schema-repository/`.
 
+2026-06-17 note: R69 adds `audio_studio` backfill/reconcile tooling. `backend/app/services/migration/backfill_audio_studio.py` scans audio tasks and voice profiles, `backend/app/services/migration/reconcile_audio_studio.py` compares only safe indexed fields, and the maintenance scripts are now included by local/live data gates. Runtime remains JSON/file-only. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r69-audio-studio-backfill-reconcile/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
@@ -669,4 +671,4 @@ Once goal mode starts, do not ask the user for routine information covered by th
 - Keep JSON primary until a task explicitly switches read/write flags.
 - For real provider tests, use only already configured server-side credentials; never ask the user to paste raw keys during automated execution.
 - If a prerequisite is missing, write `status.json` with `"state": "blocked"` and the exact missing item.
-- If the local operator path remains fake-IP/TUN blocked, run the server fallback from `/opt/miemie-pre`: `CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`. The sequence now includes `live-data-gate` before app-level canaries.
+- If the local operator path remains fake-IP/TUN blocked, run the server fallback from `/opt/miemie-pre`: `CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`. The sequence now includes `live-data-gate` before app-level canaries, and that gate includes `audio_studio`.

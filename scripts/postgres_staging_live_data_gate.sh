@@ -12,7 +12,7 @@ PROJECT_NAME="${PROJECT_NAME:-miemie-pre}"
 ENV_FILE="${ENV_FILE:-compose.env}"
 DATA_ROOT="${DATA_ROOT:-backend/data}"
 PYTHON_BIN="${PYTHON_BIN:-}"
-DOMAINS="${DOMAINS:-video_studio_tasks studio_tasks projects media_metadata project_entities benchmark_records user_config sessions}"
+DOMAINS="${DOMAINS:-video_studio_tasks studio_tasks projects media_metadata project_entities benchmark_records user_config sessions audio_studio}"
 
 mkdir -p "$ARTIFACT_DIR" "$TMP_DIR"
 

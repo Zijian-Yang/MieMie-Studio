@@ -25,15 +25,15 @@ EXPECTED_MIGRATED_DOMAINS = {
 
 AUDIO_EXPECTED_MISSING = {
     "backend/app/repositories/audio_studio_runtime.py",
-    "backend/app/services/migration/backfill_audio_studio.py",
-    "backend/app/services/migration/reconcile_audio_studio.py",
-    "scripts/postgres_backfill_audio_studio.py",
-    "scripts/postgres_reconcile_audio_studio.py",
 }
 
 AUDIO_EXPECTED_PRESENT = {
     "backend/app/db/schema/audio_studio.py",
     "backend/app/repositories/audio_studio.py",
+    "backend/app/services/migration/backfill_audio_studio.py",
+    "backend/app/services/migration/reconcile_audio_studio.py",
+    "scripts/postgres_backfill_audio_studio.py",
+    "scripts/postgres_reconcile_audio_studio.py",
 }
 
 AUDIO_STORAGE_METHODS = {

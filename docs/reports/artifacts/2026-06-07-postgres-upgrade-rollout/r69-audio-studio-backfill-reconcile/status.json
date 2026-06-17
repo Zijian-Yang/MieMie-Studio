@@ -1,0 +1,17 @@
+{
+  "state": "ready_for_audio_studio_runtime_dual_write",
+  "stage": "r69-audio-studio-backfill-reconcile",
+  "run_id": "r69-audio-studio-backfill-reconcile-20260617",
+  "updated_at": "2026-06-17T14:58:01Z",
+  "domain": "audio_studio",
+  "default_runtime": "file-only",
+  "server_commands_executed": false,
+  "business_database_flags_enabled": false,
+  "verified": [
+    "audio_studio_backfill_reconcile_red_green",
+    "audio_studio_schema_repository_migration_target",
+    "postgres_domain_coverage_contract",
+    "py_compile"
+  ],
+  "next_step": "R70 audio_studio runtime dual-write with JSON primary and PostgreSQL shadow writes"
+}

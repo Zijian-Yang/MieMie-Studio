@@ -227,6 +227,7 @@ domains=(
   benchmark_records
   user_config
   sessions
+  audio_studio
 )
 
 for domain in "${domains[@]}"; do
