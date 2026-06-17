@@ -662,6 +662,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-17 note: R70 adds opt-in `audio_studio` runtime dual-write. `backend/app/repositories/audio_studio_runtime.py` gates shadow writes behind `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=audio_studio` or global dual-write mode, and `StorageService` now shadow-saves/deletes audio tasks and voice profiles after the JSON primary path succeeds. Runtime remains JSON/file-only by default. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r70-audio-studio-runtime-dual-write/`.
 
+2026-06-18 note: R71 adds opt-in `audio_studio` read-switch and JSON fallback. `backend/app/repositories/audio_studio_runtime.py` now gates PostgreSQL read preference behind `MIEMIE_DATABASE_READ_DOMAINS=audio_studio` or global PostgreSQL read mode, and `StorageService` can read audio tasks, voice profiles, project lists, and `voice_id` lookups from PostgreSQL. Runtime remains JSON/file-only by default; the next local step is R72 primary-write with optional JSON archive mirror. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r71-audio-studio-read-switch/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

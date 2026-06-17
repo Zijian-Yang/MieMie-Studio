@@ -344,6 +344,8 @@ Redis + Celery 图片 Worker、视频 `worker-video` v1、pre 服务器真实 Da
 
 2026-06-17 补充：R70 已完成 `audio_studio` runtime dual-write。显式开启 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=audio_studio` 或全局 dual-write 后，音频任务与音色档案保存/删除会在 JSON 主路径成功后 shadow 写 PostgreSQL；默认运行态仍为 JSON/file-only，服务器业务开关未启用。下一本地步骤为 R71 read-switch + JSON fallback；证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r70-audio-studio-runtime-dual-write/`。
 
+2026-06-18 补充：R71 已完成 `audio_studio` read-switch + JSON fallback。显式开启 `MIEMIE_DATABASE_READ_DOMAINS=audio_studio` 或全局 PostgreSQL read mode 后，音频任务、音色档案、项目列表和 `voice_id` 查询可优先读取 PostgreSQL；`MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 时 miss/空列表/异常回退 JSON。默认运行态仍为 JSON/file-only，服务器业务开关未启用。下一本地步骤为 R72 PostgreSQL primary-write + JSON archive mirror；证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r71-audio-studio-read-switch/`。
+
 需要回答的问题：
 
 1. 用现有 Compose 单机 + 轻量优化，是否已经能覆盖目标人数和体验？
@@ -390,6 +392,8 @@ R68 后，本地 `audio_studio` 已进入迁移中状态；下一步不是再建
 R69 后，本地 `audio_studio` 已具备 schema/repository/backfill/reconcile 基础；下一步是接入运行态双写 feature flag，继续保持 JSON 主写、PostgreSQL shadow 写。
 
 R70 后，本地 `audio_studio` 已接入双写 feature flag；下一步是只在显式开关下让读取优先 PostgreSQL，并保留 JSON fallback。
+
+R71 后，本地 `audio_studio` 已接入读切换 feature flag；下一步是补 PostgreSQL primary-write 和可选 JSON archive mirror，完成该域本地迁移闭环。
 
 ## 暂不做
 

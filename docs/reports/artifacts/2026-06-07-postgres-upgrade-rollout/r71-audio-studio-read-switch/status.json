@@ -1,0 +1,21 @@
+{
+  "state": "ready_for_audio_studio_primary_write",
+  "stage": "r71-audio-studio-read-switch",
+  "run_id": "r71-audio-studio-read-switch-20260618",
+  "updated_at": "2026-06-17T17:27:08Z",
+  "domain": "audio_studio",
+  "default_runtime": "file-only",
+  "server_commands_executed": false,
+  "business_database_flags_enabled": false,
+  "verified": [
+    "RED: backend/.venv/bin/python -m pytest backend/tests/test_audio_studio_read_switch.py -q failed before implementation because build_audio_studio_read_repository was missing",
+    "GREEN: backend/.venv/bin/python -m pytest backend/tests/test_audio_studio_read_switch.py -q passed with 4 tests",
+    "python3 scripts/postgres_domain_coverage.py --artifact-dir docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r71-audio-studio-read-switch --run-id r71-audio-studio-read-switch-20260618",
+    "backend/.venv/bin/python -m py_compile backend/app/repositories/audio_studio_runtime.py backend/app/services/storage.py scripts/postgres_domain_coverage.py scripts/verify_postgres_domain_coverage.py scripts/verify_postgres_staging_live_data_gate.py",
+    "python3 scripts/verify_postgres_domain_coverage.py",
+    "python3 scripts/verify_postgres_staging_live_data_gate.py",
+    "backend/.venv/bin/python -m pytest backend/tests/test_audio_studio_read_switch.py backend/tests/test_audio_studio_dual_write.py backend/tests/test_audio_studio_migration.py backend/tests/test_audio_studio_repository.py backend/tests/test_audio_studio_schema.py -q passed with 19 tests",
+    "backend/.venv/bin/python -m pytest backend/tests/ -q passed with 443 tests"
+  ],
+  "next_step": "R72 audio_studio primary-write with JSON archive mirror"
+}

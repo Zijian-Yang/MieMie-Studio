@@ -143,7 +143,7 @@ environment:
 | `projects` | `projects` | 第二批迁移 |
 | `video_studio` | `video_studio_tasks` | 第一批迁移 |
 | `studio` | `studio_tasks` | 第一批迁移后复用模式 |
-| `audio_studio` / `voices` | `audio_studio_tasks` + `voice_profiles` | R68-R70 已完成本地 schema/repository/backfill/reconcile/runtime dual-write，下一步 R71 read-switch |
+| `audio_studio` / `voices` | `audio_studio_tasks` + `voice_profiles` | R68-R71 已完成本地 schema/repository/backfill/reconcile/runtime dual-write/read-switch，下一步 R72 primary-write |
 | `gallery` | `media_assets` + `gallery_images` | 第三批迁移 metadata |
 | `video_library` | `media_assets` + `video_items` | 第三批迁移 metadata |
 | `audio` | `media_assets` + `audio_items` | 第三批迁移 metadata |
@@ -280,6 +280,7 @@ create index idx_video_studio_tasks_submit_attempt
 2026-06-17 progress: R63 已新增 sessions PostgreSQL primary-write + JSON archive mirror。显式启用 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=sessions` 或全局 PostgreSQL write mode 后，session 保存/删除/按用户清理以 PostgreSQL 为主；Redis 继续作为热 cache，默认不写 `sessions.json`，`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` 可保留临时 JSON 镜像。主写失败直接冒泡且不写 Redis/file fallback；默认运行态仍不变，服务器业务开关未启用。
 2026-06-17 progress: R68/R69 已新增 `audio_studio` 本地 PostgreSQL 基础与 backfill/reconcile。`audio_studio_tasks` 覆盖 TTS、voice clone、voice design 任务状态，`voice_profiles` 覆盖复刻/设计音色档案；回填扫描 `audio_studio/*.json` 与 `voices/*.json`，对账摘要只输出安全索引字段、计数和错误类型，不输出文本、prompt、音频 URL、key/token/password 或私有用户数据。`postgres_live_rehearsal.sh` 与 staging live data gate 已纳入 `audio_studio` 域；默认运行态仍为 JSON/file-only，下一步 R70 runtime dual-write。
 2026-06-17 progress: R70 已新增 `audio_studio` runtime dual-write。默认不启用；显式开启 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=audio_studio` 或全局 dual-write 后，音频任务与音色档案保存/删除在 JSON 主路径成功后 shadow 写 PostgreSQL。Shadow 失败默认 warning-only，`MIEMIE_DATABASE_RECONCILE_STRICT=true` 可在对账窗口冒泡。下一步 R71 read-switch + JSON fallback。
+2026-06-18 progress: R71 已新增 `audio_studio` read-switch + JSON fallback。默认不启用；显式开启 `MIEMIE_DATABASE_READ_DOMAINS=audio_studio` 或全局 PostgreSQL read mode 后，音频任务、音色档案、项目列表和 `voice_id` 查询优先读取 PostgreSQL；`MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 时 miss/空列表/异常回退 JSON。下一步 R72 PostgreSQL primary-write + JSON archive mirror。
 
 ## 代码架构计划
 
@@ -563,6 +564,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-17 追加：R66 已将本机 remote wrapper 对齐到服务器自运行入口：本机 preflight 通过后远端先 `git merge --ff-only origin/pre`，再调用 `CONFIRM_SERVER_SEQUENCE=run SERVER_SYNC=none scripts/pre_studio_server_postgres_sequence.sh`。后续不论从本机远程执行还是直接在服务器终端执行，都会复用同一套 live-data/canary/rollback 门禁。
 2026-06-17 追加：R67 已新增 PostgreSQL domain coverage audit，确认当前 8 个已迁 domain 具备本地迁移门禁，剩余明确 JSON-only 业务状态域为 `audio_studio`（音频任务 `audio_studio/*.json` 与音色档案 `voices/*.json`）。下一本地迁移域建议为 `audio_studio`，计划拆为 R68 schema/repository、R69 backfill/reconcile、R70 runtime dual-write、R71 read-switch、R72 primary-write。
 2026-06-17 追加：R68 已完成 `audio_studio` 本地 schema/repository。新增 `audio_studio_tasks` 与 `voice_profiles` 两张表、Alembic migration `20260617_0009`、file/PostgreSQL/dual repository boundary 和 schema/repository 测试；运行态仍默认 JSON/file-only，下一步补 R69 backfill/reconcile，摘要需避免输出文本内容、音色描述、request id 实值、key/token/password 或私有 URL。
+2026-06-18 追加：R71 已完成 `audio_studio` read-switch。读切换覆盖音频任务、音色档案、项目列表和 `voice_id` 查询，默认仍 file-only；服务器业务开关未启用，下一步补 R72 primary-write。
 
 ## 总体验收
 

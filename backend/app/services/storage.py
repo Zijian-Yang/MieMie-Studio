@@ -1328,22 +1328,42 @@ class StorageService:
             file_path = self.audio_studio_dir / f"{task.id}.json"
             self._write_json_with_lock(file_path, task.model_dump())
 
-    def get_audio_studio_task(self, task_id: str) -> Optional[AudioStudioTask]:
-        """获取音频工作室任务"""
+    def _get_audio_studio_task_from_file(self, task_id: str) -> Optional[AudioStudioTask]:
         file_path = self.audio_studio_dir / f"{task_id}.json"
         data = self._read_json_with_lock(file_path)
         if data:
             return AudioStudioTask(**data)
         return None
 
-    def get_audio_studio_tasks(self, project_id: str) -> List[AudioStudioTask]:
-        """获取项目所有音频工作室任务"""
+    def _get_audio_studio_tasks_from_file(self, project_id: str) -> List[AudioStudioTask]:
         tasks = []
         for file_path in self.audio_studio_dir.glob("*.json"):
             data = self._read_json_with_lock(file_path)
             if data and data.get("project_id") == project_id:
                 tasks.append(AudioStudioTask(**data))
         return sorted(tasks, key=lambda t: t.created_at, reverse=True)
+
+    def get_audio_studio_task(self, task_id: str) -> Optional[AudioStudioTask]:
+        """获取音频工作室任务"""
+        from app.repositories.audio_studio_runtime import read_audio_studio_task
+
+        return read_audio_studio_task(
+            self._get_owner_user_id(),
+            task_id,
+            lambda: self._get_audio_studio_task_from_file(task_id),
+        )
+
+    def get_audio_studio_tasks(self, project_id: str) -> List[AudioStudioTask]:
+        """获取项目所有音频工作室任务"""
+        from app.repositories.audio_studio_runtime import (
+            read_audio_studio_tasks_for_project,
+        )
+
+        return read_audio_studio_tasks_for_project(
+            self._get_owner_user_id(),
+            project_id,
+            lambda: self._get_audio_studio_tasks_from_file(project_id),
+        )
 
     def delete_audio_studio_task(self, task_id: str) -> None:
         """删除音频工作室任务"""
@@ -1374,16 +1394,14 @@ class StorageService:
             file_path = self.voices_dir / f"{profile.id}.json"
             self._write_json_with_lock(file_path, profile.model_dump())
 
-    def get_voice_profile(self, profile_id: str) -> Optional[VoiceProfile]:
-        """获取音色档案"""
+    def _get_voice_profile_from_file(self, profile_id: str) -> Optional[VoiceProfile]:
         file_path = self.voices_dir / f"{profile_id}.json"
         data = self._read_json_with_lock(file_path)
         if data:
             return VoiceProfile(**data)
         return None
 
-    def get_voice_profiles(self, project_id: str) -> List[VoiceProfile]:
-        """获取项目所有音色档案"""
+    def _get_voice_profiles_from_file(self, project_id: str) -> List[VoiceProfile]:
         profiles = []
         for file_path in self.voices_dir.glob("*.json"):
             data = self._read_json_with_lock(file_path)
@@ -1391,13 +1409,42 @@ class StorageService:
                 profiles.append(VoiceProfile(**data))
         return sorted(profiles, key=lambda p: p.created_at, reverse=True)
 
-    def get_voice_profile_by_voice_id(self, voice_id: str) -> Optional[VoiceProfile]:
-        """通过 DashScope voice_id 获取音色档案"""
+    def _get_voice_profile_by_voice_id_from_file(self, voice_id: str) -> Optional[VoiceProfile]:
         for file_path in self.voices_dir.glob("*.json"):
             data = self._read_json_with_lock(file_path)
             if data and data.get("voice_id") == voice_id:
                 return VoiceProfile(**data)
         return None
+
+    def get_voice_profile(self, profile_id: str) -> Optional[VoiceProfile]:
+        """获取音色档案"""
+        from app.repositories.audio_studio_runtime import read_voice_profile
+
+        return read_voice_profile(
+            self._get_owner_user_id(),
+            profile_id,
+            lambda: self._get_voice_profile_from_file(profile_id),
+        )
+
+    def get_voice_profiles(self, project_id: str) -> List[VoiceProfile]:
+        """获取项目所有音色档案"""
+        from app.repositories.audio_studio_runtime import read_voice_profiles_for_project
+
+        return read_voice_profiles_for_project(
+            self._get_owner_user_id(),
+            project_id,
+            lambda: self._get_voice_profiles_from_file(project_id),
+        )
+
+    def get_voice_profile_by_voice_id(self, voice_id: str) -> Optional[VoiceProfile]:
+        """通过 DashScope voice_id 获取音色档案"""
+        from app.repositories.audio_studio_runtime import read_voice_profile_by_voice_id
+
+        return read_voice_profile_by_voice_id(
+            self._get_owner_user_id(),
+            voice_id,
+            lambda: self._get_voice_profile_by_voice_id_from_file(voice_id),
+        )
 
     def delete_voice_profile(self, profile_id: str) -> None:
         """删除音色档案"""
