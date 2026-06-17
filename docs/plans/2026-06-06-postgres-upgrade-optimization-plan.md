@@ -143,7 +143,7 @@ environment:
 | `projects` | `projects` | 第二批迁移 |
 | `video_studio` | `video_studio_tasks` | 第一批迁移 |
 | `studio` | `studio_tasks` | 第一批迁移后复用模式 |
-| `audio_studio` / `voices` | `audio_studio_tasks` + `voice_profiles` | R68/R69 已完成本地 schema/repository/backfill/reconcile，下一步 R70 runtime dual-write |
+| `audio_studio` / `voices` | `audio_studio_tasks` + `voice_profiles` | R68-R70 已完成本地 schema/repository/backfill/reconcile/runtime dual-write，下一步 R71 read-switch |
 | `gallery` | `media_assets` + `gallery_images` | 第三批迁移 metadata |
 | `video_library` | `media_assets` + `video_items` | 第三批迁移 metadata |
 | `audio` | `media_assets` + `audio_items` | 第三批迁移 metadata |
@@ -279,6 +279,7 @@ create index idx_video_studio_tasks_submit_attempt
 2026-06-17 progress: R62 复测新增 Clash 直连规则后的本机 operator path，network preflight 仍 blocked：DNS 为 `198.18.0.124`，源站 route 仍走 `utun1024`；手动 TCP 22 可达但 SSH banner exchange 仍超时。远程 sequence 未执行，服务器状态未修改。证据归档于 `docs/reports/artifacts/2026-06-17-postgres-connectivity-direct-rule/`。
 2026-06-17 progress: R63 已新增 sessions PostgreSQL primary-write + JSON archive mirror。显式启用 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=sessions` 或全局 PostgreSQL write mode 后，session 保存/删除/按用户清理以 PostgreSQL 为主；Redis 继续作为热 cache，默认不写 `sessions.json`，`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` 可保留临时 JSON 镜像。主写失败直接冒泡且不写 Redis/file fallback；默认运行态仍不变，服务器业务开关未启用。
 2026-06-17 progress: R68/R69 已新增 `audio_studio` 本地 PostgreSQL 基础与 backfill/reconcile。`audio_studio_tasks` 覆盖 TTS、voice clone、voice design 任务状态，`voice_profiles` 覆盖复刻/设计音色档案；回填扫描 `audio_studio/*.json` 与 `voices/*.json`，对账摘要只输出安全索引字段、计数和错误类型，不输出文本、prompt、音频 URL、key/token/password 或私有用户数据。`postgres_live_rehearsal.sh` 与 staging live data gate 已纳入 `audio_studio` 域；默认运行态仍为 JSON/file-only，下一步 R70 runtime dual-write。
+2026-06-17 progress: R70 已新增 `audio_studio` runtime dual-write。默认不启用；显式开启 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=audio_studio` 或全局 dual-write 后，音频任务与音色档案保存/删除在 JSON 主路径成功后 shadow 写 PostgreSQL。Shadow 失败默认 warning-only，`MIEMIE_DATABASE_RECONCILE_STRICT=true` 可在对账窗口冒泡。下一步 R71 read-switch + JSON fallback。
 
 ## 代码架构计划
 

@@ -1,0 +1,16 @@
+{
+  "state": "ready_for_audio_studio_read_switch",
+  "stage": "r70-audio-studio-runtime-dual-write",
+  "run_id": "r70-audio-studio-runtime-dual-write-20260617",
+  "updated_at": "2026-06-17T15:06:24Z",
+  "domain": "audio_studio",
+  "default_runtime": "file-only",
+  "server_commands_executed": false,
+  "business_database_flags_enabled": false,
+  "verified": [
+    "audio_studio_dual_write_red_green",
+    "audio_studio_migration_repository_schema_target",
+    "postgres_domain_coverage_contract"
+  ],
+  "next_step": "R71 audio_studio read-switch with JSON fallback"
+}

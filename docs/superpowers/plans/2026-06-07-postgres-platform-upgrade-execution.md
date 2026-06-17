@@ -660,6 +660,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-17 note: R69 adds `audio_studio` backfill/reconcile tooling. `backend/app/services/migration/backfill_audio_studio.py` scans audio tasks and voice profiles, `backend/app/services/migration/reconcile_audio_studio.py` compares only safe indexed fields, and the maintenance scripts are now included by local/live data gates. Runtime remains JSON/file-only. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r69-audio-studio-backfill-reconcile/`.
 
+2026-06-17 note: R70 adds opt-in `audio_studio` runtime dual-write. `backend/app/repositories/audio_studio_runtime.py` gates shadow writes behind `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=audio_studio` or global dual-write mode, and `StorageService` now shadow-saves/deletes audio tasks and voice profiles after the JSON primary path succeeds. Runtime remains JSON/file-only by default. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r70-audio-studio-runtime-dual-write/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

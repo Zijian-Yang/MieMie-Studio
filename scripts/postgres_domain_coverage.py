@@ -265,11 +265,12 @@ def build_summary(run_id: str) -> dict[str, object]:
     embedded = [audit_embedded_surface(surface) for surface in COVERED_EMBEDDED_SURFACES]
     migrated_covered = [domain for domain in migrated if domain["status"] == "covered"]
     pending_names = [domain["name"] for domain in pending if domain["status"] != "covered"]
+    next_recommended = pending_names[0] if pending_names else "audio_studio_read_switch"
     return {
         "run_id": run_id,
         "updated_at": utc_now(),
-        "state": "ready_for_next_domain",
-        "next_recommended_domain": "audio_studio",
+        "state": "ready_for_next_domain" if pending_names else "ready_for_runtime_completion",
+        "next_recommended_domain": next_recommended,
         "migrated_domain_count": len(migrated_covered),
         "pending_domain_count": len(pending_names),
         "migrated_domains": migrated,

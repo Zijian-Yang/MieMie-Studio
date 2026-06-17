@@ -23,13 +23,12 @@ EXPECTED_MIGRATED_DOMAINS = {
     "sessions",
 }
 
-AUDIO_EXPECTED_MISSING = {
-    "backend/app/repositories/audio_studio_runtime.py",
-}
+AUDIO_EXPECTED_MISSING = set()
 
 AUDIO_EXPECTED_PRESENT = {
     "backend/app/db/schema/audio_studio.py",
     "backend/app/repositories/audio_studio.py",
+    "backend/app/repositories/audio_studio_runtime.py",
     "backend/app/services/migration/backfill_audio_studio.py",
     "backend/app/services/migration/reconcile_audio_studio.py",
     "scripts/postgres_backfill_audio_studio.py",
@@ -86,9 +85,9 @@ def run_report_contract() -> None:
         status = json.loads(status_path.read_text(encoding="utf-8"))
         report = report_path.read_text(encoding="utf-8")
 
-        assert status["state"] == "ready_for_next_domain"
-        assert status["next_recommended_domain"] == "audio_studio"
-        assert status["pending_domain_count"] == 1
+        assert status["state"] == "ready_for_runtime_completion"
+        assert status["next_recommended_domain"] == "audio_studio_read_switch"
+        assert status["pending_domain_count"] == 0
         assert status["migrated_domain_count"] == len(EXPECTED_MIGRATED_DOMAINS)
 
         migrated = {item["name"]: item for item in summary["migrated_domains"]}
@@ -100,7 +99,7 @@ def run_report_contract() -> None:
         pending = {item["name"]: item for item in summary["pending_domains"]}
         assert set(pending) == {"audio_studio"}
         audio = pending["audio_studio"]
-        assert audio["status"] == "in_progress"
+        assert audio["status"] == "covered"
         assert set(audio["missing_expected_files"]) == AUDIO_EXPECTED_MISSING
         assert AUDIO_EXPECTED_PRESENT.issubset(set(audio["present_expected_files"]))
         assert AUDIO_STORAGE_METHODS.issubset(set(audio["storage_methods"]))

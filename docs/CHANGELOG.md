@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R70 audio_studio runtime dual-write：新增音频工作室运行态双写 feature flag，显式开启后音频任务与音色档案 JSON 主写/删除成功再 shadow 写 PostgreSQL；默认仍为 JSON/file-only，shadow 失败默认不打断主路径，严格模式才冒泡。
 - 数据库升级 R69 audio_studio backfill/reconcile：新增音频任务与音色档案 JSON 回填、脱敏对账服务和维护脚本；摘要只输出安全索引字段、计数、缺失项和错误类型，不输出任务文本、prompt、音频 URL、provider payload、key/token/password 或私有用户数据。`postgres_live_rehearsal.sh` 与 staging live data gate 已纳入 `audio_studio` 域，默认运行态仍为 JSON/file-only。
 - 数据库升级 R68 audio_studio 本地基础：新增 `audio_studio_tasks` 与 `voice_profiles` schema、Alembic migration `20260617_0009`、`AudioStudioRepository` 协议和 file/PostgreSQL/dual repository boundary；音频任务与音色档案完整快照保留在 JSONB，索引列覆盖项目列表、状态扫描和 voice_id 查询。运行态仍默认 JSON/file-only，未启用服务器业务开关。
 - 数据库升级 R67 domain coverage audit：新增 `scripts/postgres_domain_coverage.py` 与 `scripts/verify_postgres_domain_coverage.py`，把 PostgreSQL 分域迁移覆盖面固化为可重复报告；当前 8 个 domain 已有本地 schema/repository/backfill/reconcile/runtime gates，剩余明确 JSON-only 业务状态域为 `audio_studio`（`audio_studio/*.json` 与 `voices/*.json`），下一迁移域建议为 `audio_studio`。本轮未执行服务器命令或业务开关。

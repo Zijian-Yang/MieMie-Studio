@@ -1316,8 +1316,15 @@ class StorageService:
 
     def save_audio_studio_task(self, task: AudioStudioTask) -> None:
         """保存音频工作室任务（线程安全）"""
+        from app.repositories.audio_studio_runtime import shadow_save_audio_studio_task
+
+        task.updated_at = datetime.now()
+        owner_user_id = self._get_owner_user_id()
+        self._save_audio_studio_task_to_file(task)
+        shadow_save_audio_studio_task(owner_user_id, task)
+
+    def _save_audio_studio_task_to_file(self, task: AudioStudioTask) -> None:
         with self._lock:
-            task.updated_at = datetime.now()
             file_path = self.audio_studio_dir / f"{task.id}.json"
             self._write_json_with_lock(file_path, task.model_dump())
 
@@ -1340,6 +1347,13 @@ class StorageService:
 
     def delete_audio_studio_task(self, task_id: str) -> None:
         """删除音频工作室任务"""
+        from app.repositories.audio_studio_runtime import shadow_mark_audio_studio_task_deleted
+
+        owner_user_id = self._get_owner_user_id()
+        self._delete_audio_studio_task_from_file(task_id)
+        shadow_mark_audio_studio_task_deleted(owner_user_id, task_id)
+
+    def _delete_audio_studio_task_from_file(self, task_id: str) -> None:
         file_path = self.audio_studio_dir / f"{task_id}.json"
         if file_path.exists():
             file_path.unlink()
@@ -1348,8 +1362,15 @@ class StorageService:
 
     def save_voice_profile(self, profile: VoiceProfile) -> None:
         """保存音色档案（线程安全）"""
+        from app.repositories.audio_studio_runtime import shadow_save_voice_profile
+
+        profile.updated_at = datetime.now()
+        owner_user_id = self._get_owner_user_id()
+        self._save_voice_profile_to_file(profile)
+        shadow_save_voice_profile(owner_user_id, profile)
+
+    def _save_voice_profile_to_file(self, profile: VoiceProfile) -> None:
         with self._lock:
-            profile.updated_at = datetime.now()
             file_path = self.voices_dir / f"{profile.id}.json"
             self._write_json_with_lock(file_path, profile.model_dump())
 
@@ -1380,6 +1401,13 @@ class StorageService:
 
     def delete_voice_profile(self, profile_id: str) -> None:
         """删除音色档案"""
+        from app.repositories.audio_studio_runtime import shadow_mark_voice_profile_deleted
+
+        owner_user_id = self._get_owner_user_id()
+        self._delete_voice_profile_from_file(profile_id)
+        shadow_mark_voice_profile_deleted(owner_user_id, profile_id)
+
+    def _delete_voice_profile_from_file(self, profile_id: str) -> None:
         file_path = self.voices_dir / f"{profile_id}.json"
         if file_path.exists():
             file_path.unlink()
