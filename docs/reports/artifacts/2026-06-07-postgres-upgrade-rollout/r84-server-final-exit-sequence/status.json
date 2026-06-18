@@ -1,0 +1,18 @@
+{
+  "run_id": "r84-server-final-exit-sequence",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_SERVER_FINAL_EXIT_SEQUENCE=run to execute on the server",
+  "confirm": "dry-run",
+  "rollback_on_failure": "true",
+  "env_file": "compose.env",
+  "server_sync": "ff-only",
+  "server_sequence_artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/server-sequence",
+  "sequence_artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/server-sequence/sequence",
+  "apply_artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/apply-final-json-exit-policy",
+  "post_validation_artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/post-json-exit-validation",
+  "rollback_artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/rollback-final-json-exit-policy",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence",
+  "tmp_dir": "/tmp/r84-server-final-exit-sequence",
+  "updated_at": "2026-06-18T06:35:37Z"
+}

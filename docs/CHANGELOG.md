@@ -554,6 +554,7 @@
 
 ## 数据库升级执行治理
 
+- 新增 R84 server final exit sequence：`scripts/pre_studio_server_postgres_final_exit_sequence.sh` 将服务器 sequence、最终 PostgreSQL-only 策略应用、post JSON exit validation 和失败回滚串成一个显式确认入口；当前 artifact 为 dry-run plan。
 - 新增 R83 final JSON exit rollback：`scripts/postgres_rollback_final_json_exit_policy.sh` 会从 R82 备份恢复 `compose.env`、滚动运行态并检查本机/公网 health；当前 artifact 为 dry-run plan。
 - 新增 R82 final JSON exit policy application：`scripts/postgres_apply_final_json_exit_policy.sh` 会备份 `compose.env`、写入最终 PostgreSQL-only 运行态策略，并复跑 final JSON exit audit；当前 artifact 为 dry-run plan。
 - 新增 R81 post JSON exit validation：`scripts/postgres_post_json_exit_validation.sh` 会在 final JSON exit audit 通过后滚动最终运行态、检查本机/公网 health、执行 9 个 tracked 核心域 reconcile、采集 Compose/Docker 状态并跑 k6 S1 读负载门禁；当前 artifact 为 dry-run plan。
