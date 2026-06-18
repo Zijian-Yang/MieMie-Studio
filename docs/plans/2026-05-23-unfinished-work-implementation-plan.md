@@ -413,6 +413,8 @@ R78 后，服务器终端 fallback 已补强：执行前会检查 staging sequen
 
 R79 后，本机 Clash direct 规则调整后复跑 network-scope preflight，仍 blocked：`pre-studio.miemie.co` DNS 返回 `198.18.0.94` fake-IP，源站 route 仍为 `gateway 198.18.0.1 / interface utun1024`。本轮未进入 TCP/SSH/public-health，也未执行远端命令。下一步仍是两条路：让命令行 DNS/route 真正绕开 TUN/fake-IP 后执行 remote wrapper，或直接在服务器 `/opt/miemie-pre` 终端运行 `CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`。
 
+R80 后，本机 network-scope preflight 仍 blocked，阻塞形态与 R79 相同；同时新增 final JSON exit audit，把“完全脱离 JSON”拆成独立门禁：先要有服务器 sequence 通过证据，再审计最终运行态是否为 PostgreSQL 全局主读/主写、JSON fallback 关闭、JSON archive writes 关闭、strict reconcile 开启。当前 R80 audit 状态为 `needs_server_sequence_evidence`，下一步仍先执行服务器 sequence；sequence 通过后再用 `scripts/postgres_final_json_exit_audit.py --sequence-artifact-dir <server-sequence-artifact> --env-file compose.env` 判断是否可进入后置健康/对账/负载验证。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

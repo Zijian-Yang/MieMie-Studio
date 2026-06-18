@@ -580,6 +580,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-18 追加：R77 network-scope preflight artifact 已生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r77-network-preflight-before-server-sequence/`；状态为 `blocked`，stage 为 `network`。
 2026-06-18 追加：R78 server fallback all-domain contract dry-run artifact 已生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r78-server-fallback-all-domain-contract/`；状态为 `dry_run`。
 2026-06-18 追加：R79 在本机 Clash 增加 direct 规则后复跑 network-scope preflight，artifact 已生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r79-network-preflight-before-server-sequence/`；状态仍为 `blocked`，DNS 仍解析到 `198.18.0.94`，源站 route 仍走 `utun1024`，本轮未进入 TCP/SSH/public-health，也未执行远端命令。下一步必须让命令行 DNS/route 真正绕开 TUN/fake-IP，或直接在服务器终端运行 fallback sequence。
+2026-06-18 追加：R80 复跑 network-scope preflight，artifact 已生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r80-network-preflight-before-server-sequence/`；状态仍为 `blocked`，DNS 为 `198.18.0.94`，源站 route 仍走 `utun1024`。同轮新增 `scripts/postgres_final_json_exit_audit.py` 与 verifier，artifact 生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r80-final-json-exit-audit/`；当前状态为 `needs_server_sequence_evidence`，最终 PostgreSQL-only 运行态要求全局 `MIEMIE_DATABASE_WRITE_MODE=postgres`、`MIEMIE_DATABASE_READ_MODE=postgres`、关闭 JSON fallback 与 archive writes，并在服务器 sequence 通过后再跑后置 health/reconcile/load gates。
 
 ## 总体验收
 

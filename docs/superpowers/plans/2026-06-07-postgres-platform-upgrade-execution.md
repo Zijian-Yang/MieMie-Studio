@@ -678,6 +678,10 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-18 note: R78 strengthens the server-terminal fallback contract. `scripts/pre_studio_server_postgres_sequence.sh` now verifies the staging sequence includes `live-data-gate` plus all all-domain canary stages, verifies `scripts/postgres_staging_all_domain_canary.sh` exists, and runs final cutover readiness precheck requiring `ready_for_final_cutover_sequence` before executing the sequence. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r78-server-fallback-all-domain-contract/`.
 
+2026-06-18 note: R79/R80 rechecked the local operator path after Clash direct-rule adjustments. Both network-scope preflights remain blocked with DNS returning fake-IP `198.18.0.94` and route to `47.79.99.190` still using `gateway 198.18.0.1 / interface utun1024`; no TCP/SSH/public-health stage, remote command, container restart, or business database switch was executed. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r79-network-preflight-before-server-sequence/` and `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r80-network-preflight-before-server-sequence/`.
+
+2026-06-18 note: R80 adds `scripts/postgres_final_json_exit_audit.py` and `scripts/verify_postgres_final_json_exit_audit.py`. This read-only audit separates final JSON exit from final cutover readiness: it requires passed server sequence evidence plus a final PostgreSQL-only runtime policy (`MIEMIE_DATABASE_WRITE_MODE=postgres`, `MIEMIE_DATABASE_READ_MODE=postgres`, empty domain allowlists, JSON fallback disabled, JSON archive writes disabled, strict reconcile enabled) before moving to post-exit health/reconcile/load gates. Current artifact state is `needs_server_sequence_evidence`, as expected before server execution. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r80-final-json-exit-audit/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
@@ -691,3 +695,4 @@ Once goal mode starts, do not ask the user for routine information covered by th
 - If a prerequisite is missing, write `status.json` with `"state": "blocked"` and the exact missing item.
 - If the local operator path remains fake-IP/TUN blocked, run the server fallback from `/opt/miemie-pre`: `CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`. The sequence now includes `live-data-gate` before app-level canaries, and that gate includes `audio_studio`.
 - Before final database-primary cutover, pass the all-domain provider-free app canary/smoke gate on the server; the local contract is present, but server execution evidence is still required.
+- Before final JSON exit, run `scripts/postgres_final_json_exit_audit.py` with the server sequence artifact and final `compose.env`; only proceed to post-exit health/reconcile/load gates if it reports `ready_for_post_json_exit_validation`.

@@ -169,7 +169,7 @@ curl http://127.0.0.1:8000/api/health
 - Compose 当前只编排应用本身，不接管你的反向代理。
 - 默认只把宿主机 `127.0.0.1:8000` 映射到容器内 `8000`，避免应用端口直接暴露公网。
 - 如需修改监听地址或宿主机端口，可调整 `compose.env` 中的 `MIEMIE_HOST_BIND` / `MIEMIE_HOST_PORT`。
-- 用户数据仍落在宿主机 `backend/data/`，不会因为重建容器而丢失。
+  - 迁移完成前用户数据仍落在宿主机 `backend/data/`，不会因为重建容器而丢失；最终 JSON exit 只能在 PostgreSQL 主读/主写、关闭 JSON fallback/archive 并完成后置门禁后执行。
 - `pre` 扩容路径下 Compose 还会启动 Redis 与 Worker：
   - Redis 用于 session、限流和后台任务 broker。
   - Worker 先承接图片工作室生成任务。
@@ -179,10 +179,10 @@ curl http://127.0.0.1:8000/api/health
   - 默认 `MIEMIE_DATABASE_ENABLED=false`，因此 API / Worker 不依赖 PostgreSQL 启动。
   - 真实 `compose.env` 必须设置 `MIEMIE_POSTGRES_PASSWORD` 强密码，不要使用样例占位值。
   - 小内存服务器可先使用 `MIEMIE_POSTGRES_SHARED_BUFFERS=128MB`、`MIEMIE_POSTGRES_MAX_CONNECTIONS=50` 等保守默认值，再按压测结果调整。
-  - 数据库迁移遵循 `JSON 主数据源 → PostgreSQL shadow/backfill/reconcile → dual-write → read-switch → PostgreSQL primary` 的分阶段路线。
-  - 视频工作室任务双写的服务器启用顺序必须是：PostgreSQL health 通过、`alembic upgrade head` 通过、backfill/reconcile 干净后，再设置 `MIEMIE_DATABASE_ENABLED=true` 与 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=video_studio_tasks`；回滚双写只需清空 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS` 并保持 `MIEMIE_DATABASE_WRITE_MODE=file`。
-  - 视频工作室任务读切换必须在双写和再次对账干净后启用：设置 `MIEMIE_DATABASE_READ_DOMAINS=video_studio_tasks`；回滚读切换只需清空 `MIEMIE_DATABASE_READ_DOMAINS`，保留 `MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 可在 PostgreSQL miss/异常时回退 JSON。
-  - 视频工作室任务 PostgreSQL 主写必须在读切换和再次对账干净后启用：设置 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=video_studio_tasks`，必要时临时设置 `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` 保留 JSON 归档镜像；回滚主写只需清空 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS` 并恢复前一阶段双写/读切换组合。
+  - 数据库迁移遵循 `JSON 主数据源 → PostgreSQL shadow/backfill/reconcile → dual-write → read-switch → PostgreSQL primary → final JSON exit` 的分阶段路线。
+  - 当前 tracked 核心业务状态域为 `video_studio_tasks`、`studio_tasks`、`projects`、`media_metadata`、`project_entities`、`benchmark_records`、`user_config`、`sessions` 和 `audio_studio`。服务器灰度必须先执行 `CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`，由脚本串行跑 live data gate、全域双写、全域读切换、读回滚、全域主写和主写回滚。
+  - 最终 JSON exit 前必须运行 `python3 scripts/postgres_final_json_exit_audit.py --sequence-artifact-dir <server-sequence-artifact> --env-file compose.env`。只有该审计进入 `ready_for_post_json_exit_validation` 后，才继续跑后置 health、全域 reconcile 和保守负载门禁。
+  - 最终 PostgreSQL-only 运行态策略为：`MIEMIE_DATABASE_ENABLED=true`、`MIEMIE_DATABASE_WRITE_MODE=postgres`、`MIEMIE_DATABASE_READ_MODE=postgres`、`MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=`、`MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=`、`MIEMIE_DATABASE_READ_DOMAINS=`、`MIEMIE_DATABASE_JSON_FALLBACK_READ=false`、`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=false`、`MIEMIE_DATABASE_RECONCILE_STRICT=true`。
   - 如果本机 SSH 因 Clash/TUN/fake-IP 路径无法稳定执行远程 wrapper，可登录服务器后在 `/opt/miemie-pre` 运行：`CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`。该入口会先做服务器上下文检查和 `git merge --ff-only origin/pre`，确认 sequence 包含 `live-data-gate` 后，再串行执行同一套 staging live-data/canary/rollback sequence。
   - 如果本机 SSH 路径恢复，可在本机运行 `CONFIRM_REMOTE_SEQUENCE=run scripts/pre_studio_remote_postgres_sequence.sh`。该 wrapper 会先跑本机 connectivity preflight，通过后远端 `git merge --ff-only origin/pre`，再调用同一个 server fallback 入口，避免本机远程路径和服务器终端路径门禁分叉。
   - 如果 `scripts/pre_studio_connectivity_preflight.sh` 显示 route 被 `32.0.0.0/3` 或 `utun*` 捕获，可在 Clash 规则前部加入 `IP-CIDR,47.79.99.190/32,DIRECT,no-resolve`，并确保它位于宽泛代理规则和 Rule Providers 之前；只有 `route -n get 47.79.99.190` 显示物理网卡后，才继续本机远程 wrapper。
@@ -204,7 +204,7 @@ curl http://127.0.0.1:8000/api/health
 | `MIEMIE_DATABASE_READ_MODE` | `file` | 读取模式，按域灰度切换前保持 JSON 主读 |
 | `MIEMIE_DATABASE_READ_DOMAINS` | 空 | 允许从 PostgreSQL 读取的域，逗号分隔 |
 | `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS` | 空 | 允许双写的域，逗号分隔 |
-| `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS` | 空 | 允许 PostgreSQL 主写的域，逗号分隔；当前支持 `video_studio_tasks` |
+| `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS` | 空 | 允许 PostgreSQL 主写的域，逗号分隔；全局 `MIEMIE_DATABASE_WRITE_MODE=postgres` 可覆盖已迁 tracked 核心域 |
 | `MIEMIE_DATABASE_JSON_FALLBACK_READ` | `true` | PostgreSQL 读缺失时是否回退 JSON |
 | `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES` | `false` | PostgreSQL 主写时是否继续维护 JSON 归档镜像，灰度/对账期可临时开启 |
 | `MIEMIE_DATABASE_RECONCILE_STRICT` | `false` | 双写 shadow 失败是否抛出；灰度初期保持 `false`，让 JSON 主路径不中断 |
