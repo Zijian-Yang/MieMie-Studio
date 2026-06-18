@@ -250,8 +250,9 @@ roll_runtime_for_mode() {
 }
 
 run_provider_free_canary() {
-  log_cmd "provider-free-canary" "${COMPOSE[@]}" exec -T -e CANARY_MODE="$MODE" -e CANARY_RUN_ID="$RUN_ID" api /opt/venv/bin/python -
+  log_cmd "provider-free-canary" "${COMPOSE[@]}" exec -T -w /app/backend -e CANARY_MODE="$MODE" -e CANARY_RUN_ID="$RUN_ID" api /opt/venv/bin/python -
   "${COMPOSE[@]}" exec -T \
+    -w /app/backend \
     -e CANARY_MODE="$MODE" \
     -e CANARY_RUN_ID="$RUN_ID" \
     api /opt/venv/bin/python - <<'PY' > "$ARTIFACT_DIR/provider-free-canary.json"

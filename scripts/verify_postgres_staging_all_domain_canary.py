@@ -164,6 +164,8 @@ def check_safety_contract() -> None:
         "all-domain-primary-write-canary",
         "all-domain-rollback-primary-write",
         "run_provider_free_canary",
+        "-w",
+        "/app/backend",
         "StorageService",
         "UserService",
         "ConfigManager",
