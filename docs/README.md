@@ -88,7 +88,7 @@
 | [UI 设计规范](./UI_GUIDELINES.md) | 主题 token、组件视觉约束 |
 | [开发经验指南](./DEVELOPMENT_GUIDE.md) | 现有经验沉淀与补丁历史 |
 | [工作室模型接入范式指南](./STUDIO_MODEL_INTEGRATION_GUIDE.md) | 模型接入总方法论 |
-| [HappyHorse 视频工作室接入 Spec](./specs/2026-04-happyhorse-video-studio-integration.md) | HappyHorse 文生/图生/参考生/视频编辑接入约束与验收标准 |
+| [HappyHorse 视频工作室接入 Spec](./specs/2026-04-happyhorse-video-studio-integration.md) | HappyHorse 1.0/1.5 文生、图生、参考生与 1.0 视频编辑接入约束 |
 | [审计报告](./reviews/2026-04-platform-audit.md) | 全平台批判性审计 |
 | [整改 Backlog](./reviews/2026-04-remediation-backlog.md) | 分阶段治理路线 |
 | [线上工作室卡顿调查](./reviews/2026-04-22-online-studio-investigation.md) | 2026-04-22 生产站 Edge 复现与接口超时证据 |
