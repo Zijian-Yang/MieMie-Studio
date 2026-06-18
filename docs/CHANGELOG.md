@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R89 network preflight：R88 推送后复测服务器执行路径，network-scope preflight 仍 blocked；DNS 仍返回 Clash fake-IP `198.18.0.94`，源站 `47.79.99.190` route 仍走 `utun1024`。本轮未进入 TCP/SSH/public-health，未执行远端命令或业务数据库开关，证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r89-network-preflight-after-account-runtime-coverage/`。
 - 数据库升级 R88 user account runtime coverage：补齐 `UserService.list_user_ids()` 的 PostgreSQL 读路径；最终 PostgreSQL-only/read-switch 模式下用户 ID 枚举不再固定读取根级 `users.json`，而是通过 `user_config_runtime.list_user_ids()` 走 `PostgresUserRepository.list_all()`，仅在显式 JSON fallback 且 PostgreSQL 列表失败时回退。focused `8 passed`，user/config 目标回归 `21 passed`；服务器最终 exit 仍未执行。
 - 数据库升级 R78 server fallback all-domain contract：服务器自运行入口 `pre_studio_server_postgres_sequence.sh` 现在在执行前强制校验 all-domain canary 脚本、全域 sequence 阶段和 final cutover readiness `ready_for_final_cutover_sequence`，避免服务器 fallback 误跑旧 video-only 门禁。
 - 数据库升级 R77 server sequence preflight：R76 后尝试恢复服务器 sequence 前置检查，network-scope preflight 仍 blocked；DNS 返回 Clash fake-IP `198.18.0.94`，源站 `47.79.99.190` route 仍走 `utun1024`。本轮未进入 TCP/SSH/public-health，未执行任何远端命令或业务数据库开关。

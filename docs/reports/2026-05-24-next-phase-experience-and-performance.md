@@ -1008,6 +1008,12 @@ pre 部署复验：
 - 新增 `user_config_runtime.list_user_ids()`，file-only 模式继续读 JSON；PostgreSQL 读/主写模式通过 `PostgresUserRepository.list_all()` 枚举用户 ID；仅在 `MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 且 PostgreSQL 列表失败时回退 JSON。
 - 本地验证：先用新增回归确认当前实现返回 JSON ID 而非 PostgreSQL ID；实现后 `cd backend && .venv/bin/python -m pytest tests/test_user_config_read_switch.py -q` 为 `8 passed`，`cd backend && .venv/bin/python -m pytest tests/test_user_config_read_switch.py tests/test_user_config_primary_write.py tests/test_user_config_dual_write.py -q` 为 `21 passed`。服务器 final exit 仍未执行、最终 JSON exit 仍未完成。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r88-user-account-runtime-coverage/`。
 
+2026-06-18 阶段 7 R89 network preflight after account runtime coverage：
+
+- R88 推送后复跑 `MIEMIE_PREFLIGHT_SCOPE=network scripts/pre_studio_connectivity_preflight.sh`，状态仍为 `blocked`。
+- 结果：DNS A 为 Clash fake-IP `198.18.0.94`；源站 `47.79.99.190` route 仍显示 `gateway: 198.18.0.1`、`interface: utun1024`。
+- 本轮是 network-only check，按脚本契约未进入 TCP/SSH/public-health，也未执行任何远端命令、容器重启或业务数据库开关。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r89-network-preflight-after-account-runtime-coverage/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。

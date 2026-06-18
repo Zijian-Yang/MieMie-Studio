@@ -431,6 +431,8 @@ R87 后，新增 post-final JSON archive gate：`python3 scripts/postgres_archiv
 
 R88 后，补齐 user/account runtime coverage：`UserService.list_user_ids()` 已通过 `user_config_runtime.list_user_ids()` 跟随 PostgreSQL read/primary 运行态，不再固定枚举根级 `users.json`。该路径用于视频任务启动恢复，属于最终脱 JSON 前必须补齐的账号枚举缺口；本地 user/config 目标回归 `21 passed`。服务器 final exit sequence、post JSON exit validation 和 R86 完成审计仍未执行。
 
+R89 后，R88 推送后的 network-scope preflight 仍 blocked：DNS 返回 `198.18.0.94`，源站 route 仍走 `utun1024`。本机仍不能安全执行 remote final exit sequence；下一步需要让命令行 DNS/route 对 `pre-studio.miemie.co` 和 `47.79.99.190/32` 真正直连，或直接登录服务器 `/opt/miemie-pre` 执行 R84 服务器 final exit sequence。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

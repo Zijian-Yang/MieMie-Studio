@@ -698,6 +698,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-18 note: R88 closes the account identity listing gap for final PostgreSQL runtime. `UserService.list_user_ids()` now uses `user_config_runtime.list_user_ids()` so PostgreSQL read/primary mode lists users through `PostgresUserRepository.list_all()` instead of always reading root `users.json`; file-only behavior is unchanged, and JSON fallback only applies on PostgreSQL list failure when explicitly enabled. Focused verification passed with `8 passed` and the user/config target regression passed with `21 passed`. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r88-user-account-runtime-coverage/`.
 
+2026-06-18 note: R89 reran the network-scope connectivity preflight after R88 was pushed. It is still blocked: DNS returns Clash fake-IP `198.18.0.94`, and the route to origin IP `47.79.99.190` still uses `utun1024`. The local remote final exit wrapper must not run until this preflight exits `0`; use the server-side final exit sequence directly from `/opt/miemie-pre` if the local operator path remains intercepted. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r89-network-preflight-after-account-runtime-coverage/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
