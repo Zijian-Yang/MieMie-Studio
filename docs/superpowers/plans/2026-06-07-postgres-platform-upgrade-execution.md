@@ -692,6 +692,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-18 note: R85 adds `scripts/pre_studio_remote_postgres_final_exit_sequence.sh` and `scripts/verify_pre_studio_remote_postgres_final_exit_sequence.py`. The wrapper is dry-run by default; confirmed local execution first runs connectivity preflight, then SSHes to `/opt/miemie-pre`, fast-forwards `origin/pre`, and invokes the R84 server final exit sequence with rollback-on-failure enabled. Current artifact is a dry-run plan because the local SSH path still needs clean DNS/route evidence before execution. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r85-remote-final-exit-sequence/`.
 
+2026-06-18 note: R86 adds `scripts/postgres_final_exit_completion_audit.py` and `scripts/verify_postgres_final_exit_completion_audit.py`. The audit is read-only and consumes a server final exit artifact; it reports `postgres_only_complete` only when the server final exit wrapper, staging sequence, final policy application, post JSON exit validation, and rollback-not-triggered evidence all pass. Current artifact against the R84 dry-run plan reports `needs_final_exit_evidence`, which is the expected non-complete state before server execution. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r86-final-exit-completion-audit/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
@@ -710,3 +712,4 @@ Once goal mode starts, do not ask the user for routine information covered by th
 - If the final policy or post-exit validation fails, use the R82 backup with `CONFIRM_ROLLBACK_FINAL_JSON_EXIT_POLICY=run ROLLBACK_ENV_BACKUP_FILE=<backup-file> scripts/postgres_rollback_final_json_exit_policy.sh` before continuing diagnosis.
 - Preferred server-side final exit path is now `CONFIRM_SERVER_FINAL_EXIT_SEQUENCE=run scripts/pre_studio_server_postgres_final_exit_sequence.sh`, which wraps the server sequence, final policy application, post validation, and rollback-on-failure path in one artifacted entry.
 - Preferred local remote final exit path, once DNS/route preflight is clean, is `CONFIRM_REMOTE_FINAL_EXIT_SEQUENCE=run scripts/pre_studio_remote_postgres_final_exit_sequence.sh`; it wraps local preflight, remote sync, and the server-side final exit path.
+- Final done claim requires `python3 scripts/postgres_final_exit_completion_audit.py --final-exit-artifact-dir <server-final-exit-artifact>` to report `postgres_only_complete`.

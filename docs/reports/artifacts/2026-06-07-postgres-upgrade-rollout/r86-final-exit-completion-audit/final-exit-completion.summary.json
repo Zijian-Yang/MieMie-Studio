@@ -1,0 +1,136 @@
+{
+  "run_id": "r86-final-exit-completion-audit",
+  "updated_at": "2026-06-18T06:50:08Z",
+  "state": "needs_final_exit_evidence",
+  "next_recommended_step": "run_server_final_exit_sequence",
+  "final_exit_artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence",
+  "checks": [
+    {
+      "name": "server_final_exit_status",
+      "state": "needs_work",
+      "path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/status.json",
+      "observed_state": "dry_run",
+      "expected_state": "passed",
+      "stage": "planned",
+      "reason": "set CONFIRM_SERVER_FINAL_EXIT_SEQUENCE=run to execute on the server"
+    },
+    {
+      "name": "server_sequence_wrapper",
+      "state": "needs_work",
+      "reason": "missing status file",
+      "path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/server-sequence/status.json",
+      "expected_state": "passed"
+    },
+    {
+      "name": "server_sequence_inner",
+      "state": "needs_work",
+      "reason": "missing status file",
+      "path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/server-sequence/sequence/status.json",
+      "expected_state": "passed"
+    },
+    {
+      "name": "apply_final_policy",
+      "state": "needs_work",
+      "reason": "missing status file",
+      "path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/apply-final-json-exit-policy/status.json",
+      "expected_state": "passed"
+    },
+    {
+      "name": "apply_final_policy_audit",
+      "state": "needs_work",
+      "reason": "missing status file",
+      "path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/apply-final-json-exit-policy/final-json-exit-audit/status.json",
+      "expected_state": "ready_for_post_json_exit_validation"
+    },
+    {
+      "name": "post_json_exit_validation",
+      "state": "needs_work",
+      "reason": "missing status file",
+      "path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/post-json-exit-validation/status.json",
+      "expected_state": "passed"
+    },
+    {
+      "name": "post_validation_audit",
+      "state": "needs_work",
+      "reason": "missing status file",
+      "path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/post-json-exit-validation/final-json-exit-audit/status.json",
+      "expected_state": "ready_for_post_json_exit_validation"
+    },
+    {
+      "name": "rollback_not_triggered",
+      "state": "passed",
+      "reason": "no rollback status artifact found"
+    }
+  ],
+  "checks_by_name": {
+    "server_final_exit_status": {
+      "name": "server_final_exit_status",
+      "state": "needs_work",
+      "path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/status.json",
+      "observed_state": "dry_run",
+      "expected_state": "passed",
+      "stage": "planned",
+      "reason": "set CONFIRM_SERVER_FINAL_EXIT_SEQUENCE=run to execute on the server"
+    },
+    "server_sequence_wrapper": {
+      "name": "server_sequence_wrapper",
+      "state": "needs_work",
+      "reason": "missing status file",
+      "path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/server-sequence/status.json",
+      "expected_state": "passed"
+    },
+    "server_sequence_inner": {
+      "name": "server_sequence_inner",
+      "state": "needs_work",
+      "reason": "missing status file",
+      "path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/server-sequence/sequence/status.json",
+      "expected_state": "passed"
+    },
+    "apply_final_policy": {
+      "name": "apply_final_policy",
+      "state": "needs_work",
+      "reason": "missing status file",
+      "path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/apply-final-json-exit-policy/status.json",
+      "expected_state": "passed"
+    },
+    "apply_final_policy_audit": {
+      "name": "apply_final_policy_audit",
+      "state": "needs_work",
+      "reason": "missing status file",
+      "path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/apply-final-json-exit-policy/final-json-exit-audit/status.json",
+      "expected_state": "ready_for_post_json_exit_validation"
+    },
+    "post_json_exit_validation": {
+      "name": "post_json_exit_validation",
+      "state": "needs_work",
+      "reason": "missing status file",
+      "path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/post-json-exit-validation/status.json",
+      "expected_state": "passed"
+    },
+    "post_validation_audit": {
+      "name": "post_validation_audit",
+      "state": "needs_work",
+      "reason": "missing status file",
+      "path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/post-json-exit-validation/final-json-exit-audit/status.json",
+      "expected_state": "ready_for_post_json_exit_validation"
+    },
+    "rollback_not_triggered": {
+      "name": "rollback_not_triggered",
+      "state": "passed",
+      "reason": "no rollback status artifact found"
+    }
+  },
+  "completion_requirements": [
+    "server final exit sequence status is passed",
+    "server staging sequence wrapper and inner sequence are passed",
+    "final PostgreSQL-only policy application is passed",
+    "final JSON exit audit is ready_for_post_json_exit_validation before and during post validation",
+    "post JSON exit validation is passed",
+    "rollback did not pass after the final exit attempt"
+  ],
+  "notes": [
+    "This audit is read-only and never mutates compose.env, PostgreSQL, JSON files, or containers.",
+    "postgres_only_complete means runtime evidence says JSON is no longer primary or fallback business-state storage.",
+    "It does not delete historical JSON files; archival/deletion is a separate operator action after monitoring."
+  ]
+}

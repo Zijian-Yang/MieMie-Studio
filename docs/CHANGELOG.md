@@ -554,6 +554,7 @@
 
 ## 数据库升级执行治理
 
+- 新增 R86 final exit completion audit：`scripts/postgres_final_exit_completion_audit.py` 读取服务器最终 exit artifact，只有 server sequence、最终策略应用、post validation 全部通过且回滚未触发时才给出 `postgres_only_complete`；当前 artifact 状态为 `needs_final_exit_evidence`。
 - 新增 R85 remote final exit sequence：`scripts/pre_studio_remote_postgres_final_exit_sequence.sh` 将本机 connectivity preflight、远端 ff-only 同步和 R84 服务器最终 exit 总入口串成一个显式确认入口；当前 artifact 为 dry-run plan。
 - 新增 R84 server final exit sequence：`scripts/pre_studio_server_postgres_final_exit_sequence.sh` 将服务器 sequence、最终 PostgreSQL-only 策略应用、post JSON exit validation 和失败回滚串成一个显式确认入口；当前 artifact 为 dry-run plan。
 - 新增 R83 final JSON exit rollback：`scripts/postgres_rollback_final_json_exit_policy.sh` 会从 R82 备份恢复 `compose.env`、滚动运行态并检查本机/公网 health；当前 artifact 为 dry-run plan。

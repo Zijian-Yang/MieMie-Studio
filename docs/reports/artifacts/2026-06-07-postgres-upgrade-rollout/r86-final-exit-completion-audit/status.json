@@ -1,0 +1,8 @@
+{
+  "run_id": "r86-final-exit-completion-audit",
+  "state": "needs_final_exit_evidence",
+  "next_recommended_step": "run_server_final_exit_sequence",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r86-final-exit-completion-audit",
+  "final_exit_artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence",
+  "updated_at": "2026-06-18T06:50:08Z"
+}

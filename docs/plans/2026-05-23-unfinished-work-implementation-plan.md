@@ -425,6 +425,8 @@ R84 后，新增 server final exit sequence 总入口：`CONFIRM_SERVER_FINAL_EX
 
 R85 后，新增 remote final exit sequence 总入口：`CONFIRM_REMOTE_FINAL_EXIT_SEQUENCE=run scripts/pre_studio_remote_postgres_final_exit_sequence.sh`。它会先跑本机 connectivity preflight，通过后远端 `git merge --ff-only origin/pre`，再在服务器内执行 R84 最终 exit 总入口。当前 R85 artifact 是 dry-run plan，未执行服务器；本机路径恢复后优先使用该命令，若仍被 TUN/fake-IP 阻塞则直接在服务器运行 R84。
 
+R86 后，新增 final exit completion audit：`python3 scripts/postgres_final_exit_completion_audit.py --final-exit-artifact-dir <server-final-exit-artifact>`。该审计只根据 artifact 判断最终完成状态，要求服务器最终 exit、服务器 sequence、最终策略应用、post JSON exit validation 全部通过且回滚未触发；当前对 R84 dry-run artifact 的审计状态为 `needs_final_exit_evidence`，未完成最终脱离 JSON。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。
