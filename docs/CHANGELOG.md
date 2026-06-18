@@ -552,6 +552,14 @@
 - 参数帮助统一使用 Popover，补充了含义、限制、选择建议、示例和依赖关系说明
 # 2026-04-01
 
+## 数据库升级执行治理
+
+- 记录 R79 network-scope preflight 复测：Clash direct 规则调整后命令行路径仍返回 `198.18.*` fake-IP 并走 `utun1024`，服务器数据库 sequence 尚未执行。
+
+---
+
+# 2026-04-01
+
 ## 图片工作室
 
 - 接入 `wan2.7-image-pro` 与 `wan2.7-image`

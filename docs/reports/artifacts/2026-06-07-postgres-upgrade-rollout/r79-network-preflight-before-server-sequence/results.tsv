@@ -1,0 +1,4 @@
+check	state	detail
+scope	passed	network
+dns	blocked	fake-ip detected
+route	blocked	TUN/fake-ip route detected
