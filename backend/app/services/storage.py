@@ -1316,10 +1316,19 @@ class StorageService:
 
     def save_audio_studio_task(self, task: AudioStudioTask) -> None:
         """保存音频工作室任务（线程安全）"""
-        from app.repositories.audio_studio_runtime import shadow_save_audio_studio_task
+        from app.repositories.audio_studio_runtime import (
+            json_archive_writes_enabled,
+            save_audio_studio_task_primary,
+            shadow_save_audio_studio_task,
+        )
 
         task.updated_at = datetime.now()
         owner_user_id = self._get_owner_user_id()
+        if save_audio_studio_task_primary(owner_user_id, task):
+            if json_archive_writes_enabled():
+                self._save_audio_studio_task_to_file(task)
+            return
+
         self._save_audio_studio_task_to_file(task)
         shadow_save_audio_studio_task(owner_user_id, task)
 
@@ -1367,9 +1376,18 @@ class StorageService:
 
     def delete_audio_studio_task(self, task_id: str) -> None:
         """删除音频工作室任务"""
-        from app.repositories.audio_studio_runtime import shadow_mark_audio_studio_task_deleted
+        from app.repositories.audio_studio_runtime import (
+            json_archive_writes_enabled,
+            mark_audio_studio_task_deleted_primary,
+            shadow_mark_audio_studio_task_deleted,
+        )
 
         owner_user_id = self._get_owner_user_id()
+        if mark_audio_studio_task_deleted_primary(owner_user_id, task_id):
+            if json_archive_writes_enabled():
+                self._delete_audio_studio_task_from_file(task_id)
+            return
+
         self._delete_audio_studio_task_from_file(task_id)
         shadow_mark_audio_studio_task_deleted(owner_user_id, task_id)
 
@@ -1382,10 +1400,19 @@ class StorageService:
 
     def save_voice_profile(self, profile: VoiceProfile) -> None:
         """保存音色档案（线程安全）"""
-        from app.repositories.audio_studio_runtime import shadow_save_voice_profile
+        from app.repositories.audio_studio_runtime import (
+            json_archive_writes_enabled,
+            save_voice_profile_primary,
+            shadow_save_voice_profile,
+        )
 
         profile.updated_at = datetime.now()
         owner_user_id = self._get_owner_user_id()
+        if save_voice_profile_primary(owner_user_id, profile):
+            if json_archive_writes_enabled():
+                self._save_voice_profile_to_file(profile)
+            return
+
         self._save_voice_profile_to_file(profile)
         shadow_save_voice_profile(owner_user_id, profile)
 
@@ -1448,9 +1475,18 @@ class StorageService:
 
     def delete_voice_profile(self, profile_id: str) -> None:
         """删除音色档案"""
-        from app.repositories.audio_studio_runtime import shadow_mark_voice_profile_deleted
+        from app.repositories.audio_studio_runtime import (
+            json_archive_writes_enabled,
+            mark_voice_profile_deleted_primary,
+            shadow_mark_voice_profile_deleted,
+        )
 
         owner_user_id = self._get_owner_user_id()
+        if mark_voice_profile_deleted_primary(owner_user_id, profile_id):
+            if json_archive_writes_enabled():
+                self._delete_voice_profile_from_file(profile_id)
+            return
+
         self._delete_voice_profile_from_file(profile_id)
         shadow_mark_voice_profile_deleted(owner_user_id, profile_id)
 

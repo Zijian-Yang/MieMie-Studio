@@ -143,7 +143,7 @@ environment:
 | `projects` | `projects` | 第二批迁移 |
 | `video_studio` | `video_studio_tasks` | 第一批迁移 |
 | `studio` | `studio_tasks` | 第一批迁移后复用模式 |
-| `audio_studio` / `voices` | `audio_studio_tasks` + `voice_profiles` | R68-R71 已完成本地 schema/repository/backfill/reconcile/runtime dual-write/read-switch，下一步 R72 primary-write |
+| `audio_studio` / `voices` | `audio_studio_tasks` + `voice_profiles` | R68-R72 已完成本地 schema/repository/backfill/reconcile/runtime dual-write/read-switch/primary-write |
 | `gallery` | `media_assets` + `gallery_images` | 第三批迁移 metadata |
 | `video_library` | `media_assets` + `video_items` | 第三批迁移 metadata |
 | `audio` | `media_assets` + `audio_items` | 第三批迁移 metadata |
@@ -281,6 +281,7 @@ create index idx_video_studio_tasks_submit_attempt
 2026-06-17 progress: R68/R69 已新增 `audio_studio` 本地 PostgreSQL 基础与 backfill/reconcile。`audio_studio_tasks` 覆盖 TTS、voice clone、voice design 任务状态，`voice_profiles` 覆盖复刻/设计音色档案；回填扫描 `audio_studio/*.json` 与 `voices/*.json`，对账摘要只输出安全索引字段、计数和错误类型，不输出文本、prompt、音频 URL、key/token/password 或私有用户数据。`postgres_live_rehearsal.sh` 与 staging live data gate 已纳入 `audio_studio` 域；默认运行态仍为 JSON/file-only，下一步 R70 runtime dual-write。
 2026-06-17 progress: R70 已新增 `audio_studio` runtime dual-write。默认不启用；显式开启 `MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=audio_studio` 或全局 dual-write 后，音频任务与音色档案保存/删除在 JSON 主路径成功后 shadow 写 PostgreSQL。Shadow 失败默认 warning-only，`MIEMIE_DATABASE_RECONCILE_STRICT=true` 可在对账窗口冒泡。下一步 R71 read-switch + JSON fallback。
 2026-06-18 progress: R71 已新增 `audio_studio` read-switch + JSON fallback。默认不启用；显式开启 `MIEMIE_DATABASE_READ_DOMAINS=audio_studio` 或全局 PostgreSQL read mode 后，音频任务、音色档案、项目列表和 `voice_id` 查询优先读取 PostgreSQL；`MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 时 miss/空列表/异常回退 JSON。下一步 R72 PostgreSQL primary-write + JSON archive mirror。
+2026-06-18 progress: R72 已新增 `audio_studio` PostgreSQL primary-write + JSON archive mirror。默认不启用；显式开启 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=audio_studio` 或全局 PostgreSQL 主写模式后，音频任务与音色档案保存/删除以 PostgreSQL 为主。默认不写 JSON，`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` 时保留临时 JSON archive mirror；主写失败冒泡且不落 JSON。`audio_studio` 本地域已完成本地迁移闭环。
 
 ## 代码架构计划
 
@@ -565,6 +566,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-17 追加：R67 已新增 PostgreSQL domain coverage audit，确认当前 8 个已迁 domain 具备本地迁移门禁，剩余明确 JSON-only 业务状态域为 `audio_studio`（音频任务 `audio_studio/*.json` 与音色档案 `voices/*.json`）。下一本地迁移域建议为 `audio_studio`，计划拆为 R68 schema/repository、R69 backfill/reconcile、R70 runtime dual-write、R71 read-switch、R72 primary-write。
 2026-06-17 追加：R68 已完成 `audio_studio` 本地 schema/repository。新增 `audio_studio_tasks` 与 `voice_profiles` 两张表、Alembic migration `20260617_0009`、file/PostgreSQL/dual repository boundary 和 schema/repository 测试；运行态仍默认 JSON/file-only，下一步补 R69 backfill/reconcile，摘要需避免输出文本内容、音色描述、request id 实值、key/token/password 或私有 URL。
 2026-06-18 追加：R71 已完成 `audio_studio` read-switch。读切换覆盖音频任务、音色档案、项目列表和 `voice_id` 查询，默认仍 file-only；服务器业务开关未启用，下一步补 R72 primary-write。
+2026-06-18 追加：R72 已完成 `audio_studio` primary-write。`audio_studio` 本地域已具备 schema/repository、backfill/reconcile、runtime dual-write、read-switch 和 primary-write；下一步回到服务器 live-data/canary 灰度，或先运行新的 coverage audit 确认剩余 JSON-only 状态。
 
 ## 总体验收
 

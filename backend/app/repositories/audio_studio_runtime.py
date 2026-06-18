@@ -52,6 +52,23 @@ def audio_studio_read_enabled() -> bool:
     return read_mode == "postgres" or DOMAIN in read_domains
 
 
+def audio_studio_primary_write_enabled() -> bool:
+    """Return true when audio studio writes should use PostgreSQL primary."""
+
+    if not database_enabled():
+        return False
+
+    write_mode = os.getenv("MIEMIE_DATABASE_WRITE_MODE", "file").strip().lower()
+    primary_domains = _env_csv("MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS")
+    return write_mode in {"postgres", "postgres_primary", "primary"} or DOMAIN in primary_domains
+
+
+def json_archive_writes_enabled() -> bool:
+    """Return true when PostgreSQL primary writes should maintain JSON archive mirrors."""
+
+    return _env_true("MIEMIE_DATABASE_JSON_ARCHIVE_WRITES")
+
+
 def json_fallback_read_enabled() -> bool:
     """Return true when PostgreSQL read miss/error should fallback to JSON."""
 
@@ -84,6 +101,50 @@ def build_audio_studio_shadow_repository(user_id: str) -> PostgresAudioStudioRep
 
 def build_audio_studio_read_repository(user_id: str) -> PostgresAudioStudioRepository:
     return PostgresAudioStudioRepository(_runtime_engine(), user_id)
+
+
+def build_audio_studio_primary_repository(user_id: str) -> PostgresAudioStudioRepository:
+    return PostgresAudioStudioRepository(_runtime_engine(), user_id)
+
+
+def save_audio_studio_task_primary(user_id: str | None, task: AudioStudioTask) -> bool:
+    """Save an audio studio task to PostgreSQL as primary when primary mode is enabled."""
+
+    if not user_id or not audio_studio_primary_write_enabled():
+        return False
+
+    build_audio_studio_primary_repository(user_id).save_task(task)
+    return True
+
+
+def mark_audio_studio_task_deleted_primary(user_id: str | None, task_id: str) -> bool:
+    """Mark a PostgreSQL-primary audio studio task deleted when primary mode is enabled."""
+
+    if not user_id or not audio_studio_primary_write_enabled():
+        return False
+
+    build_audio_studio_primary_repository(user_id).mark_task_deleted(task_id)
+    return True
+
+
+def save_voice_profile_primary(user_id: str | None, profile: VoiceProfile) -> bool:
+    """Save a voice profile to PostgreSQL as primary when primary mode is enabled."""
+
+    if not user_id or not audio_studio_primary_write_enabled():
+        return False
+
+    build_audio_studio_primary_repository(user_id).save_voice_profile(profile)
+    return True
+
+
+def mark_voice_profile_deleted_primary(user_id: str | None, profile_id: str) -> bool:
+    """Mark a PostgreSQL-primary voice profile deleted when primary mode is enabled."""
+
+    if not user_id or not audio_studio_primary_write_enabled():
+        return False
+
+    build_audio_studio_primary_repository(user_id).mark_voice_profile_deleted(profile_id)
+    return True
 
 
 def shadow_save_audio_studio_task(user_id: str | None, task: AudioStudioTask) -> None:
