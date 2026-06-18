@@ -19,6 +19,18 @@ DEFAULT_ARTIFACT_DIR = (
     / "r67-postgres-domain-coverage"
 )
 
+AUDIO_STORAGE_METHODS = [
+    "save_audio_studio_task",
+    "get_audio_studio_task",
+    "get_audio_studio_tasks",
+    "delete_audio_studio_task",
+    "save_voice_profile",
+    "get_voice_profile",
+    "get_voice_profiles",
+    "get_voice_profile_by_voice_id",
+    "delete_voice_profile",
+]
+
 MIGRATED_DOMAINS = [
     {
         "name": "video_studio_tasks",
@@ -124,21 +136,6 @@ MIGRATED_DOMAINS = [
             "scripts/postgres_reconcile_sessions.py",
         ],
     },
-]
-
-AUDIO_STORAGE_METHODS = [
-    "save_audio_studio_task",
-    "get_audio_studio_task",
-    "get_audio_studio_tasks",
-    "delete_audio_studio_task",
-    "save_voice_profile",
-    "get_voice_profile",
-    "get_voice_profiles",
-    "get_voice_profile_by_voice_id",
-    "delete_voice_profile",
-]
-
-PENDING_DOMAINS = [
     {
         "name": "audio_studio",
         "summary": "Audio studio task state and cloned voice profile state.",
@@ -158,15 +155,10 @@ PENDING_DOMAINS = [
             "scripts/postgres_reconcile_audio_studio.py",
         ],
         "storage_methods": AUDIO_STORAGE_METHODS,
-        "recommended_rollout": [
-            "R68 local schema/repository for audio tasks and voice profiles",
-            "R69 backfill/reconcile with redacted voice metadata",
-            "R70 runtime dual-write with JSON primary and PostgreSQL shadow writes",
-            "R71 read-switch canary with JSON fallback",
-            "R72 primary-write canary plus JSON archive mirror",
-        ],
-    }
+    },
 ]
+
+PENDING_DOMAINS = []
 
 COVERED_EMBEDDED_SURFACES = [
     {
@@ -205,13 +197,33 @@ def audit_migrated_domain(domain: dict[str, object]) -> dict[str, object]:
     present_files = [path for path in expected_files if exists(path)]
     missing_files = [path for path in expected_files if not exists(path)]
     status = "covered" if not missing_files else "incomplete"
-    return {
+    result = {
         "name": domain["name"],
         "summary": domain["summary"],
         "status": status,
         "present_files": present_files,
         "missing_files": missing_files,
     }
+    if "json_surfaces" in domain:
+        current_files = list(domain.get("current_files", []))
+        storage_text = read_text("backend/app/services/storage.py")
+        storage_methods = [
+            method for method in domain.get("storage_methods", []) if f"def {method}(" in storage_text
+        ]
+        result.update(
+            {
+                "json_surfaces": list(domain["json_surfaces"]),
+                "current_files": [path for path in current_files if exists(path)],
+                "missing_current_files": [path for path in current_files if not exists(path)],
+                "present_expected_files": present_files,
+                "missing_expected_files": missing_files,
+                "storage_methods": storage_methods,
+                "missing_storage_methods": [
+                    method for method in domain.get("storage_methods", []) if method not in storage_methods
+                ],
+            }
+        )
+    return result
 
 
 def audit_pending_domain(domain: dict[str, object]) -> dict[str, object]:
@@ -265,11 +277,11 @@ def build_summary(run_id: str) -> dict[str, object]:
     embedded = [audit_embedded_surface(surface) for surface in COVERED_EMBEDDED_SURFACES]
     migrated_covered = [domain for domain in migrated if domain["status"] == "covered"]
     pending_names = [domain["name"] for domain in pending if domain["status"] != "covered"]
-    next_recommended = pending_names[0] if pending_names else "audio_studio_read_switch"
+    next_recommended = pending_names[0] if pending_names else "staging_live_data_canary"
     return {
         "run_id": run_id,
         "updated_at": utc_now(),
-        "state": "ready_for_next_domain" if pending_names else "ready_for_runtime_completion",
+        "state": "ready_for_next_domain" if pending_names else "ready_for_staging_live_data_canary",
         "next_recommended_domain": next_recommended,
         "migrated_domain_count": len(migrated_covered),
         "pending_domain_count": len(pending_names),
@@ -309,9 +321,27 @@ def render_markdown(summary: dict[str, object]) -> str:
         ]
         for domain in summary["pending_domains"]
     ]
-    rollout_steps = "\n".join(
-        f"- {step}" for step in summary["pending_domains"][0]["recommended_rollout"]
-    )
+    if summary["pending_domains"]:
+        rollout_steps = "\n".join(
+            f"- {step}" for step in summary["pending_domains"][0]["recommended_rollout"]
+        )
+        next_recommended = (
+            "`audio_studio` should be the next PostgreSQL migration domain because it is still direct JSON state "
+            "under `audio_studio/*.json` and `voices/*.json`, is project-scoped, participates in project cleanup, "
+            "and can follow the same schema/repository/backfill/reconcile/runtime-gate pattern without provider load testing."
+        )
+    else:
+        rollout_steps = "\n".join(
+            [
+                "- Re-run the server `live-data-gate` so Alembic, all-domain backfill/reconcile, backup, and restore rehearsal include the latest sessions and audio studio migrations.",
+                "- Continue staging app-level canaries: dual-write, read-switch, rollback-read-switch, primary-write, and rollback-primary-write.",
+                "- Keep application runtime file-only until those server gates and rollback checks pass.",
+            ]
+        )
+        next_recommended = (
+            "`staging_live_data_canary` is the next step: all tracked core business-state domains now have local "
+            "schema/repository/backfill/reconcile/runtime gates, so the remaining risk is server live-data and app-level canary execution."
+        )
     embedded_rows = [
         [
             f"`{surface['surface']}`",
@@ -349,7 +379,7 @@ def render_markdown(summary: dict[str, object]) -> str:
             "",
             "## Next Recommended Domain",
             "",
-            "`audio_studio` should be the next PostgreSQL migration domain because it is still direct JSON state under `audio_studio/*.json` and `voices/*.json`, is project-scoped, participates in project cleanup, and can follow the same schema/repository/backfill/reconcile/runtime-gate pattern without provider load testing.",
+            next_recommended,
             "",
             "Recommended rollout:",
             "",

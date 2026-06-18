@@ -666,6 +666,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-18 note: R72 adds opt-in `audio_studio` PostgreSQL primary-write and optional JSON archive mirror. `StorageService` can now save/delete audio tasks and voice profiles through PostgreSQL primary when `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=audio_studio` or global primary mode is enabled; JSON archive mirrors are kept only with `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true`, and primary failures do not write JSON. The `audio_studio` local domain is complete through schema/repository, backfill/reconcile, dual-write, read-switch, and primary-write. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r72-audio-studio-primary-write/`.
 
+2026-06-18 note: R73 refreshes PostgreSQL domain coverage after `audio_studio` completion. The audit now reports 9 covered migrated domains and 0 pending tracked core business-state domains, with `staging_live_data_canary` as the next recommended step. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r73-postgres-domain-coverage-after-audio/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

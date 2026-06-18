@@ -399,6 +399,8 @@ R71 后，本地 `audio_studio` 已接入读切换 feature flag；下一步是�
 
 R72 后，本地 `audio_studio` 已完成 schema/repository、backfill/reconcile、runtime dual-write、read-switch 和 primary-write 闭环。下一步优先回到服务器 live-data/canary 灰度；若服务器路径仍阻塞，则先跑新的 coverage audit，确认是否还有非核心 JSON-only 状态需要迁移。
 
+R73 后，PostgreSQL domain coverage 审计已把 `audio_studio` 纳入已覆盖域；当前 9 个 tracked 核心业务状态域均为 covered，pending domain 为 0。下一步不再继续挑本地域，而是回到服务器 live-data gate 与 staging app-level canary/rollback 序列。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

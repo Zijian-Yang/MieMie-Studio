@@ -21,6 +21,7 @@ EXPECTED_MIGRATED_DOMAINS = {
     "benchmark_records",
     "user_config",
     "sessions",
+    "audio_studio",
 }
 
 AUDIO_EXPECTED_MISSING = set()
@@ -85,8 +86,8 @@ def run_report_contract() -> None:
         status = json.loads(status_path.read_text(encoding="utf-8"))
         report = report_path.read_text(encoding="utf-8")
 
-        assert status["state"] == "ready_for_runtime_completion"
-        assert status["next_recommended_domain"] == "audio_studio_read_switch"
+        assert status["state"] == "ready_for_staging_live_data_canary"
+        assert status["next_recommended_domain"] == "staging_live_data_canary"
         assert status["pending_domain_count"] == 0
         assert status["migrated_domain_count"] == len(EXPECTED_MIGRATED_DOMAINS)
 
@@ -96,11 +97,10 @@ def run_report_contract() -> None:
             assert item["status"] == "covered", name
             assert item["missing_files"] == [], name
 
-        pending = {item["name"]: item for item in summary["pending_domains"]}
-        assert set(pending) == {"audio_studio"}
-        audio = pending["audio_studio"]
+        assert summary["pending_domains"] == []
+        audio = migrated["audio_studio"]
         assert audio["status"] == "covered"
-        assert set(audio["missing_expected_files"]) == AUDIO_EXPECTED_MISSING
+        assert set(audio["missing_files"]) == AUDIO_EXPECTED_MISSING
         assert AUDIO_EXPECTED_PRESENT.issubset(set(audio["present_expected_files"]))
         assert AUDIO_STORAGE_METHODS.issubset(set(audio["storage_methods"]))
         assert "audio_studio/*.json" in audio["json_surfaces"]
@@ -110,6 +110,7 @@ def run_report_contract() -> None:
         assert embedded["scripts/shots"]["covered_by"] == "projects.raw_project_snapshot"
 
         assert "## Next Recommended Domain" in report
+        assert "`staging_live_data_canary`" in report
         assert "`audio_studio`" in report
         assert "`projects.raw_project_snapshot`" in report
 
@@ -128,7 +129,7 @@ def check_source_contract() -> None:
         "audio_studio",
         "voices/*.json",
         "projects.raw_project_snapshot",
-        "ready_for_next_domain",
+        "ready_for_staging_live_data_canary",
     ]
     for fragment in required_fragments:
         if fragment not in content:
