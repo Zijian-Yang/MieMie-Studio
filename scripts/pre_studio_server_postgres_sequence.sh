@@ -107,7 +107,16 @@ write_plan() {
     fi
     printf 'test -f %s\n' "$(shell_quote "$SEQUENCE_RUNNER")"
     printf 'grep -q live-data-gate %s\n' "$(shell_quote "$SEQUENCE_RUNNER")"
+    printf 'grep -q all-domain-dual-write-canary %s\n' "$(shell_quote "$SEQUENCE_RUNNER")"
+    printf 'grep -q all-domain-read-switch-canary %s\n' "$(shell_quote "$SEQUENCE_RUNNER")"
+    printf 'grep -q all-domain-rollback-read-switch %s\n' "$(shell_quote "$SEQUENCE_RUNNER")"
+    printf 'grep -q all-domain-primary-write-canary %s\n' "$(shell_quote "$SEQUENCE_RUNNER")"
+    printf 'grep -q all-domain-rollback-primary-write %s\n' "$(shell_quote "$SEQUENCE_RUNNER")"
     printf 'test -f scripts/postgres_staging_live_data_gate.sh\n'
+    printf 'test -f scripts/postgres_staging_all_domain_canary.sh\n'
+    printf 'python3 scripts/postgres_final_cutover_readiness.py --artifact-dir %s --run-id %s\n' \
+      "$(shell_quote "$ARTIFACT_DIR/readiness-precheck")" "$(shell_quote "$RUN_ID-readiness-precheck")"
+    printf 'grep -q ready_for_final_cutover_sequence %s\n' "$(shell_quote "$ARTIFACT_DIR/readiness-precheck/status.json")"
     printf 'CONFIRM_STAGING_SEQUENCE=run RUN_ID=%s ARTIFACT_DIR=%s TMP_DIR=%s bash %s\n' \
       "$(shell_quote "$RUN_ID")" "$(shell_quote "$ARTIFACT_DIR/sequence")" "$(shell_quote "$TMP_DIR/sequence")" "$(shell_quote "$SEQUENCE_RUNNER")"
   } > "$PLAN_FILE"
@@ -116,7 +125,32 @@ write_plan() {
 verify_sequence_runner_contract() {
   [[ -f "$SEQUENCE_RUNNER" ]] || blocked "precheck" "missing sequence runner: $SEQUENCE_RUNNER"
   [[ -f scripts/postgres_staging_live_data_gate.sh ]] || blocked "precheck" "missing live data gate script: scripts/postgres_staging_live_data_gate.sh"
+  [[ -f scripts/postgres_staging_all_domain_canary.sh ]] || blocked "precheck" "missing all-domain canary script: scripts/postgres_staging_all_domain_canary.sh"
   grep -q "live-data-gate" "$SEQUENCE_RUNNER" || blocked "precheck" "sequence runner does not include live-data-gate"
+  grep -q "all-domain-dual-write-canary" "$SEQUENCE_RUNNER" || blocked "precheck" "sequence runner does not include all-domain-dual-write-canary"
+  grep -q "all-domain-read-switch-canary" "$SEQUENCE_RUNNER" || blocked "precheck" "sequence runner does not include all-domain-read-switch-canary"
+  grep -q "all-domain-rollback-read-switch" "$SEQUENCE_RUNNER" || blocked "precheck" "sequence runner does not include all-domain-rollback-read-switch"
+  grep -q "all-domain-primary-write-canary" "$SEQUENCE_RUNNER" || blocked "precheck" "sequence runner does not include all-domain-primary-write-canary"
+  grep -q "all-domain-rollback-primary-write" "$SEQUENCE_RUNNER" || blocked "precheck" "sequence runner does not include all-domain-rollback-primary-write"
+}
+
+verify_final_cutover_readiness_contract() {
+  [[ -f scripts/postgres_final_cutover_readiness.py ]] || blocked "precheck" "missing final cutover readiness script: scripts/postgres_final_cutover_readiness.py"
+  local readiness_dir="$ARTIFACT_DIR/readiness-precheck"
+  mkdir -p "$readiness_dir"
+  "$JSON_PYTHON" scripts/postgres_final_cutover_readiness.py \
+    --artifact-dir "$readiness_dir" \
+    --run-id "$RUN_ID-readiness-precheck" \
+    >> "$COMMAND_LOG" 2>&1 || blocked "precheck" "final cutover readiness audit failed"
+  "$JSON_PYTHON" - "$readiness_dir/status.json" <<'PY' || blocked "precheck" "final cutover readiness is not ready_for_final_cutover_sequence"
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    status = json.load(handle)
+if status.get("state") != "ready_for_final_cutover_sequence":
+    raise SystemExit(f"unexpected readiness state: {status.get('state')!r}")
+PY
 }
 
 verify_server_context() {
@@ -126,6 +160,7 @@ verify_server_context() {
   [[ -f compose.env ]] || blocked "precheck" "missing compose.env"
   [[ -f docker-compose.pre.override.yml ]] || blocked "precheck" "missing docker-compose.pre.override.yml"
   verify_sequence_runner_contract
+  verify_final_cutover_readiness_contract
   local branch
   branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
   [[ "$branch" == "$SERVER_BRANCH" ]] || blocked "precheck" "expected branch $SERVER_BRANCH, got ${branch:-unknown}"

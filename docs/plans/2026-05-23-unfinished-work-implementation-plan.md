@@ -409,6 +409,8 @@ R76 后，已新增全域 provider-free app canary，并把默认 staging sequen
 
 R77 后，R76 后的服务器 sequence 前置 network-scope preflight 仍 blocked：DNS 返回 `198.18.0.94` fake-IP，源站 route 仍走 `utun1024`。本轮未进入 TCP/SSH/public-health，也未执行远端命令。下一步仍是两条路：服务器 `/opt/miemie-pre` 终端执行 `CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`，或清理本机 TUN/fake-IP 后让完整 preflight 退出 `0` 再用 remote wrapper。
 
+R78 后，服务器终端 fallback 已补强：执行前会检查 staging sequence 包含 `live-data-gate` 与五个 all-domain canary 阶段，检查 `postgres_staging_all_domain_canary.sh` 存在，并运行 final cutover readiness precheck，要求状态为 `ready_for_final_cutover_sequence`。下一步仍是服务器真实执行 sequence。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

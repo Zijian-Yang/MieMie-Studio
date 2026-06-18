@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R78 server fallback all-domain contract：服务器自运行入口 `pre_studio_server_postgres_sequence.sh` 现在在执行前强制校验 all-domain canary 脚本、全域 sequence 阶段和 final cutover readiness `ready_for_final_cutover_sequence`，避免服务器 fallback 误跑旧 video-only 门禁。
 - 数据库升级 R77 server sequence preflight：R76 后尝试恢复服务器 sequence 前置检查，network-scope preflight 仍 blocked；DNS 返回 Clash fake-IP `198.18.0.94`，源站 `47.79.99.190` route 仍走 `utun1024`。本轮未进入 TCP/SSH/public-health，未执行任何远端命令或业务数据库开关。
 - 数据库升级 R76 all-domain provider-free canary：新增 `scripts/postgres_staging_all_domain_canary.sh` 与 verifier，默认 staging sequence 改为 `audit -> roll-runtime -> live-data-gate -> all-domain-dual-write-canary -> all-domain-read-switch-canary -> all-domain-rollback-read-switch -> all-domain-primary-write-canary -> all-domain-rollback-primary-write`。final cutover readiness 现在为 `ready_for_final_cutover_sequence`，下一步回到服务器执行 sequence。
 - 数据库升级 R75 final cutover readiness：新增 `scripts/postgres_final_cutover_readiness.py` 与 verifier，汇总 domain coverage、live-data gate、staging sequence、server fallback 和 app-level canary 覆盖度。当前状态为 `needs_all_domain_app_canary`：9 个域的 coverage/live-data/sequence/fallback 契约通过，但 app-level canary 仍只覆盖 `video_studio_tasks`，下一步需要新增全域 provider-free canary。

@@ -1,0 +1,15 @@
+{
+  "run_id": "r78-server-fallback-all-domain-contract-20260618",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_SERVER_SEQUENCE=run to execute on the server",
+  "branch": "pre",
+  "head": "db62c3dab4573e240e9f351a5f8ac2d01fd3fa04",
+  "server_branch": "pre",
+  "server_sync": "ff-only",
+  "confirm": "dry-run",
+  "sequence_runner": "scripts/postgres_staging_video_task_sequence.sh",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r78-server-fallback-all-domain-contract",
+  "tmp_dir": "/tmp/r78-server-fallback-all-domain-contract-20260618",
+  "updated_at": "2026-06-18T04:15:42Z"
+}

@@ -287,6 +287,7 @@ create index idx_video_studio_tasks_submit_attempt
 2026-06-18 progress: R75 已新增 final cutover readiness audit。当前 coverage/live-data gate/sequence/server fallback 契约通过，但 app-level canary 覆盖不足：只有 `video_studio_tasks`，缺少其余 8 个 migrated domains 的 provider-free smoke/canary。
 2026-06-18 progress: R76 已新增全域 provider-free app canary，并把 staging sequence 默认切到全域 canary 阶段；readiness 状态提升为 `ready_for_final_cutover_sequence`。下一步是服务器执行 sequence，而不是继续本地补域。
 2026-06-18 progress: R77 恢复服务器 sequence 前置 network preflight，仍 blocked 在本机控制面：DNS `198.18.0.94`，route `utun1024`。未进入远端命令，业务数据库开关仍未启用。
+2026-06-18 progress: R78 已补强服务器终端 fallback 契约。服务器自运行入口执行前会校验 all-domain canary 阶段与 final cutover readiness，避免旧 sequence 或缺脚本时继续执行。
 
 ## 代码架构计划
 
@@ -577,6 +578,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-18 追加：R75 final cutover readiness artifact 已生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r75-final-cutover-readiness/`；状态为 `needs_all_domain_app_canary`，下一步明确为 `add_all_domain_app_canary`。
 2026-06-18 追加：R76 all-domain provider-free canary artifact 已生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r76-staging-all-domain-canary/`；readiness 状态为 `ready_for_final_cutover_sequence`。
 2026-06-18 追加：R77 network-scope preflight artifact 已生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r77-network-preflight-before-server-sequence/`；状态为 `blocked`，stage 为 `network`。
+2026-06-18 追加：R78 server fallback all-domain contract dry-run artifact 已生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r78-server-fallback-all-domain-contract/`；状态为 `dry_run`。
 
 ## 总体验收
 

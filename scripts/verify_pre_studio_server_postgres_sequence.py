@@ -63,6 +63,9 @@ def run_dry_run_contract() -> None:
         assert "git merge --ff-only origin/pre" in plan
         assert "live-data-gate" in plan
         assert "postgres_staging_live_data_gate.sh" in plan
+        assert "postgres_staging_all_domain_canary.sh" in plan
+        assert "all-domain-dual-write-canary" in plan
+        assert "all-domain-primary-write-canary" in plan
         assert "CONFIRM_STAGING_SEQUENCE=run" in plan
         assert "scripts/postgres_staging_video_task_sequence.sh" in plan
         if re.search(r"\b(docker|curl|ssh|scp|nc|git fetch|git merge)\b", commands):
@@ -76,7 +79,15 @@ def check_safety_contract() -> None:
         'ARTIFACT_DIR="${ARTIFACT_DIR:-$ROOT_DIR/validation-artifacts/$RUN_ID}"',
         "git merge --ff-only",
         "live-data-gate",
+        "all-domain-dual-write-canary",
+        "all-domain-read-switch-canary",
+        "all-domain-rollback-read-switch",
+        "all-domain-primary-write-canary",
+        "all-domain-rollback-primary-write",
         "postgres_staging_live_data_gate.sh",
+        "postgres_staging_all_domain_canary.sh",
+        "verify_final_cutover_readiness_contract",
+        "ready_for_final_cutover_sequence",
         'failed "sync"',
         "CONFIRM_STAGING_SEQUENCE=run",
         "verify_server_context",
