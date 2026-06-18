@@ -427,6 +427,8 @@ R85 后，新增 remote final exit sequence 总入口：`CONFIRM_REMOTE_FINAL_EX
 
 R86 后，新增 final exit completion audit：`python3 scripts/postgres_final_exit_completion_audit.py --final-exit-artifact-dir <server-final-exit-artifact>`。该审计只根据 artifact 判断最终完成状态，要求服务器最终 exit、服务器 sequence、最终策略应用、post JSON exit validation 全部通过且回滚未触发；当前对 R84 dry-run artifact 的审计状态为 `needs_final_exit_evidence`，未完成最终脱离 JSON。
 
+R87 后，新增 post-final JSON archive gate：`python3 scripts/postgres_archive_json_after_final_exit.py --completion-status <completion-status.json> --confirm archive`。该脚本只在 R86 输出 `postgres_only_complete` 后允许归档 tracked 业务 JSON，并会先生成 tar.gz 再移动到 quarantine；当前因 R86 仍为 `needs_final_exit_evidence` 被阻止，未移动文件。根级 `config.json`、`users.json`、`config.example.json` 明确不在归档范围。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

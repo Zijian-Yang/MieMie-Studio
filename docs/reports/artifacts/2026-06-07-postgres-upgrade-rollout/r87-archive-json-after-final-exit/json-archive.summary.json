@@ -1,0 +1,22 @@
+{
+  "run_id": "r87-archive-json-after-final-exit",
+  "updated_at": "2026-06-18T06:59:03Z",
+  "state": "blocked",
+  "stage": "completion-audit",
+  "reason": "completion status is needs_final_exit_evidence",
+  "data_root": "backend/data",
+  "completion_status": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r86-final-exit-completion-audit/status.json",
+  "completion_state": "needs_final_exit_evidence",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r87-archive-json-after-final-exit",
+  "manifest": "",
+  "tracked_json_count": 0,
+  "tracked_json_count_by_domain": {},
+  "moved_count": 0,
+  "tarball": "",
+  "quarantine_root": "",
+  "notes": [
+    "Root backend/data/config.json, users.json, and config.example.json are intentionally excluded.",
+    "This gate only archives tracked business-state JSON that already has PostgreSQL migration coverage.",
+    "Use --confirm archive only after final exit completion audit reports postgres_only_complete."
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "run_id": "r87-archive-json-after-final-exit",
+  "state": "blocked",
+  "stage": "completion-audit",
+  "reason": "completion status is needs_final_exit_evidence",
+  "tracked_json_count": 0,
+  "moved_count": 0,
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r87-archive-json-after-final-exit",
+  "updated_at": "2026-06-18T06:59:03Z"
+}

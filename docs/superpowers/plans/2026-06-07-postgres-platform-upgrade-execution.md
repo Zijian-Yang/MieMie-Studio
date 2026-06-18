@@ -694,6 +694,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-18 note: R86 adds `scripts/postgres_final_exit_completion_audit.py` and `scripts/verify_postgres_final_exit_completion_audit.py`. The audit is read-only and consumes a server final exit artifact; it reports `postgres_only_complete` only when the server final exit wrapper, staging sequence, final policy application, post JSON exit validation, and rollback-not-triggered evidence all pass. Current artifact against the R84 dry-run plan reports `needs_final_exit_evidence`, which is the expected non-complete state before server execution. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r86-final-exit-completion-audit/`.
 
+2026-06-18 note: R87 adds `scripts/postgres_archive_json_after_final_exit.py` and `scripts/verify_postgres_archive_json_after_final_exit.py`. The gate is blocked unless a completion status file reports `postgres_only_complete`; confirmed execution creates a tar.gz of tracked business JSON and moves only migrated business-state JSON into quarantine, while excluding root `config.json`, `users.json`, and `config.example.json`. Current artifact is blocked because R86 still reports `needs_final_exit_evidence`, so no real JSON file was moved. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r87-archive-json-after-final-exit/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
@@ -713,3 +715,4 @@ Once goal mode starts, do not ask the user for routine information covered by th
 - Preferred server-side final exit path is now `CONFIRM_SERVER_FINAL_EXIT_SEQUENCE=run scripts/pre_studio_server_postgres_final_exit_sequence.sh`, which wraps the server sequence, final policy application, post validation, and rollback-on-failure path in one artifacted entry.
 - Preferred local remote final exit path, once DNS/route preflight is clean, is `CONFIRM_REMOTE_FINAL_EXIT_SEQUENCE=run scripts/pre_studio_remote_postgres_final_exit_sequence.sh`; it wraps local preflight, remote sync, and the server-side final exit path.
 - Final done claim requires `python3 scripts/postgres_final_exit_completion_audit.py --final-exit-artifact-dir <server-final-exit-artifact>` to report `postgres_only_complete`.
+- After final done is proven and monitored, use `python3 scripts/postgres_archive_json_after_final_exit.py --completion-status <completion-status.json> --confirm archive` to tar and quarantine tracked business JSON; root secrets and account files remain excluded.
