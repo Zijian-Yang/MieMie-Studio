@@ -21,6 +21,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 视频工作室：并列新增 `happyhorse-1.5-t2v`、`happyhorse-1.5-i2v`、`happyhorse-1.5-r2v`，复用 HappyHorse provider、DashScope 异步提交、OSS 持久化、开发者模式和测试/生产 Key profile；厂商暂无 1.5 视频编辑模型，`happyhorse-1.0-video-edit` 保持为唯一 HappyHorse Video Edit 入口。
 - 视频工作室：HappyHorse 4 个任务面新增高级开关“提示词改写”和“关闭绿网”；关闭提示词改写时下发隐藏参数 `prompt_extend=false`，关闭绿网时提交 `X-DashScope-DataInspection`，开发者模式新增厂商请求 Header 预览。
 - 视频工作室：支持在已选参考图/参考视频上点击 `@`，按模型 capability 中的 `reference_token_policy` 自动把 `[Image 1]`、`图1`、`视频1`、`<<<image_1>>>` 等指代词插入提示词光标位置。
 - 设置：DashScope API 地域新增美国（弗吉尼亚）`https://dashscope-us.aliyuncs.com/api/v1`。

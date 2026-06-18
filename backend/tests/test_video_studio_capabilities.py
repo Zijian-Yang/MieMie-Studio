@@ -1479,6 +1479,9 @@ def test_infer_provider_supports_all_current_video_providers():
     assert infer_provider("happyhorse-1.0-i2v", "image_to_video") == "happyhorse"
     assert infer_provider("happyhorse-1.0-r2v", "reference_to_video") == "happyhorse"
     assert infer_provider("happyhorse-1.0-video-edit", "video_edit_global") == "happyhorse"
+    assert infer_provider("happyhorse-1.5-t2v", "text_to_video") == "happyhorse"
+    assert infer_provider("happyhorse-1.5-i2v", "image_to_video") == "happyhorse"
+    assert infer_provider("happyhorse-1.5-r2v", "reference_to_video") == "happyhorse"
     assert infer_provider("wanx2.1-vace-plus", "video_edit_local") == "wan"
 
 
@@ -1493,6 +1496,10 @@ def test_happyhorse_models_are_exposed_without_changing_defaults(client, auth_he
     assert "happyhorse-1.0-i2v" in models
     assert "happyhorse-1.0-r2v" in models
     assert "happyhorse-1.0-video-edit" in models
+    assert "happyhorse-1.5-t2v" in models
+    assert "happyhorse-1.5-i2v" in models
+    assert "happyhorse-1.5-r2v" in models
+    assert "happyhorse-1.5-video-edit" not in models
 
     task_kind_defaults = {item["id"]: item["default_model_id"] for item in data["task_kinds"]}
     assert task_kind_defaults["text_to_video"] == "wan2.7-t2v"
@@ -1534,6 +1541,8 @@ def test_happyhorse_capability_schema_matches_supported_surface():
         "3:4",
         "4:5",
         "5:4",
+        "21:9",
+        "9:21",
     }
     assert t2v_profile["ui_hints"]["prompt_help"]["summary"]
     assert t2v_profile["ui_hints"]["prompt_length_policy"] == {
@@ -1594,6 +1603,8 @@ def test_happyhorse_capability_schema_matches_supported_surface():
         "3:4",
         "4:5",
         "5:4",
+        "21:9",
+        "9:21",
     }
     assert r2v_profile["ui_hints"]["max_reference_images"] == 9
     assert r2v_profile["ui_hints"]["max_reference_videos"] == 0
@@ -1624,6 +1635,37 @@ def test_happyhorse_capability_schema_matches_supported_surface():
     assert video_edit_profile["ui_hints"]["max_reference_videos"] == 0
     assert any("Base64" in item for item in video_edit_profile["ui_hints"]["asset_help"]["reference_image"]["limits"])
     assert any("20MB" in item for item in video_edit_profile["ui_hints"]["asset_help"]["reference_image"]["limits"])
+
+
+def test_happyhorse_15_capability_schema_reuses_supported_surface():
+    capabilities = get_video_capabilities()
+    models = capabilities["models"]
+
+    expected = {
+        "happyhorse-1.5-t2v": ("HappyHorse 1.5 文生视频", ["text_to_video"], "text_to_video"),
+        "happyhorse-1.5-i2v": ("HappyHorse 1.5 图生视频", ["image_to_video"], "image_to_video"),
+        "happyhorse-1.5-r2v": ("HappyHorse 1.5 参考生视频", ["reference_to_video"], "reference_to_video"),
+    }
+    for model_id, (name, task_kinds, task_kind) in expected.items():
+        model = models[model_id]
+        assert model["name"] == name
+        assert model["provider"] == "happyhorse"
+        assert model["recommended"] is False
+        assert model["doc_url"] == "docs/阿里云模型api文档/happyhorse1.5接入文档.md"
+        assert model["supported_task_kinds"] == task_kinds
+        assert task_kind in model["task_profiles"]
+
+    t2v_profile = models["happyhorse-1.5-t2v"]["task_profiles"]["text_to_video"]
+    t2v_ratio = next(item for item in t2v_profile["parameters"] if item["name"] == "ratio")
+    assert {"21:9", "9:21"} <= {item["value"] for item in t2v_ratio["constraint"]["options"]}
+    assert any("音频" in note for note in t2v_profile["ui_hints"]["prompt_help"]["notes"])
+
+    i2v_profile = models["happyhorse-1.5-i2v"]["task_profiles"]["image_to_video"]
+    assert any("BMP" in item for item in i2v_profile["ui_hints"]["asset_help"]["first_frame"]["limits"])
+
+    r2v_profile = models["happyhorse-1.5-r2v"]["task_profiles"]["reference_to_video"]
+    assert r2v_profile["ui_hints"]["reference_token_policy"]["tokens"]["reference_image"]["template"] == "[Image {index}]"
+    assert any("BMP" in item for item in r2v_profile["ui_hints"]["asset_help"]["reference_image"]["limits"])
 
 
 def test_happyhorse_t2v_builds_provider_payload():
@@ -1739,6 +1781,67 @@ def test_happyhorse_r2v_builds_reference_image_media_payload():
             "seed": 9,
         },
     }
+
+
+@pytest.mark.parametrize(
+    ("task_kind", "model_id", "prompt", "input_assets", "normalized_params", "expected_input"),
+    [
+        (
+            "text_to_video",
+            "happyhorse-1.5-t2v",
+            "一匹白马穿过超宽银幕风格的峡谷",
+            {},
+            {"resolution": "720P", "ratio": "21:9", "duration": 5, "watermark": False},
+            {"prompt": "一匹白马穿过超宽银幕风格的峡谷"},
+        ),
+        (
+            "image_to_video",
+            "happyhorse-1.5-i2v",
+            "让画面中的角色挥手",
+            {"first_frame": ["https://oss.example.com/first.bmp"]},
+            {"resolution": "720P", "duration": 5, "watermark": False},
+            {
+                "prompt": "让画面中的角色挥手",
+                "media": [{"type": "first_frame", "url": "https://oss.example.com/first.bmp"}],
+            },
+        ),
+        (
+            "reference_to_video",
+            "happyhorse-1.5-r2v",
+            "[Image 1]中的角色在竖向长画幅中转身",
+            {"reference_images": ["https://oss.example.com/ref.bmp"]},
+            {"resolution": "720P", "ratio": "9:21", "duration": 5, "watermark": False},
+            {
+                "prompt": "[Image 1]中的角色在竖向长画幅中转身",
+                "media": [{"type": "reference_image", "url": "https://oss.example.com/ref.bmp"}],
+            },
+        ),
+    ],
+)
+def test_happyhorse_15_payload_keeps_selected_model_id(
+    task_kind,
+    model_id,
+    prompt,
+    input_assets,
+    normalized_params,
+    expected_input,
+):
+    adapter = get_video_adapter("happyhorse")
+    payload = adapter.build_provider_payload(
+        NormalizedVideoTaskRequest(
+            project_id="p1",
+            task_kind=task_kind,
+            provider="happyhorse",
+            model_id=model_id,
+            prompt=prompt,
+            input_assets=input_assets,
+            normalized_params=normalized_params,
+        )
+    )
+
+    assert payload["model"] == model_id
+    assert payload["input"] == expected_input
+    assert payload["parameters"]["watermark"] is False
 
 
 def test_happyhorse_video_edit_builds_video_and_reference_image_payload():
@@ -2075,6 +2178,75 @@ async def test_happyhorse_t2v_and_r2v_validate_accept_new_ratios(monkeypatch):
             },
         )
     )
+    await adapter.validate(
+        NormalizedVideoTaskRequest(
+            project_id="p1",
+            task_kind="text_to_video",
+            provider="happyhorse",
+            model_id="happyhorse-1.5-t2v",
+            prompt="一只机械马在超宽银幕峡谷中奔跑",
+            normalized_params={
+                "resolution": "720P",
+                "ratio": "21:9",
+                "duration": 5,
+                "watermark": False,
+            },
+        )
+    )
+    await adapter.validate(
+        NormalizedVideoTaskRequest(
+            project_id="p1",
+            task_kind="reference_to_video",
+            provider="happyhorse",
+            model_id="happyhorse-1.5-r2v",
+            prompt="[Image 1]中的角色在极竖画幅中转身",
+            input_assets={"reference_images": ["https://oss.example.com/ref.bmp"]},
+            normalized_params={
+                "resolution": "720P",
+                "ratio": "9:21",
+                "duration": 5,
+                "watermark": False,
+            },
+        )
+    )
+
+
+@pytest.mark.asyncio
+async def test_happyhorse_rejects_model_task_kind_mismatch():
+    adapter = get_video_adapter("happyhorse")
+
+    with pytest.raises(ValueError, match="不支持任务类型"):
+        await adapter.validate(
+            NormalizedVideoTaskRequest(
+                project_id="p1",
+                task_kind="video_edit_global",
+                provider="happyhorse",
+                model_id="happyhorse-1.5-t2v",
+                prompt="把视频改成水彩风格",
+                input_assets={"base_video": ["https://oss.example.com/base.mp4"]},
+                normalized_params={
+                    "resolution": "720P",
+                    "watermark": False,
+                    "audio_setting": "auto",
+                },
+            )
+        )
+    with pytest.raises(ValueError, match="不支持任务类型"):
+        await adapter.validate(
+            NormalizedVideoTaskRequest(
+                project_id="p1",
+                task_kind="image_to_video",
+                provider="happyhorse",
+                model_id="happyhorse-1.5-r2v",
+                prompt="让首帧动起来",
+                input_assets={"first_frame": ["https://oss.example.com/first.png"]},
+                normalized_params={
+                    "resolution": "720P",
+                    "duration": 5,
+                    "watermark": False,
+                },
+            )
+        )
 
 
 @pytest.mark.asyncio
@@ -2130,6 +2302,39 @@ async def test_happyhorse_image_validation_allows_twenty_mb_data_uri(monkeypatch
             model_id="happyhorse-1.0-i2v",
             prompt="让画面慢慢动起来",
             input_assets={"first_frame": [data_uri]},
+            normalized_params={
+                "resolution": "720P",
+                "duration": 5,
+                "watermark": False,
+            },
+        )
+    )
+
+
+@pytest.mark.asyncio
+async def test_happyhorse_image_validation_allows_bmp(monkeypatch):
+    adapter = get_video_adapter("happyhorse")
+
+    async def fake_inspect_remote_image(url: str):
+        return {
+            "format": "BMP",
+            "file_size": 1024,
+            "width": 512,
+            "height": 512,
+            "aspect_ratio": 1.0,
+            "has_alpha": False,
+        }
+
+    monkeypatch.setattr("app.services.video_adapters.inspect_remote_image", fake_inspect_remote_image)
+
+    await adapter.validate(
+        NormalizedVideoTaskRequest(
+            project_id="p1",
+            task_kind="image_to_video",
+            provider="happyhorse",
+            model_id="happyhorse-1.5-i2v",
+            prompt="让画面慢慢动起来",
+            input_assets={"first_frame": ["https://oss.example.com/first.bmp"]},
             normalized_params={
                 "resolution": "720P",
                 "duration": 5,
@@ -2403,6 +2608,45 @@ def test_preview_payload_returns_happyhorse_r2v_provider_payload(client, auth_he
         {"type": "reference_image", "url": "https://oss.example.com/prop.webp"},
     ]
     assert "prompt_extend" not in data["provider_payload"]["parameters"]
+
+
+def test_preview_payload_returns_happyhorse_15_provider_payload(client, auth_header, monkeypatch):
+    project_id = _create_project(client, auth_header)
+
+    async def fake_validate_reference_image(url: str, label: str):
+        return {"width": 1024, "height": 768, "format": "BMP", "file_size": 1024, "aspect_ratio": 4 / 3}
+
+    monkeypatch.setattr("app.services.video_adapters._validate_happyhorse_reference_image", fake_validate_reference_image)
+
+    resp = client.post(
+        "/api/video-studio/preview-payload",
+        headers=auth_header,
+        json={
+            "project_id": project_id,
+            "task_kind": "reference_to_video",
+            "provider": "happyhorse",
+            "model_id": "happyhorse-1.5-r2v",
+            "model": "happyhorse-1.5-r2v",
+            "prompt": "[Image 1]中的角色转身",
+            "input_assets": {
+                "reference_media": [
+                    {"type": "reference_image", "url": "https://oss.example.com/person.bmp"},
+                ],
+            },
+            "normalized_params": {
+                "resolution": "720P",
+                "ratio": "9:21",
+                "duration": 6,
+                "watermark": False,
+            },
+        },
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["validation_warnings"] == []
+    assert data["provider_payload"]["model"] == "happyhorse-1.5-r2v"
+    assert data["provider_payload"]["parameters"]["ratio"] == "9:21"
 
 
 def test_preview_payload_returns_happyhorse_video_edit_provider_payload(client, auth_header, monkeypatch):

@@ -214,12 +214,14 @@ HappyHorse 系列提示词按中英文差异计数：
 
 ### HappyHorse 素材和比例
 
-HappyHorse 文生视频和参考生视频的画幅比例支持 `16:9`、`9:16`、`1:1`、`4:3`、`3:4`、`4:5`、`5:4`。图生视频继续跟随首帧图比例，不开放 `ratio`。
+HappyHorse 文生视频和参考生视频的画幅比例支持 `16:9`、`9:16`、`1:1`、`4:3`、`3:4`、`4:5`、`5:4`、`21:9`、`9:21`。图生视频继续跟随首帧图比例，不开放 `ratio`。
 
 HappyHorse 图片输入支持公网 URL 或 Base64 data URI。平台侧图片预检统一复用 `remote_media_validation.inspect_remote_image()`，当前上限为 20MB：
-- 图生视频首帧图：宽高均不小于 300 像素，宽高比 `1:2.5~2.5:1`
-- 参考生视频参考图：短边不低于 400 像素
-- 视频编辑参考图：宽高均不小于 300 像素，宽高比 `1:2.5~2.5:1`
+- 图生视频首帧图：`JPEG/JPG/PNG/BMP/WEBP`，宽高均不小于 300 像素，宽高比 `1:2.5~2.5:1`
+- 参考生视频参考图：`JPEG/JPG/PNG/BMP/WEBP`，短边不低于 400 像素
+- 视频编辑参考图：`JPEG/JPG/PNG/BMP/WEBP`，宽高均不小于 300 像素，宽高比 `1:2.5~2.5:1`
+
+HappyHorse 1.5 与 1.0 并列暴露：`happyhorse-1.5-t2v`、`happyhorse-1.5-i2v`、`happyhorse-1.5-r2v` 复用现有 `provider=happyhorse` adapter。厂商当前没有 1.5 视频编辑模型，因此 `happyhorse-1.0-video-edit` 仍是唯一 HappyHorse Video Edit 入口。HappyHorse 视频默认带音频直出，平台不暴露关闭推理音频参数。
 
 ### 参考素材指代词
 

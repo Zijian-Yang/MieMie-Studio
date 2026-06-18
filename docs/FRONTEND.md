@@ -119,8 +119,10 @@ frontend/src/
 - 中文汉字按 2 单位计，非中文字符按 1 单位计
 - 前端显示 `当前单位/最大单位`，并在提交前用 `frontend/src/pages/VideoStudio/promptLengthPolicy.ts` 与后端同口径校验
 - HappyHorse 参考生视频的参考图指代文案使用 `[Image 1]`、`[Image 2]`，不再引导新任务使用 `character1` / `character2`
-- HappyHorse 文生/参考生视频的画幅比例来自 capability schema，包含 `4:5`、`5:4`
-- HappyHorse 图片素材帮助来自后端 schema，会提示 URL/Base64 和 20MB 限制；前端仍保持图库/OSS URL 选择工作流，不新增 Base64 粘贴入口
+- HappyHorse 1.5 T2V/I2V/R2V 与 1.0 并列展示，模型列表完全来自 capability schema；前端不按模型 ID 写死 HappyHorse 分支
+- HappyHorse 文生/参考生视频的画幅比例来自 capability schema，包含 `4:5`、`5:4`、`21:9`、`9:21`
+- HappyHorse 图片素材帮助来自后端 schema，会提示 URL/Base64、BMP 和 20MB 限制；前端仍保持图库/OSS URL 选择工作流，不新增 Base64 粘贴入口
+- HappyHorse 视频默认带音频直出，当前不显示“关闭推理音频”控件
 
 ### 参考素材 @ 指代词
 
