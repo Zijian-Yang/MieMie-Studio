@@ -20,9 +20,10 @@ DOMAIN = "user_config"
 
 
 def _env_csv(name: str) -> set[str]:
+    raw_value = os.getenv(name, "").replace(",", " ")
     return {
         item.strip()
-        for item in os.getenv(name, "").split(",")
+        for item in raw_value.split()
         if item.strip()
     }
 
