@@ -84,6 +84,7 @@ def verify_dry_run_contract() -> None:
             "k6 run loadtest/k6/s1-read.js",
             "K6_VUS=30",
             "K6_DURATION=90s",
+            "wait_for_health",
         ]
         for fragment in required_fragments:
             assert fragment in plan, fragment
@@ -102,6 +103,9 @@ def verify_script_static_contract() -> None:
         "ready_for_post_json_exit_validation",
         "write_status \"blocked\"",
         "write_status \"passed\" \"done\"",
+        "resolve_postgres_container_host",
+        "resolve_maintenance_database_url",
+        "health check did not pass",
     ]:
         assert fragment in script, fragment
 

@@ -88,6 +88,7 @@ def verify_dry_run_contract() -> None:
             "docker compose",
             "up -d api worker worker-video",
             "/api/health",
+            "wait_for_health",
             "compose.env.rollback-source.sanitized",
             "compose.env.before-rollback.sanitized",
             "compose.env.after-rollback.sanitized",
@@ -104,6 +105,8 @@ def verify_static_contract() -> None:
         "write_status \"passed\" \"done\"",
         "redact_env_file",
         "health_check",
+        "wait_for_health",
+        "health check did not pass",
     ]:
         assert fragment in script, fragment
 

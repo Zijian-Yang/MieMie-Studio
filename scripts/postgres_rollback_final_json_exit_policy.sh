@@ -145,8 +145,8 @@ cp "\$ROLLBACK_ENV_BACKUP_FILE" "\$ENV_FILE"
 # writes compose.env.before-rollback.sanitized
 # writes compose.env.after-rollback.sanitized
 docker compose --env-file "$ENV_FILE" -f docker-compose.yml -f "$OVERRIDE_FILE" -p "$PROJECT_NAME" up -d api worker worker-video
-curl -sS -D "\$ARTIFACT_DIR/health-local.headers" -o "\$ARTIFACT_DIR/health-local.json" "$(base_url)/api/health"
-curl -sS -D "\$ARTIFACT_DIR/health-public.headers" -o "\$ARTIFACT_DIR/health-public.json" "${POST_ROLLBACK_PUBLIC_URL%/}/api/health"
+wait_for_health local "$(base_url)/api/health"
+wait_for_health public "${POST_ROLLBACK_PUBLIC_URL%/}/api/health"
 docker compose --env-file "$ENV_FILE" -f docker-compose.yml -f "$OVERRIDE_FILE" -p "$PROJECT_NAME" ps
 PLAN
 }
@@ -168,7 +168,22 @@ health_check() {
   local url="$2"
   log_cmd "health-$label" curl -sS -D "$ARTIFACT_DIR/health-$label.headers" -o "$ARTIFACT_DIR/health-$label.json" "$url"
   curl -sS -D "$ARTIFACT_DIR/health-$label.headers" -o "$ARTIFACT_DIR/health-$label.json" --connect-timeout 10 --max-time 20 "$url" \
-    >> "$COMMAND_LOG" 2>&1 || failed "health-$label" "health check failed for $url"
+    >> "$COMMAND_LOG" 2>&1
+}
+
+wait_for_health() {
+  local label="$1"
+  local url="$2"
+  local attempts="${3:-45}"
+  local attempt
+  for attempt in $(seq 1 "$attempts"); do
+    if health_check "$label" "$url"; then
+      return 0
+    fi
+    printf 'health check did not pass for %s on attempt %s/%s\n' "$url" "$attempt" "$attempts" >> "$COMMAND_LOG"
+    sleep 2
+  done
+  failed "health-$label" "health check did not pass for $url"
 }
 
 main() {
@@ -194,9 +209,9 @@ main() {
   run_logged "docker-compose-up-runtime" "${COMPOSE[@]}" up -d api worker worker-video
 
   write_status "running" "health" ""
-  health_check "local" "$(base_url)/api/health"
+  wait_for_health "local" "$(base_url)/api/health"
   if [[ -n "$POST_ROLLBACK_PUBLIC_URL" ]]; then
-    health_check "public" "${POST_ROLLBACK_PUBLIC_URL%/}/api/health"
+    wait_for_health "public" "${POST_ROLLBACK_PUBLIC_URL%/}/api/health"
   fi
   run_logged "docker-compose-ps" "${COMPOSE[@]}" ps
   write_status "passed" "done" ""
