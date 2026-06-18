@@ -89,6 +89,32 @@ run_logged() {
   "$@" >> "$COMMAND_LOG" 2>&1
 }
 
+run_compose_up_runtime() {
+  local label="$1"
+  local attempt
+  local exit_code=0
+
+  for attempt in 1 2; do
+    log_cmd "$label-attempt-$attempt" "${COMPOSE[@]}" up -d api worker worker-video
+    set +e
+    "${COMPOSE[@]}" up -d api worker worker-video >> "$COMMAND_LOG" 2>&1
+    exit_code=$?
+    set -e
+    if [[ "$exit_code" == "0" ]]; then
+      return 0
+    fi
+
+    printf 'compose-up-runtime failed on attempt %s with exit code %s\n' "$attempt" "$exit_code" >> "$COMMAND_LOG"
+    "${COMPOSE[@]}" ps >> "$COMMAND_LOG" 2>&1 || true
+    docker ps -a --format 'table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Image}}' >> "$COMMAND_LOG" 2>&1 || true
+
+    if [[ "$attempt" == "2" ]]; then
+      return "$exit_code"
+    fi
+    sleep 5
+  done
+}
+
 fail() {
   local stage="$1"
   local reason="$2"
@@ -250,7 +276,7 @@ roll_runtime() {
   backup_env
   configure_runtime_disabled
   run_logged "docker-compose-build-api" "${COMPOSE[@]}" build api
-  run_logged "docker-compose-up-runtime" "${COMPOSE[@]}" up -d api worker worker-video
+  run_compose_up_runtime "docker-compose-up-runtime" || fail "docker-compose-up-runtime" "docker compose up runtime failed after retry"
   wait_for_health "runtime" "$(repo_head)" 45 || fail "runtime-health" "new runtime did not report expected deployment version"
   audit_state
   write_status "passed" "roll-runtime" ""
