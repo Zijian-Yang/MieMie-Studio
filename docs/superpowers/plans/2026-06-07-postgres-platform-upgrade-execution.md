@@ -674,6 +674,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-18 note: R76 adds `scripts/postgres_staging_all_domain_canary.sh` and `scripts/verify_postgres_staging_all_domain_canary.py`. The default staging sequence now uses all-domain provider-free canary stages after `live-data-gate`: dual-write, read-switch, read rollback, primary-write, and primary rollback. The final cutover readiness audit now reports `ready_for_final_cutover_sequence`; this is a local script-contract readiness result, not server business-switch evidence. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r76-staging-all-domain-canary/`.
 
+2026-06-18 note: R77 attempted to resume server sequence execution with a network-scope preflight. The local operator path is still blocked: DNS returns Clash fake-IP `198.18.0.94`, and route to `47.79.99.190` still uses `gateway 198.18.0.1 / interface utun1024`. No TCP/SSH/public-health stage, remote command, container restart, or business database switch was executed. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r77-network-preflight-before-server-sequence/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

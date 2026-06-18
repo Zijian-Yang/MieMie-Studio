@@ -407,6 +407,8 @@ R75 后，新增 final cutover readiness audit。审计确认 domain coverage、
 
 R76 后，已新增全域 provider-free app canary，并把默认 staging sequence 切到全域 canary 阶段。`scripts/postgres_final_cutover_readiness.py` 现在报告 `ready_for_final_cutover_sequence`；下一步不再新增本地迁移域，而是恢复服务器执行 `CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`，让 live-data gate、全域双写/读切换/回滚/主写/主写回滚在服务器真实运行态闭环。
 
+R77 后，R76 后的服务器 sequence 前置 network-scope preflight 仍 blocked：DNS 返回 `198.18.0.94` fake-IP，源站 route 仍走 `utun1024`。本轮未进入 TCP/SSH/public-health，也未执行远端命令。下一步仍是两条路：服务器 `/opt/miemie-pre` 终端执行 `CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`，或清理本机 TUN/fake-IP 后让完整 preflight 退出 `0` 再用 remote wrapper。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。
