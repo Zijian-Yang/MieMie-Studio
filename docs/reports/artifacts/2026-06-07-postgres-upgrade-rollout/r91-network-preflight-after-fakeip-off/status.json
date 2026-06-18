@@ -1,0 +1,18 @@
+{
+  "run_id": "r91-network-preflight-after-fakeip-off-20260618",
+  "state": "blocked",
+  "stage": "network",
+  "reason": "2 network check(s) failed or blocked",
+  "host": "pre-studio.miemie.co",
+  "origin_ip": "47.79.99.190",
+  "ssh_target": "root@47.79.99.190",
+  "public_health_url": "https://pre-studio.miemie.co/api/health",
+  "scope": "network",
+  "dns_a": "198.18.0.21",
+  "route_origin": "    gateway: 198.18.0.1   interface: utun1024",
+  "public_health": "",
+  "remediation_file": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r91-network-preflight-after-fakeip-off/remediation.md",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r91-network-preflight-after-fakeip-off",
+  "tmp_dir": "/tmp/r91-network-preflight-after-fakeip-off-20260618",
+  "updated_at": "2026-06-18T09:03:58Z"
+}
