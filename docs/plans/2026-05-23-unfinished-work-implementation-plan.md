@@ -419,6 +419,8 @@ R81 后，新增 post JSON exit validation runner。服务器 sequence 通过且
 
 R82 后，新增 final JSON exit policy application runner。服务器 sequence 通过后，先运行 `CONFIRM_APPLY_FINAL_JSON_EXIT_POLICY=run SEQUENCE_ARTIFACT_DIR=<server-sequence-artifact> scripts/postgres_apply_final_json_exit_policy.sh`，它会备份 `compose.env`、写入最终 PostgreSQL-only 策略并复跑 final JSON exit audit；audit ready 后再执行 R81 post JSON exit validation。当前 R82 artifact 是 dry-run plan，未执行服务器。
 
+R83 后，新增 final JSON exit rollback runner。若 R82/R81 过程中最终策略应用或后置门禁失败，可用 R82 生成的 `compose.env.before-final-json-exit.*.bak` 运行 `CONFIRM_ROLLBACK_FINAL_JSON_EXIT_POLICY=run ROLLBACK_ENV_BACKUP_FILE=<backup-file> scripts/postgres_rollback_final_json_exit_policy.sh`，恢复 env、滚动运行态并检查 health。当前 R83 artifact 是 dry-run plan，未执行服务器。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

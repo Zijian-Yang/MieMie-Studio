@@ -686,6 +686,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-18 note: R82 adds `scripts/postgres_apply_final_json_exit_policy.sh` and `scripts/verify_postgres_apply_final_json_exit_policy.py`. The script is dry-run by default; after the server sequence passes, `CONFIRM_APPLY_FINAL_JSON_EXIT_POLICY=run SEQUENCE_ARTIFACT_DIR=<server-sequence-artifact> scripts/postgres_apply_final_json_exit_policy.sh` backs up `compose.env`, writes the final PostgreSQL-only runtime policy, and reruns final JSON exit audit requiring `ready_for_post_json_exit_validation`. Current artifact is a dry-run plan because local checkout has no server `compose.env`. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r82-apply-final-json-exit-policy/`.
 
+2026-06-18 note: R83 adds `scripts/postgres_rollback_final_json_exit_policy.sh` and `scripts/verify_postgres_rollback_final_json_exit_policy.py`. The script is dry-run by default; if final policy application or post-exit validation fails, run `CONFIRM_ROLLBACK_FINAL_JSON_EXIT_POLICY=run ROLLBACK_ENV_BACKUP_FILE=<compose.env.before-final-json-exit...bak> scripts/postgres_rollback_final_json_exit_policy.sh` to preserve the current env, restore the R82 backup, roll `api/worker/worker-video`, and check local/public health. Current artifact is a dry-run plan. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r83-rollback-final-json-exit-policy/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
@@ -701,3 +703,4 @@ Once goal mode starts, do not ask the user for routine information covered by th
 - Before final database-primary cutover, pass the all-domain provider-free app canary/smoke gate on the server; the local contract is present, but server execution evidence is still required.
 - Before final JSON exit, run `CONFIRM_APPLY_FINAL_JSON_EXIT_POLICY=run SEQUENCE_ARTIFACT_DIR=<server-sequence-artifact> scripts/postgres_apply_final_json_exit_policy.sh`; it backs up and updates `compose.env` and must make final JSON exit audit report `ready_for_post_json_exit_validation`.
 - After final JSON exit audit is ready, run `CONFIRM_POST_JSON_EXIT_VALIDATION=run SEQUENCE_ARTIFACT_DIR=<server-sequence-artifact> scripts/postgres_post_json_exit_validation.sh`; do not claim JSON is fully retired until this post-exit validation passes.
+- If the final policy or post-exit validation fails, use the R82 backup with `CONFIRM_ROLLBACK_FINAL_JSON_EXIT_POLICY=run ROLLBACK_ENV_BACKUP_FILE=<backup-file> scripts/postgres_rollback_final_json_exit_policy.sh` before continuing diagnosis.

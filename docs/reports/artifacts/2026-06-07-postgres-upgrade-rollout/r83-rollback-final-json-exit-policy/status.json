@@ -1,0 +1,12 @@
+{
+  "run_id": "r83-rollback-final-json-exit-policy-20260618",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_ROLLBACK_FINAL_JSON_EXIT_POLICY=run to execute",
+  "confirm": "dry-run",
+  "env_file": "compose.env",
+  "rollback_env_backup_file": "",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r83-rollback-final-json-exit-policy",
+  "tmp_dir": "/tmp/r83-rollback-final-json-exit-policy-20260618",
+  "updated_at": "2026-06-18T06:27:52Z"
+}
