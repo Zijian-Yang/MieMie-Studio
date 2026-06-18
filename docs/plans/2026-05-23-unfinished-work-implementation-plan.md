@@ -401,6 +401,8 @@ R72 后，本地 `audio_studio` 已完成 schema/repository、backfill/reconcile
 
 R73 后，PostgreSQL domain coverage 审计已把 `audio_studio` 纳入已覆盖域；当前 9 个 tracked 核心业务状态域均为 covered，pending domain 为 0。下一步不再继续挑本地域，而是回到服务器 live-data gate 与 staging app-level canary/rollback 序列。
 
+R74 后，本机 network-scope preflight 仍 blocked：`pre-studio.miemie.co` DNS 返回 `198.18.1.154` fake-IP，源站 route 仍走 `utun1024`。本机 remote sequence 不能执行；下一步要么在服务器 `/opt/miemie-pre` 终端执行 `CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`，要么清理本机 TUN/fake-IP 后让完整 preflight 退出 `0` 再继续 remote wrapper。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

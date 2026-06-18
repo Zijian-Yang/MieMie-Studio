@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R74 staging preflight：R73 后回到服务器灰度前置检查，network-scope preflight 仍 blocked；DNS 返回 Clash fake-IP `198.18.1.154`，源站 `47.79.99.190` route 仍走 `utun1024`，因此本机 remote sequence 仍不可用，下一步需走服务器终端 fallback 或清理本机 TUN/fake-IP 后复测。
 - 数据库升级 R73 coverage after audio：更新 PostgreSQL domain coverage 审计口径，将 `audio_studio` 纳入已覆盖本地域；当前 9 个核心业务状态域均具备本地 schema/repository/backfill/reconcile/runtime gates，pending tracked domain 为 0，下一步回到服务器 `staging_live_data_canary`。
 - 数据库升级 R72 audio_studio PostgreSQL primary-write：新增音频工作室主写 feature flag，显式开启后音频任务与音色档案保存/删除以 PostgreSQL 为主；默认不写 JSON，`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` 时保留临时 JSON archive mirror。主写失败会冒泡且不落 JSON，避免切换窗口分叉状态；默认运行态仍为 JSON/file-only，服务器业务开关未启用。
 - 数据库升级 R71 audio_studio read-switch：新增音频工作室读侧 feature flag，显式开启后音频任务、音色档案、项目列表和 `voice_id` 查询可优先读取 PostgreSQL；`MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 时 miss/空列表/异常回退 JSON。默认运行态仍为 JSON/file-only，服务器业务开关未启用。

@@ -668,6 +668,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-18 note: R73 refreshes PostgreSQL domain coverage after `audio_studio` completion. The audit now reports 9 covered migrated domains and 0 pending tracked core business-state domains, with `staging_live_data_canary` as the next recommended step. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r73-postgres-domain-coverage-after-audio/`.
 
+2026-06-18 note: R74 attempted to resume the server staging path with a network-scope preflight. The local operator path is still blocked: DNS returns Clash fake-IP `198.18.1.154`, and route to `47.79.99.190` still uses `gateway 198.18.0.1 / interface utun1024`. No TCP/SSH/public-health stage, remote command, container restart, or business database switch was executed. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r74-network-preflight-before-staging/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
