@@ -417,6 +417,8 @@ R80 后，本机 network-scope preflight 仍 blocked，阻塞形态与 R79 相�
 
 R81 后，新增 post JSON exit validation runner。服务器 sequence 通过且 final JSON exit audit 进入 `ready_for_post_json_exit_validation` 后，运行 `CONFIRM_POST_JSON_EXIT_VALIDATION=run SEQUENCE_ARTIFACT_DIR=<server-sequence-artifact> scripts/postgres_post_json_exit_validation.sh`，它会滚动最终 PostgreSQL-only 运行态、检查 health、跑全域 reconcile、采集 Docker 状态并执行 k6 S1 读负载门禁。当前 R81 artifact 只是 dry-run plan，未执行服务器。
 
+R82 后，新增 final JSON exit policy application runner。服务器 sequence 通过后，先运行 `CONFIRM_APPLY_FINAL_JSON_EXIT_POLICY=run SEQUENCE_ARTIFACT_DIR=<server-sequence-artifact> scripts/postgres_apply_final_json_exit_policy.sh`，它会备份 `compose.env`、写入最终 PostgreSQL-only 策略并复跑 final JSON exit audit；audit ready 后再执行 R81 post JSON exit validation。当前 R82 artifact 是 dry-run plan，未执行服务器。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

@@ -1,0 +1,12 @@
+{
+  "run_id": "r82-apply-final-json-exit-policy-20260618",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_APPLY_FINAL_JSON_EXIT_POLICY=run to execute; env file unavailable for preview",
+  "confirm": "dry-run",
+  "env_file": "compose.env",
+  "sequence_artifact_dir": "",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r82-apply-final-json-exit-policy",
+  "tmp_dir": "/tmp/r82-apply-final-json-exit-policy-20260618",
+  "updated_at": "2026-06-18T06:22:05Z"
+}
