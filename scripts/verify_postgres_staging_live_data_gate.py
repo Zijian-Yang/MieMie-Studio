@@ -23,6 +23,7 @@ DOMAINS = [
     "benchmark_records",
     "user_config",
     "sessions",
+    "audio_studio",
 ]
 
 
@@ -98,6 +99,10 @@ def check_safety_contract() -> None:
         "write_plan",
         "verify_server_context",
         "expand_database_url",
+        "resolve_postgres_container_host",
+        "resolve_maintenance_database_url",
+        "docker inspect",
+        "@postgres:",
         "alembic-upgrade-head",
         "postgres_backfill_${domain}.py",
         "postgres_reconcile_${domain}.py",

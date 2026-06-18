@@ -123,6 +123,35 @@ expand_database_url() {
   printf '%s' "$url"
 }
 
+resolve_postgres_container_host() {
+  local container_name="${PROJECT_NAME}-postgres-1"
+  local container_id=""
+  local postgres_host=""
+
+  postgres_host="$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$container_name" 2>/dev/null | head -n 1 || true)"
+  if [[ -z "$postgres_host" ]]; then
+    container_id="$(docker compose -p "$PROJECT_NAME" --env-file "$ENV_FILE" ps -q postgres 2>/dev/null | head -n 1 || true)"
+    if [[ -n "$container_id" ]]; then
+      postgres_host="$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$container_id" 2>/dev/null | head -n 1 || true)"
+    fi
+  fi
+
+  [[ -n "$postgres_host" ]] || return 1
+  printf '%s' "$postgres_host"
+}
+
+resolve_maintenance_database_url() {
+  local database_url="$1"
+  local postgres_host=""
+
+  if [[ "$database_url" == *"@postgres:"* ]]; then
+    postgres_host="$(resolve_postgres_container_host)" || return 1
+    database_url="${database_url//@postgres:/@$postgres_host:}"
+  fi
+
+  printf '%s' "$database_url"
+}
+
 redact_env_file() {
   local output="$1"
   if [[ ! -f "$ENV_FILE" ]]; then
@@ -153,6 +182,7 @@ write_maintenance_env() {
   [[ -n "$database_url" ]] || blocked "precheck" "missing MIEMIE_DATABASE_URL in $ENV_FILE"
   database_url="$(expand_database_url "$database_url")"
   [[ "$database_url" != *'${MIEMIE_POSTGRES_PASSWORD}'* ]] || blocked "precheck" "MIEMIE_DATABASE_URL still contains MIEMIE_POSTGRES_PASSWORD placeholder"
+  database_url="$(resolve_maintenance_database_url "$database_url")" || blocked "precheck" "unable to resolve postgres container host for maintenance database URL"
 
   cat > "$MAINTENANCE_ENV_FILE" <<EOF
 MIEMIE_DATABASE_URL=$database_url
