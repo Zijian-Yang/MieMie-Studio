@@ -1,0 +1,19 @@
+Command:
+ssh -o StrictHostKeyChecking=accept-new root@47.79.99.190 'set -eu; cd /opt/miemie-pre; echo "## git"; git rev-parse HEAD; echo "## health"; curl -sS -D - -o /tmp/miemie-health-r92.json --connect-timeout 5 --max-time 15 http://127.0.0.1:18100/api/health; echo; cat /tmp/miemie-health-r92.json; echo'
+
+Result:
+exit_code=0
+
+## git
+e73124527eeb858c4d12aa8990f19c6574bfb9d4
+
+## health
+HTTP/1.1 200 OK
+date: Thu, 18 Jun 2026 09:46:35 GMT
+server: uvicorn
+content-length: 185
+content-type: application/json
+x-request-id: 7a8c6310ad8b
+x-deployment-version: 00091f21f5ee207f78a1092e7e5e164ab4567c7f
+
+{"status":"ok","git_commit":"00091f21f5ee207f78a1092e7e5e164ab4567c7f","run_mode":"prod","serve_frontend":true,"started_at":"2026-06-01T07:49:10Z","redis":{"configured":true,"ok":true}}

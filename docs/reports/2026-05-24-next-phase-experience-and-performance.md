@@ -1026,6 +1026,12 @@ pre 部署复验：
 - 结果：DNS A 仍为 fake-IP `198.18.0.21`；源站 `47.79.99.190` route 仍显示 `gateway: 198.18.0.1`、`interface: utun1024`。
 - 直接 SSH 探针 `ssh -o StrictHostKeyChecking=accept-new root@47.79.99.190 'echo ok'` 仍返回 `Connection closed by 47.79.99.190 port 22`。本轮未执行远端命令、容器重启或业务数据库开关。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r91-network-preflight-after-fakeip-off/`。
 
+2026-06-18 阶段 7 R92 network preflight after subscription switch：
+
+- 用户更换 Clash 订阅后复跑 network-scope preflight，DNS 检查不再是 `198.18.*`，但 route 仍显示 `gateway: 28.0.0.1`、`interface: utun1024`，因此脚本仍按 TUN catch-all 判 `blocked`。
+- 直接 SSH 探针已恢复：`ssh -o StrictHostKeyChecking=accept-new root@47.79.99.190 'echo ok'` 返回 `ok`。
+- 服务器只读检查可进入 `/opt/miemie-pre`；当前 repo commit 为 `e73124527eeb858c4d12aa8990f19c6574bfb9d4`，本机 `http://127.0.0.1:18100/api/health` 为 200，运行态 `git_commit=00091f21f5ee207f78a1092e7e5e164ab4567c7f`、`redis.ok=true`。本轮未执行远端同步、容器重启或业务数据库开关。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r92-network-preflight-after-subscription-switch/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。

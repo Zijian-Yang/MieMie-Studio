@@ -1,0 +1,6 @@
+Command:
+ssh -o StrictHostKeyChecking=accept-new root@47.79.99.190 'echo ok'
+
+Result:
+exit_code=0
+ok

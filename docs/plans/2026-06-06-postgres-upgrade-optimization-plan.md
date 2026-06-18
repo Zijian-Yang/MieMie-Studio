@@ -592,6 +592,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-18 追加：R89 在 R88 推送后复测 network-scope preflight，artifact 已生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r89-network-preflight-after-account-runtime-coverage/`；状态仍为 `blocked`，DNS 为 `198.18.0.94`，源站 route 仍走 `utun1024`。本轮未进入 TCP/SSH/public-health，也未执行服务器 final exit；下一步只能让命令行 DNS/route 真正直连源站 IP，或直接在服务器 `/opt/miemie-pre` 执行 R84 final exit sequence。
 2026-06-18 追加：R90 用户补充服务器 IP DIRECT 后复测，artifact 已生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r90-network-preflight-after-clash-ip-direct/`；状态仍为 `blocked`，DNS 为 `198.18.0.218`，源站 route 仍走 `utun1024`，直接 SSH `echo ok` 返回 `Connection closed by 47.79.99.190 port 22`。本机 remote final exit 仍不能执行。
 2026-06-18 追加：R91 用户关闭 Clash 订阅配置 fake-ip 后复测，artifact 已生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r91-network-preflight-after-fakeip-off/`；状态仍为 `blocked`，DNS 为 `198.18.0.21`，源站 route 仍走 `utun1024`，直接 SSH `echo ok` 仍返回 `Connection closed by 47.79.99.190 port 22`。本机 remote final exit 仍不能执行。
+2026-06-18 追加：R92 用户更换 Clash 订阅后复测，artifact 已生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r92-network-preflight-after-subscription-switch/`；network-scope preflight 仍因源站 route 走 `utun1024` 判 blocked，但直接 SSH 已恢复，`echo ok` 返回 `ok`，服务器本机 health 为 200。服务器 repo 仍在 `e73124527eeb858c4d12aa8990f19c6574bfb9d4`，运行态 health commit 为 `00091f21f5ee207f78a1092e7e5e164ab4567c7f`；下一步可先执行远端 `git merge --ff-only origin/pre` 同步，再运行 R84/R85 final exit sequence。
 
 ## 总体验收
 

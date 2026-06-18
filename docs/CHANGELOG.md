@@ -32,6 +32,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 数据库升级 R92 network preflight after subscription switch：用户更换 Clash 订阅后复测，network-scope preflight 仍因 route 走 `utun1024` 判 blocked，但直接 SSH 已恢复，`ssh root@47.79.99.190 'echo ok'` 返回 `ok`；服务器只读检查可进入 `/opt/miemie-pre`，当前 repo commit 为 `e73124527eeb858c4d12aa8990f19c6574bfb9d4`，本机 `/api/health` 为 200，运行态 `git_commit=00091f21f5ee207f78a1092e7e5e164ab4567c7f`。本轮未执行远端同步、容器重启或业务数据库开关。
 - 数据库升级 R91 network preflight after fake-ip off：用户关闭 Clash 订阅配置 fake-ip 后复测，network-scope preflight 仍 blocked；DNS 返回 fake-IP `198.18.0.21`，源站 `47.79.99.190` route 仍走 `utun1024`，直接 SSH `echo ok` 仍返回 `Connection closed by 47.79.99.190 port 22`。本轮未执行远端命令或业务数据库开关。
 - 数据库升级 R90 network preflight after Clash IP DIRECT：用户补充服务器 IP DIRECT 后复测，network-scope preflight 仍 blocked；DNS 返回 fake-IP `198.18.0.218`，源站 `47.79.99.190` route 仍走 `utun1024`，直接 SSH `echo ok` 返回 `Connection closed by 47.79.99.190 port 22`。本轮未执行远端命令或业务数据库开关。
 - 数据库升级 R89 network preflight：R88 推送后复测服务器执行路径，network-scope preflight 仍 blocked；DNS 仍返回 Clash fake-IP `198.18.0.94`，源站 `47.79.99.190` route 仍走 `utun1024`。本轮未进入 TCP/SSH/public-health，未执行远端命令或业务数据库开关，证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r89-network-preflight-after-account-runtime-coverage/`。

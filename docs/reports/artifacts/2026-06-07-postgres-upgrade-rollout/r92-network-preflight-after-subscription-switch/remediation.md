@@ -1,0 +1,25 @@
+# Pre-studio Connectivity Remediation
+
+- Run ID: `r92-network-preflight-after-subscription-switch-20260618`
+- State: `blocked`
+- Host: `pre-studio.miemie.co`
+- Origin IP: `47.79.99.190`
+- SSH target: `root@47.79.99.190`
+
+- Scope: `network`
+
+## Results
+
+check | state | detail
+scope | passed | network
+dns | passed | 28.0.0.25
+route | blocked | TUN/fake-ip route detected
+
+## Recommended Next Steps
+
+- Route to the origin IP is still going through TUN/fake-IP. Add a direct route/bypass for `47.79.99.190` or temporarily disable Clash TUN, then re-check `route -n get 47.79.99.190` until the interface is the physical network interface, not `utun*`.
+- Recommended Clash rule: `IP-CIDR,47.79.99.190/32,DIRECT,no-resolve`. Put it before broad proxy/fake-IP rules and before any Rule Providers that may catch `32.0.0.0/3` or other large IP ranges.
+- Current route looks like the wide TUN catch-all range `32.0.0.0/3` is still winning over the host-specific rule. Route detail: `destination: 32.0.0.0        mask: 224.0.0.0     gateway: 28.0.0.1   interface: utun1024`.
+- This was a network-only check. It intentionally stopped before TCP/SSH/public-health validation; run full preflight after DNS and route are clean.
+
+Do not run the remote PostgreSQL sequence until this preflight exits `0`.
