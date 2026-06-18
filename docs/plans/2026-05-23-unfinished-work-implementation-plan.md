@@ -405,6 +405,8 @@ R74 后，本机 network-scope preflight 仍 blocked：`pre-studio.miemie.co` DN
 
 R75 后，新增 final cutover readiness audit。审计确认 domain coverage、live-data gate 域列表、staging sequence 顺序和服务器 fallback 契约均通过；唯一明确缺口是 app-level canary 仍只覆盖 `video_studio_tasks`。下一步在执行最终数据库主写/脱离 JSON 前，需要新增全域 provider-free canary/smoke，覆盖 `studio_tasks`、`projects`、media metadata、project entities、benchmark records、user/config、sessions 和 `audio_studio`。
 
+R76 后，已新增全域 provider-free app canary，并把默认 staging sequence 切到全域 canary 阶段。`scripts/postgres_final_cutover_readiness.py` 现在报告 `ready_for_final_cutover_sequence`；下一步不再新增本地迁移域，而是恢复服务器执行 `CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`，让 live-data gate、全域双写/读切换/回滚/主写/主写回滚在服务器真实运行态闭环。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

@@ -1,0 +1,12 @@
+{
+  "run_id": "r76-staging-all-domain-canary-20260618",
+  "mode": "all-domain-dual-write-canary",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_ALL_DOMAIN_CANARY=run to execute",
+  "domains": "video_studio_tasks studio_tasks projects media_metadata project_entities benchmark_records user_config sessions audio_studio",
+  "confirm": "dry-run",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r76-staging-all-domain-canary/all-domain-canary",
+  "tmp_dir": "/tmp/r76-staging-all-domain-canary-20260618",
+  "updated_at": "2026-06-18T03:44:15Z"
+}

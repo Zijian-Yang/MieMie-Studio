@@ -672,6 +672,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-18 note: R75 adds `scripts/postgres_final_cutover_readiness.py` and `scripts/verify_postgres_final_cutover_readiness.py`. The audit confirms domain coverage, live-data-gate domain coverage, staging sequence order, and server fallback contract are ready, but app-level canary coverage is still incomplete because the current provider-free canary only covers `video_studio_tasks`. Status is `needs_all_domain_app_canary`; next step is `add_all_domain_app_canary`. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r75-final-cutover-readiness/`.
 
+2026-06-18 note: R76 adds `scripts/postgres_staging_all_domain_canary.sh` and `scripts/verify_postgres_staging_all_domain_canary.py`. The default staging sequence now uses all-domain provider-free canary stages after `live-data-gate`: dual-write, read-switch, read rollback, primary-write, and primary rollback. The final cutover readiness audit now reports `ready_for_final_cutover_sequence`; this is a local script-contract readiness result, not server business-switch evidence. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r76-staging-all-domain-canary/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
@@ -684,4 +686,4 @@ Once goal mode starts, do not ask the user for routine information covered by th
 - For real provider tests, use only already configured server-side credentials; never ask the user to paste raw keys during automated execution.
 - If a prerequisite is missing, write `status.json` with `"state": "blocked"` and the exact missing item.
 - If the local operator path remains fake-IP/TUN blocked, run the server fallback from `/opt/miemie-pre`: `CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`. The sequence now includes `live-data-gate` before app-level canaries, and that gate includes `audio_studio`.
-- Before final database-primary cutover, add and pass an all-domain provider-free app canary/smoke gate; the existing app-level canary currently proves only `video_studio_tasks`.
+- Before final database-primary cutover, pass the all-domain provider-free app canary/smoke gate on the server; the local contract is present, but server execution evidence is still required.

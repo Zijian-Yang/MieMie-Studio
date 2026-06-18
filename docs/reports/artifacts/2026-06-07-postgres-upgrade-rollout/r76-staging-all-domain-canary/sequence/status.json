@@ -1,0 +1,11 @@
+{
+  "run_id": "r76-staging-all-domain-sequence-20260618",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_STAGING_SEQUENCE=run to execute",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r76-staging-all-domain-canary/sequence",
+  "tmp_dir": "/tmp/r76-staging-all-domain-sequence-20260618",
+  "sequence": "audit roll-runtime live-data-gate all-domain-dual-write-canary all-domain-read-switch-canary all-domain-rollback-read-switch all-domain-primary-write-canary all-domain-rollback-primary-write",
+  "confirm": "dry-run",
+  "updated_at": "2026-06-18T03:44:15Z"
+}

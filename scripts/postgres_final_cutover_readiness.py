@@ -33,6 +33,7 @@ LIVE_DATA_GATE_SCRIPT = ROOT_DIR / "scripts" / "postgres_staging_live_data_gate.
 SEQUENCE_SCRIPT = ROOT_DIR / "scripts" / "postgres_staging_video_task_sequence.sh"
 SERVER_FALLBACK_SCRIPT = ROOT_DIR / "scripts" / "pre_studio_server_postgres_sequence.sh"
 CANARY_SCRIPT = ROOT_DIR / "scripts" / "postgres_staging_video_task_canary.sh"
+ALL_DOMAIN_CANARY_SCRIPT = ROOT_DIR / "scripts" / "postgres_staging_all_domain_canary.sh"
 
 
 def utc_now() -> str:
@@ -119,20 +120,20 @@ def check_staging_sequence_order() -> dict[str, Any]:
         "audit",
         "roll-runtime",
         "live-data-gate",
-        "dual-write-canary",
-        "read-switch-canary",
-        "rollback-read-switch",
-        "primary-write-canary",
-        "rollback-primary-write",
+        "all-domain-dual-write-canary",
+        "all-domain-read-switch-canary",
+        "all-domain-rollback-read-switch",
+        "all-domain-primary-write-canary",
+        "all-domain-rollback-primary-write",
     ]
     missing = [stage for stage in required if stage not in sequence]
     live_index = sequence.index("live-data-gate") if "live-data-gate" in sequence else -1
     app_stage_indexes = [
         sequence.index(stage)
         for stage in [
-            "dual-write-canary",
-            "read-switch-canary",
-            "primary-write-canary",
+            "all-domain-dual-write-canary",
+            "all-domain-read-switch-canary",
+            "all-domain-primary-write-canary",
         ]
         if stage in sequence
     ]
@@ -165,6 +166,23 @@ def check_server_fallback_contract() -> dict[str, Any]:
 
 
 def check_app_canary_domain_coverage(expected_domains: list[str]) -> dict[str, Any]:
+    if ALL_DOMAIN_CANARY_SCRIPT.exists():
+        script = read_text(ALL_DOMAIN_CANARY_SCRIPT)
+        domains = shell_default_value(script, "ALL_DOMAINS").split()
+        covered = [domain for domain in expected_domains if domain in domains]
+        missing = sorted(set(expected_domains) - set(covered))
+        return {
+            "name": "app_canary_domain_coverage",
+            "state": "passed" if not missing else "needs_work",
+            "covered_domains": covered,
+            "missing_domains": missing,
+            "source": rel(ALL_DOMAIN_CANARY_SCRIPT),
+            "note": (
+                "The all-domain provider-free canary is present and covers every migrated domain "
+                "declared by the domain coverage audit."
+            ),
+        }
+
     script = read_text(CANARY_SCRIPT)
     domain = shell_constant_value(script, "DOMAIN")
     covered = [domain] if domain else []
@@ -239,6 +257,18 @@ def render_markdown(summary: dict[str, Any]) -> str:
     missing = ", ".join(f"`{domain}`" for domain in app_canary["missing_domains"]) or "-"
     covered = ", ".join(f"`{domain}`" for domain in app_canary["covered_domains"]) or "-"
     domains = ", ".join(f"`{domain}`" for domain in summary["expected_domains"])
+    if app_canary["missing_domains"]:
+        app_canary_note = (
+            "The current staging app-level canary is intentionally provider-free but only proves "
+            "`video_studio_tasks`. Before final database-primary cutover, add an all-domain "
+            "provider-free canary or smoke gate that exercises write/read/delete semantics for every migrated domain."
+        )
+    else:
+        app_canary_note = (
+            "The all-domain provider-free canary contract is present and covers every tracked migrated domain. "
+            "Final cutover still requires server execution evidence for the live-data gate, all-domain canaries, "
+            "rollback checks, and post-cutover health/load gates."
+        )
     return "\n".join(
         [
             "# Final PostgreSQL Cutover Readiness Audit",
@@ -262,9 +292,7 @@ def render_markdown(summary: dict[str, Any]) -> str:
             "",
             f"Missing domains: {missing}",
             "",
-            "The current staging app-level canary is intentionally provider-free but only proves "
-            "`video_studio_tasks`. Before final database-primary cutover, add an all-domain "
-            "provider-free canary or smoke gate that exercises write/read/delete semantics for every migrated domain.",
+            app_canary_note,
             "",
             "## Notes",
             "",

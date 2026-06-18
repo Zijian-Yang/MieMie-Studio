@@ -62,8 +62,8 @@ def run_readiness_contract() -> None:
         status = json.loads(status_path.read_text(encoding="utf-8"))
         report = report_path.read_text(encoding="utf-8")
 
-        assert status["state"] == "needs_all_domain_app_canary"
-        assert status["next_recommended_step"] == "add_all_domain_app_canary"
+        assert status["state"] == "ready_for_final_cutover_sequence"
+        assert status["next_recommended_step"] == "run_server_final_cutover_sequence"
         assert set(summary["expected_domains"]) == EXPECTED_DOMAINS
 
         checks = {item["name"]: item for item in summary["checks"]}
@@ -73,13 +73,13 @@ def run_readiness_contract() -> None:
         assert checks["server_fallback_contract"]["state"] == "passed"
 
         app_canary = checks["app_canary_domain_coverage"]
-        assert app_canary["state"] == "needs_work"
-        assert app_canary["covered_domains"] == ["video_studio_tasks"]
-        assert set(app_canary["missing_domains"]) == EXPECTED_DOMAINS - {"video_studio_tasks"}
+        assert app_canary["state"] == "passed"
+        assert set(app_canary["covered_domains"]) == EXPECTED_DOMAINS
+        assert app_canary["missing_domains"] == []
 
         assert "# Final PostgreSQL Cutover Readiness Audit" in report
-        assert "`needs_all_domain_app_canary`" in report
-        assert "`add_all_domain_app_canary`" in report
+        assert "`ready_for_final_cutover_sequence`" in report
+        assert "`run_server_final_cutover_sequence`" in report
         assert "`audio_studio`" in report
 
 

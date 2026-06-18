@@ -8,9 +8,10 @@ RUN_ID="${RUN_ID:-postgres-staging-video-task-sequence-$(date +%Y%m%d%H%M%S)}"
 ARTIFACT_DIR="${ARTIFACT_DIR:-$ROOT_DIR/docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r51-staging-video-task-sequence}"
 TMP_DIR="${TMP_DIR:-/tmp/$RUN_ID}"
 CANARY_SCRIPT="${CANARY_SCRIPT:-$ROOT_DIR/scripts/postgres_staging_video_task_canary.sh}"
+ALL_DOMAIN_CANARY_SCRIPT="${ALL_DOMAIN_CANARY_SCRIPT:-$ROOT_DIR/scripts/postgres_staging_all_domain_canary.sh}"
 LIVE_DATA_GATE_SCRIPT="${LIVE_DATA_GATE_SCRIPT:-$ROOT_DIR/scripts/postgres_staging_live_data_gate.sh}"
 CONFIRM_STAGING_SEQUENCE="${CONFIRM_STAGING_SEQUENCE:-dry-run}"
-SEQUENCE="${SEQUENCE:-audit roll-runtime live-data-gate dual-write-canary read-switch-canary rollback-read-switch primary-write-canary rollback-primary-write}"
+SEQUENCE="${SEQUENCE:-audit roll-runtime live-data-gate all-domain-dual-write-canary all-domain-read-switch-canary all-domain-rollback-read-switch all-domain-primary-write-canary all-domain-rollback-primary-write}"
 
 mkdir -p "$ARTIFACT_DIR" "$TMP_DIR"
 
@@ -100,6 +101,14 @@ run_stage() {
       ARTIFACT_DIR="$stage_dir" \
       TMP_DIR="$stage_tmp" \
       bash "$LIVE_DATA_GATE_SCRIPT" >> "$COMMAND_LOG" 2>&1
+  elif [[ "$mode" == all-domain-* ]]; then
+    log_line "+ MODE=$mode CONFIRM_ALL_DOMAIN_CANARY=run RUN_ID=${RUN_ID}-${index}-${mode} ARTIFACT_DIR=$stage_dir TMP_DIR=$stage_tmp bash $ALL_DOMAIN_CANARY_SCRIPT"
+    MODE="$mode" \
+      CONFIRM_ALL_DOMAIN_CANARY=run \
+      RUN_ID="${RUN_ID}-${index}-${mode}" \
+      ARTIFACT_DIR="$stage_dir" \
+      TMP_DIR="$stage_tmp" \
+      bash "$ALL_DOMAIN_CANARY_SCRIPT" >> "$COMMAND_LOG" 2>&1
   else
     log_line "+ MODE=$mode RUN_ID=${RUN_ID}-${index}-${mode} ARTIFACT_DIR=$stage_dir TMP_DIR=$stage_tmp bash $CANARY_SCRIPT"
     MODE="$mode" \
@@ -124,6 +133,11 @@ main() {
   [[ -f "$CANARY_SCRIPT" ]] || {
     write_status "blocked" "precheck" "missing canary script: $CANARY_SCRIPT"
     printf 'missing canary script: %s\n' "$CANARY_SCRIPT" >&2
+    exit 2
+  }
+  [[ -f "$ALL_DOMAIN_CANARY_SCRIPT" ]] || {
+    write_status "blocked" "precheck" "missing all-domain canary script: $ALL_DOMAIN_CANARY_SCRIPT"
+    printf 'missing all-domain canary script: %s\n' "$ALL_DOMAIN_CANARY_SCRIPT" >&2
     exit 2
   }
   [[ -f "$LIVE_DATA_GATE_SCRIPT" ]] || {

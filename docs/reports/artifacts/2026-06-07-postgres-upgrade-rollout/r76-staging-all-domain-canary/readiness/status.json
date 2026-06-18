@@ -1,0 +1,9 @@
+{
+  "run_id": "r76-final-cutover-readiness-20260618",
+  "state": "ready_for_final_cutover_sequence",
+  "stage": "final-cutover-readiness",
+  "next_recommended_step": "run_server_final_cutover_sequence",
+  "expected_domain_count": 9,
+  "updated_at": "2026-06-18T03:47:45Z",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r76-staging-all-domain-canary/readiness"
+}

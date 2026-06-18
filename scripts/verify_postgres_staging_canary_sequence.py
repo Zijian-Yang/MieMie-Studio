@@ -19,11 +19,11 @@ EXPECTED_MODES = [
     "audit",
     "roll-runtime",
     "live-data-gate",
-    "dual-write-canary",
-    "read-switch-canary",
-    "rollback-read-switch",
-    "primary-write-canary",
-    "rollback-primary-write",
+    "all-domain-dual-write-canary",
+    "all-domain-read-switch-canary",
+    "all-domain-rollback-read-switch",
+    "all-domain-primary-write-canary",
+    "all-domain-rollback-primary-write",
 ]
 
 
@@ -83,6 +83,8 @@ def run_dry_run_contract() -> None:
             raise AssertionError(f"dry-run touched docker unexpectedly:\n{commands}")
         if "postgres_staging_video_task_canary.sh" in commands:
             raise AssertionError(f"dry-run executed canary unexpectedly:\n{commands}")
+        if "postgres_staging_all_domain_canary.sh" in commands:
+            raise AssertionError(f"dry-run executed all-domain canary unexpectedly:\n{commands}")
 
 
 def check_safety_contract() -> None:
@@ -93,12 +95,16 @@ def check_safety_contract() -> None:
         "set CONFIRM_STAGING_SEQUENCE=run to execute",
         "stage_state_for_exit",
         "LIVE_DATA_GATE_SCRIPT",
+        "ALL_DOMAIN_CANARY_SCRIPT",
         "live-data-gate",
-        "rollback-primary-write",
-        "primary-write-canary",
-        "rollback-read-switch",
+        "all-domain-rollback-primary-write",
+        "all-domain-primary-write-canary",
+        "all-domain-rollback-read-switch",
         'if [[ "$mode" == "live-data-gate" ]]',
+        'elif [[ "$mode" == all-domain-* ]]',
         "bash \"$LIVE_DATA_GATE_SCRIPT\"",
+        "bash \"$ALL_DOMAIN_CANARY_SCRIPT\"",
+        "CONFIRM_ALL_DOMAIN_CANARY=run",
         "MODE=\"$mode\"",
         "ARTIFACT_DIR=\"$stage_dir\"",
         "TMP_DIR=\"$stage_tmp\"",
