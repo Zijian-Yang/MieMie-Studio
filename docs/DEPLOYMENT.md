@@ -188,7 +188,7 @@ curl http://127.0.0.1:8000/api/health
   - 如果最终策略应用或后置门禁失败，可用 R82 生成的 `compose.env.before-final-json-exit.*.bak` 执行回滚：`CONFIRM_ROLLBACK_FINAL_JSON_EXIT_POLICY=run ROLLBACK_ENV_BACKUP_FILE=<backup-file> scripts/postgres_rollback_final_json_exit_policy.sh`。回滚会保存回滚前 env、恢复备份、滚动运行态并检查 health。
   - 最终 PostgreSQL-only 运行态策略为：`MIEMIE_DATABASE_ENABLED=true`、`MIEMIE_DATABASE_WRITE_MODE=postgres`、`MIEMIE_DATABASE_READ_MODE=postgres`、`MIEMIE_DATABASE_DUAL_WRITE_DOMAINS=`、`MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=`、`MIEMIE_DATABASE_READ_DOMAINS=`、`MIEMIE_DATABASE_JSON_FALLBACK_READ=false`、`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=false`、`MIEMIE_DATABASE_RECONCILE_STRICT=true`。
   - 如果本机 SSH 因 Clash/TUN/fake-IP 路径无法稳定执行远程 wrapper，可登录服务器后在 `/opt/miemie-pre` 运行：`CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`。该入口会先做服务器上下文检查和 `git merge --ff-only origin/pre`，确认 sequence 包含 `live-data-gate` 后，再串行执行同一套 staging live-data/canary/rollback sequence。
-  - 如果本机 SSH 路径恢复，可在本机运行 `CONFIRM_REMOTE_SEQUENCE=run scripts/pre_studio_remote_postgres_sequence.sh`。该 wrapper 会先跑本机 connectivity preflight，通过后远端 `git merge --ff-only origin/pre`，再调用同一个 server fallback 入口，避免本机远程路径和服务器终端路径门禁分叉。
+  - 如果本机 SSH 路径恢复，最终 JSON exit 推荐在本机运行 `CONFIRM_REMOTE_FINAL_EXIT_SEQUENCE=run scripts/pre_studio_remote_postgres_final_exit_sequence.sh`。该 wrapper 会先跑本机 connectivity preflight，通过后远端 `git merge --ff-only origin/pre`，再调用服务器最终 exit 总入口。仅需执行旧 staging sequence 时，才使用 `CONFIRM_REMOTE_SEQUENCE=run scripts/pre_studio_remote_postgres_sequence.sh`。
   - 如果 `scripts/pre_studio_connectivity_preflight.sh` 显示 route 被 `32.0.0.0/3` 或 `utun*` 捕获，可在 Clash 规则前部加入 `IP-CIDR,47.79.99.190/32,DIRECT,no-resolve`，并确保它位于宽泛代理规则和 Rule Providers 之前；只有 `route -n get 47.79.99.190` 显示物理网卡后，才继续本机远程 wrapper。
 
 ---

@@ -1,0 +1,16 @@
+{
+  "run_id": "r85-remote-final-exit-sequence",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_REMOTE_FINAL_EXIT_SEQUENCE=run to execute local preflight and remote final exit sequence",
+  "ssh_target": "root@47.79.99.190",
+  "remote_dir": "/opt/miemie-pre",
+  "remote_branch": "pre",
+  "remote_artifact_dir": "/opt/miemie-pre/validation-artifacts/r85-remote-final-exit-sequence",
+  "remote_sync": "ff-only",
+  "rollback_on_failure": "true",
+  "confirm": "dry-run",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r85-remote-final-exit-sequence",
+  "tmp_dir": "/tmp/r85-remote-final-exit-sequence",
+  "updated_at": "2026-06-18T06:43:18Z"
+}

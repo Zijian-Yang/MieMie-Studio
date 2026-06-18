@@ -423,6 +423,8 @@ R83 后，新增 final JSON exit rollback runner。若 R82/R81 过程中最终�
 
 R84 后，新增 server final exit sequence 总入口：`CONFIRM_SERVER_FINAL_EXIT_SEQUENCE=run scripts/pre_studio_server_postgres_final_exit_sequence.sh`。它会在服务器内依次执行 `pre_studio_server_postgres_sequence.sh`、`postgres_apply_final_json_exit_policy.sh`、`postgres_post_json_exit_validation.sh`，并在最终策略应用或后置验证失败时默认调用 R83 回滚。当前 R84 artifact 是 dry-run plan，未执行服务器；本机 SSH 到源站 IP 仍走 `utun1024`，需要 IP-CIDR 直连生效或直接在服务器 `/opt/miemie-pre` 运行。
 
+R85 后，新增 remote final exit sequence 总入口：`CONFIRM_REMOTE_FINAL_EXIT_SEQUENCE=run scripts/pre_studio_remote_postgres_final_exit_sequence.sh`。它会先跑本机 connectivity preflight，通过后远端 `git merge --ff-only origin/pre`，再在服务器内执行 R84 最终 exit 总入口。当前 R85 artifact 是 dry-run plan，未执行服务器；本机路径恢复后优先使用该命令，若仍被 TUN/fake-IP 阻塞则直接在服务器运行 R84。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

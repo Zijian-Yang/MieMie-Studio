@@ -585,6 +585,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-18 追加：R82 新增 `scripts/postgres_apply_final_json_exit_policy.sh` 与 verifier，artifact 已生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r82-apply-final-json-exit-policy/`；当前状态为 `dry_run`。该脚本在服务器 sequence 通过后备份 `compose.env`，写入最终 PostgreSQL-only 运行态策略，并复跑 final JSON exit audit，作为 R81 post-exit validation 的前置实际应用步骤。
 2026-06-18 追加：R83 新增 `scripts/postgres_rollback_final_json_exit_policy.sh` 与 verifier，artifact 已生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r83-rollback-final-json-exit-policy/`；当前状态为 `dry_run`。该脚本使用 R82 生成的 env 备份恢复最终策略应用前状态，滚动运行态并检查本机/公网 health，作为最终 JSON exit 失败时的受控回滚入口。
 2026-06-18 追加：R84 新增 `scripts/pre_studio_server_postgres_final_exit_sequence.sh` 与 verifier，artifact 已生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r84-server-final-exit-sequence/`；当前状态为 `dry_run`。该总入口串行执行服务器 sequence、最终 PostgreSQL-only 策略应用、post JSON exit validation，并在最终策略应用或后置验证失败时默认尝试 R83 回滚。实测本机 SSH 到 `47.79.99.190` 仍经 `utun1024`，域名直连规则不会命中 IP SSH；需 `IP-CIDR,47.79.99.190/32,DIRECT,no-resolve` 生效，或直接登录服务器执行该入口。
+2026-06-18 追加：R85 新增 `scripts/pre_studio_remote_postgres_final_exit_sequence.sh` 与 verifier，artifact 已生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r85-remote-final-exit-sequence/`；当前状态为 `dry_run`。该本机远程总入口先跑 connectivity preflight，通过后 SSH 到 `/opt/miemie-pre`，执行 `git merge --ff-only origin/pre`，再调用 R84 服务器最终 exit 总入口；它是本机路径恢复后的推荐执行命令。
 
 ## 总体验收
 
