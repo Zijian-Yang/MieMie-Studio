@@ -415,6 +415,8 @@ R79 后，本机 Clash direct 规则调整后复跑 network-scope preflight，�
 
 R80 后，本机 network-scope preflight 仍 blocked，阻塞形态与 R79 相同；同时新增 final JSON exit audit，把“完全脱离 JSON”拆成独立门禁：先要有服务器 sequence 通过证据，再审计最终运行态是否为 PostgreSQL 全局主读/主写、JSON fallback 关闭、JSON archive writes 关闭、strict reconcile 开启。当前 R80 audit 状态为 `needs_server_sequence_evidence`，下一步仍先执行服务器 sequence；sequence 通过后再用 `scripts/postgres_final_json_exit_audit.py --sequence-artifact-dir <server-sequence-artifact> --env-file compose.env` 判断是否可进入后置健康/对账/负载验证。
 
+R81 后，新增 post JSON exit validation runner。服务器 sequence 通过且 final JSON exit audit 进入 `ready_for_post_json_exit_validation` 后，运行 `CONFIRM_POST_JSON_EXIT_VALIDATION=run SEQUENCE_ARTIFACT_DIR=<server-sequence-artifact> scripts/postgres_post_json_exit_validation.sh`，它会滚动最终 PostgreSQL-only 运行态、检查 health、跑全域 reconcile、采集 Docker 状态并执行 k6 S1 读负载门禁。当前 R81 artifact 只是 dry-run plan，未执行服务器。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

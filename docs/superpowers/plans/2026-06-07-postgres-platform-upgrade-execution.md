@@ -682,6 +682,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-18 note: R80 adds `scripts/postgres_final_json_exit_audit.py` and `scripts/verify_postgres_final_json_exit_audit.py`. This read-only audit separates final JSON exit from final cutover readiness: it requires passed server sequence evidence plus a final PostgreSQL-only runtime policy (`MIEMIE_DATABASE_WRITE_MODE=postgres`, `MIEMIE_DATABASE_READ_MODE=postgres`, empty domain allowlists, JSON fallback disabled, JSON archive writes disabled, strict reconcile enabled) before moving to post-exit health/reconcile/load gates. Current artifact state is `needs_server_sequence_evidence`, as expected before server execution. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r80-final-json-exit-audit/`.
 
+2026-06-18 note: R81 adds `scripts/postgres_post_json_exit_validation.sh` and `scripts/verify_postgres_post_json_exit_validation.py`. The script is dry-run by default; after the server sequence and final JSON exit audit are ready, `CONFIRM_POST_JSON_EXIT_VALIDATION=run SEQUENCE_ARTIFACT_DIR=<server-sequence-artifact> scripts/postgres_post_json_exit_validation.sh` rolls the final PostgreSQL-only runtime, checks local/public health, runs all tracked domain reconcile scripts, captures Compose/Docker status, and runs the k6 S1 read gate. Current artifact is a dry-run plan. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r81-post-json-exit-validation/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
@@ -696,3 +698,4 @@ Once goal mode starts, do not ask the user for routine information covered by th
 - If the local operator path remains fake-IP/TUN blocked, run the server fallback from `/opt/miemie-pre`: `CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`. The sequence now includes `live-data-gate` before app-level canaries, and that gate includes `audio_studio`.
 - Before final database-primary cutover, pass the all-domain provider-free app canary/smoke gate on the server; the local contract is present, but server execution evidence is still required.
 - Before final JSON exit, run `scripts/postgres_final_json_exit_audit.py` with the server sequence artifact and final `compose.env`; only proceed to post-exit health/reconcile/load gates if it reports `ready_for_post_json_exit_validation`.
+- After final JSON exit audit is ready, run `CONFIRM_POST_JSON_EXIT_VALIDATION=run SEQUENCE_ARTIFACT_DIR=<server-sequence-artifact> scripts/postgres_post_json_exit_validation.sh`; do not claim JSON is fully retired until this post-exit validation passes.

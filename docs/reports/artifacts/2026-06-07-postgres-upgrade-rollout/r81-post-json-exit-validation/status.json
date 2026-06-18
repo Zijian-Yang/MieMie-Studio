@@ -1,0 +1,12 @@
+{
+  "run_id": "r81-post-json-exit-validation-20260618",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_POST_JSON_EXIT_VALIDATION=run to execute",
+  "confirm": "dry-run",
+  "run_load_gate": "true",
+  "sequence_artifact_dir": "",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r81-post-json-exit-validation",
+  "tmp_dir": "/tmp/r81-post-json-exit-validation-20260618",
+  "updated_at": "2026-06-18T06:16:34Z"
+}

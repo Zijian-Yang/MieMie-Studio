@@ -554,6 +554,7 @@
 
 ## 数据库升级执行治理
 
+- 新增 R81 post JSON exit validation：`scripts/postgres_post_json_exit_validation.sh` 会在 final JSON exit audit 通过后滚动最终运行态、检查本机/公网 health、执行 9 个 tracked 核心域 reconcile、采集 Compose/Docker 状态并跑 k6 S1 读负载门禁；当前 artifact 为 dry-run plan。
 - 新增 R80 final JSON exit audit：`scripts/postgres_final_json_exit_audit.py` 会只读检查服务器 sequence 证据与最终 PostgreSQL-only 运行态策略，要求全局主读/主写、关闭 JSON fallback/archive，并把当前状态归档为 `needs_server_sequence_evidence`。
 - 记录 R80 network-scope preflight 复测：命令行路径仍返回 `198.18.0.94` fake-IP 并走 `utun1024`，服务器数据库 sequence 尚未执行。
 - 记录 R79 network-scope preflight 复测：Clash direct 规则调整后命令行路径仍返回 `198.18.*` fake-IP 并走 `utun1024`，服务器数据库 sequence 尚未执行。
