@@ -1002,6 +1002,12 @@ pre 部署复验：
 - 该脚本只在 completion status 为 `postgres_only_complete` 后允许执行 `--confirm archive`；确认执行会先创建 tar.gz，再把 sessions、用户配置、项目、工作室任务、媒体元数据、项目实体、benchmark 和 audio studio JSON 移到 quarantine。根级 `config.json`、`users.json`、`config.example.json` 明确排除。
 - 本地验证：先观察 verifier 因缺少脚本失败，随后实现脚本并通过 verifier。对当前 R86 status 运行 R87 后状态为 `blocked`，原因是 `needs_final_exit_evidence`，本轮未移动任何真实 JSON 文件。
 
+2026-06-18 阶段 7 R88 user account runtime coverage：
+
+- 补齐 `UserService.list_user_ids()` 的 PostgreSQL 运行态路径。该方法被视频任务启动恢复调用；此前即使开启 `user_config` read-switch 或 PostgreSQL primary mode，也会固定枚举根级 `users.json`。
+- 新增 `user_config_runtime.list_user_ids()`，file-only 模式继续读 JSON；PostgreSQL 读/主写模式通过 `PostgresUserRepository.list_all()` 枚举用户 ID；仅在 `MIEMIE_DATABASE_JSON_FALLBACK_READ=true` 且 PostgreSQL 列表失败时回退 JSON。
+- 本地验证：先用新增回归确认当前实现返回 JSON ID 而非 PostgreSQL ID；实现后 `cd backend && .venv/bin/python -m pytest tests/test_user_config_read_switch.py -q` 为 `8 passed`，`cd backend && .venv/bin/python -m pytest tests/test_user_config_read_switch.py tests/test_user_config_primary_write.py tests/test_user_config_dual_write.py -q` 为 `21 passed`。服务器 final exit 仍未执行、最终 JSON exit 仍未完成。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r88-user-account-runtime-coverage/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。

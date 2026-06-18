@@ -1,0 +1,28 @@
+{
+  "state": "passed",
+  "stage": "local-runtime-coverage",
+  "run_id": "r88-user-account-runtime-coverage",
+  "scope": "user_config account identity listing",
+  "changed_paths": [
+    "backend/app/repositories/user_config_runtime.py",
+    "backend/app/services/user_service.py",
+    "backend/tests/test_user_config_read_switch.py"
+  ],
+  "checks": [
+    {
+      "command": "cd backend && .venv/bin/python -m pytest tests/test_user_config_read_switch.py -q",
+      "result": "8 passed"
+    },
+    {
+      "command": "cd backend && .venv/bin/python -m pytest tests/test_user_config_read_switch.py tests/test_user_config_primary_write.py tests/test_user_config_dual_write.py -q",
+      "result": "21 passed"
+    }
+  ],
+  "server_executed": false,
+  "final_json_exit_complete": false,
+  "notes": [
+    "UserService.list_user_ids now follows user_config PostgreSQL read/primary runtime mode instead of always reading users.json.",
+    "Final server sequence and post JSON exit validation are still required before claiming postgres_only_complete."
+  ],
+  "updated_at": "2026-06-18T15:08:59+0800"
+}

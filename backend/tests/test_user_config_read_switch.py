@@ -9,16 +9,24 @@ from app.services.user_service import UserService
 
 
 class _UserReadRepository:
-    def __init__(self, *, user=None, fail: bool = False):
+    def __init__(self, *, user=None, users=None, fail: bool = False):
         self.user = user
+        self.users = users if users is not None else ([user] if user is not None else [])
         self.fail = fail
         self.seen_ids = []
+        self.listed = False
 
     def get_by_id(self, user_id):
         if self.fail:
             raise RuntimeError("postgres unavailable")
         self.seen_ids.append(user_id)
         return self.user
+
+    def list_all(self):
+        if self.fail:
+            raise RuntimeError("postgres unavailable")
+        self.listed = True
+        return list(self.users)
 
 
 class _ConfigReadRepository:
@@ -138,6 +146,23 @@ def test_token_user_read_switch_prefers_postgres_user(tmp_path, monkeypatch):
 
     assert result.username == "postgres-user"
     assert repo.seen_ids == ["user-1"]
+
+
+def test_user_id_listing_prefers_postgres_when_user_config_read_enabled(tmp_path, monkeypatch):
+    _enable_read(monkeypatch)
+    json_user = _user(user_id="json-user", username="json-user")
+    postgres_user = _user(user_id="postgres-user", username="postgres-user")
+    repo = _UserReadRepository(users=[postgres_user])
+    monkeypatch.setattr(
+        "app.repositories.user_config_runtime.build_user_read_repository",
+        lambda: repo,
+    )
+    service = _user_service(tmp_path, json_user)
+
+    result = service.list_user_ids()
+
+    assert result == ["postgres-user"]
+    assert repo.listed is True
 
 
 def test_config_read_switch_prefers_postgres_when_enabled(tmp_path, monkeypatch):

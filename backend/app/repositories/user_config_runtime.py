@@ -237,6 +237,24 @@ def read_user_by_username(username: str, json_loader) -> User | None:
         return json_loader()
 
 
+def list_user_ids(json_loader) -> list[str]:
+    """List user ids from PostgreSQL when enabled, with optional JSON fallback."""
+
+    if not user_config_read_enabled():
+        return json_loader()
+
+    try:
+        return [user.id for user in _user_lookup_repository().list_all()]
+    except Exception as exc:
+        if not json_fallback_read_enabled():
+            raise
+        logger.warning(
+            "user_config_postgres_user_list_failed_json_fallback",
+            extra={"error": exc.__class__.__name__},
+        )
+        return json_loader()
+
+
 def read_config(user_id: str | None, json_loader) -> AppConfig:
     """Read a per-user config from PostgreSQL when enabled, with optional JSON fallback."""
 

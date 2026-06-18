@@ -429,6 +429,8 @@ R86 后，新增 final exit completion audit：`python3 scripts/postgres_final_e
 
 R87 后，新增 post-final JSON archive gate：`python3 scripts/postgres_archive_json_after_final_exit.py --completion-status <completion-status.json> --confirm archive`。该脚本只在 R86 输出 `postgres_only_complete` 后允许归档 tracked 业务 JSON，并会先生成 tar.gz 再移动到 quarantine；当前因 R86 仍为 `needs_final_exit_evidence` 被阻止，未移动文件。根级 `config.json`、`users.json`、`config.example.json` 明确不在归档范围。
 
+R88 后，补齐 user/account runtime coverage：`UserService.list_user_ids()` 已通过 `user_config_runtime.list_user_ids()` 跟随 PostgreSQL read/primary 运行态，不再固定枚举根级 `users.json`。该路径用于视频任务启动恢复，属于最终脱 JSON 前必须补齐的账号枚举缺口；本地 user/config 目标回归 `21 passed`。服务器 final exit sequence、post JSON exit validation 和 R86 完成审计仍未执行。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

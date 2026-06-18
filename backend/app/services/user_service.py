@@ -458,8 +458,10 @@ class UserService:
 
     def list_user_ids(self) -> list[str]:
         """列出当前所有用户 ID"""
+        from app.repositories.user_config_runtime import list_user_ids
+
         with self._lock:
-            return list(self._load_users().keys())
+            return list_user_ids(lambda: list(self._load_users().keys()))
 
 
 # 全局单例（线程安全）

@@ -696,6 +696,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-18 note: R87 adds `scripts/postgres_archive_json_after_final_exit.py` and `scripts/verify_postgres_archive_json_after_final_exit.py`. The gate is blocked unless a completion status file reports `postgres_only_complete`; confirmed execution creates a tar.gz of tracked business JSON and moves only migrated business-state JSON into quarantine, while excluding root `config.json`, `users.json`, and `config.example.json`. Current artifact is blocked because R86 still reports `needs_final_exit_evidence`, so no real JSON file was moved. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r87-archive-json-after-final-exit/`.
 
+2026-06-18 note: R88 closes the account identity listing gap for final PostgreSQL runtime. `UserService.list_user_ids()` now uses `user_config_runtime.list_user_ids()` so PostgreSQL read/primary mode lists users through `PostgresUserRepository.list_all()` instead of always reading root `users.json`; file-only behavior is unchanged, and JSON fallback only applies on PostgreSQL list failure when explicitly enabled. Focused verification passed with `8 passed` and the user/config target regression passed with `21 passed`. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r88-user-account-runtime-coverage/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
