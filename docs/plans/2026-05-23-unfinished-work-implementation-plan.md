@@ -403,6 +403,8 @@ R73 后，PostgreSQL domain coverage 审计已把 `audio_studio` 纳入已覆盖
 
 R74 后，本机 network-scope preflight 仍 blocked：`pre-studio.miemie.co` DNS 返回 `198.18.1.154` fake-IP，源站 route 仍走 `utun1024`。本机 remote sequence 不能执行；下一步要么在服务器 `/opt/miemie-pre` 终端执行 `CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`，要么清理本机 TUN/fake-IP 后让完整 preflight 退出 `0` 再继续 remote wrapper。
 
+R75 后，新增 final cutover readiness audit。审计确认 domain coverage、live-data gate 域列表、staging sequence 顺序和服务器 fallback 契约均通过；唯一明确缺口是 app-level canary 仍只覆盖 `video_studio_tasks`。下一步在执行最终数据库主写/脱离 JSON 前，需要新增全域 provider-free canary/smoke，覆盖 `studio_tasks`、`projects`、media metadata、project entities、benchmark records、user/config、sessions 和 `audio_studio`。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

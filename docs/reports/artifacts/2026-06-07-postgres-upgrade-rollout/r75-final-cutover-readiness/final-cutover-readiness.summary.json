@@ -1,0 +1,103 @@
+{
+  "run_id": "r75-final-cutover-readiness",
+  "updated_at": "2026-06-18T03:32:00Z",
+  "state": "needs_all_domain_app_canary",
+  "next_recommended_step": "add_all_domain_app_canary",
+  "expected_domains": [
+    "video_studio_tasks",
+    "studio_tasks",
+    "projects",
+    "media_metadata",
+    "project_entities",
+    "benchmark_records",
+    "user_config",
+    "sessions",
+    "audio_studio"
+  ],
+  "checks": [
+    {
+      "name": "domain_coverage",
+      "state": "passed",
+      "expected_domains": [
+        "video_studio_tasks",
+        "studio_tasks",
+        "projects",
+        "media_metadata",
+        "project_entities",
+        "benchmark_records",
+        "user_config",
+        "sessions",
+        "audio_studio"
+      ],
+      "migrated_domain_count": 9,
+      "pending_domain_count": 0,
+      "coverage_state": "ready_for_staging_live_data_canary",
+      "source": "scripts/postgres_domain_coverage.py"
+    },
+    {
+      "name": "live_data_gate_domains",
+      "state": "passed",
+      "domains": [
+        "video_studio_tasks",
+        "studio_tasks",
+        "projects",
+        "media_metadata",
+        "project_entities",
+        "benchmark_records",
+        "user_config",
+        "sessions",
+        "audio_studio"
+      ],
+      "missing_domains": [],
+      "extra_domains": [],
+      "source": "scripts/postgres_staging_live_data_gate.sh"
+    },
+    {
+      "name": "staging_sequence_order",
+      "state": "passed",
+      "sequence": [
+        "audit",
+        "roll-runtime",
+        "live-data-gate",
+        "dual-write-canary",
+        "read-switch-canary",
+        "rollback-read-switch",
+        "primary-write-canary",
+        "rollback-primary-write"
+      ],
+      "missing_stages": [],
+      "live_data_gate_before_app_canaries": true,
+      "source": "scripts/postgres_staging_video_task_sequence.sh"
+    },
+    {
+      "name": "server_fallback_contract",
+      "state": "passed",
+      "missing_fragments": [],
+      "source": "scripts/pre_studio_server_postgres_sequence.sh"
+    },
+    {
+      "name": "app_canary_domain_coverage",
+      "state": "needs_work",
+      "covered_domains": [
+        "video_studio_tasks"
+      ],
+      "missing_domains": [
+        "audio_studio",
+        "benchmark_records",
+        "media_metadata",
+        "project_entities",
+        "projects",
+        "sessions",
+        "studio_tasks",
+        "user_config"
+      ],
+      "source": "scripts/postgres_staging_video_task_canary.sh",
+      "note": "The current app-level canary proves the video task path only. Final database-primary cutover needs provider-free smoke/canary coverage for every migrated domain."
+    }
+  ],
+  "notes": [
+    "This audit is read-only and does not touch server containers or business data.",
+    "A passed domain coverage audit is necessary but not sufficient for final JSON exit.",
+    "Final cutover still requires live server execution evidence for live-data, app canaries, rollback, and post-cutover health/load gates."
+  ]
+}

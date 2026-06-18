@@ -1,0 +1,9 @@
+{
+  "run_id": "r75-final-cutover-readiness",
+  "state": "needs_all_domain_app_canary",
+  "stage": "final-cutover-readiness",
+  "next_recommended_step": "add_all_domain_app_canary",
+  "expected_domain_count": 9,
+  "updated_at": "2026-06-18T03:32:00Z",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r75-final-cutover-readiness"
+}

@@ -284,6 +284,7 @@ create index idx_video_studio_tasks_submit_attempt
 2026-06-18 progress: R72 已新增 `audio_studio` PostgreSQL primary-write + JSON archive mirror。默认不启用；显式开启 `MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS=audio_studio` 或全局 PostgreSQL 主写模式后，音频任务与音色档案保存/删除以 PostgreSQL 为主。默认不写 JSON，`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=true` 时保留临时 JSON archive mirror；主写失败冒泡且不落 JSON。`audio_studio` 本地域已完成本地迁移闭环。
 2026-06-18 progress: R73 已更新 PostgreSQL domain coverage 审计口径。`audio_studio` 进入 migrated domains，当前 9 个 tracked 核心业务状态域均为 covered，pending domain 为 0；下一步推荐 `staging_live_data_canary`。
 2026-06-18 progress: R74 恢复服务器灰度前置检查但本机 network-scope preflight 仍 blocked。DNS 返回 `198.18.1.154` fake-IP，源站 route 走 `utun1024`，因此本机 remote sequence 仍不可用。下一步需走服务器终端 fallback 或清理本机 TUN/fake-IP。
+2026-06-18 progress: R75 已新增 final cutover readiness audit。当前 coverage/live-data gate/sequence/server fallback 契约通过，但 app-level canary 覆盖不足：只有 `video_studio_tasks`，缺少其余 8 个 migrated domains 的 provider-free smoke/canary。
 
 ## 代码架构计划
 
@@ -571,6 +572,7 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-18 追加：R72 已完成 `audio_studio` primary-write。`audio_studio` 本地域已具备 schema/repository、backfill/reconcile、runtime dual-write、read-switch 和 primary-write；下一步回到服务器 live-data/canary 灰度，或先运行新的 coverage audit 确认剩余 JSON-only 状态。
 2026-06-18 追加：R73 coverage after audio 已确认剩余 tracked core domain 为 0。下一步回到服务器 `live-data-gate`，让 Alembic、全域 backfill/reconcile、备份和恢复演练覆盖 sessions/audio 最新迁移，再继续 app-level canary 与 rollback。
 2026-06-18 追加：R74 network-scope preflight blocked，证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r74-network-preflight-before-staging/`；本机路径未进入 SSH/远端命令。
+2026-06-18 追加：R75 final cutover readiness artifact 已生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r75-final-cutover-readiness/`；状态为 `needs_all_domain_app_canary`，下一步明确为 `add_all_domain_app_canary`。
 
 ## 总体验收
 

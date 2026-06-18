@@ -670,6 +670,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-18 note: R74 attempted to resume the server staging path with a network-scope preflight. The local operator path is still blocked: DNS returns Clash fake-IP `198.18.1.154`, and route to `47.79.99.190` still uses `gateway 198.18.0.1 / interface utun1024`. No TCP/SSH/public-health stage, remote command, container restart, or business database switch was executed. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r74-network-preflight-before-staging/`.
 
+2026-06-18 note: R75 adds `scripts/postgres_final_cutover_readiness.py` and `scripts/verify_postgres_final_cutover_readiness.py`. The audit confirms domain coverage, live-data-gate domain coverage, staging sequence order, and server fallback contract are ready, but app-level canary coverage is still incomplete because the current provider-free canary only covers `video_studio_tasks`. Status is `needs_all_domain_app_canary`; next step is `add_all_domain_app_canary`. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r75-final-cutover-readiness/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:
@@ -682,3 +684,4 @@ Once goal mode starts, do not ask the user for routine information covered by th
 - For real provider tests, use only already configured server-side credentials; never ask the user to paste raw keys during automated execution.
 - If a prerequisite is missing, write `status.json` with `"state": "blocked"` and the exact missing item.
 - If the local operator path remains fake-IP/TUN blocked, run the server fallback from `/opt/miemie-pre`: `CONFIRM_SERVER_SEQUENCE=run scripts/pre_studio_server_postgres_sequence.sh`. The sequence now includes `live-data-gate` before app-level canaries, and that gate includes `audio_studio`.
+- Before final database-primary cutover, add and pass an all-domain provider-free app canary/smoke gate; the existing app-level canary currently proves only `video_studio_tasks`.
