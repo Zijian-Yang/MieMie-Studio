@@ -1014,6 +1014,12 @@ pre 部署复验：
 - 结果：DNS A 为 Clash fake-IP `198.18.0.94`；源站 `47.79.99.190` route 仍显示 `gateway: 198.18.0.1`、`interface: utun1024`。
 - 本轮是 network-only check，按脚本契约未进入 TCP/SSH/public-health，也未执行任何远端命令、容器重启或业务数据库开关。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r89-network-preflight-after-account-runtime-coverage/`。
 
+2026-06-18 阶段 7 R90 network preflight after Clash IP DIRECT：
+
+- 用户补充服务器 IP DIRECT 后复跑 network-scope preflight，状态仍为 `blocked`。
+- 结果：DNS A 为 Clash fake-IP `198.18.0.218`；源站 `47.79.99.190` route 仍显示 `gateway: 198.18.0.1`、`interface: utun1024`。
+- 直接 SSH 探针 `ssh -o StrictHostKeyChecking=accept-new root@47.79.99.190 'echo ok'` 返回 `Connection closed by 47.79.99.190 port 22`，仍不能建立服务器命令通道。本轮未执行远端命令、容器重启或业务数据库开关。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r90-network-preflight-after-clash-ip-direct/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
