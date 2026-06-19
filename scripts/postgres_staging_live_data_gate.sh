@@ -323,6 +323,14 @@ main() {
 
   local domain
   for domain in $DOMAINS; do
+    if [[ "$domain" == "user_config" ]]; then
+      write_status "running" "cleanup-canary-user-config" ""
+      load_maintenance_env
+      run_logged "cleanup-canary-user-config" \
+        "$PYTHON_BIN" scripts/postgres_cleanup_canary_user_config_residue.py \
+        --data-root "$DATA_ROOT" \
+        --output "$ARTIFACT_DIR/canary_user_config_cleanup.json"
+    fi
     run_domain_backfill_and_reconcile "$domain"
   done
 

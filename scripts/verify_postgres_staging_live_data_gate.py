@@ -103,6 +103,8 @@ def check_safety_contract() -> None:
         "resolve_maintenance_database_url",
         "docker inspect",
         "@postgres:",
+        "postgres_cleanup_canary_user_config_residue.py",
+        "cleanup-canary-user-config",
         "alembic-upgrade-head",
         "postgres_backfill_${domain}.py",
         "postgres_reconcile_${domain}.py",
