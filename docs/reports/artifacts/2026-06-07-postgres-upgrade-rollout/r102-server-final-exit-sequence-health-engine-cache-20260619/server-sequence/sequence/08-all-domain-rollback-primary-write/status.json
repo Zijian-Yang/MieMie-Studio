@@ -1,0 +1,12 @@
+{
+  "run_id": "r102-server-final-exit-sequence-health-engine-cache-20260619-server-sequence-8-all-domain-rollback-primary-write",
+  "mode": "all-domain-rollback-primary-write",
+  "state": "passed",
+  "stage": "done",
+  "reason": "",
+  "domains": "video_studio_tasks studio_tasks projects media_metadata project_entities benchmark_records user_config sessions audio_studio",
+  "confirm": "run",
+  "artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/08-all-domain-rollback-primary-write",
+  "tmp_dir": "/tmp/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/08-all-domain-rollback-primary-write",
+  "updated_at": "2026-06-19T10:19:52Z"
+}

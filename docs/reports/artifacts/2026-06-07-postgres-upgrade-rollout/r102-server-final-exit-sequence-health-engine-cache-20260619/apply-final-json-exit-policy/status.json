@@ -1,0 +1,12 @@
+{
+  "run_id": "r102-server-final-exit-sequence-health-engine-cache-20260619-apply-final-json-exit-policy",
+  "state": "passed",
+  "stage": "done",
+  "reason": "",
+  "confirm": "run",
+  "env_file": "compose.env",
+  "sequence_artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence",
+  "artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/apply-final-json-exit-policy",
+  "tmp_dir": "/tmp/r102-server-final-exit-sequence-health-engine-cache-20260619/apply-final-json-exit-policy",
+  "updated_at": "2026-06-19T10:19:53Z"
+}

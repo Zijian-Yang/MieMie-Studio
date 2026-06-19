@@ -1,0 +1,15 @@
+{
+  "domain": "media_metadata",
+  "scanned_users": [],
+  "json_count": 0,
+  "json_count_by_domain": {
+    "gallery": 0,
+    "audio": 0,
+    "video_library": 0,
+    "text_library": 0
+  },
+  "upserted_count": 0,
+  "failed_count": 0,
+  "failures": [],
+  "ok": true
+}

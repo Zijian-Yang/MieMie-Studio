@@ -433,6 +433,8 @@ R88 后，补齐 user/account runtime coverage：`UserService.list_user_ids()` �
 
 R89 后，R88 推送后的 network-scope preflight 仍 blocked：DNS 返回 `198.18.0.94`，源站 route 仍走 `utun1024`。本机仍不能安全执行 remote final exit sequence；下一步需要让命令行 DNS/route 对 `pre-studio.miemie.co` 和 `47.79.99.190/32` 真正直连，或直接登录服务器 `/opt/miemie-pre` 执行 R84 服务器 final exit sequence。
 
+R99-R103 后，服务器 SSH 通道恢复并完成 PostgreSQL final exit。期间修正了两类最终门禁问题：一是全域 canary 在 Docker `-w /app/backend` 下使用相对 `backend/data/users` 导致测试 config JSON 写错路径，已改为 `UserService.get_user_data_path(user.id)`；二是 R99 留下的 PostgreSQL-only canary config 残留阻塞 live-data gate，已新增只清理 `canary_*` PG-only config 残留的维护脚本并插入 gate。R101 已证明数据 reconcile、全域 canary 和最终策略应用均通过，但 k6 S1 read gate 因 `/api/health` 每请求新建 SQLAlchemy engine 而 P95 `471.68ms` 超标；R102 修复 health DB engine 复用后，服务器 final exit sequence 全部通过，运行态为 `34441611bf06b07ca26fb6fb7b9c58655ad2424d`，`MIEMIE_DATABASE_WRITE_MODE=postgres`、`MIEMIE_DATABASE_READ_MODE=postgres`、`MIEMIE_DATABASE_JSON_FALLBACK_READ=false`、`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=false`。R102 k6 S1 read gate 为失败率 `0`、P95 `65.84ms`、P99 `111.42ms`；R103 completion audit 输出 `postgres_only_complete`。下一步进入 post-final 运维：观察 PostgreSQL-only 运行态，然后按 R87 gate 归档 tracked 业务 JSON，归档后复跑 health/reconcile/load/smoke。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

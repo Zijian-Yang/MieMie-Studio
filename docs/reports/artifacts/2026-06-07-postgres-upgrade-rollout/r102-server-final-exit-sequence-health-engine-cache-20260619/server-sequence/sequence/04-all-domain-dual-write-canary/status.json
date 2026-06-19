@@ -1,0 +1,12 @@
+{
+  "run_id": "r102-server-final-exit-sequence-health-engine-cache-20260619-server-sequence-4-all-domain-dual-write-canary",
+  "mode": "all-domain-dual-write-canary",
+  "state": "passed",
+  "stage": "done",
+  "reason": "",
+  "domains": "video_studio_tasks studio_tasks projects media_metadata project_entities benchmark_records user_config sessions audio_studio",
+  "confirm": "run",
+  "artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/04-all-domain-dual-write-canary",
+  "tmp_dir": "/tmp/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/04-all-domain-dual-write-canary",
+  "updated_at": "2026-06-19T10:18:58Z"
+}

@@ -1,0 +1,11 @@
+{
+  "run_id": "r102-server-final-exit-sequence-health-engine-cache-20260619-server-sequence-1-audit",
+  "mode": "audit",
+  "state": "passed",
+  "stage": "audit",
+  "reason": "",
+  "domain": "video_studio_tasks",
+  "artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/01-audit",
+  "tmp_dir": "/tmp/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/01-audit",
+  "updated_at": "2026-06-19T10:18:16Z"
+}

@@ -1,0 +1,18 @@
+{
+  "run_id": "r102-server-final-exit-sequence-health-engine-cache-20260619",
+  "state": "passed",
+  "stage": "done",
+  "reason": "",
+  "confirm": "run",
+  "rollback_on_failure": "true",
+  "env_file": "compose.env",
+  "server_sync": "ff-only",
+  "server_sequence_artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence",
+  "sequence_artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence",
+  "apply_artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/apply-final-json-exit-policy",
+  "post_validation_artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/post-json-exit-validation",
+  "rollback_artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/rollback-final-json-exit-policy",
+  "artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619",
+  "tmp_dir": "/tmp/r102-server-final-exit-sequence-health-engine-cache-20260619",
+  "updated_at": "2026-06-19T10:21:46Z"
+}

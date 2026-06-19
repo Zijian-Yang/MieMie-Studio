@@ -1,0 +1,10 @@
+{
+  "domain": "studio_tasks",
+  "json_count": 12,
+  "postgres_count": 12,
+  "missing_in_postgres": [],
+  "missing_in_json": [],
+  "field_differences": [],
+  "load_failures": [],
+  "ok": true
+}

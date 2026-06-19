@@ -1,0 +1,26 @@
+{
+  "domain": "benchmark_records",
+  "json_count": 0,
+  "postgres_count": 0,
+  "json_count_by_kind": {
+    "image:dataset": 0,
+    "image:suite": 0,
+    "image:run": 0,
+    "video:dataset": 0,
+    "video:suite": 0,
+    "video:run": 0
+  },
+  "postgres_count_by_kind": {
+    "image:dataset": 0,
+    "image:suite": 0,
+    "image:run": 0,
+    "video:dataset": 0,
+    "video:suite": 0,
+    "video:run": 0
+  },
+  "missing_in_postgres": [],
+  "missing_in_json": [],
+  "field_differences": [],
+  "load_failures": [],
+  "ok": true
+}

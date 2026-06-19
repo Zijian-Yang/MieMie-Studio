@@ -1,0 +1,19 @@
+{
+  "domain": "projects",
+  "scanned_users": [
+    "25c454a9-8888-440e-bb87-f5e60ab5cd2f",
+    "3a9be4a1-0bf9-407f-86f2-d1d8ec9f84ab",
+    "43054c86-9b3c-4c6c-9a56-bf4c32793539",
+    "69f9b09c-4472-43f8-a9fa-8db0a20c34af",
+    "7d5501f1-5b72-413c-b507-79cc6c486f7b",
+    "9be5fed8-5206-407e-a022-050dcb83621a",
+    "a721957e-5353-43ef-b95a-f6072b8a8da5",
+    "b8453911-5aab-4fc4-8fa4-672e5f078328",
+    "f4497a14-c7d5-4c1f-81b7-760c1b24b54a"
+  ],
+  "json_count": 9,
+  "upserted_count": 9,
+  "failed_count": 0,
+  "failures": [],
+  "ok": true
+}

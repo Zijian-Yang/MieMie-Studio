@@ -1,0 +1,11 @@
+{
+  "run_id": "r102-server-final-exit-sequence-health-engine-cache-20260619-server-sequence-2-roll-runtime",
+  "mode": "roll-runtime",
+  "state": "passed",
+  "stage": "roll-runtime",
+  "reason": "",
+  "domain": "video_studio_tasks",
+  "artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/02-roll-runtime",
+  "tmp_dir": "/tmp/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/02-roll-runtime",
+  "updated_at": "2026-06-19T10:18:28Z"
+}

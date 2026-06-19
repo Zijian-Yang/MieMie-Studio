@@ -1,0 +1,12 @@
+{
+  "run_id": "r102-server-final-exit-sequence-health-engine-cache-20260619-post-json-exit-validation",
+  "state": "passed",
+  "stage": "done",
+  "reason": "",
+  "confirm": "run",
+  "run_load_gate": "true",
+  "sequence_artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence",
+  "artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/post-json-exit-validation",
+  "tmp_dir": "/tmp/r102-server-final-exit-sequence-health-engine-cache-20260619/post-json-exit-validation",
+  "updated_at": "2026-06-19T10:21:46Z"
+}

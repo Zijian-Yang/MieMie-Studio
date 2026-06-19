@@ -1,0 +1,8 @@
+{
+  "run_id": "r103-final-exit-completion-audit-after-r102-20260619",
+  "state": "postgres_only_complete",
+  "next_recommended_step": "archive_json_and_monitor_postgres_runtime",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r103-final-exit-completion-audit-after-r102-20260619",
+  "final_exit_artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r102-server-final-exit-sequence-health-engine-cache-20260619",
+  "updated_at": "2026-06-19T10:24:26Z"
+}

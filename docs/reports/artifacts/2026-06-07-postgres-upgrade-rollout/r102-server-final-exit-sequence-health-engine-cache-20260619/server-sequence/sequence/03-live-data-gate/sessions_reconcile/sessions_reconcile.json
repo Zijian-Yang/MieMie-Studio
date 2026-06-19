@@ -1,0 +1,10 @@
+{
+  "domain": "sessions",
+  "json_session_count": 0,
+  "postgres_session_count": 0,
+  "missing_in_postgres": [],
+  "missing_in_json": [],
+  "field_differences": [],
+  "load_failures": [],
+  "ok": true
+}

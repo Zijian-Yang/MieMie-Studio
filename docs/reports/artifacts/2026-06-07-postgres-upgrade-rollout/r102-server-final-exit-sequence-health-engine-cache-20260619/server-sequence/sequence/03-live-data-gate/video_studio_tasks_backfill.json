@@ -1,0 +1,15 @@
+{
+  "domain": "video_studio_tasks",
+  "scanned_users": [
+    "25c454a9-8888-440e-bb87-f5e60ab5cd2f",
+    "3a9be4a1-0bf9-407f-86f2-d1d8ec9f84ab",
+    "69f9b09c-4472-43f8-a9fa-8db0a20c34af",
+    "7d5501f1-5b72-413c-b507-79cc6c486f7b",
+    "f4497a14-c7d5-4c1f-81b7-760c1b24b54a"
+  ],
+  "json_count": 6,
+  "upserted_count": 6,
+  "failed_count": 0,
+  "failures": [],
+  "ok": true
+}

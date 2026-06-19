@@ -1,0 +1,11 @@
+{
+  "domain": "audio_studio",
+  "scanned_users": [],
+  "json_task_count": 0,
+  "json_voice_profile_count": 0,
+  "tasks_upserted_count": 0,
+  "voice_profiles_upserted_count": 0,
+  "failed_count": 0,
+  "failures": [],
+  "ok": true
+}

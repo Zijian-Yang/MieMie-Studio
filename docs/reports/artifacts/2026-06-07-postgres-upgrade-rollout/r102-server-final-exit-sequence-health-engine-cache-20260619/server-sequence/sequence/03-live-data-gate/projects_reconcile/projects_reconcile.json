@@ -1,0 +1,10 @@
+{
+  "domain": "projects",
+  "json_count": 9,
+  "postgres_count": 9,
+  "missing_in_postgres": [],
+  "missing_in_json": [],
+  "field_differences": [],
+  "load_failures": [],
+  "ok": true
+}

@@ -6,6 +6,7 @@
 ## [Unreleased]
 
 ### 修复 (Fixed)
+- PostgreSQL health gate：`/api/health` 的数据库探针改为复用按 URL/超时缓存的 SQLAlchemy engine，避免 final exit 后 30 VU health gate 每请求新建 engine/连接导致 P95 超标；R102 k6 S1 read gate 从 R101 的 P95 `471.68ms` 降至 `65.84ms`。
 - `miemie-pre` StorageService 修复部署：运行版本 `00091f21f5ee207f78a1092e7e5e164ab4567c7f` 复跑 Cloudflare `100 VU / 120s` 后 API 侧观察类 GET 为 `200 19263`、无 500；Cloudflare timeout 仍独立存在，证据归档到 `docs/reports/artifacts/2026-06-01-w2-storage-fix-cloudflare-rerun/`。
 - JSON 文件存储：`StorageService._write_json_with_lock()` 原子写入改用唯一临时文件，避免多个 worker 进程并发保存同一目标 JSON 时共享 `<name>.tmp` 触发 `FileNotFoundError`；新增并发回归覆盖该场景。
 - 用户配置写入：per-user `config.json` 原子写入改用唯一临时文件，避免多个 worker 进程首次并发初始化同一用户配置时共享 `config.tmp` 触发 `FileNotFoundError`；pre 复跑 preview 阶梯后 `preview-payload` 状态码为 `200 120`、无 5xx。
@@ -32,6 +33,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- PostgreSQL final exit 完成证据：`miemie-pre` R102 server final exit sequence、final PostgreSQL-only policy、post JSON exit validation 均通过；R103 completion audit 输出 `postgres_only_complete`，下一步为 tracked 业务 JSON 归档和 PostgreSQL-only 运行态监控。
 - 视频工作室：并列新增 `happyhorse-1.5-t2v`、`happyhorse-1.5-i2v`、`happyhorse-1.5-r2v`，复用 HappyHorse provider、DashScope 异步提交、OSS 持久化、开发者模式和测试/生产 Key profile；厂商暂无 1.5 视频编辑模型，`happyhorse-1.0-video-edit` 保持为唯一 HappyHorse Video Edit 入口。
 - 视频工作室：HappyHorse 4 个任务面新增高级开关“提示词改写”和“关闭绿网”；关闭提示词改写时下发隐藏参数 `prompt_extend=false`，关闭绿网时提交 `X-DashScope-DataInspection`，开发者模式新增厂商请求 Header 预览。
 - 视频工作室：支持在已选参考图/参考视频上点击 `@`，按模型 capability 中的 `reference_token_policy` 自动把 `[Image 1]`、`图1`、`视频1`、`<<<image_1>>>` 等指代词插入提示词光标位置。

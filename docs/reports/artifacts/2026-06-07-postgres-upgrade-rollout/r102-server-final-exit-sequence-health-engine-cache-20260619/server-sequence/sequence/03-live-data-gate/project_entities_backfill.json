@@ -1,0 +1,17 @@
+{
+  "domain": "project_entities",
+  "scanned_users": [],
+  "json_count": 0,
+  "json_count_by_kind": {
+    "character": 0,
+    "scene": 0,
+    "prop": 0,
+    "frame": 0,
+    "video": 0,
+    "style": 0
+  },
+  "upserted_count": 0,
+  "failed_count": 0,
+  "failures": [],
+  "ok": true
+}

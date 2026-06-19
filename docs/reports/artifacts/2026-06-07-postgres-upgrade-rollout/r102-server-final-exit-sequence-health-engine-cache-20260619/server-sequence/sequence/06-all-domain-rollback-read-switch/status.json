@@ -1,0 +1,12 @@
+{
+  "run_id": "r102-server-final-exit-sequence-health-engine-cache-20260619-server-sequence-6-all-domain-rollback-read-switch",
+  "mode": "all-domain-rollback-read-switch",
+  "state": "passed",
+  "stage": "done",
+  "reason": "",
+  "domains": "video_studio_tasks studio_tasks projects media_metadata project_entities benchmark_records user_config sessions audio_studio",
+  "confirm": "run",
+  "artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/06-all-domain-rollback-read-switch",
+  "tmp_dir": "/tmp/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/06-all-domain-rollback-read-switch",
+  "updated_at": "2026-06-19T10:19:25Z"
+}

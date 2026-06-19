@@ -1,0 +1,11 @@
+{
+  "run_id": "r102-server-final-exit-sequence-health-engine-cache-20260619-server-sequence",
+  "state": "passed",
+  "stage": "done",
+  "reason": "",
+  "artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence",
+  "tmp_dir": "/tmp/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence",
+  "sequence": "audit roll-runtime live-data-gate all-domain-dual-write-canary all-domain-read-switch-canary all-domain-rollback-read-switch all-domain-primary-write-canary all-domain-rollback-primary-write",
+  "confirm": "run",
+  "updated_at": "2026-06-19T10:19:52Z"
+}

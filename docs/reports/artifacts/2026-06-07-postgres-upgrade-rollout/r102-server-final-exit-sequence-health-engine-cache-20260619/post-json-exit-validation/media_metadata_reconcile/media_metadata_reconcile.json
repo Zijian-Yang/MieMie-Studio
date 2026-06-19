@@ -1,0 +1,22 @@
+{
+  "domain": "media_metadata",
+  "json_count": 0,
+  "postgres_count": 0,
+  "json_count_by_domain": {
+    "gallery": 0,
+    "audio": 0,
+    "video_library": 0,
+    "text_library": 0
+  },
+  "postgres_count_by_domain": {
+    "gallery": 0,
+    "audio": 0,
+    "video_library": 0,
+    "text_library": 0
+  },
+  "missing_in_postgres": [],
+  "missing_in_json": [],
+  "field_differences": [],
+  "load_failures": [],
+  "ok": true
+}

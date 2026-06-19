@@ -1,0 +1,10 @@
+{
+  "domain": "video_studio_tasks",
+  "json_count": 6,
+  "postgres_count": 6,
+  "missing_in_postgres": [],
+  "missing_in_json": [],
+  "field_differences": [],
+  "load_failures": [],
+  "ok": true
+}

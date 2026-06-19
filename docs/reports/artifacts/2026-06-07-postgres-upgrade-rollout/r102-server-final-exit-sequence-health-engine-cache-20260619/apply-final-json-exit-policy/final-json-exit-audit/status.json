@@ -1,0 +1,9 @@
+{
+  "run_id": "r102-server-final-exit-sequence-health-engine-cache-20260619-apply-final-json-exit-policy-final-json-exit-audit",
+  "state": "ready_for_post_json_exit_validation",
+  "stage": "final-json-exit-audit",
+  "next_recommended_step": "run_post_json_exit_health_reconcile_and_load_gates",
+  "expected_domain_count": 9,
+  "updated_at": "2026-06-19T10:19:53Z",
+  "artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/apply-final-json-exit-policy/final-json-exit-audit"
+}

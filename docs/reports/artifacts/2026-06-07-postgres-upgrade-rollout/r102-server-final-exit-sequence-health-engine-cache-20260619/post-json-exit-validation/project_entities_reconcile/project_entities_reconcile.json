@@ -1,0 +1,26 @@
+{
+  "domain": "project_entities",
+  "json_count": 0,
+  "postgres_count": 0,
+  "json_count_by_kind": {
+    "character": 0,
+    "scene": 0,
+    "prop": 0,
+    "frame": 0,
+    "video": 0,
+    "style": 0
+  },
+  "postgres_count_by_kind": {
+    "character": 0,
+    "scene": 0,
+    "prop": 0,
+    "frame": 0,
+    "video": 0,
+    "style": 0
+  },
+  "missing_in_postgres": [],
+  "missing_in_json": [],
+  "field_differences": [],
+  "load_failures": [],
+  "ok": true
+}

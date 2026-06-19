@@ -1,0 +1,9 @@
+video_studio_tasks
+studio_tasks
+projects
+media_metadata
+project_entities
+benchmark_records
+user_config
+sessions
+audio_studio

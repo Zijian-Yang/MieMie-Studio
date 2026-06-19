@@ -1,0 +1,17 @@
+{
+  "domain": "benchmark_records",
+  "scanned_users": [],
+  "json_count": 0,
+  "json_count_by_kind": {
+    "image:dataset": 0,
+    "image:suite": 0,
+    "image:run": 0,
+    "video:dataset": 0,
+    "video:suite": 0,
+    "video:run": 0
+  },
+  "upserted_count": 0,
+  "failed_count": 0,
+  "failures": [],
+  "ok": true
+}

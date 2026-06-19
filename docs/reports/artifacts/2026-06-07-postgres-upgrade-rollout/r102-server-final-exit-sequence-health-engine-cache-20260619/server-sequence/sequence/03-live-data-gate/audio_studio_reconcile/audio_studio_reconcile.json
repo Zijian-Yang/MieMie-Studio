@@ -1,0 +1,12 @@
+{
+  "domain": "audio_studio",
+  "json_task_count": 0,
+  "postgres_task_count": 0,
+  "json_voice_profile_count": 0,
+  "postgres_voice_profile_count": 0,
+  "missing_in_postgres": [],
+  "missing_in_json": [],
+  "field_differences": [],
+  "load_failures": [],
+  "ok": true
+}

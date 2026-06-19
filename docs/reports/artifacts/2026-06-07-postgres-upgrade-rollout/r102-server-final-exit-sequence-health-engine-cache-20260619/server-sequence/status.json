@@ -1,0 +1,15 @@
+{
+  "run_id": "r102-server-final-exit-sequence-health-engine-cache-20260619-server-sequence",
+  "state": "passed",
+  "stage": "done",
+  "reason": "",
+  "branch": "pre",
+  "head": "34441611bf06b07ca26fb6fb7b9c58655ad2424d",
+  "server_branch": "pre",
+  "server_sync": "ff-only",
+  "confirm": "run",
+  "sequence_runner": "scripts/postgres_staging_video_task_sequence.sh",
+  "artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence",
+  "tmp_dir": "/tmp/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence",
+  "updated_at": "2026-06-19T10:19:52Z"
+}

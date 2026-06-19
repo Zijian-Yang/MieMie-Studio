@@ -1,0 +1,12 @@
+{
+  "domain": "user_config",
+  "json_user_count": 51,
+  "postgres_user_count": 51,
+  "json_config_count": 42,
+  "postgres_config_count": 42,
+  "missing_in_postgres": [],
+  "missing_in_json": [],
+  "field_differences": [],
+  "load_failures": [],
+  "ok": true
+}

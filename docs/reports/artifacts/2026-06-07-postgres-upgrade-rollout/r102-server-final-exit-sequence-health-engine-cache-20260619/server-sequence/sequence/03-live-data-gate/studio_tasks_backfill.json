@@ -1,0 +1,21 @@
+{
+  "domain": "studio_tasks",
+  "scanned_users": [
+    "43054c86-9b3c-4c6c-9a56-bf4c32793539",
+    "4f742aac-4e40-4a23-9fe7-972cafd02b01",
+    "5dc38523-101d-4f9e-beb8-52839663bf8b",
+    "93dad444-7cc6-4941-b053-c27d141ee8fb",
+    "9be5fed8-5206-407e-a022-050dcb83621a",
+    "9ece503b-2a13-4c7b-83d6-a14f15425945",
+    "b8453911-5aab-4fc4-8fa4-672e5f078328",
+    "bca06765-2252-4722-9f5a-05f0136987d1",
+    "d41059b2-dc53-4e19-8ffe-1012e4816c97",
+    "e9aed9e1-4992-4015-8065-907257c9e944",
+    "f4497a14-c7d5-4c1f-81b7-760c1b24b54a"
+  ],
+  "json_count": 12,
+  "upserted_count": 12,
+  "failed_count": 0,
+  "failures": [],
+  "ok": true
+}

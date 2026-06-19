@@ -1,0 +1,165 @@
+{
+  "run_id": "r102-server-final-exit-sequence-health-engine-cache-20260619-apply-final-json-exit-policy-final-json-exit-audit",
+  "updated_at": "2026-06-19T10:19:53Z",
+  "state": "ready_for_post_json_exit_validation",
+  "next_recommended_step": "run_post_json_exit_health_reconcile_and_load_gates",
+  "expected_domains": [
+    "video_studio_tasks",
+    "studio_tasks",
+    "projects",
+    "media_metadata",
+    "project_entities",
+    "benchmark_records",
+    "user_config",
+    "sessions",
+    "audio_studio"
+  ],
+  "final_runtime_policy": {
+    "MIEMIE_DATABASE_ENABLED": "true",
+    "MIEMIE_DATABASE_WRITE_MODE": "postgres",
+    "MIEMIE_DATABASE_READ_MODE": "postgres",
+    "MIEMIE_DATABASE_DUAL_WRITE_DOMAINS": "",
+    "MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS": "",
+    "MIEMIE_DATABASE_READ_DOMAINS": "",
+    "MIEMIE_DATABASE_JSON_FALLBACK_READ": "false",
+    "MIEMIE_DATABASE_JSON_ARCHIVE_WRITES": "false",
+    "MIEMIE_DATABASE_RECONCILE_STRICT": "true"
+  },
+  "checks": [
+    {
+      "name": "cutover_readiness_contract",
+      "state": "passed",
+      "readiness_state": "ready_for_final_cutover_sequence",
+      "next_recommended_step": "run_server_final_cutover_sequence",
+      "source": "scripts/postgres_final_cutover_readiness.py",
+      "expected_domains": [
+        "video_studio_tasks",
+        "studio_tasks",
+        "projects",
+        "media_metadata",
+        "project_entities",
+        "benchmark_records",
+        "user_config",
+        "sessions",
+        "audio_studio"
+      ]
+    },
+    {
+      "name": "server_sequence_evidence",
+      "state": "passed",
+      "status_state": "passed",
+      "artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence",
+      "required_sequence": [
+        "audit",
+        "roll-runtime",
+        "live-data-gate",
+        "all-domain-dual-write-canary",
+        "all-domain-read-switch-canary",
+        "all-domain-rollback-read-switch",
+        "all-domain-primary-write-canary",
+        "all-domain-rollback-primary-write"
+      ],
+      "missing_stages": [],
+      "failed_stages": []
+    },
+    {
+      "name": "final_runtime_policy",
+      "state": "passed",
+      "env_file": "compose.env",
+      "mismatches": [],
+      "observed_safe_values": {
+        "MIEMIE_DATABASE_ENABLED": "true",
+        "MIEMIE_DATABASE_WRITE_MODE": "postgres",
+        "MIEMIE_DATABASE_READ_MODE": "postgres",
+        "MIEMIE_DATABASE_DUAL_WRITE_DOMAINS": "",
+        "MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS": "",
+        "MIEMIE_DATABASE_READ_DOMAINS": "",
+        "MIEMIE_DATABASE_JSON_FALLBACK_READ": "false",
+        "MIEMIE_DATABASE_JSON_ARCHIVE_WRITES": "false",
+        "MIEMIE_DATABASE_RECONCILE_STRICT": "true"
+      },
+      "required_values": {
+        "MIEMIE_DATABASE_ENABLED": "true",
+        "MIEMIE_DATABASE_WRITE_MODE": "postgres",
+        "MIEMIE_DATABASE_READ_MODE": "postgres",
+        "MIEMIE_DATABASE_DUAL_WRITE_DOMAINS": "",
+        "MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS": "",
+        "MIEMIE_DATABASE_READ_DOMAINS": "",
+        "MIEMIE_DATABASE_JSON_FALLBACK_READ": "false",
+        "MIEMIE_DATABASE_JSON_ARCHIVE_WRITES": "false",
+        "MIEMIE_DATABASE_RECONCILE_STRICT": "true"
+      }
+    }
+  ],
+  "checks_by_name": {
+    "cutover_readiness_contract": {
+      "name": "cutover_readiness_contract",
+      "state": "passed",
+      "readiness_state": "ready_for_final_cutover_sequence",
+      "next_recommended_step": "run_server_final_cutover_sequence",
+      "source": "scripts/postgres_final_cutover_readiness.py",
+      "expected_domains": [
+        "video_studio_tasks",
+        "studio_tasks",
+        "projects",
+        "media_metadata",
+        "project_entities",
+        "benchmark_records",
+        "user_config",
+        "sessions",
+        "audio_studio"
+      ]
+    },
+    "server_sequence_evidence": {
+      "name": "server_sequence_evidence",
+      "state": "passed",
+      "status_state": "passed",
+      "artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence",
+      "required_sequence": [
+        "audit",
+        "roll-runtime",
+        "live-data-gate",
+        "all-domain-dual-write-canary",
+        "all-domain-read-switch-canary",
+        "all-domain-rollback-read-switch",
+        "all-domain-primary-write-canary",
+        "all-domain-rollback-primary-write"
+      ],
+      "missing_stages": [],
+      "failed_stages": []
+    },
+    "final_runtime_policy": {
+      "name": "final_runtime_policy",
+      "state": "passed",
+      "env_file": "compose.env",
+      "mismatches": [],
+      "observed_safe_values": {
+        "MIEMIE_DATABASE_ENABLED": "true",
+        "MIEMIE_DATABASE_WRITE_MODE": "postgres",
+        "MIEMIE_DATABASE_READ_MODE": "postgres",
+        "MIEMIE_DATABASE_DUAL_WRITE_DOMAINS": "",
+        "MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS": "",
+        "MIEMIE_DATABASE_READ_DOMAINS": "",
+        "MIEMIE_DATABASE_JSON_FALLBACK_READ": "false",
+        "MIEMIE_DATABASE_JSON_ARCHIVE_WRITES": "false",
+        "MIEMIE_DATABASE_RECONCILE_STRICT": "true"
+      },
+      "required_values": {
+        "MIEMIE_DATABASE_ENABLED": "true",
+        "MIEMIE_DATABASE_WRITE_MODE": "postgres",
+        "MIEMIE_DATABASE_READ_MODE": "postgres",
+        "MIEMIE_DATABASE_DUAL_WRITE_DOMAINS": "",
+        "MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS": "",
+        "MIEMIE_DATABASE_READ_DOMAINS": "",
+        "MIEMIE_DATABASE_JSON_FALLBACK_READ": "false",
+        "MIEMIE_DATABASE_JSON_ARCHIVE_WRITES": "false",
+        "MIEMIE_DATABASE_RECONCILE_STRICT": "true"
+      }
+    }
+  },
+  "notes": [
+    "This audit is read-only and does not mutate compose.env, containers, PostgreSQL, or JSON data.",
+    "ready_for_post_json_exit_validation is not the final done state; it means the post-exit health, reconcile, and load gates can run.",
+    "Final JSON exit requires server sequence evidence, PostgreSQL read/write primary policy, JSON fallback disabled, and JSON archive writes disabled."
+  ]
+}

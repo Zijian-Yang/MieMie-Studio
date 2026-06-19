@@ -1,0 +1,9 @@
+index	mode	exit_code	state	artifact_dir
+1	audit	0	passed	validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/01-audit
+2	roll-runtime	0	passed	validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/02-roll-runtime
+3	live-data-gate	0	passed	validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/03-live-data-gate
+4	all-domain-dual-write-canary	0	passed	validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/04-all-domain-dual-write-canary
+5	all-domain-read-switch-canary	0	passed	validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/05-all-domain-read-switch-canary
+6	all-domain-rollback-read-switch	0	passed	validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/06-all-domain-rollback-read-switch
+7	all-domain-primary-write-canary	0	passed	validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/07-all-domain-primary-write-canary
+8	all-domain-rollback-primary-write	0	passed	validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/08-all-domain-rollback-primary-write

@@ -1,0 +1,12 @@
+{
+  "run_id": "r102-server-final-exit-sequence-health-engine-cache-20260619-server-sequence-5-all-domain-read-switch-canary",
+  "mode": "all-domain-read-switch-canary",
+  "state": "passed",
+  "stage": "done",
+  "reason": "",
+  "domains": "video_studio_tasks studio_tasks projects media_metadata project_entities benchmark_records user_config sessions audio_studio",
+  "confirm": "run",
+  "artifact_dir": "validation-artifacts/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/05-all-domain-read-switch-canary",
+  "tmp_dir": "/tmp/r102-server-final-exit-sequence-health-engine-cache-20260619/server-sequence/sequence/05-all-domain-read-switch-canary",
+  "updated_at": "2026-06-19T10:19:12Z"
+}

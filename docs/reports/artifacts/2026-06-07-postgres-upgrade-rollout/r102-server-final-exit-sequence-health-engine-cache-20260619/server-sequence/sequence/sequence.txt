@@ -1,0 +1,8 @@
+01 audit
+02 roll-runtime
+03 live-data-gate
+04 all-domain-dual-write-canary
+05 all-domain-read-switch-canary
+06 all-domain-rollback-read-switch
+07 all-domain-primary-write-canary
+08 all-domain-rollback-primary-write
