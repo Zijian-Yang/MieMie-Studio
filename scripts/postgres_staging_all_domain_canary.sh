@@ -259,7 +259,6 @@ run_provider_free_canary() {
 import json
 import os
 from datetime import datetime
-from pathlib import Path
 
 from app.config import AppConfig, ConfigManager
 from app.models.audio_studio import AudioStudioTask, VoiceProfile
@@ -401,7 +400,7 @@ for saver, getter, entity_id, entity in [
     saver(entity)
     assert_exists(entity_id, getter(entity_id))
 
-config_manager = ConfigManager(str(Path("backend/data/users") / user.id))
+config_manager = ConfigManager(str(service.get_user_data_path(user.id)))
 config_manager.save(AppConfig(api_region="singapore"))
 assert config_manager.load().api_region == "singapore"
 assert service.get_user_by_token(token).id == user.id

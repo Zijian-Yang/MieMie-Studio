@@ -169,6 +169,7 @@ def check_safety_contract() -> None:
         "StorageService",
         "UserService",
         "ConfigManager",
+        "service.get_user_data_path(user.id)",
         "save_project",
         "save_studio_task",
         "save_video_studio_task",
