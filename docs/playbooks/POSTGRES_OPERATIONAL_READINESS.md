@@ -161,7 +161,7 @@ bash scripts/postgres_operational_cron_evidence.sh
 
 2026-06-20 服务器当前检查状态为 `waiting`：cron 文件存在、服务 `active`，尚无自然定时运行 artifact。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r119-postgres-operational-cron-evidence-current-20260620/`。
 
-2026-06-20 已新增 database snapshot 定时预览，证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r121-postgres-cron-database-snapshot-dry-run-20260620/`。安装后 R119 evidence gate 会同时检查 readiness、retention 和 snapshot 三类定时 artifact。
+2026-06-20 已新增 database snapshot 定时预览，证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r121-postgres-cron-database-snapshot-dry-run-20260620/`。服务器 cron 已刷新，证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r121-postgres-cron-database-snapshot-refresh-20260620/`；当前三类定时 artifact evidence 状态为 `waiting`，证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r121-postgres-cron-database-snapshot-evidence-current-20260620/`。
 
 ## 数据库运营快照
 

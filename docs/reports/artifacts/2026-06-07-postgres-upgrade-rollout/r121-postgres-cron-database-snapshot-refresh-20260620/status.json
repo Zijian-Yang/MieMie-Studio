@@ -1,0 +1,10 @@
+{
+  "run_id": "r121-postgres-cron-database-snapshot-refresh-20260620",
+  "state": "passed",
+  "stage": "done",
+  "reason": "installed cron file",
+  "cron_file": "/etc/cron.d/miemie-postgres-ops",
+  "install_root": "/opt/miemie-pre",
+  "cron_preview": "validation-artifacts/r121-postgres-cron-database-snapshot-refresh-20260620/miemie-postgres-ops.cron",
+  "updated_at": "2026-06-20T07:59:53Z"
+}
