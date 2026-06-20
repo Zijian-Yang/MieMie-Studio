@@ -34,6 +34,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- PostgreSQL operational cron sequence 手动演练：新增 `scripts/postgres_operational_cron_sequence.sh` 与 verifier，可在自然 cron 窗口前按 readiness -> backup retention -> database snapshot -> evidence gate 顺序立即验证三类巡检链路。
 - PostgreSQL database snapshot 定时巡检：cron 预览新增每日只读 database snapshot，cron evidence gate 同步检查 readiness、backup retention 和 snapshot 三类 artifact。
 - PostgreSQL 数据库运营快照门禁：新增只读 `scripts/postgres_database_snapshot.sh` 与 verifier，覆盖表存在性、大小、连接、长事务、等待锁和 dead tuple 告警。
 - PostgreSQL 定时巡检证据门禁：新增 `scripts/postgres_operational_cron_evidence.sh` 与 verifier，用于区分 cron 首次运行前的 `waiting` 状态和 readiness/retention artifact 失败。

@@ -163,6 +163,26 @@ bash scripts/postgres_operational_cron_evidence.sh
 
 2026-06-20 已新增 database snapshot 定时预览，证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r121-postgres-cron-database-snapshot-dry-run-20260620/`。服务器 cron 已刷新，证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r121-postgres-cron-database-snapshot-refresh-20260620/`；当前三类定时 artifact evidence 状态为 `waiting`，证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r121-postgres-cron-database-snapshot-evidence-current-20260620/`。
 
+## 定时序列手动演练
+
+自然 cron 首次窗口前，或每次修改 cron 内容后，可以手动按 cron 同等顺序立即演练：
+
+```bash
+RUN_ID=postgres-operational-cron-sequence-$(date +%Y%m%d-%H%M%S) \
+ARTIFACT_DIR=validation-artifacts/postgres-operational-cron-sequence-$(date +%Y%m%d-%H%M%S) \
+CONFIRM_POSTGRES_CRON_SEQUENCE=run \
+bash scripts/postgres_operational_cron_sequence.sh
+```
+
+该 sequence 会依次执行：
+
+1. operational readiness，并创建新备份与 restore rehearsal。
+2. backup retention prune。
+3. read-only database snapshot。
+4. strict cron evidence gate，只接受本次 sequence 启动后生成的三类 artifact。
+
+这个手动演练用于证明命令链和 artifact 识别即时可用；它不替代首次自然 cron 运行后的 evidence gate 复验。
+
 ## 数据库运营快照
 
 采集只读 PostgreSQL 运营快照：

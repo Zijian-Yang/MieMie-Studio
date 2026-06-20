@@ -1,0 +1,10 @@
+{
+  "run_id": "r122-postgres-operational-cron-sequence-dry-run-20260620",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_POSTGRES_CRON_SEQUENCE=run to execute cron-equivalent PostgreSQL operational sequence",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r122-postgres-operational-cron-sequence-dry-run-20260620",
+  "confirm": "dry-run",
+  "validation_root": "/tmp/miemie-r122-validation-dry-run",
+  "updated_at": "2026-06-20T08:07:46Z"
+}

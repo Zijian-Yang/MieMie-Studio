@@ -451,6 +451,8 @@ R120 后，新增只读 PostgreSQL 数据库运营快照门禁。`scripts/postgr
 
 R121 后，已把 database snapshot 纳入 operational cron：默认每日 `05:15` 运行只读数据库快照，并把 R119 evidence gate 扩展为同时检查 readiness、backup retention 和 database snapshot 三类 artifact。服务器 `/etc/cron.d/miemie-postgres-ops` 已刷新；当前 evidence gate 为 `waiting`，cron 文件存在且服务 active，但三类自然定时 artifact 尚未生成。下一步是等待首次自然运行后复跑 evidence gate。
 
+R122 后，新增 operational cron sequence 手动演练入口。`scripts/postgres_operational_cron_sequence.sh` 默认 dry-run，显式 `CONFIRM_POSTGRES_CRON_SEQUENCE=run` 后按 cron 同等顺序运行 readiness + 新备份/恢复演练、backup retention prune、database snapshot，并用 strict evidence gate 校验本次序列刚生成的三类 artifact。该步骤用于发布前/cron 改动后即时证明链路可用；自然 cron 首次运行后的 evidence gate 仍保留为独立上线收口项。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。
