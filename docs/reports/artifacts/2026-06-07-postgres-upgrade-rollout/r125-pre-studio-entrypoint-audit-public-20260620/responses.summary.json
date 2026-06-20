@@ -1,0 +1,66 @@
+{
+  "public_health": {
+    "url": "https://pre-studio.miemie.co/api/health",
+    "exit_code": 0,
+    "status_code": 200,
+    "headers": {
+      "server": "cloudflare",
+      "cache-control": "no-store",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a0ea7d40dfd286fb-SIN",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "x-request-id": "37ddfe7b3e7f",
+      "x-deployment-version": "c948b8116ede4bc3d26df135a1f2a52542ed4710"
+    },
+    "headers_path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-public-20260620/public-health.headers",
+    "body_path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-public-20260620/public-health.body"
+  },
+  "public_root": {
+    "url": "https://pre-studio.miemie.co/",
+    "exit_code": 0,
+    "status_code": 200,
+    "headers": {
+      "server": "cloudflare",
+      "cache-control": "",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a0ea7d4278a7f8fe-SIN",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "x-request-id": "85a90a9b974d",
+      "x-deployment-version": "c948b8116ede4bc3d26df135a1f2a52542ed4710"
+    },
+    "headers_path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-public-20260620/public-root.headers",
+    "body_path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-public-20260620/public-root.body"
+  },
+  "public_static_first": {
+    "url": "https://pre-studio.miemie.co/_static/index-D-1V5NKu.js",
+    "exit_code": 0,
+    "status_code": 200,
+    "headers": {
+      "server": "cloudflare",
+      "cache-control": "public, max-age=604800, immutable",
+      "cf-cache-status": "HIT",
+      "cf-ray": "a0ea7d442fd6603b-SIN",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "x-request-id": "e686b55ec535",
+      "x-deployment-version": "34441611bf06b07ca26fb6fb7b9c58655ad2424d"
+    },
+    "headers_path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-public-20260620/public-static-first.headers",
+    "body_path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-public-20260620/public-static-first.body"
+  },
+  "public_static_second": {
+    "url": "https://pre-studio.miemie.co/_static/index-D-1V5NKu.js",
+    "exit_code": 0,
+    "status_code": 200,
+    "headers": {
+      "server": "cloudflare",
+      "cache-control": "public, max-age=604800, immutable",
+      "cf-cache-status": "HIT",
+      "cf-ray": "a0ea7d45c93efd07-SIN",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "x-request-id": "e686b55ec535",
+      "x-deployment-version": "34441611bf06b07ca26fb6fb7b9c58655ad2424d"
+    },
+    "headers_path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-public-20260620/public-static-second.headers",
+    "body_path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-public-20260620/public-static-second.body"
+  }
+}

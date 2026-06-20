@@ -1,0 +1,12 @@
+{
+  "run_id": "r125-pre-studio-entrypoint-audit-dry-run-20260620",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_PRE_STUDIO_ENTRYPOINT_AUDIT=run to execute read-only entrypoint audit",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-dry-run-20260620",
+  "confirm": "dry-run",
+  "public_base_url": "https://pre-studio.miemie.co",
+  "local_base_url": "",
+  "expect_cloudflare": true,
+  "updated_at": "2026-06-20T11:23:03Z"
+}

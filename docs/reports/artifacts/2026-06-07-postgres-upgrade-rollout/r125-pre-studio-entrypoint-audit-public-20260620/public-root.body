@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MieMie Studio</title>
+    <script type="module" crossorigin src="/_static/index-D-1V5NKu.js"></script>
+    <link rel="modulepreload" crossorigin href="/_static/react-vendor-CX75Wl6D.js">
+    <link rel="modulepreload" crossorigin href="/_static/vendor-DzZC2LHC.js">
+    <link rel="modulepreload" crossorigin href="/_static/date-vendor-39j-8Ubw.js">
+    <link rel="modulepreload" crossorigin href="/_static/rc-vendor-Bgtn_RgF.js">
+    <link rel="modulepreload" crossorigin href="/_static/icons-vendor-B-YH92Rp.js">
+    <link rel="modulepreload" crossorigin href="/_static/antd-vendor-Nuu71fug.js">
+    <link rel="stylesheet" crossorigin href="/_static/index-CAz34CPn.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
