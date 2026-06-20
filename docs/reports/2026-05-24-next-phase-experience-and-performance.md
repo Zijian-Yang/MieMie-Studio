@@ -1083,7 +1083,7 @@ pre 部署复验：
 
 - 新增 `scripts/postgres_operational_cron_evidence.sh` 与 `scripts/verify_postgres_operational_cron_evidence.py`，用于检查定时 cron 是否已经自然生成最近一次 `postgres-ops-*` readiness artifact 与 `postgres-backup-retention-*` retention artifact。
 - 该检查器默认 dry-run；显式 `CONFIRM_POSTGRES_CRON_EVIDENCE=check` 后读取 cron 文件、cron 服务状态和 `validation-artifacts` 下的定时运行证据。未到首次定时窗口时输出 `state=waiting`，用于明确区分“还没到运行时间”和“失败”。
-- 后续到达首次 `03:15/03:45` 窗口后，复跑同一脚本即可把 waiting 升级为 passed 或 blocked。
+- 服务器当前检查已归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r119-postgres-operational-cron-evidence-current-20260620/`：cron 文件存在、cron 服务 `active`，状态为 `waiting`，原因是尚无自然定时生成的 `postgres-ops-*` 和 `postgres-backup-retention-*` artifact。后续到达首次 `03:15/03:45` 窗口后，复跑同一脚本即可把 waiting 升级为 passed 或 blocked。
 
 后续建议继续拆分：
 

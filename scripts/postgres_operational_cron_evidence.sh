@@ -197,7 +197,10 @@ append_status("backup_retention", retention_path, retention_status)
 
 summary_file.write_text(
     "check\tstate\tpath\tdetail\n"
-    + "".join(f"{check}\t{state}\t{path}\t{detail}\n" for check, state, path, detail in rows),
+    + "".join(
+        f"{check or '-'}\t{state or '-'}\t{path or '-'}\t{detail or '-'}\n"
+        for check, state, path, detail in rows
+    ),
     encoding="utf-8",
 )
 

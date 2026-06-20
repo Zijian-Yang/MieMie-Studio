@@ -1,0 +1,23 @@
+{
+  "run_id": "r119-postgres-operational-cron-evidence-current-20260620",
+  "state": "waiting",
+  "stage": "done",
+  "reason": "no operational readiness cron artifact yet; no backup retention cron artifact yet",
+  "artifact_dir": "validation-artifacts/r119-postgres-operational-cron-evidence-current-20260620",
+  "validation_root": "validation-artifacts",
+  "cron_file": "/etc/cron.d/miemie-postgres-ops",
+  "cron_service_state": "active",
+  "operational_readiness": {
+    "status_path": "",
+    "state": "",
+    "updated_at": ""
+  },
+  "backup_retention": {
+    "status_path": "",
+    "state": "",
+    "updated_at": ""
+  },
+  "not_before": "",
+  "strict_wait": false,
+  "updated_at": "2026-06-20T07:40:46Z"
+}

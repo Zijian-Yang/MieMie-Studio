@@ -156,3 +156,5 @@ bash scripts/postgres_operational_cron_evidence.sh
 - `passed`：最近一次 `postgres-ops-*` readiness artifact 与 `postgres-backup-retention-*` retention artifact 均通过。
 - `waiting`：cron 已安装，但还没有符合条件的定时 artifact。首次安装后、下一个 `03:15/03:45` 窗口前属于正常状态。
 - `blocked`：cron 文件缺失、服务异常、readiness/retention artifact 失败，或设置 `CRON_EVIDENCE_STRICT_WAIT=true` 后仍处于 waiting。
+
+2026-06-20 服务器当前检查状态为 `waiting`：cron 文件存在、服务 `active`，尚无自然定时运行 artifact。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r119-postgres-operational-cron-evidence-current-20260620/`。
