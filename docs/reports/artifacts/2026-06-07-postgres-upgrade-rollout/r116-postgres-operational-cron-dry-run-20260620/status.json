@@ -1,0 +1,10 @@
+{
+  "run_id": "r116-postgres-operational-cron-dry-run-20260620",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_POSTGRES_OPERATIONAL_CRON=install to write cron file",
+  "cron_file": "/etc/cron.d/miemie-postgres-ops",
+  "install_root": "/opt/miemie-pre",
+  "cron_preview": "validation-artifacts/r116-postgres-operational-cron-dry-run-20260620/miemie-postgres-ops.cron",
+  "updated_at": "2026-06-20T07:17:36Z"
+}

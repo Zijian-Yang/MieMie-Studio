@@ -439,6 +439,10 @@ R104-R114 后，post-final JSON 退场已闭环。R104 dry-run 确认 R87 archiv
 
 R115 后，已新增 PostgreSQL operational readiness gate。`scripts/postgres_operational_readiness.sh` 默认只生成计划，显式 `CONFIRM_POSTGRES_OPERATIONAL_READINESS=run` 后检查最终 PostgreSQL-only env、local/public health、Compose/Docker 状态、运行目录外 JSON 清单和备份新鲜度；显式 `POSTGRES_OPS_BACKUP_RESTORE=run` 后创建新 dump 并恢复到隔离演练库。服务器 R115 实跑为 `24 passed / 0 warn / 0 blocked / 0 failed`，新备份 `backend/backups/postgres/miemie-postgres-20260620-150733.sql` 留在服务器且 restore rehearsal 通过；发布前清单和 PostgreSQL 运营门禁手册已更新。下一步是把该门禁纳入固定巡检/发布流程，并补告警接入与备份保留策略。
 
+R116 后，备份保留与定时巡检入口已具备 dry-run。`scripts/postgres_backup_retention.sh` 默认只输出 manifest，显式 `CONFIRM_POSTGRES_BACKUP_RETENTION=prune` 才按 `RETENTION_DAYS=14`、`MIN_KEEP=3` 删除旧 dump；服务器 dry-run 显示当前仅 `1` 个备份、无删除候选。`scripts/postgres_install_operational_cron.sh` 默认只生成 `/etc/cron.d/miemie-postgres-ops` 预览，显式 `CONFIRM_POSTGRES_OPERATIONAL_CRON=install` 才安装；预览计划每日 `03:15` 跑 readiness + 新备份/恢复演练，`03:45` 跑 retention prune。下一步由运维窗口决定是否安装 cron；安装后归档 cron 文件、cron log 和最近一次 readiness artifact，并补告警通知接入。
+
+R117 后，服务器 `/etc/cron.d/miemie-postgres-ops` 已安装，cron 服务状态为 `active`。当前计划每日 `03:15` 跑 operational readiness + 新备份/恢复演练，每日 `03:45` 跑 backup retention prune；安装证据已归档。下一步是在首次定时运行后检查 cron log 和 artifact，并补告警通知接入。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

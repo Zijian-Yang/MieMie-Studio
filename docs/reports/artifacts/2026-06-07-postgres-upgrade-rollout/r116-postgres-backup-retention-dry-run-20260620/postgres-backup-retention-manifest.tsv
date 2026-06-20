@@ -1,0 +1,2 @@
+path	size_bytes	mtime	age_days	action	reason
+backend/backups/postgres/miemie-postgres-20260620-150733.sql	606844	2026-06-20T07:07:33Z	0.006977	keep	min_keep

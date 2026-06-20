@@ -1061,6 +1061,18 @@ pre 部署复验：
 - 服务器 `/opt/miemie-pre` 实跑 R115 通过：`24 passed`、`0 warn`、`0 blocked`、`0 failed`；创建新备份 `backend/backups/postgres/miemie-postgres-20260620-150733.sql`，并恢复到隔离演练库后清理。SQL dump 留在服务器，未拉回仓库。
 - 新增 [PostgreSQL 运营门禁手册](../playbooks/POSTGRES_OPERATIONAL_READINESS.md)，并把该门禁加入发布前清单。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r115-postgres-operational-readiness-20260620/`。
 
+2026-06-20 阶段 7 R116 backup retention and cron dry-run：
+
+- 新增 `scripts/postgres_backup_retention.sh` 与 `scripts/verify_postgres_backup_retention.py`。脚本默认 dry-run，仅输出保留/删除候选；显式 `CONFIRM_POSTGRES_BACKUP_RETENTION=prune` 后才删除超过 `RETENTION_DAYS` 且不在最近 `MIN_KEEP` 个内的旧 PostgreSQL dump。
+- 新增 `scripts/postgres_install_operational_cron.sh` 与 `scripts/verify_postgres_operational_cron.py`。脚本默认只生成 `/etc/cron.d/miemie-postgres-ops` 预览；显式 `CONFIRM_POSTGRES_OPERATIONAL_CRON=install` 后才写入 cron 文件。
+- 服务器 dry-run 结果：当前 `backend/backups/postgres` 只有 `1` 个备份，`delete_candidate_count=0`；cron 预览会在每日 `03:15` 运行 operational readiness + 新备份/恢复演练，并在 `03:45` 执行备份保留清理。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r116-postgres-backup-retention-dry-run-20260620/` 和 `r116-postgres-operational-cron-dry-run-20260620/`。
+
+2026-06-20 阶段 7 R117 operational cron install：
+
+- 已在服务器安装 `/etc/cron.d/miemie-postgres-ops`，cron 服务状态为 `active`。
+- 安装后的计划为每日 `03:15` 执行 operational readiness + 新备份/恢复演练，每日 `03:45` 执行 backup retention prune。日志写入服务器 `logs/postgres-operational-readiness-cron.log` 与 `logs/postgres-backup-retention-cron.log`。
+- 安装证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r117-postgres-operational-cron-install-20260620/`。下一步需要在首次定时运行后检查 cron log 和对应 artifact。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -1075,4 +1087,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步优先级：数据库主存储升级、JSON 退场和第一轮 PostgreSQL operational readiness gate 已完成。后续进入更外层上线收口：将 R115 门禁配置为定时巡检或人工发布前必跑项，补告警接入与保留策略，复查生产 Cloudflare/Nginx 入口策略，并选择下一轮目标市场入口 SLO 或功能治理任务。
+- 下一步优先级：数据库主存储升级、JSON 退场、第一轮 PostgreSQL operational readiness gate、备份保留策略和 cron 安装已完成。后续进入更外层上线收口：检查首次 cron 运行结果，补告警通知接入，复查生产 Cloudflare/Nginx 入口策略，并选择下一轮目标市场入口 SLO 或功能治理任务。

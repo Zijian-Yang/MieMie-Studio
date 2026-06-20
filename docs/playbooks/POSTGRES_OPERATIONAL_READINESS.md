@@ -65,3 +65,61 @@ rg -n "Bearer |token|password|MIEMIE_POSTGRES_PASSWORD=|postgresql\+psycopg://mi
 ```
 
 命中 `<redacted>` 或 `token_written=false` 这类摘要字段可以接受；真实凭据、SQL dump、tarball 不应入仓库。
+
+## 备份保留策略
+
+只列出保留/删除候选，不删除：
+
+```bash
+RUN_ID=postgres-backup-retention-$(date +%Y%m%d-%H%M%S) \
+ARTIFACT_DIR=validation-artifacts/postgres-backup-retention-$(date +%Y%m%d-%H%M%S) \
+RETENTION_DAYS=14 \
+MIN_KEEP=3 \
+bash scripts/postgres_backup_retention.sh
+```
+
+确认删除超过保留期且不在最近 `MIN_KEEP` 个内的旧 dump：
+
+```bash
+RUN_ID=postgres-backup-retention-$(date +%Y%m%d-%H%M%S) \
+ARTIFACT_DIR=validation-artifacts/postgres-backup-retention-$(date +%Y%m%d-%H%M%S) \
+RETENTION_DAYS=14 \
+MIN_KEEP=3 \
+CONFIRM_POSTGRES_BACKUP_RETENTION=prune \
+bash scripts/postgres_backup_retention.sh
+```
+
+当前建议保留策略：至少保留最近 `3` 个备份，同时保留 `14` 天内备份。后续如果真实用户量和数据增长加快，再把 dump 同步到对象存储或服务器快照体系。
+
+## 定时巡检
+
+生成 cron 预览，不安装：
+
+```bash
+RUN_ID=postgres-operational-cron-$(date +%Y%m%d-%H%M%S) \
+ARTIFACT_DIR=validation-artifacts/postgres-operational-cron-$(date +%Y%m%d-%H%M%S) \
+bash scripts/postgres_install_operational_cron.sh
+```
+
+确认安装到 `/etc/cron.d/miemie-postgres-ops`：
+
+```bash
+RUN_ID=postgres-operational-cron-$(date +%Y%m%d-%H%M%S) \
+ARTIFACT_DIR=validation-artifacts/postgres-operational-cron-$(date +%Y%m%d-%H%M%S) \
+CONFIRM_POSTGRES_OPERATIONAL_CRON=install \
+bash scripts/postgres_install_operational_cron.sh
+```
+
+默认 cron 计划：
+
+- 每天 `03:15` 执行 PostgreSQL operational readiness，并创建新备份与 restore rehearsal。
+- 每天 `03:45` 执行备份保留策略，按 `RETENTION_DAYS=14`、`MIN_KEEP=3` 清理旧 dump。
+
+2026-06-20 已在 `miemie-pre` 安装 `/etc/cron.d/miemie-postgres-ops`，cron 服务状态为 `active`。安装证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r117-postgres-operational-cron-install-20260620/`。
+
+后续每次修改 cron 内容后，都要重新归档：
+
+- `/etc/cron.d/miemie-postgres-ops` 内容。
+- cron 服务状态。
+- 最近一次 cron log。
+- 最近一次 operational readiness artifact。

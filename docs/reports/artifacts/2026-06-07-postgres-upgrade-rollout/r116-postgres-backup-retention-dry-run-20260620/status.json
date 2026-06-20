@@ -1,0 +1,14 @@
+{
+  "run_id": "r116-postgres-backup-retention-dry-run-20260620",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_POSTGRES_BACKUP_RETENTION=prune to delete expired backups",
+  "backup_dir": "backend/backups/postgres",
+  "retention_days": 14,
+  "min_keep": 3,
+  "total_backups": 1,
+  "delete_candidate_count": 0,
+  "deleted_count": 0,
+  "manifest": "validation-artifacts/r116-postgres-backup-retention-dry-run-20260620/postgres-backup-retention-manifest.tsv",
+  "updated_at": "2026-06-20T07:17:36Z"
+}
