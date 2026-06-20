@@ -53,8 +53,11 @@ def main() -> int:
             "scripts/postgres_operational_readiness.sh",
             "CONFIRM_POSTGRES_BACKUP_RETENTION=prune",
             "scripts/postgres_backup_retention.sh",
+            "CONFIRM_POSTGRES_DATABASE_SNAPSHOT=run",
+            "scripts/postgres_database_snapshot.sh",
             "postgres-operational-readiness-cron.log",
             "postgres-backup-retention-cron.log",
+            "postgres-database-snapshot-cron.log",
         ]
         for fragment in required:
             assert fragment in preview, fragment

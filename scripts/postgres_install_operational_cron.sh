@@ -13,6 +13,7 @@ CRON_USER="${CRON_USER:-root}"
 ALERT_ENV_FILE="${ALERT_ENV_FILE:-/etc/miemie-postgres-ops-alert.env}"
 OPS_SCHEDULE="${OPS_SCHEDULE:-15 3 * * *}"
 RETENTION_SCHEDULE="${RETENTION_SCHEDULE:-45 3 * * *}"
+SNAPSHOT_SCHEDULE="${SNAPSHOT_SCHEDULE:-15 5 * * *}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
 MIN_KEEP="${MIN_KEEP:-3}"
 
@@ -66,6 +67,9 @@ $OPS_SCHEDULE $CRON_USER cd $INSTALL_ROOT && if [ -f $ALERT_ENV_FILE ]; then set
 
 # Prunes old PostgreSQL dumps after the readiness gate creates a fresh one.
 $RETENTION_SCHEDULE $CRON_USER cd $INSTALL_ROOT && if [ -f $ALERT_ENV_FILE ]; then set -a; . $ALERT_ENV_FILE; set +a; fi; RUN_ID=postgres-backup-retention-\$(date +\\%Y\\%m\\%d-\\%H\\%M\\%S) ARTIFACT_DIR=validation-artifacts/postgres-backup-retention-\$(date +\\%Y\\%m\\%d-\\%H\\%M\\%S) RETENTION_DAYS=$RETENTION_DAYS MIN_KEEP=$MIN_KEEP CONFIRM_POSTGRES_BACKUP_RETENTION=prune bash scripts/postgres_backup_retention.sh >> logs/postgres-backup-retention-cron.log 2>&1
+
+# Captures read-only PostgreSQL database operational metadata.
+$SNAPSHOT_SCHEDULE $CRON_USER cd $INSTALL_ROOT && if [ -f $ALERT_ENV_FILE ]; then set -a; . $ALERT_ENV_FILE; set +a; fi; RUN_ID=postgres-database-snapshot-\$(date +\\%Y\\%m\\%d-\\%H\\%M\\%S) ARTIFACT_DIR=validation-artifacts/postgres-database-snapshot-\$(date +\\%Y\\%m\\%d-\\%H\\%M\\%S) CONFIRM_POSTGRES_DATABASE_SNAPSHOT=run bash scripts/postgres_database_snapshot.sh >> logs/postgres-database-snapshot-cron.log 2>&1
 CRON
 }
 

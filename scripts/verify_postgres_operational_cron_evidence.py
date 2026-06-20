@@ -99,9 +99,11 @@ def main() -> int:
 
         write_status(validation_root, "postgres-ops-20260620-080000", "passed")
         write_status(validation_root, "postgres-backup-retention-20260620-084500", "passed")
+        write_status(validation_root, "postgres-database-snapshot-20260620-091500", "passed")
         code, passed = run_script(temp, validation_root)
         assert code == 0
         assert passed["state"] == "passed"
+        assert passed["database_snapshot"]["state"] == "passed"
 
         write_status(validation_root, "postgres-ops-20260620-090000", "blocked")
         code, blocked = run_script(temp, validation_root)

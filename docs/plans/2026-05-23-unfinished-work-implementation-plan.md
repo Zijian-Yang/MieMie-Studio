@@ -449,6 +449,8 @@ R119 后，新增定时 cron evidence gate。`scripts/postgres_operational_cron_
 
 R120 后，新增只读 PostgreSQL 数据库运营快照门禁。`scripts/postgres_database_snapshot.sh` 默认 dry-run，显式 `CONFIRM_POSTGRES_DATABASE_SNAPSHOT=run` 后采集数据库大小、预期表存在性、Alembic 版本、表统计、relation/index 大小、索引使用、连接状态、长事务和等待锁；不导出业务行数据、不生成 dump、不写数据库。服务器实跑已通过：数据库大小 `10607639` bytes、连接 `3/50`、长事务 `0`、等待锁 `0`、缺失预期表 `0`、warnings `0`。下一步是等待首次 cron 自然运行后复跑 evidence gate，或接入真实告警 webhook/入口 SLO。
 
+R121 后，已把 database snapshot 纳入 operational cron 预览：默认每日 `05:15` 运行只读数据库快照，并把 R119 evidence gate 扩展为同时检查 readiness、backup retention 和 database snapshot 三类 artifact。下一步是刷新服务器 `/etc/cron.d/miemie-postgres-ops`，并归档 cron refresh 证据。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

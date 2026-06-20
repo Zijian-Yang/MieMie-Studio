@@ -114,6 +114,7 @@ bash scripts/postgres_install_operational_cron.sh
 
 - 每天 `03:15` 执行 PostgreSQL operational readiness，并创建新备份与 restore rehearsal。
 - 每天 `03:45` 执行备份保留策略，按 `RETENTION_DAYS=14`、`MIN_KEEP=3` 清理旧 dump。
+- 每天 `05:15` 执行只读 PostgreSQL database snapshot。
 
 cron 会在执行脚本前尝试加载服务器本地 `/etc/miemie-postgres-ops-alert.env`。该文件不要入仓库，可用于放置告警 webhook：
 
@@ -139,10 +140,11 @@ MIEMIE_OPS_ALERT_DRY_RUN=true
 - cron 服务状态。
 - 最近一次 cron log。
 - 最近一次 operational readiness artifact。
+- 最近一次 database snapshot artifact。
 
 ## 定时运行证据检查
 
-检查最近一次 cron 是否已经自然生成 operational readiness 与 backup retention 证据：
+检查最近一次 cron 是否已经自然生成 operational readiness、backup retention 与 database snapshot 证据：
 
 ```bash
 RUN_ID=postgres-operational-cron-evidence-$(date +%Y%m%d-%H%M%S) \
@@ -153,11 +155,13 @@ bash scripts/postgres_operational_cron_evidence.sh
 
 状态含义：
 
-- `passed`：最近一次 `postgres-ops-*` readiness artifact 与 `postgres-backup-retention-*` retention artifact 均通过。
+- `passed`：最近一次 `postgres-ops-*` readiness artifact、`postgres-backup-retention-*` retention artifact 与 `postgres-database-snapshot-*` snapshot artifact 均通过。
 - `waiting`：cron 已安装，但还没有符合条件的定时 artifact。首次安装后、下一个 `03:15/03:45` 窗口前属于正常状态。
 - `blocked`：cron 文件缺失、服务异常、readiness/retention artifact 失败，或设置 `CRON_EVIDENCE_STRICT_WAIT=true` 后仍处于 waiting。
 
 2026-06-20 服务器当前检查状态为 `waiting`：cron 文件存在、服务 `active`，尚无自然定时运行 artifact。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r119-postgres-operational-cron-evidence-current-20260620/`。
+
+2026-06-20 已新增 database snapshot 定时预览，证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r121-postgres-cron-database-snapshot-dry-run-20260620/`。安装后 R119 evidence gate 会同时检查 readiness、retention 和 snapshot 三类定时 artifact。
 
 ## 数据库运营快照
 

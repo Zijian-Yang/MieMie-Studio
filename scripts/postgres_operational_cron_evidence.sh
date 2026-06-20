@@ -11,6 +11,7 @@ VALIDATION_ROOT="${VALIDATION_ROOT:-validation-artifacts}"
 CRON_FILE="${CRON_FILE:-/etc/cron.d/miemie-postgres-ops}"
 OPS_PREFIX="${OPS_PREFIX:-postgres-ops-}"
 RETENTION_PREFIX="${RETENTION_PREFIX:-postgres-backup-retention-}"
+SNAPSHOT_PREFIX="${SNAPSHOT_PREFIX:-postgres-database-snapshot-}"
 CRON_EVIDENCE_NOT_BEFORE="${CRON_EVIDENCE_NOT_BEFORE:-}"
 CRON_EVIDENCE_STRICT_WAIT="${CRON_EVIDENCE_STRICT_WAIT:-false}"
 CRON_SERVICE_STATE_OVERRIDE="${CRON_SERVICE_STATE_OVERRIDE:-}"
@@ -46,6 +47,7 @@ set -Eeuo pipefail
 # Evidence roots:
 # - operational readiness artifacts: $VALIDATION_ROOT/${OPS_PREFIX}*
 # - backup retention artifacts: $VALIDATION_ROOT/${RETENTION_PREFIX}*
+# - database snapshot artifacts: $VALIDATION_ROOT/${SNAPSHOT_PREFIX}*
 #
 # A state of "waiting" means no scheduled cron artifact is available yet.
 # Set CRON_EVIDENCE_STRICT_WAIT=true when a CI/deploy gate should fail on waiting.
@@ -100,6 +102,7 @@ run_check() {
     "$VALIDATION_ROOT" \
     "$OPS_PREFIX" \
     "$RETENTION_PREFIX" \
+    "$SNAPSHOT_PREFIX" \
     "$CRON_FILE" \
     "$CRON_SERVICE_STATUS" \
     "$CRON_EVIDENCE_NOT_BEFORE" \
@@ -121,10 +124,11 @@ artifact_dir = Path(sys.argv[4])
 validation_root = Path(sys.argv[5])
 ops_prefix = sys.argv[6]
 retention_prefix = sys.argv[7]
-cron_file = Path(sys.argv[8])
-cron_service_status_file = Path(sys.argv[9])
-not_before_raw = sys.argv[10]
-strict_wait = sys.argv[11].lower() == "true"
+snapshot_prefix = sys.argv[8]
+cron_file = Path(sys.argv[9])
+cron_service_status_file = Path(sys.argv[10])
+not_before_raw = sys.argv[11]
+strict_wait = sys.argv[12].lower() == "true"
 
 
 def parse_time(value: str | None) -> datetime | None:
@@ -179,6 +183,7 @@ def service_state() -> str:
 
 ops_path, ops_status = latest_status(ops_prefix)
 retention_path, retention_status = latest_status(retention_prefix)
+snapshot_path, snapshot_status = latest_status(snapshot_prefix)
 cron_state = service_state()
 
 rows: list[tuple[str, str, str, str]] = []
@@ -194,6 +199,7 @@ def append_status(label: str, path: Path | None, status: dict[str, Any] | None) 
 
 append_status("operational_readiness", ops_path, ops_status)
 append_status("backup_retention", retention_path, retention_status)
+append_status("database_snapshot", snapshot_path, snapshot_status)
 
 summary_file.write_text(
     "check\tstate\tpath\tdetail\n"
@@ -230,6 +236,14 @@ elif retention_status.get("state") != "passed":
     state = "blocked"
     reasons.append(f"backup retention state is {retention_status.get('state')}")
 
+if snapshot_status is None:
+    if state != "blocked":
+        state = "waiting"
+    reasons.append("no database snapshot cron artifact yet")
+elif snapshot_status.get("state") not in {"passed", "passed_with_warnings"}:
+    state = "blocked"
+    reasons.append(f"database snapshot state is {snapshot_status.get('state')}")
+
 if state == "waiting" and strict_wait:
     state = "blocked"
     reasons.append("strict wait enabled")
@@ -252,6 +266,11 @@ payload = {
         "status_path": str(retention_path) if retention_path else "",
         "state": retention_status.get("state") if retention_status else "",
         "updated_at": retention_status.get("updated_at") if retention_status else "",
+    },
+    "database_snapshot": {
+        "status_path": str(snapshot_path) if snapshot_path else "",
+        "state": snapshot_status.get("state") if snapshot_status else "",
+        "updated_at": snapshot_status.get("updated_at") if snapshot_status else "",
     },
     "not_before": not_before_raw,
     "strict_wait": strict_wait,
