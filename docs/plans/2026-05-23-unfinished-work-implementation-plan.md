@@ -437,6 +437,8 @@ R99-R103 后，服务器 SSH 通道恢复并完成 PostgreSQL final exit。期�
 
 R104-R114 后，post-final JSON 退场已闭环。R104 dry-run 确认 R87 archive gate 可执行；R105 归档并隔离 70 个 tracked 业务 JSON，tarball 留在服务器未入仓库；R107/R108 provider-free smoke 与 discovery 证明 tracked JSON 数量为 `0`；R109 S1 read gate 为失败率 `0`、P95 `66.13ms`、P99 `113.50ms`。R110 暴露根级 `users.json` 仍留在运行目录外，随后补丁 `c948b8116ede4bc3d26df135a1f2a52542ed4710` 让 PostgreSQL primary-write 且 JSON archive 关闭时不再自动创建根级 `users.json`，本地账号/session 回归 `28 passed` 并已部署到服务器。R111 在确认 JSON 中 `51` 个用户 ID 均存在于 PostgreSQL 后退休根级 `users.json`；R112/R113/R114 完成重启复验、provider-free smoke、S1 read gate 和最终状态采集。当前 `miemie-pre` 运行态为 `c948b8116ede4bc3d26df135a1f2a52542ed4710`，PostgreSQL 主读主写、JSON fallback/archive writes 关闭，运行目录外剩余 JSON 仅 `backend/data/config.example.json`，R113 S1 read gate 为失败率 `0`、P95 `60.52ms`、P99 `115.69ms`。下一步不再是数据库切换，而是上线前收口：持续观察、定时备份/恢复 runbook、告警和入口策略复查。
 
+R115 后，已新增 PostgreSQL operational readiness gate。`scripts/postgres_operational_readiness.sh` 默认只生成计划，显式 `CONFIRM_POSTGRES_OPERATIONAL_READINESS=run` 后检查最终 PostgreSQL-only env、local/public health、Compose/Docker 状态、运行目录外 JSON 清单和备份新鲜度；显式 `POSTGRES_OPS_BACKUP_RESTORE=run` 后创建新 dump 并恢复到隔离演练库。服务器 R115 实跑为 `24 passed / 0 warn / 0 blocked / 0 failed`，新备份 `backend/backups/postgres/miemie-postgres-20260620-150733.sql` 留在服务器且 restore rehearsal 通过；发布前清单和 PostgreSQL 运营门禁手册已更新。下一步是把该门禁纳入固定巡检/发布流程，并补告警接入与备份保留策略。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

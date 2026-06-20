@@ -34,6 +34,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- PostgreSQL operational readiness gate：新增 `scripts/postgres_operational_readiness.sh` 和 verifier，覆盖最终 PostgreSQL-only env、local/public health、Compose/Docker 状态、运行目录外 JSON 清单、备份新鲜度和显式 restore rehearsal；R115 服务器实跑为 `24 passed / 0 warn / 0 blocked / 0 failed`，新备份和恢复演练通过。
 - PostgreSQL post-final JSON 退场证据：`miemie-pre` R105 已归档并隔离 70 个 tracked 业务 JSON，R111 已确认 51 个根级 JSON 用户均存在于 PostgreSQL 后退休 `users.json`，R114 最终状态显示运行目录外剩余 JSON 仅 `backend/data/config.example.json`；R113 k6 S1 read gate 为失败率 `0`、P95 `60.52ms`、P99 `115.69ms`。
 - PostgreSQL final exit 完成证据：`miemie-pre` R102 server final exit sequence、final PostgreSQL-only policy、post JSON exit validation 均通过；R103 completion audit 输出 `postgres_only_complete`，下一步为 tracked 业务 JSON 归档和 PostgreSQL-only 运行态监控。
 - 视频工作室：并列新增 `happyhorse-1.5-t2v`、`happyhorse-1.5-i2v`、`happyhorse-1.5-r2v`，复用 HappyHorse provider、DashScope 异步提交、OSS 持久化、开发者模式和测试/生产 Key profile；厂商暂无 1.5 视频编辑模型，`happyhorse-1.0-video-edit` 保持为唯一 HappyHorse Video Edit 入口。

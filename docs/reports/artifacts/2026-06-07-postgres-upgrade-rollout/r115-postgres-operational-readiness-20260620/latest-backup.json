@@ -1,0 +1,9 @@
+{
+  "backup_dir": "backend/backups/postgres",
+  "exists": true,
+  "path": "backend/backups/postgres/miemie-postgres-20260620-150733.sql",
+  "size_bytes": 606844,
+  "age_hours": 0.0002507006459765964,
+  "max_age_hours": 26.0,
+  "fresh": true
+}

@@ -1054,6 +1054,13 @@ pre 部署复验：
 - R112/R113/R114 在根级 `users.json` 退场后完成重启复验、provider-free API smoke、k6 S1 read gate 和最终状态采集。R113 为 `2600` requests、失败率 `0`、checks failed `0`、P95 `60.52ms`、P99 `115.69ms`；R114 显示运行态 `git_commit=c948b8116ede4bc3d26df135a1f2a52542ed4710`，本机/公网 health 均为 `ok`，`database.ok=true`，运行目录外剩余 JSON 仅 `backend/data/config.example.json`，quarantine JSON count 为 `71`。
 - 本地 artifact 安全扫描未发现 `.tar.gz`、`.bak`、Bearer token、明文密码或未脱敏 PostgreSQL URL；只保留摘要、headers、sanitized env、k6 summary/log 和 smoke 布尔结果。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r105-post-final-json-archive-20260620/`、`r111-root-users-json-retirement-20260620/`、`r113-post-root-users-retirement-k6-s1-20260620/` 和 `r114-post-root-users-retirement-final-state-20260620/` 等目录。
 
+2026-06-20 阶段 7 R115 PostgreSQL operational readiness：
+
+- 新增 `scripts/postgres_operational_readiness.sh` 与 `scripts/verify_postgres_operational_readiness.py`，把 PostgreSQL-only 后的上线前/巡检门禁收敛为一个默认 dry-run、显式执行的脚本。
+- 门禁覆盖最终数据库策略、allowlist 清空、local/public health、Compose ps、`docker stats --no-stream`、运行目录外 JSON 清单、备份新鲜度，以及显式 `POSTGRES_OPS_BACKUP_RESTORE=run` 时的新备份和 restore rehearsal。
+- 服务器 `/opt/miemie-pre` 实跑 R115 通过：`24 passed`、`0 warn`、`0 blocked`、`0 failed`；创建新备份 `backend/backups/postgres/miemie-postgres-20260620-150733.sql`，并恢复到隔离演练库后清理。SQL dump 留在服务器，未拉回仓库。
+- 新增 [PostgreSQL 运营门禁手册](../playbooks/POSTGRES_OPERATIONAL_READINESS.md)，并把该门禁加入发布前清单。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r115-postgres-operational-readiness-20260620/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -1068,4 +1075,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步优先级：数据库主存储升级的关键切换与 JSON 退场已完成，`miemie-pre` 当前为 PostgreSQL-only 主读主写，JSON fallback/archive writes 关闭，运行目录外仅剩非运行态样例 `backend/data/config.example.json`。后续进入上线前收口：持续观察 PostgreSQL-only 运行态、补充备份/恢复定时化与告警 runbook、复查生产 Cloudflare/Nginx 入口策略，并选择下一轮目标市场入口 SLO 或功能治理任务。
+- 下一步优先级：数据库主存储升级、JSON 退场和第一轮 PostgreSQL operational readiness gate 已完成。后续进入更外层上线收口：将 R115 门禁配置为定时巡检或人工发布前必跑项，补告警接入与保留策略，复查生产 Cloudflare/Nginx 入口策略，并选择下一轮目标市场入口 SLO 或功能治理任务。

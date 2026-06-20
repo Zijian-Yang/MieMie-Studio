@@ -1,0 +1,25 @@
+check	state	detail
+python	passed	backend/.venv/bin/python
+env_file	passed	compose.env
+compose_file	passed	docker-compose.yml
+data_root	passed	backend/data
+postgres_backup_script	passed	present
+postgres_restore_rehearsal_script	passed	present
+curl	passed	/usr/bin/curl
+docker	passed	/usr/bin/docker
+env:MIEMIE_DATABASE_ENABLED	passed	true
+env:MIEMIE_DATABASE_WRITE_MODE	passed	postgres
+env:MIEMIE_DATABASE_READ_MODE	passed	postgres
+env:MIEMIE_DATABASE_JSON_FALLBACK_READ	passed	false
+env:MIEMIE_DATABASE_JSON_ARCHIVE_WRITES	passed	false
+env:MIEMIE_DATABASE_RECONCILE_STRICT	passed	true
+env:MIEMIE_DATABASE_DUAL_WRITE_DOMAINS	passed	empty
+env:MIEMIE_DATABASE_READ_DOMAINS	passed	empty
+env:MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS	passed	empty
+health:local	passed	http://127.0.0.1:18100/api/health
+health:public	passed	https://pre-studio.miemie.co/api/health
+compose_ps	passed	compose-ps.txt
+docker_stats	passed	docker-stats.txt
+remaining_json	passed	backend/data/config.example.json
+postgres_backup	passed	backend/backups/postgres/miemie-postgres-20260620-150733.sql
+postgres_restore_rehearsal	passed	restore rehearsal ok
