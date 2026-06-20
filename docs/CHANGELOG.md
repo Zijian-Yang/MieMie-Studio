@@ -34,6 +34,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- PostgreSQL 数据库运营快照门禁：新增只读 `scripts/postgres_database_snapshot.sh` 与 verifier，覆盖表存在性、大小、连接、长事务、等待锁和 dead tuple 告警。
 - PostgreSQL 定时巡检证据门禁：新增 `scripts/postgres_operational_cron_evidence.sh` 与 verifier，用于区分 cron 首次运行前的 `waiting` 状态和 readiness/retention artifact 失败。
 - PostgreSQL 运维告警钩子：新增默认 no-op 的 `scripts/postgres_ops_alert.sh` 与 verifier；operational readiness blocked/failed、backup retention 异常退出可触发 webhook 通知路径，cron 预留服务器本地 `/etc/miemie-postgres-ops-alert.env`，并已刷新 `miemie-pre` cron。
 - PostgreSQL operational cron 已安装：服务器 `/etc/cron.d/miemie-postgres-ops` 每日运行 operational readiness + 新备份/恢复演练，并执行 backup retention prune；cron 服务状态为 `active`，安装证据归档为 R117。

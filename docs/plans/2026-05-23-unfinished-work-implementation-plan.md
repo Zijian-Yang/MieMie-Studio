@@ -447,6 +447,8 @@ R118 后，已新增默认 no-op 的 PostgreSQL 运维告警钩子。`postgres_o
 
 R119 后，新增定时 cron evidence gate。`scripts/postgres_operational_cron_evidence.sh` 默认生成计划，显式 `CONFIRM_POSTGRES_CRON_EVIDENCE=check` 后检查 cron 文件、cron 服务状态，以及 `validation-artifacts/postgres-ops-*` 与 `validation-artifacts/postgres-backup-retention-*` 的最近定时运行状态；未到首次自然运行窗口时输出 `waiting`，避免把“时间未到”误判为完成或失败。服务器当前检查为 `waiting`，cron 文件存在且服务 `active`，尚无自然定时 artifact。下一步是在首次 `03:15/03:45` 窗口后复跑该 gate，归档 passed/blocked 证据。
 
+R120 后，新增只读 PostgreSQL 数据库运营快照门禁。`scripts/postgres_database_snapshot.sh` 默认 dry-run，显式 `CONFIRM_POSTGRES_DATABASE_SNAPSHOT=run` 后采集数据库大小、预期表存在性、Alembic 版本、表统计、relation/index 大小、索引使用、连接状态、长事务和等待锁；不导出业务行数据、不生成 dump、不写数据库。下一步是在服务器执行该 snapshot 并归档 passed/warning/blocked 证据。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

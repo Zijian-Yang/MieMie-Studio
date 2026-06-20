@@ -1,0 +1,8 @@
+{
+  "run_id": "postgres-database-snapshot-20260620154901",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_POSTGRES_DATABASE_SNAPSHOT=run to collect read-only database snapshot",
+  "artifact_dir": "/Users/zane/Project/Miemie-studio-ha-lab/docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r120-postgres-database-snapshot",
+  "updated_at": "2026-06-20T07:49:01Z"
+}

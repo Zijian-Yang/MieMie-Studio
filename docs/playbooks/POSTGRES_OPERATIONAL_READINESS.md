@@ -158,3 +158,22 @@ bash scripts/postgres_operational_cron_evidence.sh
 - `blocked`：cron 文件缺失、服务异常、readiness/retention artifact 失败，或设置 `CRON_EVIDENCE_STRICT_WAIT=true` 后仍处于 waiting。
 
 2026-06-20 服务器当前检查状态为 `waiting`：cron 文件存在、服务 `active`，尚无自然定时运行 artifact。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r119-postgres-operational-cron-evidence-current-20260620/`。
+
+## 数据库运营快照
+
+采集只读 PostgreSQL 运营快照：
+
+```bash
+RUN_ID=postgres-database-snapshot-$(date +%Y%m%d-%H%M%S) \
+ARTIFACT_DIR=validation-artifacts/postgres-database-snapshot-$(date +%Y%m%d-%H%M%S) \
+CONFIRM_POSTGRES_DATABASE_SNAPSHOT=run \
+bash scripts/postgres_database_snapshot.sh
+```
+
+该快照只读取系统统计视图和表级元数据，输出数据库大小、预期表存在性、表估算行数/死元组比例、relation/index 大小、索引使用计数、连接状态、长事务数量和等待锁数量。它不导出业务行数据、不创建 dump、不写数据库。
+
+状态含义：
+
+- `passed`：预期表存在、无长事务、无等待锁、连接数未超过阈值。
+- `passed_with_warnings`：没有阻塞项，但连接比例或 dead tuple 比例达到告警阈值。
+- `blocked`：预期表缺失、存在超过阈值的长事务或等待锁。
