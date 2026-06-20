@@ -1,0 +1,8 @@
+{
+  "run_id": "r123-postgres-cron-evidence-trigger-filter-dry-run-20260620",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_POSTGRES_CRON_EVIDENCE=check to inspect scheduled cron artifacts",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r123-postgres-cron-evidence-trigger-filter-dry-run-20260620",
+  "updated_at": "2026-06-20T08:19:43Z"
+}

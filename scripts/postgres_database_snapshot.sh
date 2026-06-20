@@ -7,6 +7,7 @@ cd "$ROOT_DIR"
 RUN_ID="${RUN_ID:-postgres-database-snapshot-$(date +%Y%m%d%H%M%S)}"
 ARTIFACT_DIR="${ARTIFACT_DIR:-$ROOT_DIR/docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r120-postgres-database-snapshot}"
 CONFIRM_POSTGRES_DATABASE_SNAPSHOT="${CONFIRM_POSTGRES_DATABASE_SNAPSHOT:-dry-run}"
+POSTGRES_OPS_TRIGGER="${POSTGRES_OPS_TRIGGER:-manual}"
 PROJECT_NAME="${PROJECT_NAME:-miemie-pre}"
 ENV_FILE="${ENV_FILE:-compose.env}"
 COMPOSE_FILE_1="${COMPOSE_FILE_1:-docker-compose.yml}"
@@ -45,6 +46,7 @@ json_status() {
   local reason="${3:-}"
   "$PYTHON_BIN" - "$STATUS_FILE" "$RUN_ID" "$state" "$stage" "$reason" "$ARTIFACT_DIR" <<'PY'
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -55,6 +57,7 @@ payload = {
     "state": sys.argv[3],
     "stage": sys.argv[4],
     "reason": sys.argv[5],
+    "trigger": os.environ.get("POSTGRES_OPS_TRIGGER", "manual"),
     "artifact_dir": sys.argv[6],
     "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
 }
@@ -203,6 +206,7 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -266,6 +270,7 @@ summary = {
     "state": state,
     "stage": "done",
     "reason": reason,
+    "trigger": os.environ.get("POSTGRES_OPS_TRIGGER", "manual"),
     "artifact_dir": str(artifact_dir),
     "database_size_bytes": database_size_bytes,
     "max_connections": max_connections,

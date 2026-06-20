@@ -77,6 +77,8 @@ set -Eeuo pipefail
 # 3. Run read-only database snapshot.
 # 4. Run cron evidence gate with CRON_EVIDENCE_STRICT_WAIT=true and CRON_EVIDENCE_NOT_BEFORE
 #    set to the sequence start time, so only fresh artifacts from this sequence pass.
+#    Sequence artifacts use POSTGRES_OPS_TRIGGER=manual_sequence and the evidence gate
+#    requires CRON_EVIDENCE_REQUIRED_TRIGGER=manual_sequence.
 #
 # Optional local alert env:
 # - If ALERT_ENV_FILE exists during run mode, it is sourced before subcommands.
@@ -160,6 +162,7 @@ run_sequence() {
   run_step "operational_readiness" "$ops_run_id" "$ops_artifact" \
     env RUN_ID="$ops_run_id" \
       ARTIFACT_DIR="$ops_artifact" \
+      POSTGRES_OPS_TRIGGER=manual_sequence \
       CONFIRM_POSTGRES_OPERATIONAL_READINESS=run \
       POSTGRES_OPS_BACKUP_RESTORE=run \
       bash scripts/postgres_operational_readiness.sh
@@ -167,6 +170,7 @@ run_sequence() {
   run_step "backup_retention" "$retention_run_id" "$retention_artifact" \
     env RUN_ID="$retention_run_id" \
       ARTIFACT_DIR="$retention_artifact" \
+      POSTGRES_OPS_TRIGGER=manual_sequence \
       RETENTION_DAYS="$RETENTION_DAYS" \
       MIN_KEEP="$MIN_KEEP" \
       CONFIRM_POSTGRES_BACKUP_RETENTION=prune \
@@ -175,6 +179,7 @@ run_sequence() {
   run_step "database_snapshot" "$snapshot_run_id" "$snapshot_artifact" \
     env RUN_ID="$snapshot_run_id" \
       ARTIFACT_DIR="$snapshot_artifact" \
+      POSTGRES_OPS_TRIGGER=manual_sequence \
       CONFIRM_POSTGRES_DATABASE_SNAPSHOT=run \
       bash scripts/postgres_database_snapshot.sh
 
@@ -183,6 +188,7 @@ run_sequence() {
       ARTIFACT_DIR="$evidence_artifact" \
       VALIDATION_ROOT="$VALIDATION_ROOT" \
       CRON_EVIDENCE_NOT_BEFORE="$sequence_not_before" \
+      CRON_EVIDENCE_REQUIRED_TRIGGER=manual_sequence \
       CRON_EVIDENCE_STRICT_WAIT=true \
       CONFIRM_POSTGRES_CRON_EVIDENCE=check \
       bash scripts/postgres_operational_cron_evidence.sh

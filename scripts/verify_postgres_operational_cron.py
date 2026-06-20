@@ -48,6 +48,7 @@ def main() -> int:
         required = [
             "/etc/miemie-postgres-ops-alert.env",
             "set -a; .",
+            "POSTGRES_OPS_TRIGGER=cron",
             "CONFIRM_POSTGRES_OPERATIONAL_READINESS=run",
             "POSTGRES_OPS_BACKUP_RESTORE=run",
             "scripts/postgres_operational_readiness.sh",

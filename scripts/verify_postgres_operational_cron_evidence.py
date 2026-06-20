@@ -40,22 +40,20 @@ def run_script(temp: Path, validation_root: Path, extra_env: dict[str, str] | No
     return result.returncode, status
 
 
-def write_status(root: Path, dirname: str, state: str) -> None:
+def write_status(root: Path, dirname: str, state: str, trigger: str = "") -> None:
     target = root / dirname
     target.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "run_id": dirname,
+        "state": state,
+        "stage": "done",
+        "reason": "",
+        "updated_at": "2026-06-20T08:00:00Z",
+    }
+    if trigger:
+        payload["trigger"] = trigger
     (target / "status.json").write_text(
-        json.dumps(
-            {
-                "run_id": dirname,
-                "state": state,
-                "stage": "done",
-                "reason": "",
-                "updated_at": "2026-06-20T08:00:00Z",
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n",
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
 
@@ -105,7 +103,27 @@ def main() -> int:
         assert passed["state"] == "passed"
         assert passed["database_snapshot"]["state"] == "passed"
 
-        write_status(validation_root, "postgres-ops-20260620-090000", "blocked")
+        code, waiting_for_cron = run_script(temp, validation_root, {"CRON_EVIDENCE_REQUIRED_TRIGGER": "cron"})
+        assert code == 0
+        assert waiting_for_cron["state"] == "waiting"
+        assert waiting_for_cron["required_trigger"] == "cron"
+
+        write_status(validation_root, "postgres-ops-20260620-093000", "passed", "manual_sequence")
+        write_status(validation_root, "postgres-backup-retention-20260620-093000", "passed", "manual_sequence")
+        write_status(validation_root, "postgres-database-snapshot-20260620-093000", "passed", "manual_sequence")
+        code, still_waiting_for_cron = run_script(temp, validation_root, {"CRON_EVIDENCE_REQUIRED_TRIGGER": "cron"})
+        assert code == 0
+        assert still_waiting_for_cron["state"] == "waiting"
+
+        write_status(validation_root, "postgres-ops-20260620-100000", "passed", "cron")
+        write_status(validation_root, "postgres-backup-retention-20260620-100000", "passed", "cron")
+        write_status(validation_root, "postgres-database-snapshot-20260620-100000", "passed", "cron")
+        code, cron_passed = run_script(temp, validation_root, {"CRON_EVIDENCE_REQUIRED_TRIGGER": "cron"})
+        assert code == 0
+        assert cron_passed["state"] == "passed"
+        assert cron_passed["operational_readiness"]["trigger"] == "cron"
+
+        write_status(validation_root, "postgres-ops-20260620-110000", "blocked")
         code, blocked = run_script(temp, validation_root)
         assert code == 2
         assert blocked["state"] == "blocked"

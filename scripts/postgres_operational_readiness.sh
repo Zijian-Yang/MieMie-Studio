@@ -9,6 +9,7 @@ ARTIFACT_DIR="${ARTIFACT_DIR:-$ROOT_DIR/docs/reports/artifacts/2026-06-07-postgr
 TMP_DIR="${TMP_DIR:-/tmp/$RUN_ID}"
 CONFIRM_POSTGRES_OPERATIONAL_READINESS="${CONFIRM_POSTGRES_OPERATIONAL_READINESS:-dry-run}"
 POSTGRES_OPS_BACKUP_RESTORE="${POSTGRES_OPS_BACKUP_RESTORE:-skip}"
+POSTGRES_OPS_TRIGGER="${POSTGRES_OPS_TRIGGER:-manual}"
 PROJECT_NAME="${PROJECT_NAME:-miemie-pre}"
 ENV_FILE="${ENV_FILE:-compose.env}"
 COMPOSE_FILE_1="${COMPOSE_FILE_1:-docker-compose.yml}"
@@ -80,6 +81,7 @@ write_status() {
   "state": "$(json_escape "$state")",
   "stage": "$(json_escape "$stage")",
   "reason": "$(json_escape "$reason")",
+  "trigger": "$(json_escape "$POSTGRES_OPS_TRIGGER")",
   "confirm": "$(json_escape "$CONFIRM_POSTGRES_OPERATIONAL_READINESS")",
   "backup_restore": "$(json_escape "$POSTGRES_OPS_BACKUP_RESTORE")",
   "backup_max_age_hours": "$(json_escape "$BACKUP_MAX_AGE_HOURS")",

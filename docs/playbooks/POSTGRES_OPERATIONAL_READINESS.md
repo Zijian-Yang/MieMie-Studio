@@ -149,15 +149,18 @@ MIEMIE_OPS_ALERT_DRY_RUN=true
 ```bash
 RUN_ID=postgres-operational-cron-evidence-$(date +%Y%m%d-%H%M%S) \
 ARTIFACT_DIR=validation-artifacts/postgres-operational-cron-evidence-$(date +%Y%m%d-%H%M%S) \
+CRON_EVIDENCE_REQUIRED_TRIGGER=cron \
 CONFIRM_POSTGRES_CRON_EVIDENCE=check \
 bash scripts/postgres_operational_cron_evidence.sh
 ```
 
 状态含义：
 
-- `passed`：最近一次 `postgres-ops-*` readiness artifact、`postgres-backup-retention-*` retention artifact 与 `postgres-database-snapshot-*` snapshot artifact 均通过。
+- `passed`：最近一次符合 `CRON_EVIDENCE_REQUIRED_TRIGGER` 要求的 `postgres-ops-*` readiness artifact、`postgres-backup-retention-*` retention artifact 与 `postgres-database-snapshot-*` snapshot artifact 均通过。
 - `waiting`：cron 已安装，但还没有符合条件的定时 artifact。首次安装后、下一个 `03:15/03:45` 窗口前属于正常状态。
 - `blocked`：cron 文件缺失、服务异常、readiness/retention artifact 失败，或设置 `CRON_EVIDENCE_STRICT_WAIT=true` 后仍处于 waiting。
+
+检查自然 cron 首跑时必须设置 `CRON_EVIDENCE_REQUIRED_TRIGGER=cron`，避免把手动 sequence 的 `trigger=manual_sequence` artifact 误判为自然定时证据。手动 sequence 自身会用 `CRON_EVIDENCE_REQUIRED_TRIGGER=manual_sequence` 校验自己的演练结果。
 
 2026-06-20 服务器当前检查状态为 `waiting`：cron 文件存在、服务 `active`，尚无自然定时运行 artifact。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r119-postgres-operational-cron-evidence-current-20260620/`。
 
@@ -184,6 +187,8 @@ bash scripts/postgres_operational_cron_sequence.sh
 这个手动演练用于证明命令链和 artifact 识别即时可用；它不替代首次自然 cron 运行后的 evidence gate 复验。
 
 2026-06-20 服务器 R122 手动演练已通过：readiness、backup retention、database snapshot 与 strict evidence gate 四步均 `passed`，cron 服务 `active`。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r122-postgres-operational-cron-sequence-server-20260620/`。
+
+2026-06-20 R123 已补 trigger source：cron 任务写入 `trigger=cron`，手动 sequence 写入 `trigger=manual_sequence`，evidence gate 可用 `CRON_EVIDENCE_REQUIRED_TRIGGER` 过滤来源。
 
 ## 数据库运营快照
 

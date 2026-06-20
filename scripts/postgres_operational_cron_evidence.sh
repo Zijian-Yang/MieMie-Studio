@@ -13,6 +13,7 @@ OPS_PREFIX="${OPS_PREFIX:-postgres-ops-}"
 RETENTION_PREFIX="${RETENTION_PREFIX:-postgres-backup-retention-}"
 SNAPSHOT_PREFIX="${SNAPSHOT_PREFIX:-postgres-database-snapshot-}"
 CRON_EVIDENCE_NOT_BEFORE="${CRON_EVIDENCE_NOT_BEFORE:-}"
+CRON_EVIDENCE_REQUIRED_TRIGGER="${CRON_EVIDENCE_REQUIRED_TRIGGER:-}"
 CRON_EVIDENCE_STRICT_WAIT="${CRON_EVIDENCE_STRICT_WAIT:-false}"
 CRON_SERVICE_STATE_OVERRIDE="${CRON_SERVICE_STATE_OVERRIDE:-}"
 
@@ -51,6 +52,7 @@ set -Eeuo pipefail
 #
 # A state of "waiting" means no scheduled cron artifact is available yet.
 # Set CRON_EVIDENCE_STRICT_WAIT=true when a CI/deploy gate should fail on waiting.
+# Set CRON_EVIDENCE_REQUIRED_TRIGGER=cron to ignore manual sequence artifacts.
 PLAN
 }
 
@@ -106,6 +108,7 @@ run_check() {
     "$CRON_FILE" \
     "$CRON_SERVICE_STATUS" \
     "$CRON_EVIDENCE_NOT_BEFORE" \
+    "$CRON_EVIDENCE_REQUIRED_TRIGGER" \
     "$CRON_EVIDENCE_STRICT_WAIT" <<'PY'
 from __future__ import annotations
 
@@ -128,7 +131,8 @@ snapshot_prefix = sys.argv[8]
 cron_file = Path(sys.argv[9])
 cron_service_status_file = Path(sys.argv[10])
 not_before_raw = sys.argv[11]
-strict_wait = sys.argv[12].lower() == "true"
+required_trigger = sys.argv[12].strip()
+strict_wait = sys.argv[13].lower() == "true"
 
 
 def parse_time(value: str | None) -> datetime | None:
@@ -171,6 +175,8 @@ def latest_status(prefix: str) -> tuple[Path | None, dict[str, Any] | None]:
         updated = parse_time(str(status.get("updated_at", "")))
         if not_before is not None and updated is not None and updated < not_before:
             continue
+        if required_trigger and status.get("trigger") != required_trigger:
+            continue
         return candidate, status
     return None, None
 
@@ -194,7 +200,11 @@ def append_status(label: str, path: Path | None, status: dict[str, Any] | None) 
     if path is None or status is None:
         rows.append((label, "missing", "", "no scheduled artifact found"))
         return
-    rows.append((label, str(status.get("state", "")), str(path), str(status.get("reason", ""))))
+    trigger = str(status.get("trigger", ""))
+    detail = str(status.get("reason", ""))
+    if trigger:
+        detail = f"trigger={trigger}; {detail}".rstrip("; ")
+    rows.append((label, str(status.get("state", "")), str(path), detail))
 
 
 append_status("operational_readiness", ops_path, ops_status)
@@ -260,20 +270,24 @@ payload = {
     "operational_readiness": {
         "status_path": str(ops_path) if ops_path else "",
         "state": ops_status.get("state") if ops_status else "",
+        "trigger": ops_status.get("trigger") if ops_status else "",
         "updated_at": ops_status.get("updated_at") if ops_status else "",
     },
     "backup_retention": {
         "status_path": str(retention_path) if retention_path else "",
         "state": retention_status.get("state") if retention_status else "",
+        "trigger": retention_status.get("trigger") if retention_status else "",
         "updated_at": retention_status.get("updated_at") if retention_status else "",
     },
     "database_snapshot": {
         "status_path": str(snapshot_path) if snapshot_path else "",
         "state": snapshot_status.get("state") if snapshot_status else "",
+        "trigger": snapshot_status.get("trigger") if snapshot_status else "",
         "updated_at": snapshot_status.get("updated_at") if snapshot_status else "",
     },
     "not_before": not_before_raw,
     "strict_wait": strict_wait,
+    "required_trigger": required_trigger,
     "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
 }
 status_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

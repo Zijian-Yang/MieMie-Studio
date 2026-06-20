@@ -73,6 +73,7 @@ def main() -> int:
             "read-only database snapshot",
             "CRON_EVIDENCE_STRICT_WAIT=true",
             "CRON_EVIDENCE_NOT_BEFORE",
+            "manual_sequence",
         ]
         for fragment in required_plan_fragments:
             assert fragment in plan, fragment
@@ -87,6 +88,7 @@ def main() -> int:
         "CONFIRM_POSTGRES_DATABASE_SNAPSHOT=run",
         "postgres_operational_cron_evidence.sh",
         "CRON_EVIDENCE_NOT_BEFORE",
+        "CRON_EVIDENCE_REQUIRED_TRIGGER=manual_sequence",
         "CRON_EVIDENCE_STRICT_WAIT=true",
         "verify_evidence_passed",
         "ALERT_ENV_FILE",

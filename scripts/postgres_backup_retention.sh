@@ -122,6 +122,7 @@ status = {
     "state": state,
     "stage": stage,
     "reason": reason,
+    "trigger": os.environ.get("POSTGRES_OPS_TRIGGER", "manual"),
     "backup_dir": str(backup_dir),
     "retention_days": retention_days,
     "min_keep": min_keep,
