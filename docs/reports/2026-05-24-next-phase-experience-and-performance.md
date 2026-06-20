@@ -1108,6 +1108,11 @@ pre 部署复验：
 - `scripts/postgres_operational_cron_evidence.sh` 新增 `CRON_EVIDENCE_REQUIRED_TRIGGER`。后续检查“自然 cron 首跑”时应设置 `CRON_EVIDENCE_REQUIRED_TRIGGER=cron`，避免 R122 或后续手动 sequence artifact 被误当作自然定时证据。
 - 本地 verifier 与 dry-run 已通过，证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r123-postgres-cron-trigger-source-dry-run-20260620/`、`r123-postgres-cron-evidence-trigger-filter-dry-run-20260620/` 和 `r123-postgres-cron-sequence-trigger-dry-run-20260620/`。服务器 cron 已刷新到带 `trigger=cron` 的版本，安装状态 `passed`；立即用 `CRON_EVIDENCE_REQUIRED_TRIGGER=cron` 复查时为预期 `waiting`，原因是新版自然 cron artifact 尚未生成。服务器证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r123-postgres-cron-trigger-source-refresh-20260620/` 和 `r123-postgres-cron-trigger-source-evidence-current-20260620/`。
 
+2026-06-20 阶段 7 R124 ops alert self-test：
+
+- 新增 `scripts/postgres_ops_alert_selftest.py` 与 `scripts/verify_postgres_ops_alert_selftest.py`。脚本默认 dry-run；显式 `CONFIRM_POSTGRES_OPS_ALERT_SELFTEST=run` 后只启动本机 `127.0.0.1` mock webhook，验证 no-webhook、dry-run 和真实 curl POST 三条路径。
+- 本地 verifier 与 mock self-test 已通过：`no_webhook`、`dry_run`、`mock_webhook` 均 `passed`，mock payload 只包含 `run_id/label/severity/state/reason/host/artifact_dir/time` 等合成字段，不记录真实 webhook URL。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r124-postgres-ops-alert-selftest-dry-run-20260620/` 和 `r124-postgres-ops-alert-selftest-local-mock-20260620/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -1122,4 +1127,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步优先级：数据库主存储升级、JSON 退场、第一轮 PostgreSQL operational readiness gate、备份保留策略、cron 安装、默认 no-op 告警钩子、cron evidence gate、数据库运营快照门禁、database snapshot cron 集成、cron 等价手动演练入口、evidence trigger source 区分和服务器 cron 刷新已完成。后续进入更外层上线收口：等待首次 cron 自然运行并用 `CRON_EVIDENCE_REQUIRED_TRIGGER=cron` 复跑 evidence gate，接入真实告警 webhook，复查生产 Cloudflare/Nginx 入口策略，并选择下一轮目标市场入口 SLO 或功能治理任务。
+- 下一步优先级：数据库主存储升级、JSON 退场、第一轮 PostgreSQL operational readiness gate、备份保留策略、cron 安装、默认 no-op 告警钩子、cron evidence gate、数据库运营快照门禁、database snapshot cron 集成、cron 等价手动演练入口、evidence trigger source 区分、服务器 cron 刷新和 ops alert local self-test 已完成。后续进入更外层上线收口：等待首次 cron 自然运行并用 `CRON_EVIDENCE_REQUIRED_TRIGGER=cron` 复跑 evidence gate，配置真实告警 webhook 后跑同一 self-test/小心测试发送，复查生产 Cloudflare/Nginx 入口策略，并选择下一轮目标市场入口 SLO 或功能治理任务。

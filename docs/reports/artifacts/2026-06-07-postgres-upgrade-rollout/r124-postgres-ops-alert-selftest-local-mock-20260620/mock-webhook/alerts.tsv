@@ -1,0 +1,2 @@
+time	label	severity	state	result	detail
+2026-06-20T09:40:20Z	postgres_ops_alert_selftest	critical	blocked	sent	webhook

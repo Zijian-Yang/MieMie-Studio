@@ -455,6 +455,8 @@ R122 后，新增并服务器实跑通过 operational cron sequence 手动演练
 
 R123 后，补齐 cron evidence 来源口径并刷新服务器 cron。cron 安装器会给三条定时任务传 `POSTGRES_OPS_TRIGGER=cron`，手动 sequence 会传 `POSTGRES_OPS_TRIGGER=manual_sequence`，三类运维脚本的 `status.json` 记录 `trigger`；evidence gate 新增 `CRON_EVIDENCE_REQUIRED_TRIGGER`。服务器 `/etc/cron.d/miemie-postgres-ops` 已刷新到带 `trigger=cron` 的版本；当前 `CRON_EVIDENCE_REQUIRED_TRIGGER=cron` 检查为预期 `waiting`。后续首次自然 cron 复验必须继续设置该参数，避免手动演练 artifact 污染自然定时结论。
 
+R124 后，新增 ops alert local self-test。`scripts/postgres_ops_alert_selftest.py` 默认 dry-run，显式 `CONFIRM_POSTGRES_OPS_ALERT_SELFTEST=run` 后启动本机 127.0.0.1 mock webhook，验证 no-webhook、dry-run 和真实 curl POST 三条路径；本地 mock 证据已通过且不记录真实 webhook URL。后续如配置真实 webhook，只需在服务器本地 `/etc/miemie-postgres-ops-alert.env` 放置 URL，再用该 self-test 或一次小心测试发送验证。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

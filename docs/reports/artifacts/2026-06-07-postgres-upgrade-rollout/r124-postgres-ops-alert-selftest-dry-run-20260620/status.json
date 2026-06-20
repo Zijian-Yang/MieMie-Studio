@@ -1,0 +1,9 @@
+{
+  "run_id": "r124-postgres-ops-alert-selftest-dry-run-20260620",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_POSTGRES_OPS_ALERT_SELFTEST=run to execute local-only alert self-test",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r124-postgres-ops-alert-selftest-dry-run-20260620",
+  "confirm": "dry-run",
+  "updated_at": "2026-06-20T09:38:16Z"
+}

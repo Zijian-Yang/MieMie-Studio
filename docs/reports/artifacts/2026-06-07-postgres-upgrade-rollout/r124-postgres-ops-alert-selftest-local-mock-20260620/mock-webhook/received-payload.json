@@ -1,0 +1,10 @@
+{
+  "run_id": "r124-postgres-ops-alert-selftest-local-mock-20260620",
+  "label": "postgres_ops_alert_selftest",
+  "severity": "critical",
+  "state": "blocked",
+  "reason": "synthetic alert self-test",
+  "host": "Zanes-MBA.local",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r124-postgres-ops-alert-selftest-local-mock-20260620/mock-webhook",
+  "time": "2026-06-20T09:40:20Z"
+}

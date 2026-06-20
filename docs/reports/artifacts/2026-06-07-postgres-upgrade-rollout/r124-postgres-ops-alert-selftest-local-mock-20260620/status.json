@@ -1,0 +1,24 @@
+{
+  "run_id": "r124-postgres-ops-alert-selftest-local-mock-20260620",
+  "state": "passed",
+  "stage": "done",
+  "reason": "",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r124-postgres-ops-alert-selftest-local-mock-20260620",
+  "confirm": "run",
+  "updated_at": "2026-06-20T09:40:21Z",
+  "cases": {
+    "no_webhook": "passed",
+    "dry_run": "passed",
+    "mock_webhook": "passed"
+  },
+  "mock_payload_keys": [
+    "artifact_dir",
+    "host",
+    "label",
+    "reason",
+    "run_id",
+    "severity",
+    "state",
+    "time"
+  ]
+}
