@@ -453,7 +453,7 @@ R121 后，已把 database snapshot 纳入 operational cron：默认每日 `05:1
 
 R122 后，新增并服务器实跑通过 operational cron sequence 手动演练入口。`scripts/postgres_operational_cron_sequence.sh` 默认 dry-run，显式 `CONFIRM_POSTGRES_CRON_SEQUENCE=run` 后按 cron 同等顺序运行 readiness + 新备份/恢复演练、backup retention prune、database snapshot，并用 strict evidence gate 校验本次序列刚生成的三类 artifact。服务器 R122 四步均 `passed`，cron 服务 `active`，snapshot 连接 `3/50`、长事务 `0`、等待锁 `0`。该步骤用于发布前/cron 改动后即时证明链路可用；自然 cron 首次运行后的 evidence gate 仍保留为独立上线收口项。
 
-R123 后，补齐 cron evidence 来源口径。cron 安装器会给三条定时任务传 `POSTGRES_OPS_TRIGGER=cron`，手动 sequence 会传 `POSTGRES_OPS_TRIGGER=manual_sequence`，三类运维脚本的 `status.json` 记录 `trigger`；evidence gate 新增 `CRON_EVIDENCE_REQUIRED_TRIGGER`。后续首次自然 cron 复验必须设置 `CRON_EVIDENCE_REQUIRED_TRIGGER=cron`，避免手动演练 artifact 污染自然定时结论。
+R123 后，补齐 cron evidence 来源口径并刷新服务器 cron。cron 安装器会给三条定时任务传 `POSTGRES_OPS_TRIGGER=cron`，手动 sequence 会传 `POSTGRES_OPS_TRIGGER=manual_sequence`，三类运维脚本的 `status.json` 记录 `trigger`；evidence gate 新增 `CRON_EVIDENCE_REQUIRED_TRIGGER`。服务器 `/etc/cron.d/miemie-postgres-ops` 已刷新到带 `trigger=cron` 的版本；当前 `CRON_EVIDENCE_REQUIRED_TRIGGER=cron` 检查为预期 `waiting`。后续首次自然 cron 复验必须继续设置该参数，避免手动演练 artifact 污染自然定时结论。
 
 ## 暂不做
 

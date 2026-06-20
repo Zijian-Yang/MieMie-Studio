@@ -188,7 +188,7 @@ bash scripts/postgres_operational_cron_sequence.sh
 
 2026-06-20 服务器 R122 手动演练已通过：readiness、backup retention、database snapshot 与 strict evidence gate 四步均 `passed`，cron 服务 `active`。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r122-postgres-operational-cron-sequence-server-20260620/`。
 
-2026-06-20 R123 已补 trigger source：cron 任务写入 `trigger=cron`，手动 sequence 写入 `trigger=manual_sequence`，evidence gate 可用 `CRON_EVIDENCE_REQUIRED_TRIGGER` 过滤来源。
+2026-06-20 R123 已补 trigger source：cron 任务写入 `trigger=cron`，手动 sequence 写入 `trigger=manual_sequence`，evidence gate 可用 `CRON_EVIDENCE_REQUIRED_TRIGGER` 过滤来源。服务器 cron 已刷新到带 `trigger=cron` 的版本；当前 `CRON_EVIDENCE_REQUIRED_TRIGGER=cron` 检查为 `waiting`，等待首次新版自然 cron artifact。
 
 ## 数据库运营快照
 

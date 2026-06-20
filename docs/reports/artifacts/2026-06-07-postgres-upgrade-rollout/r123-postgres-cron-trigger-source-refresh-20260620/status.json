@@ -1,0 +1,10 @@
+{
+  "run_id": "r123-postgres-cron-trigger-source-refresh-20260620",
+  "state": "passed",
+  "stage": "done",
+  "reason": "installed cron file",
+  "cron_file": "/etc/cron.d/miemie-postgres-ops",
+  "install_root": "/opt/miemie-pre",
+  "cron_preview": "validation-artifacts/r123-postgres-cron-trigger-source-refresh-20260620/miemie-postgres-ops.cron",
+  "updated_at": "2026-06-20T08:23:17Z"
+}

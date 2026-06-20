@@ -1,0 +1,6 @@
+check	state	path	detail
+cron_file	present	/etc/cron.d/miemie-postgres-ops	-
+cron_service	active	validation-artifacts/r123-postgres-cron-trigger-source-evidence-current-20260620/cron-service-status.txt	-
+operational_readiness	missing	-	no scheduled artifact found
+backup_retention	missing	-	no scheduled artifact found
+database_snapshot	missing	-	no scheduled artifact found
