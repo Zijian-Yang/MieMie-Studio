@@ -1042,6 +1042,18 @@ pre 部署复验：
 - R102 后运行态 health 为 `git_commit=34441611bf06b07ca26fb6fb7b9c58655ad2424d`、`database.ok=true`，`compose.env` 为 `MIEMIE_DATABASE_WRITE_MODE=postgres`、`MIEMIE_DATABASE_READ_MODE=postgres`、`MIEMIE_DATABASE_JSON_FALLBACK_READ=false`、`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=false`。
 - R103 final exit completion audit 对 R102 artifact 输出 `postgres_only_complete`，下一建议步骤为 `archive_json_and_monitor_postgres_runtime`。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r102-server-final-exit-sequence-health-engine-cache-20260619/` 和 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r103-final-exit-completion-audit-after-r102-20260619/`。
 
+2026-06-20 阶段 7 R104-R114 post-final JSON 退场：
+
+- R104 先以 dry-run 运行 R87 archive gate，确认 `postgres_only_complete` completion status 允许归档，待归档 tracked JSON 为 `70` 个，覆盖 `projects`、`sessions`、`studio`、`user_config` 和 `video_studio` 等已迁移业务状态。
+- R105 执行 tracked 业务 JSON archive：服务器先生成 `tracked-json-before-archive.r105-post-final-json-archive-20260620.tar.gz`，再把 70 个 tracked JSON 移入 `backend/data/_postgres_final_json_archive/r105-post-final-json-archive-20260620/`；tarball 留在服务器作为运维回滚证据，未拉回仓库。
+- R107/R108 在 tracked JSON 退场后完成 provider-free API smoke 和二次 discovery：一次性用户注册、项目创建、列表确认、删除和登出通过；R108 discovery 显示 tracked JSON 数量为 `0`。
+- R109 在 tracked JSON 退场后执行 k6 S1 read gate：`2600` requests、失败率 `0`、checks failed `0`、P95 `66.13ms`、P99 `113.50ms`。
+- R110 最终状态显示本机/公网 health 均正常、`database.ok=true`、`redis.ok=true`，但运行目录外仍剩 `backend/data/users.json` 与 `backend/data/config.example.json`。由于目标是完全脱离业务 JSON，根级 `users.json` 不能保留。
+- 补充修复 `UserService._ensure_data_dir()`：PostgreSQL primary-write 且 JSON archive writes 关闭时不再创建根级 `users.json`；本地回归 `backend/.venv/bin/python -m pytest backend/tests/test_user_config_primary_write.py backend/tests/test_user_config_read_switch.py backend/tests/test_user_config_dual_write.py backend/tests/test_session_runtime_primary_write.py -q` 为 `28 passed`。修复提交为 `c948b8116ede4bc3d26df135a1f2a52542ed4710`，并已构建部署到 `miemie-pre`。
+- R111 退休根级 `users.json`：先确认 JSON 中 `51` 个用户 ID 均存在于 PostgreSQL，PostgreSQL active user count 为 `53`，再生成服务器侧 `users-json-before-retirement.r111-root-users-json-retirement-20260620.tar.gz` 并将 `backend/data/users.json` 移入 quarantine。该 tarball 与隔离的 `users.json` 均未拉回仓库。
+- R112/R113/R114 在根级 `users.json` 退场后完成重启复验、provider-free API smoke、k6 S1 read gate 和最终状态采集。R113 为 `2600` requests、失败率 `0`、checks failed `0`、P95 `60.52ms`、P99 `115.69ms`；R114 显示运行态 `git_commit=c948b8116ede4bc3d26df135a1f2a52542ed4710`，本机/公网 health 均为 `ok`，`database.ok=true`，运行目录外剩余 JSON 仅 `backend/data/config.example.json`，quarantine JSON count 为 `71`。
+- 本地 artifact 安全扫描未发现 `.tar.gz`、`.bak`、Bearer token、明文密码或未脱敏 PostgreSQL URL；只保留摘要、headers、sanitized env、k6 summary/log 和 smoke 布尔结果。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r105-post-final-json-archive-20260620/`、`r111-root-users-json-retirement-20260620/`、`r113-post-root-users-retirement-k6-s1-20260620/` 和 `r114-post-root-users-retirement-final-state-20260620/` 等目录。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -1056,4 +1068,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步优先级：`miemie-pre` 已完成服务器 final exit sequence、post JSON exit validation 和 R103 completion audit，当前运行态为 PostgreSQL-only 主读主写，JSON fallback/archive writes 关闭。下一步不再是执行 final exit，而是先观察 PostgreSQL-only 运行态，再用 `python3 scripts/postgres_archive_json_after_final_exit.py --completion-status docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r103-final-exit-completion-audit-after-r102-20260619/status.json --confirm archive` 归档 tracked 业务 JSON；归档前不要删除根级 `config.json`、`users.json` 或 `config.example.json`。归档后继续跑 health、全域 reconcile、S1 read gate 和一次无供应商真实调用的 app smoke。
+- 下一步优先级：数据库主存储升级的关键切换与 JSON 退场已完成，`miemie-pre` 当前为 PostgreSQL-only 主读主写，JSON fallback/archive writes 关闭，运行目录外仅剩非运行态样例 `backend/data/config.example.json`。后续进入上线前收口：持续观察 PostgreSQL-only 运行态、补充备份/恢复定时化与告警 runbook、复查生产 Cloudflare/Nginx 入口策略，并选择下一轮目标市场入口 SLO 或功能治理任务。

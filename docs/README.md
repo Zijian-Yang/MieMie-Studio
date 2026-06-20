@@ -38,7 +38,7 @@
 
 - 平台已具备基本自动化验证链：后端 pytest、前端 `typecheck/lint/build`
 - 部署前只读自检已接入 `./run.sh doctor`，可在 Mac / 单服务器 / Compose 路径上提前发现缺失工具、敏感文件误跟踪、`compose.env` 占位值和端口占用
-- `miemie-pre` Compose PostgreSQL final exit 已通过：9 个 tracked 核心业务状态域已完成 schema/repository/backfill/reconcile/runtime gates，服务器 R102 final exit sequence 和 post JSON exit validation 通过，R103 completion audit 输出 `postgres_only_complete`；当前运行态为 PostgreSQL 主读主写、JSON fallback/archive writes 关闭。下一步是观察 PostgreSQL-only 运行态，并通过 R87 gate 归档 tracked 业务 JSON。
+- `miemie-pre` Compose PostgreSQL final exit 与 post-final JSON 退场已通过：9 个 tracked 核心业务状态域完成 schema/repository/backfill/reconcile/runtime gates，R103 completion audit 输出 `postgres_only_complete`；R105 已归档 70 个 tracked 业务 JSON，R111 已在确认 51 个根级 JSON 用户均存在于 PostgreSQL 后隔离 `users.json`，R114 最终状态显示运行态为 `c948b8116ede4bc3d26df135a1f2a52542ed4710`、PostgreSQL 主读主写、JSON fallback/archive writes 关闭，运行目录外仅剩非运行态样例 `backend/data/config.example.json`。
 - 当前主风险不在“代码完全不可用”，而在：
   - 复杂页面/路由/服务文件过大
   - 前端自动化测试缺口明显
@@ -131,7 +131,7 @@ docker compose config
 - E2E smoke：`npm run test:e2e`（2026-06-05，7 passed，覆盖登录/未登录跳转、项目列表、旧版视频页迁退提示、视频工作室空态、文生视频创建流程和成功任务详情；macOS 可自动发现本机 `ms-playwright` Chromium 缓存）
 - 部署前自检：`./run.sh doctor`（2026-06-17，本机实跑 `passed_with_warnings`：`compose.env` 缺失和 Docker daemon 默认跳过为 warning；不安装依赖、不修改配置、不启动服务）
 - Compose 静态校验：`docker compose config`（2026-05-24，通过）
-- 数据库升级状态：`miemie-pre` 已完成服务器 final exit sequence、post JSON exit validation 和 completion audit。运行态版本 `34441611bf06b07ca26fb6fb7b9c58655ad2424d`，`MIEMIE_DATABASE_WRITE_MODE=postgres`、`MIEMIE_DATABASE_READ_MODE=postgres`、`MIEMIE_DATABASE_JSON_FALLBACK_READ=false`、`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=false`；R102 k6 S1 read gate 为失败率 `0`、P95 `65.84ms`、P99 `111.42ms`。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r102-server-final-exit-sequence-health-engine-cache-20260619/` 与 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r103-final-exit-completion-audit-after-r102-20260619/`。
+- 数据库升级状态：`miemie-pre` 已完成服务器 final exit sequence、post JSON exit validation、completion audit、post-final tracked JSON 归档和根级 `users.json` 退场。运行态版本 `c948b8116ede4bc3d26df135a1f2a52542ed4710`，`MIEMIE_DATABASE_WRITE_MODE=postgres`、`MIEMIE_DATABASE_READ_MODE=postgres`、`MIEMIE_DATABASE_JSON_FALLBACK_READ=false`、`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=false`；R113 post-root-retirement k6 S1 read gate 为失败率 `0`、P95 `60.52ms`、P99 `115.69ms`。R114 最终状态显示本机/公网 health 均为 `ok`、`database.ok=true`、`redis.ok=true`，运行目录外剩余 JSON 仅 `backend/data/config.example.json`。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r105-post-final-json-archive-20260620/`、`docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r111-root-users-json-retirement-20260620/`、`docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r113-post-root-users-retirement-k6-s1-20260620/` 与 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r114-post-root-users-retirement-final-state-20260620/`。
 - 数据库升级 R35：user/config 本地 schema/repository boundary 已新增 `users`、`user_configs`、Alembic migration `20260607_0007` 和安全索引映射；登录、session 和 per-user `config.json` 运行态仍默认走 JSON/Redis/file-only，下一步补 user/config backfill/reconcile。
 - 数据库升级 R36：user/config backfill/reconcile 服务和维护脚本已新增，摘要保持脱敏且不迁移 `sessions.json`；运行态仍默认 JSON/Redis/file-only，下一步补 user/config runtime dual-write/read-switch/primary-write gates。
 - 数据库升级 R37：user/config runtime dual-write 已新增，注册/登录更新/改密码/config 保存默认仍 JSON 主写，显式启用后 shadow 写 PostgreSQL；session 仍保持 Redis + file fallback。
@@ -190,7 +190,7 @@ docker compose config
 - 当前保留为后续治理：
   - CI / 服务器环境仍需显式安装 Playwright Chromium；当前自动发现主要覆盖本机已有缓存的开发场景
   - `CapabilityCreateModal.tsx` 仍是视频工作室创建/编辑能力的主要复杂点；已先拆出 `DeveloperPreviewPanel.tsx`、`VideoFieldLabel.tsx`、`ReferenceCollectionsPanel.tsx`、`MaskEditorPanel.tsx` 与 `InputAssetSelector.tsx`，后续可继续提取参数区域等子组件或 hook；前端 smoke 可继续随拆分补编辑提交等更重路径；`StudioPage.tsx` 等大页面也仍需继续做行为保持型拆分
-  - 数据库阶段已进入分域迁移：`ADR-0003` 已接受 Compose 内 PostgreSQL 作为最终核心业务状态库，`2026-06-06-postgres-upgrade-optimization-plan.md` 明确 JSON 过渡、双写对账、分域迁移和最终数据库主数据源路线，`2026-06-07-postgres-platform-upgrade-execution.md` 进一步落盘 goal 模式执行路线、服务器 preflight、停止条件、真实 smoke 边界和阶段门禁；本地已实现 Compose PostgreSQL 基础设施、`/api/health.database`、备份/恢复演练脚本、health 回归测试、Alembic 配置、`video_studio_tasks`、`studio_tasks`、`projects`、media metadata、project entities、benchmark records 和 user/config 的 schema/migration、repository boundary、backfill/reconcile 脚本和脱敏对账报告、runtime dual-write、PostgreSQL read switch + JSON fallback，以及 PostgreSQL primary-write + JSON archive mirror；`sessions` 已补 schema/migration、只保存 `token_hash` 的 repository boundary、脱敏 backfill/reconcile、可选 runtime dual-write、read-switch 和 primary-write/JSON archive mirror，默认仍为 Redis + file fallback；R48 已完成本地临时 Compose PostgreSQL 实库演练，覆盖 Alembic、全域 backfill/reconcile、备份和恢复；R43 已完成服务器 PostgreSQL live migration/backfill/reconcile 和备份/恢复演练。R44 尝试进入 staging dual-write 前中断在新镜像 build/SSH 控制面恢复阶段，尚未重启容器或启用业务开关；R45/R46/R49/R50/R51/R52/R53 已补可重复服务器 canary 脚本、本地 app-free verifier、read-switch/rollback、primary-write/rollback、全序列 runner、本地连通性 preflight 和一键远程编排；R58 已补服务器终端自运行后备入口，以绕开本机 Clash/TUN 命令行路径；R64 已在 staging sequence 中加入服务器侧 `live-data-gate`，确保 app-level canary 前先执行 Alembic、全域 backfill/reconcile、备份和恢复演练；R67/R73 已固化 domain coverage audit，R68-R72 已完成 `audio_studio` 本地迁移闭环。当前 9 个 tracked 核心业务状态域 coverage pending 为 0；应用运行态仍默认 JSON/file-only，staging dual-write、staging read switch 和 staging primary-write 尚未启用。
+  - 数据库阶段已完成 `miemie-pre` PostgreSQL-only 主运行态切换与 JSON 退场：`ADR-0003` 已接受 Compose 内 PostgreSQL 作为最终核心业务状态库，`2026-06-06-postgres-upgrade-optimization-plan.md` 明确 JSON 过渡、双写对账、分域迁移和最终数据库主数据源路线，`2026-06-07-postgres-platform-upgrade-execution.md` 进一步落盘 goal 模式执行路线、服务器 preflight、停止条件、真实 smoke 边界和阶段门禁；9 个 tracked 核心业务状态域均已完成 schema/repository/backfill/reconcile/runtime gates，并在服务器完成 final exit sequence、post JSON exit validation、completion audit、tracked JSON archive、root `users.json` retirement、重启复验、provider-free smoke 与 k6 S1 read gate。当前运行态为 PostgreSQL 主读主写，JSON fallback/archive writes 关闭，运行目录外剩余 JSON 仅 `backend/data/config.example.json`。
 
 ## 文档维护规则
 
@@ -198,4 +198,4 @@ docker compose config
 - 如果旧文档与新 spec 冲突，以 spec / ADR 为准，并尽快修正文档入口
 - 不要把聊天上下文当规范；规范必须落盘
 
-*最后更新：2026-06-18*
+*最后更新：2026-06-20*

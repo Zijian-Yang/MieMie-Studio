@@ -1,0 +1,10 @@
+{
+  "run_id": "r113-post-root-users-retirement-k6-s1-20260620",
+  "state": "passed",
+  "http_req_failed": 0,
+  "p95_ms": 60.524846749999995,
+  "p99_ms": 115.68619132,
+  "http_reqs": 2600,
+  "checks_fails": 0,
+  "updated_at": "2026-06-20T14:52:31+0800"
+}

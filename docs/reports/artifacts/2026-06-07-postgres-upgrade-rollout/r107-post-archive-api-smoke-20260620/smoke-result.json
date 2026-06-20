@@ -1,0 +1,11 @@
+{
+  "run_id": "r107-post-archive-api-smoke-20260620",
+  "ok": true,
+  "username": "post_archive_1781937537",
+  "user_id": "0fd21e97-8310-427e-be3e-1700e1e20d3c",
+  "project_id": "5eb03683-320c-4130-b5f6-b77d5e287db7",
+  "found_after_create": true,
+  "found_after_delete": false,
+  "token_written": false,
+  "password_written": false
+}

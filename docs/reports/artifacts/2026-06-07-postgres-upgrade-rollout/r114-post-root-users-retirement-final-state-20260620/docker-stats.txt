@@ -1,0 +1,7 @@
+CONTAINER ID   NAME                         CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O        PIDS
+ce96e9bab41d   miemie-pre-api-1             0.18%     261.6MiB / 3.417GiB   7.47%     4.35MB / 5.29MB   13.1MB / 0B      8
+065fbd216305   miemie-pre-worker-1          0.15%     55.24MiB / 3.417GiB   1.58%     206kB / 141kB     3.73MB / 4.1kB   2
+b514103a5dbb   miemie-pre-worker-video-1    0.18%     55.06MiB / 3.417GiB   1.57%     206kB / 146kB     2.84MB / 4.1kB   2
+1d6f08e63155   miemie-pre-postgres-1        0.00%     61.94MiB / 3.417GiB   1.77%     24.6MB / 27.8MB   206GB / 152MB    8
+f6a4dd058e1b   miemie-pre-redis-1           0.43%     8.383MiB / 3.417GiB   0.24%     3.27GB / 4.87GB   9.77GB / 232MB   6
+665effbc902e   miemie-studio-ha-lab-api-1   0.19%     202.9MiB / 3.417GiB   5.80%     115kB / 10.6kB    81.1GB / 1.5MB   8

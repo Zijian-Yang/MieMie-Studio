@@ -1,0 +1,12 @@
+{
+  "run_id": "r110-post-archive-final-state-20260620",
+  "state": "passed",
+  "health_status": "ok",
+  "database_ok": true,
+  "runtime_git_commit": "34441611bf06b07ca26fb6fb7b9c58655ad2424d",
+  "remaining_json_outside_quarantine": [
+    "backend/data/config.example.json",
+    "backend/data/users.json"
+  ],
+  "quarantine_json_count": 70
+}

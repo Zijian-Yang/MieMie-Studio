@@ -1,0 +1,28 @@
+{
+  "run_id": "r105-post-final-json-archive-20260620",
+  "updated_at": "2026-06-20T06:37:21Z",
+  "state": "passed",
+  "stage": "done",
+  "reason": "tracked JSON files archived and quarantined",
+  "data_root": "backend/data",
+  "completion_status": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r103-final-exit-completion-audit-after-r102-20260619/status.json",
+  "completion_state": "postgres_only_complete",
+  "artifact_dir": "validation-artifacts/r105-post-final-json-archive-20260620",
+  "manifest": "validation-artifacts/r105-post-final-json-archive-20260620/tracked-json-manifest.tsv",
+  "tracked_json_count": 70,
+  "tracked_json_count_by_domain": {
+    "projects": 9,
+    "sessions": 1,
+    "studio": 12,
+    "user_config": 42,
+    "video_studio": 6
+  },
+  "moved_count": 70,
+  "tarball": "validation-artifacts/r105-post-final-json-archive-20260620/tracked-json-before-archive.r105-post-final-json-archive-20260620.tar.gz",
+  "quarantine_root": "backend/data/_postgres_final_json_archive/r105-post-final-json-archive-20260620",
+  "notes": [
+    "Root backend/data/config.json, users.json, and config.example.json are intentionally excluded.",
+    "This gate only archives tracked business-state JSON that already has PostgreSQL migration coverage.",
+    "Use --confirm archive only after final exit completion audit reports postgres_only_complete."
+  ]
+}

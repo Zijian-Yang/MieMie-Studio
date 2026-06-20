@@ -1,0 +1,10 @@
+{
+  "run_id": "r108-post-archive-discovery-after-smoke-20260620",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set --confirm archive to archive tracked JSON files",
+  "tracked_json_count": 0,
+  "moved_count": 0,
+  "artifact_dir": "validation-artifacts/r108-post-archive-discovery-after-smoke-20260620",
+  "updated_at": "2026-06-20T06:38:58Z"
+}

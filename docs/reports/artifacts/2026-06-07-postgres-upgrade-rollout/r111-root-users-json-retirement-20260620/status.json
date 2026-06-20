@@ -1,0 +1,10 @@
+{
+  "run_id": "r111-root-users-json-retirement-20260620",
+  "stage": "done",
+  "state": "passed",
+  "json_user_count": 51,
+  "postgres_user_count": 53,
+  "missing_json_users_in_postgres": [],
+  "tarball": "validation-artifacts/r111-root-users-json-retirement-20260620/users-json-before-retirement.r111-root-users-json-retirement-20260620.tar.gz",
+  "quarantine_path": "backend/data/_postgres_final_json_archive/r111-root-users-json-retirement-20260620/users.json"
+}

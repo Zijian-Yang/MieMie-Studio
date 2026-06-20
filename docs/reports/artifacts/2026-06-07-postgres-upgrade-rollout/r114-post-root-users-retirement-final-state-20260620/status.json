@@ -1,0 +1,14 @@
+{
+  "run_id": "r114-post-root-users-retirement-final-state-20260620",
+  "state": "passed",
+  "runtime_git_commit": "c948b8116ede4bc3d26df135a1f2a52542ed4710",
+  "local_health_status": "ok",
+  "public_health_status": "ok",
+  "database_ok": true,
+  "redis_ok": true,
+  "remaining_json_outside_quarantine": [
+    "backend/data/config.example.json"
+  ],
+  "quarantine_json_count": 71,
+  "updated_at": "2026-06-20T14:52:55+0800"
+}

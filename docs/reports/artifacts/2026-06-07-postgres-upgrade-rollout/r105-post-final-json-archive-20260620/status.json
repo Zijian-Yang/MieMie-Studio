@@ -1,0 +1,10 @@
+{
+  "run_id": "r105-post-final-json-archive-20260620",
+  "state": "passed",
+  "stage": "done",
+  "reason": "tracked JSON files archived and quarantined",
+  "tracked_json_count": 70,
+  "moved_count": 70,
+  "artifact_dir": "validation-artifacts/r105-post-final-json-archive-20260620",
+  "updated_at": "2026-06-20T06:37:21Z"
+}
