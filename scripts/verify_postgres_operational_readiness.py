@@ -102,6 +102,9 @@ def check_static_contract() -> None:
         "compose.env.sanitized",
         "docker stats --no-stream",
         "--connect-timeout 10 --max-time 20",
+        "postgres_ops_alert.sh",
+        "postgres_ops_send_alert",
+        "MIEMIE_OPS_ALERT_ON_WARNING",
     ]
     for fragment in required_fragments:
         if fragment not in content:

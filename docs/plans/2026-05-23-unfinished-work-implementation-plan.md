@@ -443,6 +443,8 @@ R116 后，备份保留与定时巡检入口已具备 dry-run。`scripts/postgre
 
 R117 后，服务器 `/etc/cron.d/miemie-postgres-ops` 已安装，cron 服务状态为 `active`。当前计划每日 `03:15` 跑 operational readiness + 新备份/恢复演练，每日 `03:45` 跑 backup retention prune；安装证据已归档。下一步是在首次定时运行后检查 cron log 和 artifact，并补告警通知接入。
 
+R118 后，已新增默认 no-op 的 PostgreSQL 运维告警钩子。`postgres_operational_readiness.sh` 会在 blocked/failed 时发送 critical 告警，`postgres_backup_retention.sh` 会在异常退出时告警；cron 会尝试加载服务器本地 `/etc/miemie-postgres-ops-alert.env`，用于后续配置真实 webhook，仓库只保留 dry-run 告警证据。下一步是在首次定时运行后检查 cron log/artifact，并决定是否接入真实告警 webhook。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

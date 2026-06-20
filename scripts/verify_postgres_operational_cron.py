@@ -46,6 +46,8 @@ def main() -> int:
         assert status["stage"] == "planned"
         assert not cron_target.exists()
         required = [
+            "/etc/miemie-postgres-ops-alert.env",
+            "set -a; .",
             "CONFIRM_POSTGRES_OPERATIONAL_READINESS=run",
             "POSTGRES_OPS_BACKUP_RESTORE=run",
             "scripts/postgres_operational_readiness.sh",

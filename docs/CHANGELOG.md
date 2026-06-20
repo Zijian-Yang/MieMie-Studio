@@ -34,6 +34,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- PostgreSQL 运维告警钩子：新增默认 no-op 的 `scripts/postgres_ops_alert.sh` 与 verifier；operational readiness blocked/failed、backup retention 异常退出可触发 webhook 通知路径，cron 预留服务器本地 `/etc/miemie-postgres-ops-alert.env`。
 - PostgreSQL operational cron 已安装：服务器 `/etc/cron.d/miemie-postgres-ops` 每日运行 operational readiness + 新备份/恢复演练，并执行 backup retention prune；cron 服务状态为 `active`，安装证据归档为 R117。
 - PostgreSQL backup retention 与 cron dry-run：新增 `scripts/postgres_backup_retention.sh`、`scripts/postgres_install_operational_cron.sh` 及 verifiers；保留策略默认只列候选，显式确认才 prune；cron 安装默认只生成 `/etc/cron.d/miemie-postgres-ops` 预览，显式确认才安装。
 - PostgreSQL operational readiness gate：新增 `scripts/postgres_operational_readiness.sh` 和 verifier，覆盖最终 PostgreSQL-only env、local/public health、Compose/Docker 状态、运行目录外 JSON 清单、备份新鲜度和显式 restore rehearsal；R115 服务器实跑为 `24 passed / 0 warn / 0 blocked / 0 failed`，新备份和恢复演练通过。

@@ -48,6 +48,31 @@ def run_retention(temp: Path, confirm: str = "dry-run") -> tuple[dict, str]:
     return status, manifest
 
 
+def run_failure_alert_contract(temp: Path) -> None:
+    invalid_backup_dir = temp / "not-a-directory"
+    invalid_backup_dir.write_text("block mkdir\n", encoding="utf-8")
+    artifact = temp / "artifact-failure"
+    env = {
+        **os.environ,
+        "RUN_ID": "verify-retention-failure",
+        "ARTIFACT_DIR": str(artifact),
+        "BACKUP_DIR": str(invalid_backup_dir),
+    }
+    result = subprocess.run(
+        ["bash", str(SCRIPT)],
+        cwd=ROOT_DIR,
+        check=False,
+        text=True,
+        capture_output=True,
+        env=env,
+    )
+    if result.returncode == 0:
+        raise AssertionError("retention failure contract unexpectedly succeeded")
+    alerts = (artifact / "alerts.tsv").read_text(encoding="utf-8")
+    assert "postgres_backup_retention" in alerts
+    assert "skipped\tno_webhook" in alerts
+
+
 def main() -> int:
     result = subprocess.run(["bash", "-n", str(SCRIPT)], cwd=ROOT_DIR, text=True, capture_output=True)
     if result.returncode != 0:
@@ -69,6 +94,8 @@ def main() -> int:
         assert status["deleted_count"] == 2
         assert "deleted" in manifest
         assert len(list((temp / "backups").glob("*.sql"))) == 2
+
+        run_failure_alert_contract(temp)
 
     print("postgres backup retention verifier: passed")
     return 0

@@ -115,7 +115,23 @@ bash scripts/postgres_install_operational_cron.sh
 - 每天 `03:15` 执行 PostgreSQL operational readiness，并创建新备份与 restore rehearsal。
 - 每天 `03:45` 执行备份保留策略，按 `RETENTION_DAYS=14`、`MIN_KEEP=3` 清理旧 dump。
 
+cron 会在执行脚本前尝试加载服务器本地 `/etc/miemie-postgres-ops-alert.env`。该文件不要入仓库，可用于放置告警 webhook：
+
+```bash
+MIEMIE_OPS_ALERT_WEBHOOK_URL=https://example.invalid/webhook
+```
+
+默认不配置 webhook 时，失败只会在当前 artifact 的 `alerts.tsv` 记录 `skipped/no_webhook`，不会发外部请求。需要先演练告警但不发送网络请求时，可设置：
+
+```bash
+MIEMIE_OPS_ALERT_DRY_RUN=true
+```
+
+`scripts/postgres_operational_readiness.sh` 只在 `blocked/failed` 时发送 critical 告警；如需 warning 也告警，可设置 `MIEMIE_OPS_ALERT_ON_WARNING=true`。`scripts/postgres_backup_retention.sh` 在脚本异常退出时发送 critical 告警。
+
 2026-06-20 已在 `miemie-pre` 安装 `/etc/cron.d/miemie-postgres-ops`，cron 服务状态为 `active`。安装证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r117-postgres-operational-cron-install-20260620/`。
+
+2026-06-20 已新增默认 no-op 的告警 helper，并用 dry-run webhook 归档告警证据，见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r118-postgres-ops-alert-dry-run-20260620/`。
 
 后续每次修改 cron 内容后，都要重新归档：
 

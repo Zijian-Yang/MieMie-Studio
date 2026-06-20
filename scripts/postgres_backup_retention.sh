@@ -13,8 +13,24 @@ CONFIRM_POSTGRES_BACKUP_RETENTION="${CONFIRM_POSTGRES_BACKUP_RETENTION:-dry-run}
 
 mkdir -p "$ARTIFACT_DIR"
 
+if [[ -f scripts/postgres_ops_alert.sh ]]; then
+  # shellcheck source=scripts/postgres_ops_alert.sh
+  source scripts/postgres_ops_alert.sh
+fi
+
 STATUS_FILE="$ARTIFACT_DIR/status.json"
 MANIFEST_FILE="$ARTIFACT_DIR/postgres-backup-retention-manifest.tsv"
+
+alert_on_error() {
+  local exit_code="$1"
+  local line_no="$2"
+  if type postgres_ops_send_alert >/dev/null 2>&1; then
+    postgres_ops_send_alert "critical" "postgres_backup_retention" "failed" "exit ${exit_code} at line ${line_no}" "$ARTIFACT_DIR"
+  fi
+  exit "$exit_code"
+}
+
+trap 'alert_on_error "$?" "$LINENO"' ERR
 
 if [[ -x "backend/.venv/bin/python" ]]; then
   PYTHON_BIN="backend/.venv/bin/python"

@@ -22,6 +22,11 @@ ALLOWED_REMAINING_JSON="${ALLOWED_REMAINING_JSON:-backend/data/config.example.js
 
 mkdir -p "$ARTIFACT_DIR" "$TMP_DIR"
 
+if [[ -f scripts/postgres_ops_alert.sh ]]; then
+  # shellcheck source=scripts/postgres_ops_alert.sh
+  source scripts/postgres_ops_alert.sh
+fi
+
 STATUS_FILE="$ARTIFACT_DIR/status.json"
 RESULTS_FILE="$ARTIFACT_DIR/results.tsv"
 COMMAND_LOG="$ARTIFACT_DIR/commands.log"
@@ -107,6 +112,12 @@ run_logged() {
   shift
   log_cmd "$label" "$@"
   "$@" >> "$COMMAND_LOG" 2>&1
+}
+
+send_ops_alert() {
+  if type postgres_ops_send_alert >/dev/null 2>&1; then
+    postgres_ops_send_alert "$@"
+  fi
 }
 
 env_value() {
@@ -382,10 +393,14 @@ main() {
 
   if [[ "$BLOCKED" -gt 0 || "$FAILED" -gt 0 ]]; then
     write_status "blocked" "done" "$BLOCKED blocked, $FAILED failed, $WARNED warnings"
+    send_ops_alert "critical" "postgres_operational_readiness" "blocked" "$BLOCKED blocked, $FAILED failed, $WARNED warnings" "$ARTIFACT_DIR"
     exit 2
   fi
   if [[ "$WARNED" -gt 0 ]]; then
     write_status "passed_with_warnings" "done" "$WARNED warnings"
+    if [[ "${MIEMIE_OPS_ALERT_ON_WARNING:-false}" == "true" ]]; then
+      send_ops_alert "warning" "postgres_operational_readiness" "passed_with_warnings" "$WARNED warnings" "$ARTIFACT_DIR"
+    fi
     exit 0
   fi
   write_status "passed" "done" ""
