@@ -92,7 +92,7 @@ def test_user_primary_write_registers_to_postgres_without_json_by_default(tmp_pa
     assert user is not None
     assert primary.saved == [user.id]
     assert primary.get_by_id(user.id).username == "alice"
-    assert _read_users(tmp_path / "users.json") == {}
+    assert not (tmp_path / "users.json").exists()
 
 
 def test_user_primary_write_can_keep_json_archive_mirror(tmp_path, monkeypatch):
@@ -133,6 +133,7 @@ def test_user_primary_write_login_reads_and_updates_postgres_user(tmp_path, monk
     assert logged_in.id == user.id
     assert primary.get_by_id(user.id).last_login is not None
     assert primary.saved == [user.id, user.id]
+    assert not (tmp_path / "users.json").exists()
 
 
 def test_user_primary_write_failure_does_not_write_json(tmp_path, monkeypatch):
@@ -147,7 +148,7 @@ def test_user_primary_write_failure_does_not_write_json(tmp_path, monkeypatch):
     with pytest.raises(RuntimeError):
         service.register("alice", "pass123")
 
-    assert _read_users(tmp_path / "users.json") == {}
+    assert not (tmp_path / "users.json").exists()
 
 
 def test_config_primary_write_saves_to_postgres_without_json_by_default(tmp_path, monkeypatch):

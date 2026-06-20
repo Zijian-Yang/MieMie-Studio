@@ -41,8 +41,16 @@ class UserService:
     def _ensure_data_dir(self):
         """确保数据目录存在"""
         self.data_dir.mkdir(parents=True, exist_ok=True)
-        if not self.users_file.exists():
+        if not self.users_file.exists() and self._users_file_required():
             self._save_users({})
+
+    def _users_file_required(self) -> bool:
+        from app.repositories.user_config_runtime import (
+            json_archive_writes_enabled,
+            user_config_primary_write_enabled,
+        )
+
+        return not user_config_primary_write_enabled() or json_archive_writes_enabled()
     
     def _load_users(self) -> Dict[str, dict]:
         """加载所有用户"""
