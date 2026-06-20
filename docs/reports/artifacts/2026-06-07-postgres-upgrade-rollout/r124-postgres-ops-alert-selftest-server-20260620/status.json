@@ -1,0 +1,24 @@
+{
+  "run_id": "r124-postgres-ops-alert-selftest-server-20260620",
+  "state": "passed",
+  "stage": "done",
+  "reason": "",
+  "artifact_dir": "validation-artifacts/r124-postgres-ops-alert-selftest-server-20260620",
+  "confirm": "run",
+  "updated_at": "2026-06-20T09:43:20Z",
+  "cases": {
+    "no_webhook": "passed",
+    "dry_run": "passed",
+    "mock_webhook": "passed"
+  },
+  "mock_payload_keys": [
+    "artifact_dir",
+    "host",
+    "label",
+    "reason",
+    "run_id",
+    "severity",
+    "state",
+    "time"
+  ]
+}

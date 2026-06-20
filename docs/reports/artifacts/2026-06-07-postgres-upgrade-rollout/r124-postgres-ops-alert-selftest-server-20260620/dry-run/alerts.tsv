@@ -1,0 +1,2 @@
+time	label	severity	state	result	detail
+2026-06-20T09:43:20Z	postgres_ops_alert_selftest	critical	blocked	skipped	dry_run

@@ -145,7 +145,7 @@ python3 scripts/postgres_ops_alert_selftest.py
 
 2026-06-20 已新增默认 no-op 的告警 helper，并用 dry-run webhook 归档告警证据，见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r118-postgres-ops-alert-dry-run-20260620/`。同日已刷新服务器 cron，使其加载可选告警 env，证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r118-postgres-ops-alert-cron-refresh-20260620/`。
 
-2026-06-20 R124 本地-only 告警自测已通过：no-webhook、dry-run 和 mock webhook 三个 case 均 `passed`。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r124-postgres-ops-alert-selftest-local-mock-20260620/`。
+2026-06-20 R124 本地-only 告警自测已在本地和服务器通过：no-webhook、dry-run 和 mock webhook 三个 case 均 `passed`。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r124-postgres-ops-alert-selftest-local-mock-20260620/` 与 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r124-postgres-ops-alert-selftest-server-20260620/`。
 
 后续每次修改 cron 内容后，都要重新归档：
 

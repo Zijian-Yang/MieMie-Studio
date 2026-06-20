@@ -1111,7 +1111,7 @@ pre 部署复验：
 2026-06-20 阶段 7 R124 ops alert self-test：
 
 - 新增 `scripts/postgres_ops_alert_selftest.py` 与 `scripts/verify_postgres_ops_alert_selftest.py`。脚本默认 dry-run；显式 `CONFIRM_POSTGRES_OPS_ALERT_SELFTEST=run` 后只启动本机 `127.0.0.1` mock webhook，验证 no-webhook、dry-run 和真实 curl POST 三条路径。
-- 本地 verifier 与 mock self-test 已通过：`no_webhook`、`dry_run`、`mock_webhook` 均 `passed`，mock payload 只包含 `run_id/label/severity/state/reason/host/artifact_dir/time` 等合成字段，不记录真实 webhook URL。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r124-postgres-ops-alert-selftest-dry-run-20260620/` 和 `r124-postgres-ops-alert-selftest-local-mock-20260620/`。
+- 本地 verifier、local mock self-test 和服务器 mock self-test 均已通过：`no_webhook`、`dry_run`、`mock_webhook` 均 `passed`，mock payload 只包含 `run_id/label/severity/state/reason/host/artifact_dir/time` 等合成字段，不记录真实 webhook URL。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r124-postgres-ops-alert-selftest-dry-run-20260620/`、`r124-postgres-ops-alert-selftest-local-mock-20260620/` 和 `r124-postgres-ops-alert-selftest-server-20260620/`。
 
 后续建议继续拆分：
 
