@@ -1,0 +1,14 @@
+relname,total_bytes,table_bytes,index_bytes,total_pretty
+studio_tasks,335872,106496,49152,328 kB
+benchmark_records,303104,139264,122880,296 kB
+video_studio_tasks,303104,65536,65536,296 kB
+project_entities,286720,139264,106496,280 kB
+user_configs,278528,188416,49152,272 kB
+media_assets,172032,57344,81920,168 kB
+audio_studio_tasks,147456,49152,65536,144 kB
+projects,147456,65536,49152,144 kB
+voice_profiles,139264,40960,65536,136 kB
+users,114688,32768,49152,112 kB
+text_items,98304,16384,49152,96 kB
+sessions,65536,8192,49152,64 kB
+alembic_version,24576,8192,16384,24 kB

@@ -177,3 +177,5 @@ bash scripts/postgres_database_snapshot.sh
 - `passed`：预期表存在、无长事务、无等待锁、连接数未超过阈值。
 - `passed_with_warnings`：没有阻塞项，但连接比例或 dead tuple 比例达到告警阈值。
 - `blocked`：预期表缺失、存在超过阈值的长事务或等待锁。
+
+2026-06-20 服务器 R120 只读快照通过：数据库大小 `10607639` bytes、连接 `3/50`、长事务 `0`、等待锁 `0`、缺失预期表 `0`、warnings `0`。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r120-postgres-database-snapshot-server-20260620/`。

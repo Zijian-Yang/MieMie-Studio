@@ -1,0 +1,14 @@
+schemaname,relname,n_live_tup,n_dead_tup,dead_tuple_ratio,last_vacuum,last_autovacuum,last_analyze,last_autoanalyze
+public,alembic_version,1,8,8.000000,,,,
+public,audio_studio_tasks,15,15,1.000000,,,,
+public,benchmark_records,90,30,0.333333,,2026-06-19 18:12:45.285493+08,,2026-06-19 18:20:05.518473+08
+public,media_assets,45,45,1.000000,,,,2026-06-19 18:11:45.25194+08
+public,project_entities,90,30,0.333333,,2026-06-19 18:12:45.272688+08,,2026-06-19 18:20:05.509088+08
+public,projects,27,19,0.703704,,,,2026-06-20 14:50:27.221471+08
+public,sessions,18,18,1.000000,,,,2026-06-20 14:50:27.224786+08
+public,studio_tasks,27,41,1.518519,,,,2026-06-19 18:19:00.460014+08
+public,text_items,15,15,1.000000,,,,
+public,user_configs,43,47,1.093023,,2026-06-19 18:11:45.259172+08,,2026-06-19 18:19:00.466941+08
+public,users,54,23,0.425926,,,,2026-06-19 18:20:05.528337+08
+public,video_studio_tasks,21,27,1.285714,,,,2026-06-19 18:10:45.222501+08
+public,voice_profiles,15,15,1.000000,,,,
