@@ -1,0 +1,21 @@
+{
+  "run_id": "postgres-database-snapshot-20260620-161132",
+  "state": "passed",
+  "stage": "done",
+  "reason": "",
+  "artifact_dir": "validation-artifacts/postgres-database-snapshot-20260620-161132",
+  "database_size_bytes": 10607639,
+  "max_connections": 50,
+  "total_connections": 3,
+  "long_transaction_count": 0,
+  "waiting_lock_count": 0,
+  "missing_tables": [],
+  "warnings": [],
+  "thresholds": {
+    "long_transaction_seconds": 300,
+    "dead_tuple_warn_ratio": 0.2,
+    "dead_tuple_warn_min": 1000,
+    "connection_warn_ratio": 0.7
+  },
+  "updated_at": "2026-06-20T08:11:38Z"
+}

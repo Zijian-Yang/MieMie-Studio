@@ -1,0 +1,28 @@
+{
+  "run_id": "postgres-operational-cron-sequence-evidence-20260620-161132",
+  "state": "passed",
+  "stage": "done",
+  "reason": "",
+  "artifact_dir": "validation-artifacts/r122-postgres-operational-cron-sequence-server-20260620/evidence",
+  "validation_root": "validation-artifacts",
+  "cron_file": "/etc/cron.d/miemie-postgres-ops",
+  "cron_service_state": "active",
+  "operational_readiness": {
+    "status_path": "validation-artifacts/postgres-ops-20260620-161132/status.json",
+    "state": "passed",
+    "updated_at": "2026-06-20T08:11:37Z"
+  },
+  "backup_retention": {
+    "status_path": "validation-artifacts/postgres-backup-retention-20260620-161132/status.json",
+    "state": "passed",
+    "updated_at": "2026-06-20T08:11:37Z"
+  },
+  "database_snapshot": {
+    "status_path": "validation-artifacts/postgres-database-snapshot-20260620-161132/status.json",
+    "state": "passed",
+    "updated_at": "2026-06-20T08:11:38Z"
+  },
+  "not_before": "2026-06-20T08:11:32Z",
+  "strict_wait": true,
+  "updated_at": "2026-06-20T08:11:38Z"
+}

@@ -183,6 +183,8 @@ bash scripts/postgres_operational_cron_sequence.sh
 
 这个手动演练用于证明命令链和 artifact 识别即时可用；它不替代首次自然 cron 运行后的 evidence gate 复验。
 
+2026-06-20 服务器 R122 手动演练已通过：readiness、backup retention、database snapshot 与 strict evidence gate 四步均 `passed`，cron 服务 `active`。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r122-postgres-operational-cron-sequence-server-20260620/`。
+
 ## 数据库运营快照
 
 采集只读 PostgreSQL 运营快照：

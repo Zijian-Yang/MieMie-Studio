@@ -1,0 +1,14 @@
+{
+  "run_id": "postgres-backup-retention-20260620-161132",
+  "state": "passed",
+  "stage": "done",
+  "reason": "deleted 0 expired backups",
+  "backup_dir": "backend/backups/postgres",
+  "retention_days": 14,
+  "min_keep": 3,
+  "total_backups": 2,
+  "delete_candidate_count": 0,
+  "deleted_count": 0,
+  "manifest": "validation-artifacts/postgres-backup-retention-20260620-161132/postgres-backup-retention-manifest.tsv",
+  "updated_at": "2026-06-20T08:11:37Z"
+}

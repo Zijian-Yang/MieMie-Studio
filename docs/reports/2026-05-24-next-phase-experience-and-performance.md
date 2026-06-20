@@ -1100,7 +1100,7 @@ pre 部署复验：
 2026-06-20 阶段 7 R122 operational cron sequence rehearsal：
 
 - 新增 `scripts/postgres_operational_cron_sequence.sh` 与 `scripts/verify_postgres_operational_cron_sequence.py`。该脚本默认 dry-run，只生成计划；显式 `CONFIRM_POSTGRES_CRON_SEQUENCE=run` 后会顺序执行 operational readiness、backup retention、database snapshot，并用 `CRON_EVIDENCE_NOT_BEFORE` + `CRON_EVIDENCE_STRICT_WAIT=true` 立即校验刚生成的三类 artifact。
-- 本地 verifier 与 dry-run 已通过，证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r122-postgres-operational-cron-sequence-dry-run-20260620/`。该门禁用于发布前/cron 变更后即时演练，不替代首次自然定时窗口后的 cron evidence 复验。
+- 本地 verifier 与 dry-run 已通过，证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r122-postgres-operational-cron-sequence-dry-run-20260620/`。服务器 R122 sequence 已通过：operational readiness、backup retention、database snapshot 和 strict cron evidence 四步均 `passed`；cron 服务 `active`，backup retention 删除 `0` 个旧备份，database snapshot 显示连接 `3/50`、长事务 `0`、等待锁 `0`、warnings `0`。服务器安全摘要归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r122-postgres-operational-cron-sequence-server-20260620/`，SQL dump 仍只留服务器。该门禁用于发布前/cron 变更后即时演练，不替代首次自然定时窗口后的 cron evidence 复验。
 
 后续建议继续拆分：
 

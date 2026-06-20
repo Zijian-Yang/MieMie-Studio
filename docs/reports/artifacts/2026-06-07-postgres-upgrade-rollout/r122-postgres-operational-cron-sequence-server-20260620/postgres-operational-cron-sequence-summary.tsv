@@ -1,0 +1,5 @@
+step	state	run_id	artifact_dir	exit_code
+operational_readiness	passed	postgres-ops-20260620-161132	validation-artifacts/postgres-ops-20260620-161132	0
+backup_retention	passed	postgres-backup-retention-20260620-161132	validation-artifacts/postgres-backup-retention-20260620-161132	0
+database_snapshot	passed	postgres-database-snapshot-20260620-161132	validation-artifacts/postgres-database-snapshot-20260620-161132	0
+cron_evidence	passed	postgres-operational-cron-sequence-evidence-20260620-161132	validation-artifacts/r122-postgres-operational-cron-sequence-server-20260620/evidence	0

@@ -1,0 +1,6 @@
+check	state	path	detail
+cron_file	present	/etc/cron.d/miemie-postgres-ops	-
+cron_service	active	validation-artifacts/r122-postgres-operational-cron-sequence-server-20260620/evidence/cron-service-status.txt	-
+operational_readiness	passed	validation-artifacts/postgres-ops-20260620-161132/status.json	-
+backup_retention	passed	validation-artifacts/postgres-backup-retention-20260620-161132/status.json	deleted 0 expired backups
+database_snapshot	passed	validation-artifacts/postgres-database-snapshot-20260620-161132/status.json	-

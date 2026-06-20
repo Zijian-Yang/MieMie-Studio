@@ -1,0 +1,18 @@
+{
+  "run_id": "postgres-ops-20260620-161132",
+  "state": "passed",
+  "stage": "done",
+  "reason": "",
+  "confirm": "run",
+  "backup_restore": "run",
+  "backup_max_age_hours": "26",
+  "artifact_dir": "validation-artifacts/postgres-ops-20260620-161132",
+  "tmp_dir": "/tmp/postgres-ops-20260620-161132",
+  "counts": {
+    "passed": 24,
+    "warn": 0,
+    "blocked": 0,
+    "failed": 0
+  },
+  "updated_at": "2026-06-20T08:11:37Z"
+}

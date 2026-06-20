@@ -1,0 +1,10 @@
+{
+  "run_id": "r122-postgres-operational-cron-sequence-server-20260620",
+  "state": "passed",
+  "stage": "done",
+  "reason": "cron-equivalent PostgreSQL operational sequence passed",
+  "artifact_dir": "validation-artifacts/r122-postgres-operational-cron-sequence-server-20260620",
+  "confirm": "run",
+  "validation_root": "validation-artifacts",
+  "updated_at": "2026-06-20T08:11:38Z"
+}
