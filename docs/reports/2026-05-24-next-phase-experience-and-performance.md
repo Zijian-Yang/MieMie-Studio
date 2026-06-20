@@ -1077,7 +1077,7 @@ pre 部署复验：
 
 - 新增 `scripts/postgres_ops_alert.sh` 与 `scripts/verify_postgres_ops_alert.py`，提供默认 no-op 的 PostgreSQL 运维告警钩子。未配置 `MIEMIE_OPS_ALERT_WEBHOOK_URL` 时只在 artifact 写入 `alerts.tsv`，配置 webhook 后才通过 `curl` 发送 JSON payload，artifact 不记录 webhook URL。
 - `scripts/postgres_operational_readiness.sh` 在 `blocked/failed` 时发送 critical 告警；可用 `MIEMIE_OPS_ALERT_ON_WARNING=true` 让 warning 也告警。`scripts/postgres_backup_retention.sh` 在异常退出时发送 critical 告警。
-- `scripts/postgres_install_operational_cron.sh` 生成的 cron 会在执行前加载服务器本地 `/etc/miemie-postgres-ops-alert.env`，用于后续放置 webhook，不入仓库。dry-run 告警证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r118-postgres-ops-alert-dry-run-20260620/`。
+- `scripts/postgres_install_operational_cron.sh` 生成的 cron 会在执行前加载服务器本地 `/etc/miemie-postgres-ops-alert.env`，用于后续放置 webhook，不入仓库。dry-run 告警证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r118-postgres-ops-alert-dry-run-20260620/`；服务器 cron 已刷新并归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r118-postgres-ops-alert-cron-refresh-20260620/`。
 
 后续建议继续拆分：
 

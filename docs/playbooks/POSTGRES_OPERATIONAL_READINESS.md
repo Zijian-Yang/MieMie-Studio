@@ -131,7 +131,7 @@ MIEMIE_OPS_ALERT_DRY_RUN=true
 
 2026-06-20 已在 `miemie-pre` 安装 `/etc/cron.d/miemie-postgres-ops`，cron 服务状态为 `active`。安装证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r117-postgres-operational-cron-install-20260620/`。
 
-2026-06-20 已新增默认 no-op 的告警 helper，并用 dry-run webhook 归档告警证据，见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r118-postgres-ops-alert-dry-run-20260620/`。
+2026-06-20 已新增默认 no-op 的告警 helper，并用 dry-run webhook 归档告警证据，见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r118-postgres-ops-alert-dry-run-20260620/`。同日已刷新服务器 cron，使其加载可选告警 env，证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r118-postgres-ops-alert-cron-refresh-20260620/`。
 
 后续每次修改 cron 内容后，都要重新归档：
 
