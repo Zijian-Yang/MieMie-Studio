@@ -139,3 +139,20 @@ MIEMIE_OPS_ALERT_DRY_RUN=true
 - cron 服务状态。
 - 最近一次 cron log。
 - 最近一次 operational readiness artifact。
+
+## 定时运行证据检查
+
+检查最近一次 cron 是否已经自然生成 operational readiness 与 backup retention 证据：
+
+```bash
+RUN_ID=postgres-operational-cron-evidence-$(date +%Y%m%d-%H%M%S) \
+ARTIFACT_DIR=validation-artifacts/postgres-operational-cron-evidence-$(date +%Y%m%d-%H%M%S) \
+CONFIRM_POSTGRES_CRON_EVIDENCE=check \
+bash scripts/postgres_operational_cron_evidence.sh
+```
+
+状态含义：
+
+- `passed`：最近一次 `postgres-ops-*` readiness artifact 与 `postgres-backup-retention-*` retention artifact 均通过。
+- `waiting`：cron 已安装，但还没有符合条件的定时 artifact。首次安装后、下一个 `03:15/03:45` 窗口前属于正常状态。
+- `blocked`：cron 文件缺失、服务异常、readiness/retention artifact 失败，或设置 `CRON_EVIDENCE_STRICT_WAIT=true` 后仍处于 waiting。

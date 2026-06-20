@@ -445,6 +445,8 @@ R117 后，服务器 `/etc/cron.d/miemie-postgres-ops` 已安装，cron 服务�
 
 R118 后，已新增默认 no-op 的 PostgreSQL 运维告警钩子。`postgres_operational_readiness.sh` 会在 blocked/failed 时发送 critical 告警，`postgres_backup_retention.sh` 会在异常退出时告警；cron 会尝试加载服务器本地 `/etc/miemie-postgres-ops-alert.env`，用于后续配置真实 webhook。服务器 cron 已刷新到该版本，仓库保留 dry-run 告警证据和 cron refresh 证据。下一步是在首次定时运行后检查 cron log/artifact，并决定是否接入真实告警 webhook。
 
+R119 后，新增定时 cron evidence gate。`scripts/postgres_operational_cron_evidence.sh` 默认生成计划，显式 `CONFIRM_POSTGRES_CRON_EVIDENCE=check` 后检查 cron 文件、cron 服务状态，以及 `validation-artifacts/postgres-ops-*` 与 `validation-artifacts/postgres-backup-retention-*` 的最近定时运行状态；未到首次自然运行窗口时输出 `waiting`，避免把“时间未到”误判为完成或失败。下一步是在首次 `03:15/03:45` 窗口后复跑该 gate，归档 passed/blocked 证据。
+
 ## 暂不做
 
 - 不引入 RabbitMQ / Kubernetes / 微服务拆分。

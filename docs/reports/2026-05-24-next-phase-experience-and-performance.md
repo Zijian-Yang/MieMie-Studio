@@ -1079,6 +1079,12 @@ pre 部署复验：
 - `scripts/postgres_operational_readiness.sh` 在 `blocked/failed` 时发送 critical 告警；可用 `MIEMIE_OPS_ALERT_ON_WARNING=true` 让 warning 也告警。`scripts/postgres_backup_retention.sh` 在异常退出时发送 critical 告警。
 - `scripts/postgres_install_operational_cron.sh` 生成的 cron 会在执行前加载服务器本地 `/etc/miemie-postgres-ops-alert.env`，用于后续放置 webhook，不入仓库。dry-run 告警证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r118-postgres-ops-alert-dry-run-20260620/`；服务器 cron 已刷新并归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r118-postgres-ops-alert-cron-refresh-20260620/`。
 
+2026-06-20 阶段 7 R119 operational cron evidence gate：
+
+- 新增 `scripts/postgres_operational_cron_evidence.sh` 与 `scripts/verify_postgres_operational_cron_evidence.py`，用于检查定时 cron 是否已经自然生成最近一次 `postgres-ops-*` readiness artifact 与 `postgres-backup-retention-*` retention artifact。
+- 该检查器默认 dry-run；显式 `CONFIRM_POSTGRES_CRON_EVIDENCE=check` 后读取 cron 文件、cron 服务状态和 `validation-artifacts` 下的定时运行证据。未到首次定时窗口时输出 `state=waiting`，用于明确区分“还没到运行时间”和“失败”。
+- 后续到达首次 `03:15/03:45` 窗口后，复跑同一脚本即可把 waiting 升级为 passed 或 blocked。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -1093,4 +1099,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步优先级：数据库主存储升级、JSON 退场、第一轮 PostgreSQL operational readiness gate、备份保留策略、cron 安装和默认 no-op 告警钩子已完成。后续进入更外层上线收口：检查首次 cron 运行结果，接入真实告警 webhook，复查生产 Cloudflare/Nginx 入口策略，并选择下一轮目标市场入口 SLO 或功能治理任务。
+- 下一步优先级：数据库主存储升级、JSON 退场、第一轮 PostgreSQL operational readiness gate、备份保留策略、cron 安装、默认 no-op 告警钩子和 cron evidence gate 已完成。后续进入更外层上线收口：等待首次 cron 自然运行并复跑 evidence gate，接入真实告警 webhook，复查生产 Cloudflare/Nginx 入口策略，并选择下一轮目标市场入口 SLO 或功能治理任务。

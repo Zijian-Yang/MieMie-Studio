@@ -1,0 +1,8 @@
+{
+  "run_id": "postgres-operational-cron-evidence-20260620153757",
+  "state": "dry_run",
+  "stage": "planned",
+  "reason": "set CONFIRM_POSTGRES_CRON_EVIDENCE=check to inspect scheduled cron artifacts",
+  "artifact_dir": "/Users/zane/Project/Miemie-studio-ha-lab/docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r119-postgres-operational-cron-evidence",
+  "updated_at": "2026-06-20T07:37:57Z"
+}
