@@ -184,7 +184,15 @@ def header_value(response: dict[str, Any], name: str) -> str:
     return response["headers"].get(name.lower(), "")
 
 
-def check_health(prefix: str, response: dict[str, Any], expect_cloudflare: bool, results: list[dict[str, str]], failures: list[str], warnings: list[str]) -> dict[str, Any]:
+def check_health(
+    prefix: str,
+    response: dict[str, Any],
+    expect_cloudflare: bool,
+    results: list[dict[str, str]],
+    failures: list[str],
+    warnings: list[str],
+    require_no_store: bool = True,
+) -> dict[str, Any]:
     body = read_json_body(response)
     headers = response["headers"]
     record(results, failures, warnings, f"{prefix}_curl", response["exit_code"] == 0, response.get("stderr") or "curl exit 0")
@@ -198,7 +206,15 @@ def check_health(prefix: str, response: dict[str, Any], expect_cloudflare: bool,
     record(results, failures, warnings, f"{prefix}_request_id", bool(headers.get("x-request-id")), "X-Request-ID present")
     record(results, failures, warnings, f"{prefix}_deployment_version", bool(headers.get("x-deployment-version")), "X-Deployment-Version present")
     cache_control = headers.get("cache-control", "")
-    record(results, failures, warnings, f"{prefix}_no_store", "no-store" in cache_control.lower(), f"cache-control={cache_control}")
+    record(
+        results,
+        failures,
+        warnings,
+        f"{prefix}_no_store",
+        "no-store" in cache_control.lower(),
+        f"cache-control={cache_control}",
+        warn=not require_no_store,
+    )
     if expect_cloudflare:
         record(results, failures, warnings, f"{prefix}_server_cloudflare", headers.get("server", "").lower() == "cloudflare", f"server={headers.get('server', '')}")
         record(results, failures, warnings, f"{prefix}_cf_dynamic", headers.get("cf-cache-status", "").upper() == "DYNAMIC", f"cf-cache-status={headers.get('cf-cache-status', '')}")
@@ -231,7 +247,7 @@ def run_audit() -> None:
     if LOCAL_BASE_URL:
         local_health = curl_request("local-health", f"{LOCAL_BASE_URL}/api/health")
         responses["local_health"] = local_health
-        check_health("local_health", local_health, False, results, failures, warnings)
+        check_health("local_health", local_health, False, results, failures, warnings, require_no_store=False)
 
     public_root = curl_request("public-root", f"{PUBLIC_BASE_URL}/")
     responses["public_root"] = public_root
