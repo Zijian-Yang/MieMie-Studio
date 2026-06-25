@@ -1113,6 +1113,14 @@ pre 部署复验：
 - 新增 `scripts/postgres_ops_alert_selftest.py` 与 `scripts/verify_postgres_ops_alert_selftest.py`。脚本默认 dry-run；显式 `CONFIRM_POSTGRES_OPS_ALERT_SELFTEST=run` 后只启动本机 `127.0.0.1` mock webhook，验证 no-webhook、dry-run 和真实 curl POST 三条路径。
 - 本地 verifier、local mock self-test 和服务器 mock self-test 均已通过：`no_webhook`、`dry_run`、`mock_webhook` 均 `passed`，mock payload 只包含 `run_id/label/severity/state/reason/host/artifact_dir/time` 等合成字段，不记录真实 webhook URL。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r124-postgres-ops-alert-selftest-dry-run-20260620/`、`r124-postgres-ops-alert-selftest-local-mock-20260620/` 和 `r124-postgres-ops-alert-selftest-server-20260620/`。
 
+2026-06-23 阶段 7 R125 pre-studio 入口审计：
+
+- 新增 `scripts/pre_studio_entrypoint_audit.py` 与 `scripts/verify_pre_studio_entrypoint_audit.py`，把 Cloudflare/Nginx/API/静态资源入口检查固化为默认 dry-run、显式执行的只读门禁。
+- 本地公网审计通过：`/api/health` 为 `200`，`status=ok`，`redis.ok=true`，`database.ok=true`，`server=cloudflare`，`cf-cache-status=DYNAMIC`，`cache-control=no-store`；首页引用的 `/_static/index-D-1V5NKu.js` 二次请求为 `cf-cache-status=HIT`，静态缓存为 `public, max-age=604800, immutable`。
+- 服务器同机审计通过：额外验证 `LOCAL_BASE_URL=http://127.0.0.1:18100` 的 origin health 为 `200` 且 Redis/PostgreSQL 均正常；本机 origin 未返回 `cache-control=no-store` 已降级为 warning，公网 API 仍作为硬门禁要求 no-store。
+- 当前 warnings：Cloudflare 响应仍广告 `h3`；静态资源响应头的 `X-Deployment-Version=34441611bf06b07ca26fb6fb7b9c58655ad2424d` 与 API health 运行版本 `c948b8116ede4bc3d26df135a1f2a52542ed4710` 不一致。二者不阻断入口可用性，但应作为后续 Cloudflare HTTP/3 策略和发布一致性检查项。
+- bodyless 复跑已改为不归档静态 JS 正文，只保留 headers、SHA256 和字节数。证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-public-bodyless-20260625/` 与 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-server-bodyless-20260625/`。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。
@@ -1127,4 +1135,4 @@ pre 部署复验：
 - W2 阶梯压测 v1 显示平台侧 P95 余量充足；已修复并复跑 preview 阶梯，`preview-payload` 提交状态码 `200 120`，5xx 阻塞项解除。
 - W2 状态观察本机 100 VU 通过；Cloudflare 公网路径连续出现过 k6 request timeout。切到 DNS only 后 timeout 消失，公网 100 VU 通过，300 VU 稳定性通过但 P95 `307.78ms` 略超保守门槛；恢复 Cloudflare 后 100 VU 一度再次出现 timeout；修复 StorageService 竞态并关闭临时 Skip 后，2026-06-03 Cloudflare 100 VU 已通过。300 VU 同窗口对照显示 app direct / 本机 Nginx 仍通过，源站公网 IP forced P95 `325.81ms` 略超，Cloudflare P95 `512.92ms` 且有 1 次连接超时。本地客户端侧经 Clash TUN/fake-ip 代理出口访问 Cloudflare 时，100 VU P95 `925.75ms`；添加 domain DIRECT 规则后系统层仍走 fake-ip/TUN，100 VU P95 `969.79ms`；关闭 TUN/fake-ip 后干净直连 Cloudflare 100 VU 无失败、无 header 缺失，但 P95 仍为 `734.57ms`；本机 TUN 美国代理样本 100 VU 无失败、无 header 缺失，但 P95 `960.63ms`。由于网站不关注大陆访问效果，本地跨境/代理客户端 P95 只作为风险记录，不作为目标市场硬门禁。
 - 无 key 体验路径证明：列表快、提交即时反馈、重复点击被去重、失败状态可见。
-- 下一步优先级：数据库主存储升级、JSON 退场、第一轮 PostgreSQL operational readiness gate、备份保留策略、cron 安装、默认 no-op 告警钩子、cron evidence gate、数据库运营快照门禁、database snapshot cron 集成、cron 等价手动演练入口、evidence trigger source 区分、服务器 cron 刷新和 ops alert local self-test 已完成。后续进入更外层上线收口：等待首次 cron 自然运行并用 `CRON_EVIDENCE_REQUIRED_TRIGGER=cron` 复跑 evidence gate，配置真实告警 webhook 后跑同一 self-test/小心测试发送，复查生产 Cloudflare/Nginx 入口策略，并选择下一轮目标市场入口 SLO 或功能治理任务。
+- 下一步优先级：数据库主存储升级、JSON 退场、第一轮 PostgreSQL operational readiness gate、备份保留策略、cron 安装、默认 no-op 告警钩子、cron evidence gate、数据库运营快照门禁、database snapshot cron 集成、cron 等价手动演练入口、evidence trigger source 区分、服务器 cron 刷新、ops alert local self-test 和 pre-studio 入口审计已完成。后续进入更外层上线收口：等待首次 cron 自然运行并用 `CRON_EVIDENCE_REQUIRED_TRIGGER=cron` 复跑 evidence gate，配置真实告警 webhook 后跑同一 self-test/小心测试发送，收口 Cloudflare HTTP/3 与发布版本一致性 warning，并选择下一轮目标市场入口 SLO 或功能治理任务。

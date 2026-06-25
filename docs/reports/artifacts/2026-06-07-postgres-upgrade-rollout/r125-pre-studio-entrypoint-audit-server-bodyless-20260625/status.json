@@ -1,0 +1,17 @@
+{
+  "run_id": "r125-pre-studio-entrypoint-audit-server-bodyless-20260625",
+  "state": "passed_with_warnings",
+  "stage": "done",
+  "reason": "entrypoint audit completed",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-server-bodyless-20260625",
+  "confirm": "run",
+  "public_base_url": "https://pre-studio.miemie.co",
+  "local_base_url": "http://127.0.0.1:18100",
+  "expect_cloudflare": true,
+  "updated_at": "2026-06-25T09:34:39Z",
+  "warnings": [
+    "public_health_http3_advertised: alt-svc advertises h3",
+    "local_health_no_store: cache-control=",
+    "deployment_version_match: health=c948b8116ede4bc3d26df135a1f2a52542ed4710 static=34441611bf06b07ca26fb6fb7b9c58655ad2424d"
+  ]
+}

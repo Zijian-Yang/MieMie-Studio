@@ -1,0 +1,38 @@
+check	state	detail
+public_health_curl	passed	curl exit 0
+public_health_http_200	passed	status=200
+public_health_status_ok	passed	body.status=ok
+public_health_redis_ok	passed	redis.ok=True
+public_health_database_ok	passed	database.ok=True
+public_health_request_id	passed	X-Request-ID present
+public_health_deployment_version	passed	X-Deployment-Version present
+public_health_no_store	passed	cache-control=no-store
+public_health_server_cloudflare	passed	server=cloudflare
+public_health_cf_dynamic	passed	cf-cache-status=DYNAMIC
+public_health_http3_advertised	warning	alt-svc advertises h3
+local_health_curl	passed	curl exit 0
+local_health_http_200	passed	status=200
+local_health_status_ok	passed	body.status=ok
+local_health_redis_ok	passed	redis.ok=True
+local_health_database_ok	passed	database.ok=True
+local_health_request_id	passed	X-Request-ID present
+local_health_deployment_version	passed	X-Deployment-Version present
+local_health_no_store	warning	cache-control=
+public_root_curl	passed	curl exit 0
+public_root_http_200	passed	status=200
+public_root_html	passed	content-type=text/html; charset=utf-8
+public_root_static_asset	passed	/_static/index-D-1V5NKu.js
+public_static_first_curl	passed	curl exit 0
+public_static_first_http_200	passed	status=200
+public_static_first_request_id	passed	X-Request-ID present
+public_static_first_deployment_version	passed	X-Deployment-Version present
+public_static_first_cache_control	passed	cache-control=public, max-age=604800, immutable
+public_static_first_server_cloudflare	passed	server=cloudflare
+public_static_second_curl	passed	curl exit 0
+public_static_second_http_200	passed	status=200
+public_static_second_request_id	passed	X-Request-ID present
+public_static_second_deployment_version	passed	X-Deployment-Version present
+public_static_second_cache_control	passed	cache-control=public, max-age=604800, immutable
+public_static_second_server_cloudflare	passed	server=cloudflare
+public_static_second_cf_hit	passed	cf-cache-status=HIT
+deployment_version_match	warning	health=c948b8116ede4bc3d26df135a1f2a52542ed4710 static=34441611bf06b07ca26fb6fb7b9c58655ad2424d

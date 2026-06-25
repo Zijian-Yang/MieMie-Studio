@@ -700,6 +700,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 
 2026-06-18 note: R89 reran the network-scope connectivity preflight after R88 was pushed. It is still blocked: DNS returns Clash fake-IP `198.18.0.94`, and the route to origin IP `47.79.99.190` still uses `utun1024`. The local remote final exit wrapper must not run until this preflight exits `0`; use the server-side final exit sequence directly from `/opt/miemie-pre` if the local operator path remains intercepted. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r89-network-preflight-after-account-runtime-coverage/`.
 
+2026-06-23/25 note: R125 adds `scripts/pre_studio_entrypoint_audit.py` and `scripts/verify_pre_studio_entrypoint_audit.py` for read-only Cloudflare/Nginx/public-entry validation. Local public and server-side local+public runs both report `passed_with_warnings`: public health is 200 with Redis/PostgreSQL ok, API `cf-cache-status=DYNAMIC`, API `cache-control=no-store`, and hashed static asset second fetch `cf-cache-status=HIT` with `public, max-age=604800, immutable`. The bodyless revision stores only static asset headers, SHA256, and byte size, not JS bundle contents. Remaining warnings are Cloudflare `h3` advertisement, local origin health lacking `no-store`, and static asset `X-Deployment-Version` differing from API health runtime commit. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-server-bodyless-20260625/`.
+
 ## Goal-Mode Operating Rule
 
 Once goal mode starts, do not ask the user for routine information covered by this plan. Use these defaults:

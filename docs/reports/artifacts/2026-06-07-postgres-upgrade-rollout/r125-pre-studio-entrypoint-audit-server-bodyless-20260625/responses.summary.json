@@ -1,0 +1,92 @@
+{
+  "public_health": {
+    "url": "https://pre-studio.miemie.co/api/health",
+    "exit_code": 0,
+    "status_code": 200,
+    "headers": {
+      "server": "cloudflare",
+      "cache-control": "no-store",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a112fa468afc3da1-SIN",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "x-request-id": "ecb0b0c8ec5a",
+      "x-deployment-version": "c948b8116ede4bc3d26df135a1f2a52542ed4710"
+    },
+    "headers_path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-server-bodyless-20260625/public-health.headers",
+    "body_path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-server-bodyless-20260625/public-health.body",
+    "body_sha256": "",
+    "body_bytes": ""
+  },
+  "local_health": {
+    "url": "http://127.0.0.1:18100/api/health",
+    "exit_code": 0,
+    "status_code": 200,
+    "headers": {
+      "server": "uvicorn",
+      "cache-control": "",
+      "cf-cache-status": "",
+      "cf-ray": "",
+      "alt-svc": "",
+      "x-request-id": "47f0cc68097c",
+      "x-deployment-version": "c948b8116ede4bc3d26df135a1f2a52542ed4710"
+    },
+    "headers_path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-server-bodyless-20260625/local-health.headers",
+    "body_path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-server-bodyless-20260625/local-health.body",
+    "body_sha256": "",
+    "body_bytes": ""
+  },
+  "public_root": {
+    "url": "https://pre-studio.miemie.co/",
+    "exit_code": 0,
+    "status_code": 200,
+    "headers": {
+      "server": "cloudflare",
+      "cache-control": "",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a112fa47581fa8cf-SIN",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "x-request-id": "901755bf831c",
+      "x-deployment-version": "c948b8116ede4bc3d26df135a1f2a52542ed4710"
+    },
+    "headers_path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-server-bodyless-20260625/public-root.headers",
+    "body_path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-server-bodyless-20260625/public-root.body",
+    "body_sha256": "",
+    "body_bytes": ""
+  },
+  "public_static_first": {
+    "url": "https://pre-studio.miemie.co/_static/index-D-1V5NKu.js",
+    "exit_code": 0,
+    "status_code": 200,
+    "headers": {
+      "server": "cloudflare",
+      "cache-control": "public, max-age=604800, immutable",
+      "cf-cache-status": "HIT",
+      "cf-ray": "a112fa47df265cb5-SIN",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "x-request-id": "e686b55ec535",
+      "x-deployment-version": "34441611bf06b07ca26fb6fb7b9c58655ad2424d"
+    },
+    "headers_path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-server-bodyless-20260625/public-static-first.headers",
+    "body_path": "",
+    "body_sha256": "a9ca61ac8e80c3e21e9643b85ac18939430d41688a956811d784a128fde91476",
+    "body_bytes": 32106
+  },
+  "public_static_second": {
+    "url": "https://pre-studio.miemie.co/_static/index-D-1V5NKu.js",
+    "exit_code": 0,
+    "status_code": 200,
+    "headers": {
+      "server": "cloudflare",
+      "cache-control": "public, max-age=604800, immutable",
+      "cf-cache-status": "HIT",
+      "cf-ray": "a112fa483851ff81-SIN",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "x-request-id": "e686b55ec535",
+      "x-deployment-version": "34441611bf06b07ca26fb6fb7b9c58655ad2424d"
+    },
+    "headers_path": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-server-bodyless-20260625/public-static-second.headers",
+    "body_path": "",
+    "body_sha256": "a9ca61ac8e80c3e21e9643b85ac18939430d41688a956811d784a128fde91476",
+    "body_bytes": 32106
+  }
+}

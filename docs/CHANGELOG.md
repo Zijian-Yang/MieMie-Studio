@@ -34,6 +34,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- pre-studio 入口审计门禁：新增 `scripts/pre_studio_entrypoint_audit.py` 与 verifier，覆盖公网 Cloudflare health、API `DYNAMIC/no-store`、静态资源长缓存与二次 `HIT`、可选服务器本机 origin health；R125 本地公网与服务器同机审计均为 `passed_with_warnings`，warnings 记录 Cloudflare `h3` 广告和前后端部署版本头不一致；bodyless 复跑只归档静态资源 headers、SHA256 和字节数，不保存 JS bundle 正文。
 - PostgreSQL ops alert self-test：新增本地-only mock webhook 自测脚本与 verifier，覆盖 no-webhook、dry-run 和真实 curl POST 到 127.0.0.1 mock endpoint，避免上线前只能依赖真实 webhook 手测。
 - PostgreSQL cron evidence 来源过滤：定时任务 artifact 增加 `trigger=cron`，手动 sequence 增加 `trigger=manual_sequence`，evidence gate 可用 `CRON_EVIDENCE_REQUIRED_TRIGGER=cron` 排除手动演练污染。
 - PostgreSQL operational cron sequence 手动演练：新增 `scripts/postgres_operational_cron_sequence.sh` 与 verifier，可在自然 cron 窗口前按 readiness -> backup retention -> database snapshot -> evidence gate 顺序立即验证三类巡检链路。

@@ -594,6 +594,8 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-18 追加：R91 用户关闭 Clash 订阅配置 fake-ip 后复测，artifact 已生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r91-network-preflight-after-fakeip-off/`；状态仍为 `blocked`，DNS 为 `198.18.0.21`，源站 route 仍走 `utun1024`，直接 SSH `echo ok` 仍返回 `Connection closed by 47.79.99.190 port 22`。本机 remote final exit 仍不能执行。
 2026-06-18 追加：R92 用户更换 Clash 订阅后复测，artifact 已生成到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r92-network-preflight-after-subscription-switch/`；network-scope preflight 仍因源站 route 走 `utun1024` 判 blocked，但直接 SSH 已恢复，`echo ok` 返回 `ok`，服务器本机 health 为 200。服务器 repo 仍在 `e73124527eeb858c4d12aa8990f19c6574bfb9d4`，运行态 health commit 为 `00091f21f5ee207f78a1092e7e5e164ab4567c7f`；下一步可先执行远端 `git merge --ff-only origin/pre` 同步，再运行 R84/R85 final exit sequence。
 
+2026-06-23/25 追加：R125 已新增 `scripts/pre_studio_entrypoint_audit.py` 与 `scripts/verify_pre_studio_entrypoint_audit.py`，用于只读检查公网 Cloudflare 入口、可选本机 origin health、API 响应头和静态资源缓存命中。本地公网审计与服务器同机审计均为 `passed_with_warnings`；硬门禁通过：公网 health `200` 且 Redis/PostgreSQL 正常、`X-Request-ID` 与 `X-Deployment-Version` 存在、API `cf-cache-status=DYNAMIC`、API `cache-control=no-store`、静态资源二次请求 `cf-cache-status=HIT` 且 `cache-control=public, max-age=604800, immutable`。当前 warning 保留为后续收口项：Cloudflare 仍广告 `h3`；本机 origin health 不带 `no-store`；静态资源版本头与 API health 运行版本不一致。bodyless 复跑已改为不归档静态 JS 正文，只保留 headers、SHA256 和字节数；证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-server-bodyless-20260625/`。
+
 ## 总体验收
 
 - Compose 内 PostgreSQL 可启动、备份、恢复。
