@@ -68,6 +68,7 @@ def main() -> int:
         "deployment_version_match",
         "responses.summary.json",
         "results.tsv",
+        "body_sha256",
     ]
     for fragment in required_fragments:
         if fragment not in content:

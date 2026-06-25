@@ -1,0 +1,20 @@
+HTTP/2 200 
+date: Thu, 25 Jun 2026 09:33:25 GMT
+content-type: text/javascript; charset=utf-8
+server: cloudflare
+vary: Accept-Encoding
+last-modified: Tue, 16 Jun 2026 15:46:36 GMT
+etag: W/"50eee1d96296566d57e081bffc33dd46"
+access-control-allow-origin: *
+access-control-expose-headers: X-Request-ID, X-Deployment-Version
+x-request-id: e686b55ec535
+x-deployment-version: 34441611bf06b07ca26fb6fb7b9c58655ad2424d
+cache-control: public, max-age=604800, immutable
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+age: 174097
+cf-cache-status: HIT
+speculation-rules: "/cdn-cgi/speculation"
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=vlwe4twAzXBZlXVxeIjyJYWfIU8rXy8FG87EIA489w%2BGdCPNPlymj7l9no1PgctAq05zaPGTVjlO3hpCQS8yQLlIYykdGRmYLFq6mgucWQHYXC6NqCJIE%2FAT0w7e7YN4G2%2Bcf6J5bw%3D%3D"}]}
+cf-ray: a112f87bfbc3ce51-SIN
+alt-svc: h3=":443"; ma=86400
+

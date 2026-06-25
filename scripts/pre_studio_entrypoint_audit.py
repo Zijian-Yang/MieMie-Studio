@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import time
+import hashlib
 from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin
@@ -168,6 +169,20 @@ def read_text_body(response: dict[str, Any]) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
 
 
+def discard_static_body(response: dict[str, Any]) -> None:
+    path = Path(response["body_path"])
+    if not path.exists():
+        response["body_sha256"] = ""
+        response["body_bytes"] = 0
+        response["body_path"] = ""
+        return
+    content = path.read_bytes()
+    response["body_sha256"] = hashlib.sha256(content).hexdigest()
+    response["body_bytes"] = len(content)
+    path.unlink()
+    response["body_path"] = ""
+
+
 def record(results: list[dict[str, str]], failures: list[str], warnings: list[str], check: str, ok: bool, detail: str, warn: bool = False) -> None:
     if ok:
         state = "passed"
@@ -265,6 +280,8 @@ def run_audit() -> None:
         static_url = urljoin(f"{PUBLIC_BASE_URL}/", static_path.lstrip("/"))
         public_static_first = curl_request("public-static-first", static_url)
         public_static_second = curl_request("public-static-second", static_url)
+        discard_static_body(public_static_first)
+        discard_static_body(public_static_second)
         responses["public_static_first"] = public_static_first
         responses["public_static_second"] = public_static_second
         for label, response in (("public_static_first", public_static_first), ("public_static_second", public_static_second)):
@@ -323,6 +340,8 @@ def run_audit() -> None:
                 },
                 "headers_path": value["headers_path"],
                 "body_path": value["body_path"],
+                "body_sha256": value.get("body_sha256", ""),
+                "body_bytes": value.get("body_bytes", ""),
             }
             for key, value in responses.items()
         },
