@@ -8,6 +8,7 @@ This directory stores sanitized evidence for administrator-configured PostgreSQL
 - Store only stable status categories, masked configuration flags, checksums, sizes, relative artifact paths, container health, migration head, and provider-call count.
 - Real restore evidence must target an isolated temporary database and must not overwrite the production database.
 - `pg_dump`, `pg_restore`, and the PostgreSQL server must use the same major version; a version mismatch blocks backup publication.
+- Restore rehearsal accepts both the platform custom-format archive and historical plain SQL dumps, always targets an isolated temporary database, and cleans it on failure.
 - Real OSS test objects are deleted; one validated backup object may remain as the off-site recovery artifact when documented by object key only.
 
 ## Expected Server Evidence

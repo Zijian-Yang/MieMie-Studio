@@ -18,20 +18,33 @@ if [ -f "$COMPOSE_FILE_2" ]; then
   compose_cmd+=(-f "$COMPOSE_FILE_2")
 fi
 
+cleanup_restore_database() {
+  "${compose_cmd[@]}" exec -T postgres sh -lc \
+    'dropdb -U "$POSTGRES_USER" --if-exists "$0"' \
+    "$RESTORE_DB" >/dev/null 2>&1 || true
+}
+
+trap cleanup_restore_database EXIT
+
 "${compose_cmd[@]}" exec -T postgres sh -lc \
   'dropdb -U "$POSTGRES_USER" --if-exists "$0" && createdb -U "$POSTGRES_USER" "$0"' \
   "$RESTORE_DB"
 
-"${compose_cmd[@]}" exec -T postgres sh -lc \
-  'psql -U "$POSTGRES_USER" -d "$0" -v ON_ERROR_STOP=1' \
-  "$RESTORE_DB" < "$DUMP_FILE"
+if [ "$(LC_ALL=C od -An -N5 -c "$DUMP_FILE" | tr -d ' \n')" = "PGDMP" ]; then
+  "${compose_cmd[@]}" exec -T postgres sh -lc \
+    'pg_restore --exit-on-error --no-owner --no-privileges -U "$POSTGRES_USER" -d "$0"' \
+    "$RESTORE_DB" < "$DUMP_FILE"
+else
+  "${compose_cmd[@]}" exec -T postgres sh -lc \
+    'psql -U "$POSTGRES_USER" -d "$0" -v ON_ERROR_STOP=1' \
+    "$RESTORE_DB" < "$DUMP_FILE"
+fi
 
 "${compose_cmd[@]}" exec -T postgres sh -lc \
   'psql -U "$POSTGRES_USER" -d "$0" -tAc "select 1"' \
   "$RESTORE_DB"
 
-"${compose_cmd[@]}" exec -T postgres sh -lc \
-  'dropdb -U "$POSTGRES_USER" --if-exists "$0"' \
-  "$RESTORE_DB"
+cleanup_restore_database
+trap - EXIT
 
 echo "restore rehearsal ok: $RESTORE_DB"
