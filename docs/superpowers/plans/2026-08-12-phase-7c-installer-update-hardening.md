@@ -79,9 +79,10 @@
 
 **Files:** `README.md`, `README.pre.md`, `docs/playbooks/SELF_HOSTED_INSTALL.md`, `docs/playbooks/SELF_HOSTED_ADMIN.md`, `docs/playbooks/SELF_HOSTED_REVERSE_PROXY.md`, `docs/README.md`, `docs/CHANGELOG.md`, `docs/ISSUES.md`, roadmap and this plan.
 
-- [ ] Make production install the first README quick start and keep developer `run.sh` in a separate section.
-- [ ] Document supported hosts, resource floor, local port output, reverse-proxy boundary, first admin, update/rollback, backup/restore, and uninstall.
-- [ ] Run backend full suite; frontend typecheck/lint/build/chunk/contracts/E2E; installer/CLI/lifecycle verifiers; secret scan.
+- [x] Make production install the first README quick start and keep developer `run.sh` in a separate section.
+- [x] Document supported hosts, resource floor, local port output, reverse-proxy boundary, first admin, update/rollback, backup/restore, and uninstall.
+- [x] Run backend full suite; frontend typecheck/lint/build/chunk/contracts/E2E; installer/CLI/lifecycle verifiers; secret scan.
+  - Backend `609 passed`; frontend static/build/contracts passed; Playwright helper `2 passed`, browser E2E `14 passed`; installer/CLI/lifecycle/Compose/restore verifiers and secret/artifact scans passed.
 - [ ] Run current staging upgrade through the new CLI, confirm non-root application services, local/public health, all worker pings, S1, backup and isolated restore.
 - [ ] Run repeat-install, failed-update rollback, preserved-data uninstall simulation, and release-state evidence without touching production data destructively.
 - [ ] Archive sanitized evidence and mark 7C complete; any clean-OS matrix work moves explicitly to 7D.

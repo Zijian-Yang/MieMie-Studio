@@ -1131,6 +1131,14 @@ pre 部署复验：
 - R129 首轮 operational readiness 的新备份与独立恢复演练通过，但 remaining JSON 门禁发现容器内 pytest 在默认 `UserService()` 构造阶段生成了空 `{}` 的真实挂载 `backend/data/users.json`。根因已通过文件时间、内容和测试调用链确认；`UserService(data_dir=...)` 现在会在初始化前绑定隔离目录，六组数据库/session 测试辅助函数和全局夹具均已迁移，后端全量回归提升为 `472 passed`。该空文件只做可恢复隔离后再重跑门禁。
 - 真实告警 webhook 仍是外部运维配置项；Cloudflare `h3` 广告保留为非阻断观察项。
 
+2026-08-13 阶段 7C 自托管发行自动化：
+
+- Compose 应用服务固定以 `10001:10001` 非 root 运行，启用 read-only root filesystem、tmpfs、cap drop、`no-new-privileges`、日志轮转和 45 秒优雅停止；API 只绑定 loopback，PostgreSQL/Redis 不发布宿主端口。
+- 新增幂等 `install.sh` 与稳定 `miemie` CLI。安装器生成 root-only 配置、commit 固定本地镜像、首位管理员和健康服务；CLI 覆盖状态、日志、体检、管理员修复、备份、更新、回滚、恢复和保留数据卸载。
+- 更新使用 clean tracked tree、120 秒 fetch、fast-forward、更新前 PostgreSQL custom dump、固定 commit 镜像、Alembic、健康/worker 门禁；任一步失败返切旧源码和镜像，数据库 schema 不自动降级。
+- 恢复只接受备份根内文件，校验 `.sha256` 与 `pg_restore --list`，先恢复临时数据库，再创建生产安全备份，双确认后停写并替换生产库。永久删除另需精确口令与安全路径检查，Web 管理面没有这些权限。
+- 专用验证覆盖 dirty tree、非快进、备份/构建/migration/health 失败、显式回滚成功与失败返切、恢复确认/隔离失败/成功顺序和 purge 确认；PostgreSQL 备份相关回归 `32 passed`。真实 Compose 服务器演练与完整前后端回归属于 7C 最后门禁。
+
 后续建议继续拆分：
 
 - `api.ts` 下一刀：继续按 domain 提取 benchmark / media library 等 API，仍从 `api.ts` re-export。

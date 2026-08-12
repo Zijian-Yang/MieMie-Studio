@@ -2,16 +2,44 @@
 
 基于阿里云通义万相 API 的 AI 漫剧/短剧视频生成平台，支持从剧本创作到视频生成的完整工作流程。
 
-## pre 实验分支
+## 单服务器自托管
 
-`pre` 是高性能/生产运行时实验分支，用于在不打断 `main` 稳定功能线的前提下验证 Linux、Compose、压测与后续 Redis/PostgreSQL/Worker 改造。该分支的独立说明见 [README.pre.md](./README.pre.md)。
+`pre` 是下一代自托管发行线：Compose 内置 PostgreSQL、Redis、API、图片/视频 Worker、运维 Worker 与定时器，应用默认只监听 `127.0.0.1:8000`。域名、HTTPS、Cloudflare、Nginx/Caddy/宝塔反向代理由部署者管理。
 
-当前 Docker 交付方式是“拉取仓库后本机构建镜像”，不是公共 registry 的 `docker pull` 预构建镜像：
+支持 Ubuntu 22.04、Ubuntu 24.04 与 Debian 12，支持 `x86_64` 和 `arm64` 主机检测。建议至少 2 核 CPU、4 GB 内存和 20 GB 可用磁盘。
 
 ```bash
-cp compose.env.example compose.env
-docker compose --env-file compose.env up -d --build
+git clone --branch pre --single-branch https://github.com/Zijian-Yang/MieMie-Studio.git
+cd MieMie-Studio
+sudo ./install.sh
 ```
+
+安装器会按需安装 Docker Engine/Compose，生成数据库密码和平台加密密钥，在 `/opt/miemie-studio` 构建当前 commit，执行数据库迁移，要求创建首位管理员并等待健康门禁。成功时会显示供反向代理使用的本机地址。
+
+```text
+endpoint=http://127.0.0.1:8000
+reverse_proxy_target=127.0.0.1:8000
+```
+
+安装后只使用稳定管理命令：
+
+```bash
+sudo miemie status
+sudo miemie doctor
+sudo miemie logs api
+sudo miemie update --check
+sudo miemie update --apply
+sudo miemie backup --wait
+```
+
+详细文档：
+
+- [安装与首次启动](docs/playbooks/SELF_HOSTED_INSTALL.md)
+- [管理员与用户治理](docs/playbooks/SELF_HOSTED_ADMIN.md)
+- [反向代理边界](docs/playbooks/SELF_HOSTED_REVERSE_PROXY.md)
+- [更新与回滚](docs/playbooks/SELF_HOSTED_UPGRADE_ROLLBACK.md)
+- [备份与恢复](docs/playbooks/SELF_HOSTED_BACKUP_RESTORE.md)
+- [`pre` 发行说明](README.pre.md)
 
 ## 功能特性
 
@@ -42,85 +70,34 @@ docker compose --env-file compose.env up -d --build
 
 | 前端 | 后端 |
 |------|------|
-| React 18 + TypeScript | Python FastAPI |
-| Ant Design 5.x (深色主题) | 阿里云 DashScope SDK |
-| Zustand 状态管理 | JSON 文件存储 |
+| React 18 + TypeScript | Python FastAPI + Celery |
+| Ant Design 5.x | PostgreSQL 16 + Redis 7 |
+| Zustand 状态管理 | 阿里云 DashScope SDK |
 | Vite 构建工具 | 阿里云 OSS（可选） |
 
 ---
 
-## 快速开始
+## 首次配置
 
-### 第一步：环境准备
+1. 用安装时创建的管理员登录本机端口或已经配置好的域名。
+2. 在“设置”中填写阿里云百炼 DashScope API Key，并为 Wan/Kling/Vidu 选择使用的 Key。
+3. 如需长期保存生成资产，在用户设置中填写阿里云 OSS；当前只适配阿里云 OSS。
+4. 在“平台管理”中管理用户、关闭或开放注册，并配置数据库定时备份、OSS 备份副本和通用 Webhook 告警。
 
-**必需环境：**
+生产部署默认关闭公开注册。首位管理员只能由安装器或服务器命令创建；管理页面不能执行 Docker、Git、数据库恢复或永久删除。
 
-| 环境 | 版本要求 | 检查命令 |
-|------|---------|---------|
-| Node.js | 18+ | `node --version` |
-| Python | 3.10+ | `python3 --version` |
-| Git | 任意 | `git --version` |
+## 本地开发
 
-**获取 API Key：**
+本节适合修改代码，不是服务器生产部署方式。需要 Node.js 18+、Python 3.10+ 和 Git。
 
-1. 访问 [阿里云百炼控制台](https://bailian.console.aliyun.com/)
-2. 开通 DashScope 服务
-3. 创建 API Key 并保存
-
----
-
-### 第二步：下载项目
-
-**方式一：使用 Git 克隆（推荐）**
+### 开发一键启动
 
 ```bash
-# 克隆项目
-git clone https://github.com/Zijian-Yang/MieMie-Studio.git
-
-# 进入项目目录
-cd MieMie-Studio
-```
-
-**方式二：下载 ZIP 压缩包**
-
-1. 访问 https://github.com/Zijian-Yang/MieMie-Studio
-2. 点击绿色的 `Code` 按钮
-3. 选择 `Download ZIP`
-4. 解压后进入目录
-
----
-
-### 第三步：启动项目
-
-#### 方式一：一键启动（推荐）
-
-```bash
-# 添加执行权限（仅首次需要）
-chmod +x run.sh
-
-# 部署前只读自检（不会安装依赖或修改配置）
 ./run.sh doctor
-
-# 启动服务（首次运行会自动安装依赖）
 ./run.sh start
 ```
 
-**首次运行会自动完成：**
-- ✅ 创建 Python 虚拟环境
-- ✅ 安装 Python 依赖
-- ✅ 安装前端依赖
-- ✅ 启动后端服务
-- ✅ 启动前端服务
-
-**启动成功后会显示：**
-```
-[OK] MieMie-Studio 启动完成!
-
-  后端: http://localhost:8000
-  前端: http://localhost:3000
-```
-
-#### 方式二：手动启动
+### 手动启动
 
 ```bash
 # 1. 创建并激活虚拟环境
@@ -146,26 +123,7 @@ npm run dev -- --host
 
 ---
 
-### 第四步：配置 API Key
-
-1. 打开浏览器访问 http://localhost:3000
-2. 点击左侧菜单「设置」
-3. 配置两把阿里云百炼 DashScope API Key：
-   - `测试账号 Key`
-   - `生产账号 Key`
-4. 为 `Wan / Kling / Vidu` 分别选择当前走测试还是生产 Key
-5. 点击保存
-6. 如需浏览器通知，可在设置页打开「视频任务完成通知」
-
-**可选配置：** 如需配置 OSS 存储，复制 `backend/data/config.example.json` 为 `backend/data/config.json` 并填入 OSS 凭证。
-
----
-
-## 管理脚本命令
-
-使用 `./run.sh` 管理项目：
-
-### 服务管理
+### 开发管理命令
 
 ```bash
 ./run.sh start      # 启动前后端服务
@@ -174,23 +132,12 @@ npm run dev -- --host
 ./run.sh status     # 查看服务状态
 ```
 
-### 依赖管理
-
 ```bash
 ./run.sh install    # 安装/重新安装依赖
-./run.sh doctor     # 部署前只读自检（Mac/服务器/Compose）
+./run.sh doctor     # 开发环境只读自检
 ./run.sh optimize   # 检测服务器并应用推荐配置
-./run.sh update     # 更新项目到最新版本（仅拉代码）
-./run.sh update --apply  # 更新并立即应用到当前运行服务
 ./run.sh clean      # 清理缓存/重置依赖
 ```
-
-说明：
-- `./run.sh install` 和生产模式启动前，会自动检测服务器内核、CPU、内存与当前 Swap
-- 脚本会推荐 Gunicorn workers、前端构建内存上限；小内存 Linux 机器会额外建议创建 Swap
-- 用户确认后才会应用，应用后会立即校验是否生效
-- 服务器建议长期使用 `./run.sh start --prod` / `./run.sh restart --prod`
-- TUI 中“更新到最新版本”默认等价于“拉取代码并自动应用到当前运行服务”
 
 ### 端口配置
 
@@ -202,7 +149,7 @@ npm run dev -- --host
 
 也可以通过环境变量临时覆盖：`MIEMIE_BACKEND_PORT=9000 ./run.sh start`
 
-### 测试
+### 开发测试
 
 ```bash
 ./run.sh test       # 运行后端自动化测试（pytest）
@@ -275,71 +222,23 @@ cd frontend && npm run typecheck
 
 ---
 
-## 更新项目
+## 生产更新与卸载
 
-### 方式一：使用脚本更新（推荐）
-
-```bash
-./run.sh update --apply
-```
-
-脚本会自动：
-- 记录更新前的运行模式与 commit
-- 检测本地是否有未提交的更改
-- 暂存本地更改（如有）
-- 拉取最新代码
-- 自动比较“更新前 commit → 更新后 commit”并刷新依赖（如有变化）
-- 若服务原本正在运行，则按更新前的实际模式自动重启
-- 通过 `GET /api/health` 校验运行中的 `git_commit / run_mode / serve_frontend`
-- 恢复本地更改
-
-### 方式二：手动更新
+生产更新始终先备份数据库、固定目标 commit、本机构建镜像、执行迁移并通过健康门禁；失败会自动返切旧应用版本：
 
 ```bash
-# 1. 停止服务
-./run.sh stop
-
-# 2. 拉取最新代码
-git pull origin main
-
-# 3. 更新依赖（如果依赖有变化）
-source venv/bin/activate
-pip install -r requirements.txt
-cd frontend && npm install && cd ..
-
-# 4. 重新启动
-./run.sh start
+sudo miemie update --check
+sudo miemie update --apply
+sudo miemie rollback
 ```
 
----
-
-## 卸载/删除项目
-
-### 完全删除
+默认卸载只停止服务并保留配置、源码、数据库卷和备份：
 
 ```bash
-# 1. 停止所有服务
-./run.sh stop
-
-# 2. 退出项目目录
-cd ..
-
-# 3. 删除整个项目
-rm -rf MieMie-Studio
+sudo miemie uninstall
 ```
 
-### 仅清理依赖（保留代码）
-
-```bash
-# 删除虚拟环境
-rm -rf venv
-
-# 删除前端依赖
-rm -rf frontend/node_modules
-
-# 删除日志
-rm -rf logs
-```
+永久删除必须显式执行 `sudo miemie uninstall --purge` 并输入精确确认口令。先阅读[更新与回滚](docs/playbooks/SELF_HOSTED_UPGRADE_ROLLBACK.md)和[备份与恢复](docs/playbooks/SELF_HOSTED_BACKUP_RESTORE.md)。
 
 ---
 

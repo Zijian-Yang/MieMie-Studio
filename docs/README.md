@@ -18,9 +18,10 @@
 - **做功能或修 bug**：对应 spec / ADR → 代码 → checklist
 - **接入新模型**：`docs/STUDIO_MODEL_INTEGRATION_GUIDE.md` → `docs/checklists/MODEL_INTEGRATION.md` → 相关 playbook
 - **做扩容/性能改造**：`docs/specs/2026-04-step-00-capacity-baseline-and-slo.md` → `docs/playbooks/CAPACITY_BASELINE_AND_LOADTEST.md` → 对应步骤 spec
-- **验证 `pre` 实验分支服务器部署**：`docs/plans/2026-05-18-pre-server-validation-plan.md` → `docs/reports/2026-05-18-pre-server-validation.md`
+- **安装或维护自托管服务**：根 `README.md` → `docs/playbooks/SELF_HOSTED_INSTALL.md` → `docs/playbooks/SELF_HOSTED_REVERSE_PROXY.md`
+- **验证 `pre` 发行候选服务器**：`docs/plans/2026-08-12-self-hosted-release-roadmap.md` → 阶段 7C/7D 计划与 artifact
 - **做发布或大改**：`docs/checklists/CHANGE_GATE.md` → `docs/checklists/RELEASE_READINESS.md`
-- **部署前自检**：优先运行 `./run.sh doctor`；Compose 路径可用 `DOCTOR_PROFILE=compose ./run.sh doctor` 做只读门禁
+- **生产部署自检**：安装后运行 `sudo miemie doctor`；`./run.sh doctor` 只作为开发/兼容路径
 
 ## 文档分层
 
@@ -41,6 +42,7 @@
 - `miemie-pre` Compose PostgreSQL 升级与 JSON 退场已完成：9 个 tracked 核心业务状态域完成 schema/repository/backfill/reconcile/runtime gates，R103 为 `postgres_only_complete`；R105/R111 完成业务 JSON 与根级 `users.json` 隔离。当前运行版本 `44754d9fd7cc728a01286318381205ad309feda4` 保持 PostgreSQL 主读主写、JSON fallback/archive writes 关闭，运行目录外仅有样例 `backend/data/config.example.json`；R129/R130 已复验备份恢复、数据库快照、自然 cron 与 S1 性能，R127 已把源站限制为 loopback 与 Cloudflare 官方代理网段。真实告警 webhook 是服务器本地可选外部配置，不写入仓库。
 - 自托管发行阶段 7A 已完成：管理员角色、关闭注册、用户治理 API/UI、审计、首位管理员 CLI 和 Compose migration 启动门禁通过本地完整回归，并部署到 `miemie-pre` 的 `8ed4d10`；Alembic `20260812_0010`、本机/Cloudflare health、治理 smoke、数据库快照、两个 worker 和 S1 `30 VU / 60s` 均通过。
 - 自托管发行阶段 7B 的代码与服务器可执行项已完成：平台加密设置、管理员备份/告警页面、PostgreSQL 16 custom dump、隔离恢复、真实通用 Webhook、独立 ops worker、两日期调度幂等与旧 cron 退役均通过。服务器没有任何完整阿里云 OSS 凭据，因此真实云端上传明确留到 7D 外部验收；当前进入 7C 一键安装、更新、回滚、诊断与非 root 容器加固。
+- 自托管发行阶段 7C 的本地实现已完成：`install.sh`、稳定 `miemie` CLI、固定非 root UID/GID、read-only/no-new-privileges、commit 固定镜像、更新前备份、失败应用返切、显式回滚、双确认隔离恢复和安全卸载均有专用验证；README 已将生产安装置于第一入口。当前剩余 7C 服务器升级/故障演练和完整回归，之后进入 7D 干净系统矩阵与真实供应商/OSS/容量发行验收。
 - 当前主风险不在“代码完全不可用”，而在：
   - 复杂页面/路由/服务文件过大
   - 前端自动化测试缺口明显
@@ -86,6 +88,12 @@
 | [自托管发行实施路线](./plans/2026-08-12-self-hosted-release-roadmap.md) | 7A 管理员治理、7B 备份告警、7C 一键安装升级、7D 发布验收的依赖关系与最终完成定义 |
 | [阶段 7A 实施计划](./superpowers/plans/2026-08-12-phase-7a-admin-user-governance.md) | 管理员角色、关闭注册、用户 CRUD、审计、管理前端和服务器验证的测试先行任务 |
 | [阶段 7B 实施计划](./superpowers/plans/2026-08-12-phase-7b-backup-oss-webhook.md) | 平台备份、阿里云 OSS、通用 Webhook、运维 worker、调度切换和服务器证据 |
+| [阶段 7C 实施计划](./superpowers/plans/2026-08-12-phase-7c-installer-update-hardening.md) | 一键安装、非 root Compose、管理 CLI、事务化更新/回滚/恢复与服务器资格验收 |
+| [自托管安装](./playbooks/SELF_HOSTED_INSTALL.md) | 支持系统、安装命令、首次管理员、路径与故障处理 |
+| [自托管管理员](./playbooks/SELF_HOSTED_ADMIN.md) | 用户治理、平台运维设置、CLI 修复与 Web 权限边界 |
+| [自托管反向代理](./playbooks/SELF_HOSTED_REVERSE_PROXY.md) | Nginx/Cloudflare 最低配置、缓存、源站和验证边界 |
+| [自托管更新回滚](./playbooks/SELF_HOSTED_UPGRADE_ROLLBACK.md) | backup-first 更新、发布清单、应用返切与 forward-only schema |
+| [自托管备份恢复](./playbooks/SELF_HOSTED_BACKUP_RESTORE.md) | sidecar 校验、隔离演练、安全备份、双确认恢复与卸载 |
 | [容量基线与压测手册](./playbooks/CAPACITY_BASELINE_AND_LOADTEST.md) | Step 00 的压测执行方法、字段要求与结果模板 |
 | [运行模式矩阵](./playbooks/RUNTIME_MODE_MATRIX.md) | 开发环境、脚本生产模式、Compose 生产模式的边界对比 |
 | [观测与轮询盘点](./reviews/2026-04-step-00-observability-and-polling-inventory.md) | 当前轮询热点、状态接口副作用与最小观测缺口 |

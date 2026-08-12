@@ -89,6 +89,16 @@ if [[ "$SOURCE_ROOT" != "$MIEMIE_INSTALL_ROOT" && ! -d "$MIEMIE_INSTALL_ROOT/.gi
   git -C "$MIEMIE_INSTALL_ROOT" checkout -B pre "$source_commit"
 fi
 [[ -d "$MIEMIE_INSTALL_ROOT/.git" ]] || miemie_fail "install_source_missing"
+if [[ "$SOURCE_ROOT" != "$MIEMIE_INSTALL_ROOT" ]]; then
+  current_install_commit="$(git -C "$MIEMIE_INSTALL_ROOT" rev-parse HEAD)"
+  git -C "$MIEMIE_INSTALL_ROOT" fetch origin "$source_commit"
+  git -C "$MIEMIE_INSTALL_ROOT" cat-file -e "$source_commit^{commit}" || miemie_fail "install_target_missing"
+  git -C "$MIEMIE_INSTALL_ROOT" merge-base --is-ancestor "$current_install_commit" "$source_commit" \
+    || miemie_fail "install_source_not_fast_forward"
+  if [[ "$current_install_commit" != "$source_commit" ]]; then
+    git -C "$MIEMIE_INSTALL_ROOT" switch --detach "$source_commit"
+  fi
+fi
 install_commit="$(git -C "$MIEMIE_INSTALL_ROOT" rev-parse HEAD)"
 
 miemie_stage configuration
