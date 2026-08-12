@@ -37,6 +37,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: "${MIEMIE_IMAGE:-miemie-studio:local}"
+    working_dir: /app/backend
     restart: unless-stopped
     ports:
       - "${MIEMIE_HOST_BIND:-127.0.0.1}:${MIEMIE_HOST_PORT:-8000}:8000"

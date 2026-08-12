@@ -102,6 +102,8 @@ fi
 install_commit="$(git -C "$MIEMIE_INSTALL_ROOT" rev-parse HEAD)"
 
 miemie_stage configuration
+previous_commit=""
+previous_image=""
 if [[ ! -f "$MIEMIE_ENV_FILE" ]]; then
   postgres_password="$(miemie_random_urlsafe 32)"
   platform_key="$(miemie_random_urlsafe 32)"
@@ -117,6 +119,14 @@ if [[ ! -f "$MIEMIE_ENV_FILE" ]]; then
   miemie_set_env "$MIEMIE_ENV_FILE" MIEMIE_DATABASE_URL "postgresql+psycopg://miemie:${postgres_password}@postgres:5432/miemie"
   miemie_set_env "$MIEMIE_ENV_FILE" MIEMIE_PLATFORM_ENCRYPTION_KEY "$platform_key"
   miemie_set_env "$MIEMIE_ENV_FILE" MIEMIE_INSTANCE_ID "$instance_id"
+else
+  if [[ -f "$MIEMIE_INSTALL_STATE_DIR/current.env" ]]; then
+    previous_commit="$(miemie_env_value commit "$MIEMIE_INSTALL_STATE_DIR/current.env")"
+    previous_image="$(miemie_env_value image "$MIEMIE_INSTALL_STATE_DIR/current.env")"
+  else
+    previous_commit="$(miemie_env_value MIEMIE_RUNTIME_GIT_COMMIT "$MIEMIE_ENV_FILE")"
+    previous_image="$(miemie_env_value MIEMIE_IMAGE "$MIEMIE_ENV_FILE")"
+  fi
 fi
 chmod 600 "$MIEMIE_ENV_FILE"
 image="miemie-studio:pre-${install_commit:0:12}"
@@ -176,7 +186,19 @@ EOF
 chmod 600 "$MIEMIE_INSTALL_CONFIG_DIR/miemie.conf.tmp"
 mv "$MIEMIE_INSTALL_CONFIG_DIR/miemie.conf.tmp" "$MIEMIE_INSTALL_CONFIG_DIR/miemie.conf"
 install -m 0755 "$MIEMIE_INSTALL_ROOT/scripts/miemie" "$MIEMIE_INSTALL_BIN_DIR/miemie"
-printf 'commit=%s\nimage=%s\ninstalled_at=%s\nstate=healthy\n' "$install_commit" "$image" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$MIEMIE_INSTALL_STATE_DIR/current.env"
+cat > "$MIEMIE_INSTALL_STATE_DIR/current.env.tmp" <<EOF
+commit=$install_commit
+image=$image
+previous_commit=$previous_commit
+previous_image=$previous_image
+backup_id=
+backup_path=
+migration_head=$(miemie_compose exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "select version_num from alembic_version limit 1"' | tr -d '[:space:]')
+created_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+state=healthy
+EOF
+chmod 600 "$MIEMIE_INSTALL_STATE_DIR/current.env.tmp"
+mv "$MIEMIE_INSTALL_STATE_DIR/current.env.tmp" "$MIEMIE_INSTALL_STATE_DIR/current.env"
 chmod 600 "$MIEMIE_INSTALL_STATE_DIR/current.env"
 
 printf '[miemie] stage=complete state=passed endpoint=http://127.0.0.1:%s reverse_proxy_target=127.0.0.1:%s\n' "$MIEMIE_HOST_PORT" "$MIEMIE_HOST_PORT"

@@ -61,6 +61,7 @@ def main() -> int:
             assert stage in commands
 
     source = INSTALLER.read_text(encoding="utf-8") + LIBRARY.read_text(encoding="utf-8")
+    compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
     required = (
         "Ubuntu 22.04",
         "Ubuntu 24.04",
@@ -83,11 +84,15 @@ def main() -> int:
         "/api/health",
         "install -m 0755",
         "docker compose",
+        "previous_commit=",
+        "migration_head=",
     )
     for fragment in required:
         assert fragment in source, fragment
     for forbidden in ("set -x", "echo $MIEMIE_ADMIN_PASSWORD", "--password"):
         assert forbidden not in source
+    api_section = compose.split("\n  api:\n", 1)[1].split("\n  worker:\n", 1)[0]
+    assert "working_dir: /app/backend" in api_section
     print("self-hosted installer verifier: passed")
     return 0
 
