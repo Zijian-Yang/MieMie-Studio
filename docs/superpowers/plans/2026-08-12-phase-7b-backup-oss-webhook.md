@@ -72,7 +72,9 @@
 - [x] **Step 4: Implement transactional settings/audit updates and operation state transitions without plaintext secrets in audit rows**
 - [x] **Step 5: Run focused tests including wrong/missing encryption key and concurrent idempotency behavior**
   - Focused operations model/repository/service/schema/crypto suite covers encrypted preservation/replacement/clear, secret-free audit flags, wrong-key failure, conditional state transitions, pagination, and unique-key conflict recovery.
-- [ ] **Step 6: Commit the repository and service slice**
+- [x] **Step 6: Commit the repository and service slice**
+  - Repository/service slice: `8f626cd`.
+  - Focused suite: `32 passed`; includes encrypted tri-state updates, secret-free audit, state transitions, pagination, and idempotency conflict recovery.
 
 ### Task 3: Generic Webhook Delivery
 
@@ -84,11 +86,12 @@
 - Produces `OpsWebhookEvent` and `WebhookDeliveryResult`.
 - Produces `OpsWebhookClient.send(event, config)`, with bounded timeout and retry count and stable failure categories.
 
-- [ ] **Step 1: Write local mock HTTP tests for fixed payload, disabled behavior, timeout, retry, 4xx no-retry, 5xx retry, and redaction**
-- [ ] **Step 2: Run tests and confirm missing client fails**
-- [ ] **Step 3: Implement a synchronous `httpx.Client` sender with maximum 30-second timeout and maximum 3 retries**
-- [ ] **Step 4: Ensure logs/errors contain host-independent categories, not URL, response body, or event private data**
-- [ ] **Step 5: Run focused tests and payload secret scan**
+- [x] **Step 1: Write local mock HTTP tests for fixed payload, disabled behavior, timeout, retry, 4xx no-retry, 5xx retry, and redaction**
+- [x] **Step 2: Run tests and confirm missing client fails**
+- [x] **Step 3: Implement a synchronous `httpx.Client` sender with maximum 30-second timeout and maximum 3 retries**
+- [x] **Step 4: Ensure logs/errors contain host-independent categories, not URL, response body, or event private data**
+- [x] **Step 5: Run focused tests and payload secret scan**
+  - Focused Webhook suite: `9 passed`; fixed schema forbids extra private fields and all delivery results exclude target URL and response body.
 - [ ] **Step 6: Commit the Webhook slice**
 
 ### Task 4: PostgreSQL Backup, Retention, And Aliyun OSS
