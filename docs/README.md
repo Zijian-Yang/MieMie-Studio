@@ -81,6 +81,8 @@
 | [PostgreSQL 运营门禁手册](./playbooks/POSTGRES_OPERATIONAL_READINESS.md) | PostgreSQL-only 后的上线前/巡检门禁、备份新鲜度、恢复演练和 JSON 退场状态检查 |
 | [自托管发行与管理控制面设计](./superpowers/specs/2026-08-12-self-hosted-release-and-admin-control-plane-design.md) | `pre` 替代 `main` 前的一键生产安装、管理员用户治理、备份/OSS、通用 Webhook、升级回滚与权限边界 |
 | [ADR-0004 自托管服务发行边界](./adr/ADR-0004-self-hosted-service-release-boundary.md) | 明确项目只交付本地端口服务，反向代理由用户管理；高权限更新/恢复留在 CLI，Web 管理面不接管宿主机 |
+| [自托管发行实施路线](./plans/2026-08-12-self-hosted-release-roadmap.md) | 7A 管理员治理、7B 备份告警、7C 一键安装升级、7D 发布验收的依赖关系与最终完成定义 |
+| [阶段 7A 实施计划](./superpowers/plans/2026-08-12-phase-7a-admin-user-governance.md) | 管理员角色、关闭注册、用户 CRUD、审计、管理前端和服务器验证的测试先行任务 |
 | [容量基线与压测手册](./playbooks/CAPACITY_BASELINE_AND_LOADTEST.md) | Step 00 的压测执行方法、字段要求与结果模板 |
 | [运行模式矩阵](./playbooks/RUNTIME_MODE_MATRIX.md) | 开发环境、脚本生产模式、Compose 生产模式的边界对比 |
 | [观测与轮询盘点](./reviews/2026-04-step-00-observability-and-polling-inventory.md) | 当前轮询热点、状态接口副作用与最小观测缺口 |
