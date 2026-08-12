@@ -125,6 +125,16 @@ export interface OperationRunPage {
   total: number
 }
 
+export interface PlatformHealth {
+  status: string
+  git_commit: string
+  run_mode: string
+  serve_frontend: boolean
+  started_at: string
+  redis: { configured: boolean; ok: boolean | null }
+  database?: { configured: boolean; ok: boolean | null }
+}
+
 export interface AdminUserCreateInput {
   username: string
   password: string
@@ -141,6 +151,8 @@ export interface AdminUserUpdateInput {
 }
 
 export const adminApi = {
+  getPlatformHealth: () => api.get<never, PlatformHealth>('/health'),
+
   bootstrapStatus: () => api.get<never, BootstrapStatus>('/bootstrap/status'),
 
   listUsers: (params: AdminUserFilters) =>

@@ -164,7 +164,8 @@
   - Backend admin operations regression: `29 passed`; frontend service contract typecheck passed.
   - Legacy registration-only `PUT` remains compatible while the management UI uses unified masked `GET/PATCH` settings.
   - Queue dispatch failures transition the committed run to `failed` with a stable public error; no restore route is exposed under `/api/admin`.
-- [ ] **Step 6: Commit the API slice**
+- [x] **Step 6: Commit the API slice**
+  - Administrator operations API slice: `ac0aa88`.
 
 ### Task 7: Administrator Overview, Backup, And Alert UI
 
@@ -182,11 +183,14 @@
 - Consumes typed `adminApi`; secrets use replace-or-preserve fields and never render stored values.
 - Produces compact operational navigation and responsive history tables.
 
-- [ ] **Step 1: Write failing UI contract and Playwright admin/member fixtures**
-- [ ] **Step 2: Implement overview status rows, backup schedule/retention/local path/OSS form, immediate backup, and run history**
-- [ ] **Step 3: Implement Webhook enable/config/test form and recent result list**
-- [ ] **Step 4: Add loading, empty, queued, partial-success, failed, and secret-preservation states**
-- [ ] **Step 5: Run typecheck, lint, production build, chunk contracts, focused UI test, and Playwright**
+- [x] **Step 1: Write failing UI contract and Playwright admin/member fixtures**
+- [x] **Step 2: Implement overview status rows, backup schedule/retention/local path/OSS form, immediate backup, and run history**
+- [x] **Step 3: Implement Webhook enable/config/test form and recent result list**
+- [x] **Step 4: Add loading, empty, queued, partial-success, failed, and secret-preservation states**
+- [x] **Step 5: Run typecheck, lint, production build, chunk contracts, focused UI test, and Playwright**
+  - `test:admin-user-management`, `test:admin-operations`, typecheck, lint, production build, and Vite chunk contract passed.
+  - Four focused Playwright scenarios passed for admin navigation, overview/backup/alert operations, member denial, and narrow-screen backup layout.
+  - Stored OSS/Webhook secrets are never hydrated into form state; empty replacement fields preserve existing values and explicit checkboxes clear them.
 - [ ] **Step 6: Commit the UI slice**
 
 ### Task 8: Compose, Staging Cutover, And Evidence

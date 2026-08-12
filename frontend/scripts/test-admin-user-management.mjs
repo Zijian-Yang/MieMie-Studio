@@ -14,8 +14,11 @@ const [layout, users, drawer, audit, model, app] = await Promise.all([
 
 assert.match(app, /<AdminLayout \/>/)
 assert.match(layout, /<Outlet \/>/)
-assert.match(layout, /用户管理/)
-assert.match(layout, /审计记录/)
+assert.match(layout, />用户</)
+assert.match(layout, /概览/)
+assert.match(layout, /备份/)
+assert.match(layout, /告警/)
+assert.match(layout, /审计/)
 assert.match(users, /adminApi\.listUsers/)
 assert.match(users, /adminApi\.updatePlatformSettings/)
 assert.match(users, /<Table<AdminUser>/)

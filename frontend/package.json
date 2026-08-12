@@ -12,6 +12,7 @@
     "test:video-task-card-layout": "node scripts/test-video-studio-task-card-layout.mjs",
     "test:admin-route-policy": "node scripts/test-admin-route-policy.mjs",
     "test:admin-user-management": "node scripts/test-admin-user-management.mjs",
+    "test:admin-operations": "node scripts/test-admin-operations.mjs",
     "test:vite-chunks": "node scripts/test-vite-manual-chunks.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",

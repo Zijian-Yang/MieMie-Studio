@@ -103,7 +103,7 @@ const MainLayout = () => {
     { key: 'divider-settings', type: 'divider' },
     { key: '/settings', icon: <SettingOutlined />, label: '设置' },
     ...(user?.role === 'admin'
-      ? [{ key: '/admin/users', icon: <SafetyCertificateOutlined />, label: '平台管理' }]
+      ? [{ key: '/admin/overview', icon: <SafetyCertificateOutlined />, label: '平台管理' }]
       : []),
   ]
 

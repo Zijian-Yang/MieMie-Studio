@@ -30,6 +30,9 @@ const VideoBenchmarkDatasetsPage = lazy(() => import('./pages/VideoBenchmarkData
 const LoginPage = lazy(() => import('./pages/Login/LoginPage'))
 const AdminUsersPage = lazy(() => import('./pages/Admin/AdminUsersPage'))
 const AdminAuditPage = lazy(() => import('./pages/Admin/AdminAuditPage'))
+const AdminOverviewPage = lazy(() => import('./pages/Admin/AdminOverviewPage'))
+const AdminBackupsPage = lazy(() => import('./pages/Admin/AdminBackupsPage'))
+const AdminAlertsPage = lazy(() => import('./pages/Admin/AdminAlertsPage'))
 const AdminLayout = lazy(() => import('./pages/Admin/AdminLayout'))
 
 // 路由保护组件
@@ -67,8 +70,11 @@ function App() {
               <Route path="projects" element={<ProjectsPage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
-                <Route index element={<Navigate to="/admin/users" replace />} />
+                <Route index element={<Navigate to="/admin/overview" replace />} />
+                <Route path="overview" element={<AdminOverviewPage />} />
                 <Route path="users" element={<AdminUsersPage />} />
+                <Route path="backups" element={<AdminBackupsPage />} />
+                <Route path="alerts" element={<AdminAlertsPage />} />
                 <Route path="audit" element={<AdminAuditPage />} />
               </Route>
               <Route path="project/:projectId">

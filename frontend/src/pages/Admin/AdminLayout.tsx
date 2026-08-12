@@ -1,12 +1,24 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Segmented, Space, Typography, theme } from 'antd'
-import { AuditOutlined, TeamOutlined } from '@ant-design/icons'
+import { Space, Tabs, Typography, theme } from 'antd'
+import {
+  AlertOutlined,
+  AuditOutlined,
+  DashboardOutlined,
+  DatabaseOutlined,
+  TeamOutlined,
+} from '@ant-design/icons'
 
 const AdminLayout = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { token } = theme.useToken()
-  const selected = location.pathname.includes('/audit') ? '/admin/audit' : '/admin/users'
+  const selected = [
+    '/admin/overview',
+    '/admin/users',
+    '/admin/backups',
+    '/admin/alerts',
+    '/admin/audit',
+  ].find((path) => location.pathname.startsWith(path)) || '/admin/overview'
 
   return (
     <div style={{ minHeight: '100vh', background: token.colorBgLayout }}>
@@ -25,14 +37,20 @@ const AdminLayout = () => {
       >
         <Space direction="vertical" size={0}>
           <Typography.Title level={4} style={{ margin: 0 }}>平台管理</Typography.Title>
-          <Typography.Text type="secondary">用户权限、注册策略与操作审计</Typography.Text>
+          <Typography.Text type="secondary">平台状态、用户权限、备份与告警</Typography.Text>
         </Space>
-        <Segmented
-          value={selected}
-          onChange={(value) => navigate(String(value))}
-          options={[
-            { value: '/admin/users', label: '用户管理', icon: <TeamOutlined /> },
-            { value: '/admin/audit', label: '审计记录', icon: <AuditOutlined /> },
+      </div>
+      <div style={{ padding: '0 24px', background: token.colorBgContainer }}>
+        <Tabs
+          activeKey={selected}
+          onChange={navigate}
+          tabBarStyle={{ margin: 0 }}
+          items={[
+            { key: '/admin/overview', label: <Space size={6}><DashboardOutlined />概览</Space> },
+            { key: '/admin/users', label: <Space size={6}><TeamOutlined />用户</Space> },
+            { key: '/admin/backups', label: <Space size={6}><DatabaseOutlined />备份</Space> },
+            { key: '/admin/alerts', label: <Space size={6}><AlertOutlined />告警</Space> },
+            { key: '/admin/audit', label: <Space size={6}><AuditOutlined />审计</Space> },
           ]}
         />
       </div>

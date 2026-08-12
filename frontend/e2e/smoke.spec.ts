@@ -87,6 +87,37 @@ async function mockAdminApis(page: Page) {
       last_login: null,
     },
   ]
+  const platformSettings = {
+    registration_enabled: false,
+    backup_enabled: true,
+    backup_schedule: '03:00',
+    backup_retention_days: 30,
+    backup_min_keep: 7,
+    backup_local_subdirectory: 'postgres',
+    backup_oss_enabled: true,
+    backup_oss_endpoint: 'https://oss-cn-hangzhou.aliyuncs.com',
+    backup_oss_bucket_name: 'miemie-backups',
+    backup_oss_prefix: 'miemie/backups',
+    backup_oss_credentials_configured: true,
+    backup_oss_access_key_id_masked: 'LTA********ey',
+    webhook_enabled: true,
+    webhook_configured: true,
+    webhook_url_masked: 'htt******************ok',
+    webhook_timeout_seconds: 10,
+    webhook_retry_count: 2,
+    webhook_alert_on_warning: false,
+  }
+  const operationRuns = [{
+    id: 'run-backup-1', operation_type: 'backup', status: 'succeeded',
+    trigger_source: 'scheduled', requested_by: null,
+    local_status: 'succeeded', oss_status: 'succeeded',
+    local_path_relative: 'postgres/miemie-postgres-test.dump',
+    oss_object_key: 'miemie/backups/miemie-postgres-test.dump',
+    oss_etag: 'etag', sha256: 'a'.repeat(64), size_bytes: 1048576,
+    summary: { pruned_count: 0 }, error_category: null,
+    created_at: '2026-08-12T03:00:00Z', started_at: '2026-08-12T03:00:01Z',
+    finished_at: '2026-08-12T03:00:03Z', updated_at: '2026-08-12T03:00:03Z',
+  }]
 
   await page.route('**/api/admin/**', async (route) => {
     const path = new URL(route.request().url()).pathname
@@ -102,7 +133,28 @@ async function mockAdminApis(page: Page) {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ registration_enabled: false }),
+        body: JSON.stringify(platformSettings),
+      })
+      return
+    }
+    if (path === '/api/admin/backups' && route.request().method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items: operationRuns, page: 1, page_size: 20, total: 1 }),
+      })
+      return
+    }
+    if (
+      (path === '/api/admin/backups' && route.request().method() === 'POST')
+      || path === '/api/admin/backups/test-oss'
+      || path === '/api/admin/alerts/test'
+    ) {
+      const operationType = path.endsWith('test-oss') ? 'oss_test' : path.endsWith('alerts/test') ? 'webhook_test' : 'backup'
+      await route.fulfill({
+        status: 202,
+        contentType: 'application/json',
+        body: JSON.stringify({ ...operationRuns[0], id: `run-${operationType}`, operation_type: operationType, status: 'queued' }),
       })
       return
     }
@@ -123,6 +175,21 @@ async function mockAdminApis(page: Page) {
       return
     }
     await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+  })
+}
+
+async function mockHealthApi(page: Page) {
+  await page.route('**/api/health', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        status: 'ok', git_commit: 'playwright-commit', run_mode: 'prod',
+        serve_frontend: true, started_at: '2026-08-12T00:00:00Z',
+        redis: { configured: true, ok: true },
+        database: { configured: true, ok: true },
+      }),
+    })
   })
 }
 
@@ -626,6 +693,48 @@ test('管理员用户页和审计页可渲染', async () => {
     await expect(page).toHaveURL(/\/admin\/audit$/)
     await expect(page.getByText('admin.user.update')).toBeVisible()
     await expect(page.getByText('req-admin-1')).toBeVisible()
+  })
+})
+
+test('管理员概览、备份和告警工作台可渲染并触发队列任务', async () => {
+  await withPage(async (page) => {
+    await seedAdminAuth(page)
+    await mockAdminApis(page)
+    await mockHealthApi(page)
+    await page.goto('/admin/overview')
+
+    await expect(page.getByText('运行状态')).toBeVisible()
+    await expect(page.getByText('PostgreSQL')).toBeVisible()
+    await expect(page.getByText('playwright-commit')).toBeVisible()
+
+    await page.getByText('备份', { exact: true }).click()
+    await expect(page).toHaveURL(/\/admin\/backups$/)
+    await expect(page.getByText('数据库备份')).toBeVisible()
+    await expect(page.getByText(/凭证已配置/)).toBeVisible()
+    await expect(page.getByLabel('替换 AccessKey Secret')).toHaveValue('')
+    await page.getByRole('button', { name: '立即备份' }).click()
+    await expect(page.getByText('备份任务已进入队列')).toBeVisible()
+
+    await page.getByText('告警', { exact: true }).click()
+    await expect(page).toHaveURL(/\/admin\/alerts$/)
+    await expect(page.getByText('通用 Webhook')).toBeVisible()
+    await expect(page.getByLabel('替换 Webhook HTTPS 地址')).toHaveValue('')
+    await page.getByRole('button', { name: '发送测试' }).click()
+    await expect(page.getByText('Webhook 测试已进入队列')).toBeVisible()
+  })
+})
+
+test('窄屏管理员备份页控件不溢出视口', async () => {
+  await withPage(async (page) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await seedAdminAuth(page)
+    await mockAdminApis(page)
+    await page.goto('/admin/backups')
+
+    await expect(page.getByText('数据库备份')).toBeVisible()
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    expect(overflow).toBeLessThanOrEqual(1)
+    await expect(page.getByRole('button', { name: '立即备份' })).toBeVisible()
   })
 })
 
