@@ -79,6 +79,8 @@
 | [Compose PostgreSQL 升级优化计划](./plans/2026-06-06-postgres-upgrade-optimization-plan.md) | Compose 内 PostgreSQL、JSON 过渡、双写对账、分域读切换和最终数据库主数据源路线 |
 | [PostgreSQL 平台升级执行计划](./superpowers/plans/2026-06-07-postgres-platform-upgrade-execution.md) | 数据库升级 goal 模式执行路线、前置检查、分阶段任务、服务器门禁和真实 smoke 边界 |
 | [PostgreSQL 运营门禁手册](./playbooks/POSTGRES_OPERATIONAL_READINESS.md) | PostgreSQL-only 后的上线前/巡检门禁、备份新鲜度、恢复演练和 JSON 退场状态检查 |
+| [自托管发行与管理控制面设计](./superpowers/specs/2026-08-12-self-hosted-release-and-admin-control-plane-design.md) | `pre` 替代 `main` 前的一键生产安装、管理员用户治理、备份/OSS、通用 Webhook、升级回滚与权限边界 |
+| [ADR-0004 自托管服务发行边界](./adr/ADR-0004-self-hosted-service-release-boundary.md) | 明确项目只交付本地端口服务，反向代理由用户管理；高权限更新/恢复留在 CLI，Web 管理面不接管宿主机 |
 | [容量基线与压测手册](./playbooks/CAPACITY_BASELINE_AND_LOADTEST.md) | Step 00 的压测执行方法、字段要求与结果模板 |
 | [运行模式矩阵](./playbooks/RUNTIME_MODE_MATRIX.md) | 开发环境、脚本生产模式、Compose 生产模式的边界对比 |
 | [观测与轮询盘点](./reviews/2026-04-step-00-observability-and-polling-inventory.md) | 当前轮询热点、状态接口副作用与最小观测缺口 |
@@ -133,6 +135,7 @@ docker compose --env-file compose.env config
 - 部署前自检：`./run.sh doctor`（2026-06-17，本机实跑 `passed_with_warnings`：`compose.env` 缺失和 Docker daemon 默认跳过为 warning；不安装依赖、不修改配置、不启动服务）
 - Compose 静态校验：服务器 `docker compose --env-file compose.env config --quiet`（2026-08-12，通过）。
 - 数据库升级状态：**完成**。`miemie-pre` 当前运行版本 `44754d9fd7cc728a01286318381205ad309feda4` 已全局 PostgreSQL 主读主写，JSON fallback/archive writes 均关闭；R103 为 `postgres_only_complete`，当前 coverage 为 `9 migrated / 0 pending`，Alembic 数据库与代码均为 `20260617_0009 (head)`。R129 当前发布门禁为 `24 passed / 0 warn / 0 blocked / 0 failed`，新备份与隔离恢复演练通过，运行目录外仅有非运行态样例 `backend/data/config.example.json`。R130 数据库快照为连接 `3/50`、长事务 `0`、等待锁 `0`、缺表 `0`、warnings `0`；S1 为 `1727` 请求、失败率 `0`、P95 `63.70ms`、P99 `101.31ms`；当天正式 cron 的 readiness、retention、snapshot 三类 `trigger=cron` 证据全部通过。公网 Cloudflare health 与本机 health 正常，源站 IP HTTP/HTTPS 直连为 `403`。真实告警 webhook 尚未配置，是不影响数据库完成状态的可选外部通知增强。
+- 下一发行阶段：**设计已批准，待实施**。`pre` 将建设为最终替代 `main` 的单机自托管服务发行线，项目只提供 `127.0.0.1:<port>` 应用入口，HTTPS/Cloudflare/Nginx/Caddy 由用户管理；按 7A 管理员与用户治理、7B 本地/阿里云 OSS 备份与通用 Webhook、7C 幂等安装/升级/回滚 CLI、7D 干净服务器发布验收推进。Web 管理面不获得 Docker、Git、root、数据库恢复或永久删除权限。
 - 数据库升级 R35：user/config 本地 schema/repository boundary 已新增 `users`、`user_configs`、Alembic migration `20260607_0007` 和安全索引映射；登录、session 和 per-user `config.json` 运行态仍默认走 JSON/Redis/file-only，下一步补 user/config backfill/reconcile。
 - 数据库升级 R36：user/config backfill/reconcile 服务和维护脚本已新增，摘要保持脱敏且不迁移 `sessions.json`；运行态仍默认 JSON/Redis/file-only，下一步补 user/config runtime dual-write/read-switch/primary-write gates。
 - 数据库升级 R37：user/config runtime dual-write 已新增，注册/登录更新/改密码/config 保存默认仍 JSON 主写，显式启用后 shadow 写 PostgreSQL；session 仍保持 Redis + file fallback。

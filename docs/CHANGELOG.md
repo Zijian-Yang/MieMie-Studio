@@ -40,6 +40,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 自托管发行与管理控制面设计：接受 `pre` 作为后续替代 `main` 的发行线，明确项目只提供本地回环应用端口、反向代理由部署者管理；后续按管理员用户治理、PostgreSQL 本地/阿里云 OSS 备份、通用 Webhook、幂等安装/升级 CLI 和干净服务器验收四阶段实施，并禁止 Web 管理面直接获取 Docker 或宿主机 root 权限。
 - PostgreSQL 升级完成审计：R129 当前发布 operational readiness 与 R130 目标级审计确认 9 个核心业务域全部迁移、Alembic `20260617_0009`、JSON 主存储退场、新备份/隔离恢复、自然 cron 和当前 S1 性能门禁均通过。
 - pre-studio 入口审计门禁：新增 `scripts/pre_studio_entrypoint_audit.py` 与 verifier，覆盖公网 Cloudflare health、API `DYNAMIC/no-store`、静态资源长缓存与二次 `HIT`、可选服务器本机 origin health；R125 本地公网与服务器同机审计均为 `passed_with_warnings`，warnings 记录 Cloudflare `h3` 广告和前后端部署版本头不一致；bodyless 复跑只归档静态资源 headers、SHA256 和字节数，不保存 JS bundle 正文。
 - PostgreSQL ops alert self-test：新增本地-only mock webhook 自测脚本与 verifier，覆盖 no-webhook、dry-run 和真实 curl POST 到 127.0.0.1 mock endpoint，避免上线前只能依赖真实 webhook 手测。
