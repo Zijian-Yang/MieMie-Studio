@@ -1,0 +1,7 @@
+check	state	detail
+backend_full_suite	passed	471 passed
+production_env_session_tests	passed	10 passed
+related_database_mode_tests	passed	25 passed
+runtime_session_expiry_canary	passed	readable before expiry and hidden after expiry
+runtime_canary_cleanup	passed	synthetic session removed in finally cleanup
+final_server_sync	pending	awaiting follow-up release commit

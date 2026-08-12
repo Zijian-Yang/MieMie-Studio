@@ -6,6 +6,7 @@
 ## [Unreleased]
 
 ### 修复 (Fixed)
+- PostgreSQL 测试隔离：全局 pytest 夹具会先建立 file-only 数据基线，数据库专项测试再显式启用 PostgreSQL，避免在生产容器内执行回归时继承运行态 PostgreSQL-only 开关并访问真实业务库。
 - PostgreSQL session 有效期：PostgreSQL repository 的单条/列表读取现在按 `expires_at` 过滤，`UserService` 同时正确处理带时区与不带时区的 `created_at`，避免时区感知时间戳因 datetime 类型不匹配而绕过 7 天过期检查；相关测试不再使用会随日期腐化的固定有效时间。
 - PostgreSQL operational cron：生成的定时命令会在日志重定向前创建 `logs/` 与 `validation-artifacts/`，修复仓库没有运行时日志目录时 cron 在脚本启动前失败的问题；R126 已通过真实 cron daemon 的三类 `trigger=cron` 严格证据门禁。
 - PostgreSQL primary-write 账号运行态：当 `MIEMIE_DATABASE_WRITE_MODE=postgres` 且 `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=false` 时，`UserService` 不再自动创建根级 `backend/data/users.json`，避免最终 JSON 退场后服务重启又生成空用户 JSON；相关 user/config/session 回归为 `28 passed`。

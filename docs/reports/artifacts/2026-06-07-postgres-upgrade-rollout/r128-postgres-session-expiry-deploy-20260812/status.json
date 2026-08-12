@@ -1,0 +1,12 @@
+{
+  "run_id": "r128-postgres-session-expiry-deploy-20260812",
+  "state": "in_progress",
+  "stage": "awaiting_final_server_sync",
+  "reason": "Local regression and runtime canary passed; final release synchronization is pending",
+  "backend_tests_passed": 471,
+  "production_env_session_tests_passed": 10,
+  "related_database_mode_tests_passed": 25,
+  "runtime_session_expiry_canary": "passed",
+  "runtime_canary_cleanup": "passed",
+  "updated_at": "2026-08-12T10:35:10+08:00"
+}

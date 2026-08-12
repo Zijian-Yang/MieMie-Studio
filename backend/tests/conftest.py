@@ -25,6 +25,18 @@ def isolated_data_dir(tmp_path, monkeypatch):
     _test_data_dir = tmp_path / "data"
     _test_data_dir.mkdir()
 
+    # Tests must never inherit a PostgreSQL-only production container policy.
+    # Database-specific cases opt in after this baseline is established.
+    monkeypatch.setenv("MIEMIE_DATABASE_ENABLED", "false")
+    monkeypatch.setenv("MIEMIE_DATABASE_WRITE_MODE", "file")
+    monkeypatch.setenv("MIEMIE_DATABASE_READ_MODE", "file")
+    monkeypatch.setenv("MIEMIE_DATABASE_DUAL_WRITE_DOMAINS", "")
+    monkeypatch.setenv("MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS", "")
+    monkeypatch.setenv("MIEMIE_DATABASE_READ_DOMAINS", "")
+    monkeypatch.setenv("MIEMIE_DATABASE_JSON_FALLBACK_READ", "false")
+    monkeypatch.setenv("MIEMIE_DATABASE_JSON_ARCHIVE_WRITES", "false")
+    monkeypatch.setenv("MIEMIE_DATABASE_RECONCILE_STRICT", "false")
+
     # 重置全局单例，确保每个测试独立
     import app.services.user_service as us_mod
     with us_mod._service_lock:
