@@ -12,6 +12,18 @@ services:
       - upgrade
       - head
     working_dir: /app
+    user: "${MIEMIE_RUNTIME_UID:-10001}:${MIEMIE_RUNTIME_GID:-10001}"
+    read_only: true
+    init: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=256m,mode=1777"]
+    stop_grace_period: 45s
+    logging: &app-logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     environment:
       TZ: "${TZ:-Asia/Shanghai}"
       MIEMIE_DATABASE_ENABLED: "true"
@@ -28,6 +40,14 @@ services:
     restart: unless-stopped
     ports:
       - "${MIEMIE_HOST_BIND:-127.0.0.1}:${MIEMIE_HOST_PORT:-8000}:8000"
+    user: "${MIEMIE_RUNTIME_UID:-10001}:${MIEMIE_RUNTIME_GID:-10001}"
+    read_only: true
+    init: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=256m,mode=1777"]
+    stop_grace_period: 45s
+    logging: *app-logging
     environment:
       TZ: "${TZ:-Asia/Shanghai}"
       MIEMIE_SERVE_FRONTEND: "true"
@@ -78,6 +98,14 @@ services:
     restart: unless-stopped
     command: ["/opt/venv/bin/celery", "-A", "app.celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=${MIEMIE_WORKER_CONCURRENCY:-1}", "-Q", "studio"]
     working_dir: /app/backend
+    user: "${MIEMIE_RUNTIME_UID:-10001}:${MIEMIE_RUNTIME_GID:-10001}"
+    read_only: true
+    init: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=256m,mode=1777"]
+    stop_grace_period: 45s
+    logging: *app-logging
     environment:
       TZ: "${TZ:-Asia/Shanghai}"
       MIEMIE_SERVE_FRONTEND: "true"
@@ -115,6 +143,14 @@ services:
     restart: unless-stopped
     command: ["/opt/venv/bin/celery", "-A", "app.celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=${MIEMIE_VIDEO_WORKER_CONCURRENCY:-1}", "-Q", "video_studio", "--hostname=video@%h"]
     working_dir: /app/backend
+    user: "${MIEMIE_RUNTIME_UID:-10001}:${MIEMIE_RUNTIME_GID:-10001}"
+    read_only: true
+    init: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=256m,mode=1777"]
+    stop_grace_period: 45s
+    logging: *app-logging
     environment:
       TZ: "${TZ:-Asia/Shanghai}"
       MIEMIE_SERVE_FRONTEND: "true"
@@ -156,6 +192,14 @@ services:
     restart: unless-stopped
     command: ["/opt/venv/bin/celery", "-A", "app.celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=${MIEMIE_OPS_WORKER_CONCURRENCY:-1}", "-Q", "ops"]
     working_dir: /app/backend
+    user: "${MIEMIE_RUNTIME_UID:-10001}:${MIEMIE_RUNTIME_GID:-10001}"
+    read_only: true
+    init: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=256m,mode=1777"]
+    stop_grace_period: 45s
+    logging: *app-logging
     environment:
       TZ: "${TZ:-Asia/Shanghai}"
       MIEMIE_RUNTIME_GIT_COMMIT: "${MIEMIE_RUNTIME_GIT_COMMIT:-unknown}"
@@ -190,6 +234,14 @@ services:
     restart: unless-stopped
     command: ["/opt/venv/bin/python", "-m", "app.ops_scheduler"]
     working_dir: /app/backend
+    user: "${MIEMIE_RUNTIME_UID:-10001}:${MIEMIE_RUNTIME_GID:-10001}"
+    read_only: true
+    init: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=256m,mode=1777"]
+    stop_grace_period: 45s
+    logging: *app-logging
     environment:
       TZ: "${TZ:-Asia/Shanghai}"
       MIEMIE_RUNTIME_GIT_COMMIT: "${MIEMIE_RUNTIME_GIT_COMMIT:-unknown}"

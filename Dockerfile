@@ -16,7 +16,8 @@ ARG POSTGRESQL_CLIENT_MAJOR=16
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PATH="/opt/venv/bin:${PATH}"
+    PATH="/opt/venv/bin:${PATH}" \
+    HOME="/tmp"
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl \
@@ -25,7 +26,9 @@ RUN apt-get update \
     && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg postgresql-client-${POSTGRESQL_CLIENT_MAJOR} \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 10001 miemie \
+    && useradd --uid 10001 --gid 10001 --no-create-home --home-dir /tmp --shell /usr/sbin/nologin miemie
 
 WORKDIR /app
 
@@ -36,6 +39,14 @@ RUN python -m venv /opt/venv \
 
 COPY backend ./backend
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+
+RUN install -d -o 10001 -g 10001 \
+      /app/backend/data \
+      /app/backend/logs \
+      /var/lib/miemie/backups \
+    && chown -R 10001:10001 /app/backend /app/frontend /opt/venv
+
+USER 10001:10001
 
 EXPOSE 8000
 
