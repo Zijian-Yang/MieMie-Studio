@@ -307,9 +307,12 @@ const MainLayout = () => {
       <div
         style={{
           marginLeft: siderWidth,
+          width: `calc(100% - ${siderWidth}px)`,
+          minWidth: 0,
           minHeight: '100vh',
+          overflowX: 'hidden',
           background: token.colorBgLayout,
-          transition: 'margin-left 0.2s',
+          transition: 'margin-left 0.2s, width 0.2s',
         }}
       >
         <Outlet />

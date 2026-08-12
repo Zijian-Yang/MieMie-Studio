@@ -215,7 +215,7 @@ env_value() {
 redact_compose_env() {
   local output="$1"
   [[ -f "$COMPOSE_ENV_FILE" ]] || return 0
-  grep -E '^(MIEMIE_HOST|MIEMIE_WORKERS|MIEMIE_RUNTIME|MIEMIE_REDIS|MIEMIE_TASK|MIEMIE_CELERY|MIEMIE_VIDEO|MIEMIE_DATABASE|MIEMIE_POSTGRES|TZ=)' "$COMPOSE_ENV_FILE" \
+  grep -E '^(MIEMIE_HOST|MIEMIE_WORKERS|MIEMIE_RUNTIME|MIEMIE_INSTANCE|MIEMIE_REDIS|MIEMIE_TASK|MIEMIE_CELERY|MIEMIE_VIDEO|MIEMIE_DATABASE|MIEMIE_POSTGRES|TZ=)' "$COMPOSE_ENV_FILE" \
     | sed -E \
       -e 's/(MIEMIE_POSTGRES_PASSWORD=).*/\1<redacted>/' \
       -e 's#(MIEMIE_DATABASE_URL=postgresql\+psycopg://miemie:)[^@]+#\1<redacted>#' \
@@ -231,8 +231,9 @@ check_compose_env() {
   record_result "compose_env" "passed" "$COMPOSE_ENV_FILE present"
   redact_compose_env "$ARTIFACT_DIR/compose.env.sanitized"
 
-  local postgres_password runtime_commit host_bind database_enabled database_url
+  local postgres_password platform_encryption_key runtime_commit host_bind database_enabled database_url
   postgres_password="$(env_value MIEMIE_POSTGRES_PASSWORD "$COMPOSE_ENV_FILE")"
+  platform_encryption_key="$(env_value MIEMIE_PLATFORM_ENCRYPTION_KEY "$COMPOSE_ENV_FILE")"
   runtime_commit="$(env_value MIEMIE_RUNTIME_GIT_COMMIT "$COMPOSE_ENV_FILE")"
   host_bind="$(env_value MIEMIE_HOST_BIND "$COMPOSE_ENV_FILE")"
   database_enabled="$(env_value MIEMIE_DATABASE_ENABLED "$COMPOSE_ENV_FILE")"
@@ -242,6 +243,28 @@ check_compose_env() {
     warn_or_block_for_compose "compose_env:postgres_password" "MIEMIE_POSTGRES_PASSWORD is missing or placeholder"
   else
     record_result "compose_env:postgres_password" "passed" "set"
+  fi
+
+  if [[ -z "$platform_encryption_key" || "$platform_encryption_key" == "replace-with-urlsafe-base64-32-byte-key" ]]; then
+    warn_or_block_for_compose "compose_env:platform_encryption_key" "MIEMIE_PLATFORM_ENCRYPTION_KEY is missing or placeholder"
+  elif ! PLATFORM_ENCRYPTION_KEY="$platform_encryption_key" python3 - <<'PY' >/dev/null 2>&1
+import base64
+import os
+import re
+
+value = os.environ["PLATFORM_ENCRYPTION_KEY"]
+assert re.fullmatch(r"[A-Za-z0-9_-]+={0,2}", value)
+raw = base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+assert len(raw) == 32
+assert value in {
+    base64.urlsafe_b64encode(raw).decode("ascii"),
+    base64.urlsafe_b64encode(raw).decode("ascii").rstrip("="),
+}
+PY
+  then
+    warn_or_block_for_compose "compose_env:platform_encryption_key" "MIEMIE_PLATFORM_ENCRYPTION_KEY is not a canonical 32-byte URL-safe Base64 key"
+  else
+    record_result "compose_env:platform_encryption_key" "passed" "set"
   fi
 
   if [[ -z "$runtime_commit" || "$runtime_commit" == "replace-with-git-commit" ]]; then

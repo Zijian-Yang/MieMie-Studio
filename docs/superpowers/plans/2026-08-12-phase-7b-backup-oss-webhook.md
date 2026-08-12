@@ -191,7 +191,8 @@
   - `test:admin-user-management`, `test:admin-operations`, typecheck, lint, production build, and Vite chunk contract passed.
   - Four focused Playwright scenarios passed for admin navigation, overview/backup/alert operations, member denial, and narrow-screen backup layout.
   - Stored OSS/Webhook secrets are never hydrated into form state; empty replacement fields preserve existing values and explicit checkboxes clear them.
-- [ ] **Step 6: Commit the UI slice**
+- [x] **Step 6: Commit the UI slice**
+  - Administrator operations UI slice: `5fbcd37`.
 
 ### Task 8: Compose, Staging Cutover, And Evidence
 
@@ -211,9 +212,12 @@
 - Adds `worker-ops` and `scheduler`, PostgreSQL client tools, fixed backup mount, encryption key, and ops queue.
 - Produces provider-free local/server smoke and real OSS/Webhook evidence when credentials are already available.
 
-- [ ] **Step 1: Write Compose tests for no Docker socket, no database/Redis host ports, fixed backup root, shared image, ops queue, scheduler, and secret placeholder rejection**
-- [ ] **Step 2: Implement Compose/Docker changes and provider-free smoke/verifier**
-- [ ] **Step 3: Run backend full suite and all frontend gates**
+- [x] **Step 1: Write Compose tests for no Docker socket, no database/Redis host ports, fixed backup root, shared image, ops queue, scheduler, and secret placeholder rejection**
+- [x] **Step 2: Implement Compose/Docker changes and provider-free smoke/verifier**
+- [x] **Step 3: Run backend full suite and all frontend gates**
+  - Backend full suite: `606 passed`; Docker/ops focused regression: `23 passed`.
+  - Frontend service contracts, typecheck, lint, production build, Vite chunk contract, and all `14` Playwright scenarios passed.
+  - The narrow-screen admin workspace now constrains content to the viewport while preserving table-local horizontal scrolling.
 - [ ] **Step 4: Back up staging, generate root-only encryption key, deploy migration/services, and run local/public health plus operations smoke**
 - [ ] **Step 5: Configure temporary real Webhook and approved Aliyun OSS credentials if available, upload one backup, isolate-restore it, and clean test objects/secrets**
 - [ ] **Step 6: Observe two scheduler-produced daily successes before disabling legacy host cron; prove no duplicate backup key**

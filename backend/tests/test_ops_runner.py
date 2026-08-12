@@ -30,11 +30,14 @@ class _Operations:
         self.run = run or _run()
         self.completed = []
         self.failed = []
+        self.settings_error = None
 
     def claim_run(self, run_id):
         return self.run
 
     def get_runtime_settings(self):
+        if self.settings_error:
+            raise self.settings_error
         return self.settings
 
     def complete_run(self, run_id, **values):
@@ -293,3 +296,22 @@ def test_already_claimed_run_is_a_noop():
     assert result is None
     assert backup.calls == []
     assert operations.completed == []
+
+
+def test_settings_decryption_failure_does_not_leave_claimed_run_running():
+    operations = _Operations()
+    operations.settings_error = RuntimeError("private encryption detail")
+    backup = _Backup()
+
+    result = _runner(operations, backup).run_backup("run-1")
+
+    assert result is None
+    assert backup.calls == []
+    assert operations.failed == [
+        (
+            "run-1",
+            "platform_settings_unavailable",
+            {"local_status": "skipped", "oss_status": "skipped"},
+        )
+    ]
+    assert "private encryption" not in repr(operations.failed)

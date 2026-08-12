@@ -35,7 +35,7 @@ assert.match(adminRoute, /Navigate to="\/projects"/)
 assert.match(app, /path="admin"/)
 assert.match(app, /<AdminRoute>/)
 assert.match(layout, /user\?\.role === 'admin'/)
-assert.match(layout, /key: '\/admin\/users'/)
+assert.match(layout, /key: '\/admin\/overview'/)
 assert.match(login, /adminApi\.bootstrapStatus\(\)/)
 assert.match(login, /registration_enabled/)
 

@@ -62,11 +62,25 @@ class OpsRunner:
                 "failure_category": "webhook_internal_error",
             }
 
+    def _settings_or_fail(self, run_id: str):
+        try:
+            return self._operations.get_runtime_settings()
+        except Exception:
+            self._operations.fail_run(
+                run_id,
+                error_category="platform_settings_unavailable",
+                local_status="skipped",
+                oss_status="skipped",
+            )
+            return None
+
     def run_backup(self, run_id: str):
         run = self._operations.claim_run(run_id)
         if run is None:
             return None
-        settings = self._operations.get_runtime_settings()
+        settings = self._settings_or_fail(run_id)
+        if settings is None:
+            return None
         try:
             backup = self._backup.run(run_id, settings)
         except BackupExecutionError as exc:
@@ -167,7 +181,9 @@ class OpsRunner:
         run = self._operations.claim_run(run_id)
         if run is None:
             return None
-        settings = self._operations.get_runtime_settings()
+        settings = self._settings_or_fail(run_id)
+        if settings is None:
+            return None
         try:
             result = self._oss.test(settings)
         except BackupOSSError as exc:
@@ -196,7 +212,9 @@ class OpsRunner:
         run = self._operations.claim_run(run_id)
         if run is None:
             return None
-        settings = self._operations.get_runtime_settings()
+        settings = self._settings_or_fail(run_id)
+        if settings is None:
+            return None
         try:
             result = self._send_event(
                 settings=settings,

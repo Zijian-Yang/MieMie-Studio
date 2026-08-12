@@ -50,7 +50,22 @@ class OpsScheduler:
                 idempotency_key=idempotency_key,
                 run_id=run.id,
             )
-        self._dispatcher(run.id)
+        try:
+            self._dispatcher(run.id)
+        except Exception:
+            claimed = self._operations.claim_run(run.id)
+            if claimed is not None:
+                self._operations.fail_run(
+                    run.id,
+                    error_category="ops_queue_dispatch_failed",
+                    local_status="skipped",
+                    oss_status="skipped",
+                )
+            return SchedulerTickResult(
+                state="dispatch_failed",
+                idempotency_key=idempotency_key,
+                run_id=run.id,
+            )
         return SchedulerTickResult(
             state="queued",
             idempotency_key=idempotency_key,

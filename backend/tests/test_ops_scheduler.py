@@ -15,6 +15,8 @@ class _Operations:
         self.settings = settings
         self.created = created
         self.calls = []
+        self.claimed = []
+        self.failed = []
 
     def get_runtime_settings(self):
         return self.settings
@@ -31,6 +33,22 @@ class _Operations:
             created_at=now,
             updated_at=now,
         ), self.created
+
+    def claim_run(self, run_id):
+        self.claimed.append(run_id)
+        now = datetime.now(timezone.utc)
+        return OperationRun(
+            id=run_id,
+            operation_type="backup",
+            status="running",
+            trigger_source="scheduled",
+            created_at=now,
+            started_at=now,
+            updated_at=now,
+        )
+
+    def fail_run(self, run_id, *, error_category, **values):
+        self.failed.append((run_id, error_category, values))
 
 
 def _scheduler(settings, *, created=True):
@@ -119,3 +137,28 @@ def test_naive_clock_is_rejected():
         assert str(exc) == "ops_scheduler_timezone_required"
     else:
         raise AssertionError("naive time must not be accepted")
+
+
+def test_dispatch_failure_closes_run_with_stable_category():
+    operations = _Operations(
+        PlatformOperationsSettings(backup_enabled=True, backup_schedule="03:00")
+    )
+    scheduler = OpsScheduler(
+        operations=operations,
+        dispatcher=lambda run_id: (_ for _ in ()).throw(
+            RuntimeError("private broker detail")
+        ),
+    )
+
+    result = scheduler.tick(datetime(2026, 8, 12, 3, 0, tzinfo=SHANGHAI))
+
+    assert result.state == "dispatch_failed"
+    assert operations.claimed == ["run-scheduled"]
+    assert operations.failed == [
+        (
+            "run-scheduled",
+            "ops_queue_dispatch_failed",
+            {"local_status": "skipped", "oss_status": "skipped"},
+        )
+    ]
+    assert "private broker" not in repr(operations.failed)

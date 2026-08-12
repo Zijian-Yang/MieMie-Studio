@@ -72,6 +72,8 @@ def check_safety_contract() -> None:
         "compose.env.example",
         "replace-with-strong-password",
         "replace-with-git-commit",
+        "replace-with-urlsafe-base64-32-byte-key",
+        "compose_env:platform_encryption_key",
         "backend/data/config.json",
         "backend/data/users.json",
         "backend/data/sessions.json",

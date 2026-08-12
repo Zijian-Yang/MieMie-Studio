@@ -35,6 +35,8 @@ services:
       MIEMIE_WORKERS: "${MIEMIE_WORKERS:-2}"
       MIEMIE_RUNTIME_GIT_COMMIT: "${MIEMIE_RUNTIME_GIT_COMMIT:-unknown}"
       MIEMIE_RUNTIME_RUN_MODE: "prod"
+      MIEMIE_INSTANCE_ID: "${MIEMIE_INSTANCE_ID:-miemie-studio}"
+      MIEMIE_PLATFORM_ENCRYPTION_KEY: "${MIEMIE_PLATFORM_ENCRYPTION_KEY:-}"
       MIEMIE_CORS_ORIGINS: "${MIEMIE_CORS_ORIGINS:-}"
       MIEMIE_REDIS_URL: "${MIEMIE_REDIS_URL:-redis://redis:6379/0}"
       MIEMIE_RATE_LIMIT_STORAGE_URI: "${MIEMIE_RATE_LIMIT_STORAGE_URI:-redis://redis:6379/1}"
@@ -145,6 +147,71 @@ services:
     volumes:
       - ./backend/data:/app/backend/data
       - ./backend/logs:/app/backend/logs
+
+  worker-ops:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: "${MIEMIE_IMAGE:-miemie-studio:local}"
+    restart: unless-stopped
+    command: ["/opt/venv/bin/celery", "-A", "app.celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=${MIEMIE_OPS_WORKER_CONCURRENCY:-1}", "-Q", "ops"]
+    working_dir: /app/backend
+    environment:
+      TZ: "${TZ:-Asia/Shanghai}"
+      MIEMIE_RUNTIME_GIT_COMMIT: "${MIEMIE_RUNTIME_GIT_COMMIT:-unknown}"
+      MIEMIE_RUNTIME_RUN_MODE: "prod"
+      MIEMIE_INSTANCE_ID: "${MIEMIE_INSTANCE_ID:-miemie-studio}"
+      MIEMIE_PLATFORM_ENCRYPTION_KEY: "${MIEMIE_PLATFORM_ENCRYPTION_KEY:-}"
+      MIEMIE_REDIS_URL: "${MIEMIE_REDIS_URL:-redis://redis:6379/0}"
+      MIEMIE_REDIS_KEY_PREFIX: "${MIEMIE_REDIS_KEY_PREFIX:-miemie}"
+      MIEMIE_CELERY_BROKER_URL: "${MIEMIE_CELERY_BROKER_URL:-redis://redis:6379/2}"
+      MIEMIE_CELERY_RESULT_BACKEND: "${MIEMIE_CELERY_RESULT_BACKEND:-redis://redis:6379/3}"
+      MIEMIE_DATABASE_ENABLED: "${MIEMIE_DATABASE_ENABLED:-true}"
+      MIEMIE_DATABASE_URL: "${MIEMIE_DATABASE_URL:-postgresql+psycopg://miemie:${MIEMIE_POSTGRES_PASSWORD:-}@postgres:5432/miemie}"
+      MIEMIE_DATABASE_WRITE_MODE: "${MIEMIE_DATABASE_WRITE_MODE:-postgres}"
+      MIEMIE_DATABASE_READ_MODE: "${MIEMIE_DATABASE_READ_MODE:-postgres}"
+      MIEMIE_DATABASE_JSON_FALLBACK_READ: "false"
+      MIEMIE_DATABASE_JSON_ARCHIVE_WRITES: "false"
+      MIEMIE_DATABASE_RECONCILE_STRICT: "true"
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - ./backend/logs:/app/backend/logs
+      - ./backups:/var/lib/miemie/backups
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: "${MIEMIE_IMAGE:-miemie-studio:local}"
+    restart: unless-stopped
+    command: ["/opt/venv/bin/python", "-m", "app.ops_scheduler"]
+    working_dir: /app/backend
+    environment:
+      TZ: "${TZ:-Asia/Shanghai}"
+      MIEMIE_RUNTIME_GIT_COMMIT: "${MIEMIE_RUNTIME_GIT_COMMIT:-unknown}"
+      MIEMIE_RUNTIME_RUN_MODE: "prod"
+      MIEMIE_INSTANCE_ID: "${MIEMIE_INSTANCE_ID:-miemie-studio}"
+      MIEMIE_PLATFORM_ENCRYPTION_KEY: "${MIEMIE_PLATFORM_ENCRYPTION_KEY:-}"
+      MIEMIE_REDIS_URL: "${MIEMIE_REDIS_URL:-redis://redis:6379/0}"
+      MIEMIE_REDIS_KEY_PREFIX: "${MIEMIE_REDIS_KEY_PREFIX:-miemie}"
+      MIEMIE_CELERY_BROKER_URL: "${MIEMIE_CELERY_BROKER_URL:-redis://redis:6379/2}"
+      MIEMIE_CELERY_RESULT_BACKEND: "${MIEMIE_CELERY_RESULT_BACKEND:-redis://redis:6379/3}"
+      MIEMIE_DATABASE_ENABLED: "${MIEMIE_DATABASE_ENABLED:-true}"
+      MIEMIE_DATABASE_URL: "${MIEMIE_DATABASE_URL:-postgresql+psycopg://miemie:${MIEMIE_POSTGRES_PASSWORD:-}@postgres:5432/miemie}"
+      MIEMIE_DATABASE_WRITE_MODE: "${MIEMIE_DATABASE_WRITE_MODE:-postgres}"
+      MIEMIE_DATABASE_READ_MODE: "${MIEMIE_DATABASE_READ_MODE:-postgres}"
+      MIEMIE_DATABASE_JSON_FALLBACK_READ: "false"
+      MIEMIE_DATABASE_JSON_ARCHIVE_WRITES: "false"
+      MIEMIE_DATABASE_RECONCILE_STRICT: "true"
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   redis:
     image: redis:7-alpine

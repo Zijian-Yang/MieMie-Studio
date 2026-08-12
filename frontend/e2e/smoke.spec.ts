@@ -689,7 +689,7 @@ test('管理员用户页和审计页可渲染', async () => {
     await expect(page.getByRole('button', { name: '创建用户' })).toBeVisible()
     await expect(page.getByText('公开注册')).toBeVisible()
 
-    await page.getByText('审计记录').click()
+    await page.getByRole('tab', { name: /审计/ }).click()
     await expect(page).toHaveURL(/\/admin\/audit$/)
     await expect(page.getByText('admin.user.update')).toBeVisible()
     await expect(page.getByText('req-admin-1')).toBeVisible()
@@ -709,7 +709,7 @@ test('管理员概览、备份和告警工作台可渲染并触发队列任务',
 
     await page.getByText('备份', { exact: true }).click()
     await expect(page).toHaveURL(/\/admin\/backups$/)
-    await expect(page.getByText('数据库备份')).toBeVisible()
+    await expect(page.getByRole('heading', { name: '数据库备份' })).toBeVisible()
     await expect(page.getByText(/凭证已配置/)).toBeVisible()
     await expect(page.getByLabel('替换 AccessKey Secret')).toHaveValue('')
     await page.getByRole('button', { name: '立即备份' }).click()
@@ -731,7 +731,7 @@ test('窄屏管理员备份页控件不溢出视口', async () => {
     await mockAdminApis(page)
     await page.goto('/admin/backups')
 
-    await expect(page.getByText('数据库备份')).toBeVisible()
+    await expect(page.getByRole('heading', { name: '数据库备份' })).toBeVisible()
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     expect(overflow).toBeLessThanOrEqual(1)
     await expect(page.getByRole('button', { name: '立即备份' })).toBeVisible()
