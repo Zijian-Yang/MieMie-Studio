@@ -1,5 +1,8 @@
+import io
 from pathlib import Path
 
+from alembic import command
+from alembic.config import Config
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateIndex, CreateTable
 
@@ -113,3 +116,37 @@ def test_platform_operations_migration_contract():
         'op.create_index( "idx_operation_runs_idempotency_unique"',
     ):
         assert token in compact
+
+
+def test_platform_operations_migration_offline_upgrade_and_downgrade(monkeypatch):
+    backend_root = Path(__file__).parents[1]
+    monkeypatch.setenv(
+        "MIEMIE_DATABASE_URL",
+        "postgresql+psycopg://miemie:secret@database.invalid/miemie",
+    )
+
+    def render(action):
+        output = io.StringIO()
+        config = Config(str(backend_root / "alembic.ini"), stdout=output)
+        config.set_main_option(
+            "script_location", str(backend_root / "app/db/migrations")
+        )
+        config.output_buffer = output
+        action(config)
+        return output.getvalue()
+
+    upgrade_sql = render(
+        lambda config: command.upgrade(config, "20260812_0010:20260812_0011", sql=True)
+    )
+    downgrade_sql = render(
+        lambda config: command.downgrade(
+            config, "20260812_0011:20260812_0010", sql=True
+        )
+    )
+
+    assert "ALTER TABLE platform_settings ADD COLUMN backup_enabled" in upgrade_sql
+    assert "CREATE TABLE operation_runs" in upgrade_sql
+    assert "CREATE UNIQUE INDEX idx_operation_runs_idempotency_unique" in upgrade_sql
+    assert "DROP TABLE operation_runs" in downgrade_sql
+    assert "ALTER TABLE platform_settings DROP COLUMN backup_enabled" in downgrade_sql
+    assert "DROP INDEX idx_operation_runs_idempotency_unique" in downgrade_sql

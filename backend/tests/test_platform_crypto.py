@@ -29,13 +29,29 @@ def test_aes_gcm_round_trip_is_randomized_and_versioned():
 
 
 def test_cipher_rejects_missing_short_and_malformed_keys(monkeypatch):
-    for value in ("", "not-base64", base64.urlsafe_b64encode(b"short").decode()):
+    for value in (
+        "",
+        "not-base64",
+        base64.urlsafe_b64encode(b"short").decode(),
+        f" {encoded_key()} ",
+        "/" * 43 + "=",
+        "+" * 43 + "=",
+        encoded_key() + "=",
+    ):
         monkeypatch.setenv("MIEMIE_PLATFORM_ENCRYPTION_KEY", value)
         with pytest.raises(PlatformSecretError) as exc:
             build_platform_secret_cipher()
         assert str(exc.value) == "platform_encryption_key_invalid"
         if value:
             assert value not in str(exc.value)
+
+
+def test_cipher_accepts_canonical_padded_and_unpadded_urlsafe_keys():
+    padded = encoded_key(251)
+
+    for value in (padded, padded.rstrip("=")):
+        cipher = PlatformSecretCipher(value)
+        assert cipher.decrypt(cipher.encrypt("value")) == "value"
 
 
 def test_cipher_rejects_tampering_wrong_key_and_unknown_version():

@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import binascii
 import os
+import re
 
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -13,6 +14,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 _VERSION = "v1"
 _AAD = b"miemie-platform-secret:v1"
 _NONCE_BYTES = 12
+_URLSAFE_KEY_PATTERN = re.compile(r"^[A-Za-z0-9_-]+={0,2}$")
 
 
 class PlatformSecretError(RuntimeError):
@@ -20,12 +22,17 @@ class PlatformSecretError(RuntimeError):
 
 
 def _decode_key(value: str) -> bytes:
+    if not value or value != value.strip() or not _URLSAFE_KEY_PATTERN.fullmatch(value):
+        raise PlatformSecretError("platform_encryption_key_invalid")
     try:
-        encoded = value.strip().encode("ascii")
+        encoded = (value + "=" * (-len(value) % 4)).encode("ascii")
         key = base64.b64decode(encoded, altchars=b"-_", validate=True)
     except (UnicodeEncodeError, binascii.Error, ValueError) as exc:
         raise PlatformSecretError("platform_encryption_key_invalid") from exc
     if len(key) != 32:
+        raise PlatformSecretError("platform_encryption_key_invalid")
+    canonical = base64.urlsafe_b64encode(key).decode("ascii")
+    if value not in {canonical, canonical.rstrip("=")}:
         raise PlatformSecretError("platform_encryption_key_invalid")
     return key
 
