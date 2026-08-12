@@ -33,10 +33,14 @@ def _write_executable(path: Path, body: str):
 def fake_postgres_tools(tmp_path):
     dump = tmp_path / "pg_dump"
     restore = tmp_path / "pg_restore"
+    psql = tmp_path / "psql"
     log = tmp_path / "postgres-tools.jsonl"
     _write_executable(
         dump,
         """import json, os, pathlib, sys
+if "--version" in sys.argv:
+    print(os.environ.get("FAKE_PG_DUMP_VERSION", "pg_dump (PostgreSQL) 16.4"))
+    raise SystemExit(0)
 entry = {
     "tool": "pg_dump",
     "argv": sys.argv[1:],
@@ -64,21 +68,38 @@ if "--list" not in sys.argv or not target.read_bytes().startswith(b"PGDMP"):
     raise SystemExit(9)
 """,
     )
-    return dump, restore, log
+    _write_executable(
+        psql,
+        """import os
+print(os.environ.get("FAKE_PG_SERVER_VERSION_NUM", "160004"))
+""",
+    )
+    return dump, restore, psql, log
 
 
 def _executor(root, tools, monkeypatch, **changes):
-    dump, restore, log = tools
+    dump, restore, psql, log = tools
     monkeypatch.setenv("FAKE_POSTGRES_LOG", str(log))
     monkeypatch.setenv("MIEMIE_DATABASE_URL", DATABASE_URL)
     values = {
         "backup_root": root,
         "pg_dump_binary": str(dump),
         "pg_restore_binary": str(restore),
+        "psql_binary": str(psql),
         "clock": lambda: datetime(2026, 8, 12, 3, 4, 5, tzinfo=timezone.utc),
         "environment_provider": lambda: {
             "PATH": os.environ.get("PATH", ""),
             "FAKE_POSTGRES_LOG": os.environ["FAKE_POSTGRES_LOG"],
+            **(
+                {"FAKE_PG_DUMP_VERSION": os.environ["FAKE_PG_DUMP_VERSION"]}
+                if "FAKE_PG_DUMP_VERSION" in os.environ
+                else {}
+            ),
+            **(
+                {"FAKE_PG_SERVER_VERSION_NUM": os.environ["FAKE_PG_SERVER_VERSION_NUM"]}
+                if "FAKE_PG_SERVER_VERSION_NUM" in os.environ
+                else {}
+            ),
             **(
                 {"FAKE_PG_DUMP_FAIL": os.environ["FAKE_PG_DUMP_FAIL"]}
                 if "FAKE_PG_DUMP_FAIL" in os.environ
@@ -129,15 +150,20 @@ def test_postgres_child_does_not_inherit_platform_or_provider_secrets(
 
     def runner(command, **kwargs):
         seen.update(kwargs["env"])
+        if "--version" in command:
+            return type("Result", (), {"returncode": 0, "stdout": b"pg_dump (PostgreSQL) 16.4"})()
+        if "psql" in command[0]:
+            return type("Result", (), {"returncode": 0, "stdout": b"160004\n"})()
         if "pg_dump" in command[0]:
             Path(command[command.index("--file") + 1]).write_bytes(b"PGDMPbackup")
-        return type("Result", (), {"returncode": 0})()
+        return type("Result", (), {"returncode": 0, "stdout": b""})()
 
-    dump, restore, _ = fake_postgres_tools
+    dump, restore, psql, _ = fake_postgres_tools
     executor = PostgresBackupExecutor(
         backup_root=tmp_path / "backups",
         pg_dump_binary=str(dump),
         pg_restore_binary=str(restore),
+        psql_binary=str(psql),
         process_runner=runner,
     )
     monkeypatch.setenv("MIEMIE_DATABASE_URL", DATABASE_URL)
@@ -169,7 +195,7 @@ def test_dump_failure_removes_temporary_file_and_returns_stable_error(
 def test_restore_validation_failure_never_publishes_invalid_dump(
     tmp_path, fake_postgres_tools, monkeypatch
 ):
-    _, restore, _ = fake_postgres_tools
+    _, restore, _, _ = fake_postgres_tools
     _write_executable(restore, "raise SystemExit(9)\n")
     executor, _ = _executor(tmp_path / "backups", fake_postgres_tools, monkeypatch)
 
@@ -179,6 +205,20 @@ def test_restore_validation_failure_never_publishes_invalid_dump(
     assert exc.value.category == "pg_restore_validation_failed"
     assert not list((tmp_path / "backups").rglob("*.dump"))
     assert not list((tmp_path / "backups").rglob("*.tmp-*"))
+
+
+def test_client_server_major_mismatch_stops_before_dump(
+    tmp_path, fake_postgres_tools, monkeypatch
+):
+    monkeypatch.setenv("FAKE_PG_DUMP_VERSION", "pg_dump (PostgreSQL) 17.2")
+    executor, log = _executor(tmp_path / "backups", fake_postgres_tools, monkeypatch)
+
+    with pytest.raises(BackupExecutionError) as exc:
+        executor.run("run-version-mismatch", _settings())
+
+    assert exc.value.category == "postgres_client_server_version_mismatch"
+    assert not log.exists()
+    assert not list((tmp_path / "backups").rglob("*.dump"))
 
 
 def test_retention_keeps_minimum_and_recent_backups_deterministically(

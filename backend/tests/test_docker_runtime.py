@@ -96,6 +96,7 @@ def test_api_and_ops_runtime_receive_platform_identity_and_encryption_key():
 def test_runtime_image_contains_postgresql_client_without_docker_cli():
     content = (ROOT / "Dockerfile").read_text(encoding="utf-8")
 
-    assert "postgresql-client" in content
+    assert "ARG POSTGRESQL_CLIENT_MAJOR=16" in content
+    assert "postgresql-client-${POSTGRESQL_CLIENT_MAJOR}" in content
     assert "docker-ce-cli" not in content
     assert "docker.io" not in content

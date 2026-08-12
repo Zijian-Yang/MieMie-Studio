@@ -7,6 +7,7 @@ This directory stores sanitized evidence for administrator-configured PostgreSQL
 - Never store administrator/member tokens, passwords, the platform encryption key, OSS credentials, raw Webhook URLs, database URLs, request bodies, or provider payloads.
 - Store only stable status categories, masked configuration flags, checksums, sizes, relative artifact paths, container health, migration head, and provider-call count.
 - Real restore evidence must target an isolated temporary database and must not overwrite the production database.
+- `pg_dump`, `pg_restore`, and the PostgreSQL server must use the same major version; a version mismatch blocks backup publication.
 - Real OSS test objects are deleted; one validated backup object may remain as the off-site recovery artifact when documented by object key only.
 
 ## Expected Server Evidence

@@ -9,7 +9,9 @@ COPY frontend ./
 RUN npm run build
 
 
-FROM python:3.12-slim AS runtime
+FROM python:3.12-slim-bookworm AS runtime
+
+ARG POSTGRESQL_CLIENT_MAJOR=16
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -17,7 +19,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:${PATH}"
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg curl postgresql-client \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg postgresql-client-${POSTGRESQL_CLIENT_MAJOR} \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

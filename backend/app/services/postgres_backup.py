@@ -43,6 +43,7 @@ class PostgresBackupExecutor:
         backup_root: str | Path = "/var/lib/miemie/backups",
         pg_dump_binary: str = "pg_dump",
         pg_restore_binary: str = "pg_restore",
+        psql_binary: str = "psql",
         clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
         process_runner: Callable[..., subprocess.CompletedProcess] = subprocess.run,
         environment_provider: Callable[[], dict[str, str]] | None = None,
@@ -50,6 +51,7 @@ class PostgresBackupExecutor:
         self._backup_root = Path(backup_root)
         self._pg_dump = pg_dump_binary
         self._pg_restore = pg_restore_binary
+        self._psql = psql_binary
         self._clock = clock
         self._run_process = process_runner
         self._environment_provider = environment_provider or self._minimal_environment
@@ -115,6 +117,51 @@ class PostgresBackupExecutor:
         if result.returncode != 0:
             raise BackupExecutionError(category)
 
+    def _capture(self, command: list[str], env: dict[str, str], category: str) -> str:
+        try:
+            result = self._run_process(
+                command,
+                env=env,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=30,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise BackupExecutionError(category) from exc
+        if result.returncode != 0:
+            raise BackupExecutionError(category)
+        output = result.stdout.decode("utf-8", errors="replace") if isinstance(result.stdout, bytes) else str(result.stdout)
+        return output.strip()
+
+    def _assert_client_server_compatibility(self, env: dict[str, str]) -> None:
+        client_output = self._capture(
+            [self._pg_dump, "--version"],
+            env,
+            "postgres_version_check_failed",
+        )
+        server_output = self._capture(
+            [
+                self._psql,
+                "--no-password",
+                "--tuples-only",
+                "--no-align",
+                "--command",
+                "SHOW server_version_num",
+            ],
+            env,
+            "postgres_version_check_failed",
+        )
+        client_match = re.search(r"PostgreSQL\)\s+(\d+)", client_output)
+        server_match = re.fullmatch(r"\s*(\d{2,})\s*", server_output)
+        if not client_match or not server_match:
+            raise BackupExecutionError("postgres_version_check_failed")
+        client_major = int(client_match.group(1))
+        server_major = int(server_match.group(1)) // 10000
+        if client_major != server_major:
+            raise BackupExecutionError("postgres_client_server_version_mismatch")
+
     @staticmethod
     def _checksum(path: Path) -> str:
         digest = hashlib.sha256()
@@ -167,6 +214,7 @@ class PostgresBackupExecutor:
         if not _RUN_ID.fullmatch(run_id):
             raise BackupExecutionError("backup_run_id_invalid")
         env = self._database_environment()
+        self._assert_client_server_compatibility(env)
         root, directory = self._target_directory(settings.backup_local_subdirectory)
         now = self._clock()
         if now.tzinfo is None or now.utcoffset() is None:

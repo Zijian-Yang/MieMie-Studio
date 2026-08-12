@@ -19,6 +19,7 @@
 - Backup scheduling accepts only one daily `HH:MM` in `Asia/Shanghai`; no arbitrary cron expressions.
 - `schedule_date + operation_type` produces a unique idempotency key.
 - Backup files are written to a unique temporary file, fsynced, validated, checksummed, and atomically renamed.
+- The runtime pins PostgreSQL 16 client tools and the backup executor rejects a client/server major-version mismatch before creating a dump.
 - Local backup success and OSS upload success are separate states in operation history.
 - Webhook payloads contain platform event metadata only, never user content, credentials, prompts, provider payloads, database URLs, or private asset URLs.
 - Existing host cron stays active until two scheduler-produced successful runs prove parity; the cutover must prevent duplicate schedules.
@@ -220,6 +221,8 @@
   - The narrow-screen admin workspace now constrains content to the viewport while preserving table-local horizontal scrolling.
 - [ ] **Step 4: Back up staging, generate root-only encryption key, deploy migration/services, and run local/public health plus operations smoke**
 - [ ] **Step 5: Configure temporary real Webhook and approved Aliyun OSS credentials if available, upload one backup, isolate-restore it, and clean test objects/secrets**
+  - Staging restore rehearsal detected PostgreSQL 17 client output against the PostgreSQL 16 server; the invalid rehearsal database was removed and production stayed healthy.
+  - A guarded PostgreSQL 16 client pin and runtime major-version compatibility check were added before the restore gate is repeated.
 - [ ] **Step 6: Observe two scheduler-produced daily successes before disabling legacy host cron; prove no duplicate backup key**
 - [ ] **Step 7: Archive sanitized evidence, update docs, commit, and push completed 7B**
 
