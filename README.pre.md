@@ -26,9 +26,13 @@ git switch pre
 cp compose.env.example compose.env
 sed -i.bak "s/replace-with-git-commit/$(git rev-parse HEAD)/" compose.env
 docker compose --env-file compose.env up -d --build
-docker compose ps
+docker compose --env-file compose.env ps
 curl -i http://127.0.0.1:8000/api/health
 ```
+
+后续所有 Compose 运维命令（`config`、`build`、`up`、`ps`、`logs`、
+`exec`）也必须显式带 `--env-file compose.env`。否则 Compose 会回落到示例默认值，
+例如把应用端口改回 `8000`，导致与同机服务冲突。
 
 Compose 默认将应用绑定到 `127.0.0.1:8000`。如需修改端口，请编辑未纳入 Git 的 `compose.env`：
 

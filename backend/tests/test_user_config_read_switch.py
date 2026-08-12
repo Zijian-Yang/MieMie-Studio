@@ -49,11 +49,7 @@ def _write_json(path, payload):
 
 
 def _user_service(tmp_path, user: User) -> UserService:
-    service = UserService()
-    service.data_dir = Path(tmp_path)
-    service.users_file = service.data_dir / "users.json"
-    service.sessions = {}
-    service._ensure_data_dir()
+    service = UserService(data_dir=Path(tmp_path))
     _write_json(service.users_file, {user.id: user.model_dump(mode="json")})
     return service
 

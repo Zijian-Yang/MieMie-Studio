@@ -29,8 +29,8 @@ TOKEN_EXPIRE_SECONDS = TOKEN_EXPIRE_DAYS * 24 * 60 * 60
 class UserService:
     """用户服务"""
     
-    def __init__(self):
-        self.data_dir = Path(__file__).parent.parent.parent / "data"
+    def __init__(self, data_dir: Optional[Path] = None):
+        self.data_dir = Path(data_dir) if data_dir is not None else Path(__file__).parent.parent.parent / "data"
         self.users_file = self.data_dir / "users.json"
         self.sessions: Dict[str, str] = {}  # token -> user_id
         self._lock = threading.RLock()

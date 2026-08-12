@@ -8,7 +8,7 @@ inheriting runtime environment variables.
 
 ## Local verification
 
-- Backend full suite: `471 passed`.
+- Backend full suite before server-side test discovery: `471 passed`.
 - Session repository/read-switch tests under production-style database
   environment variables: `10 passed`.
 - Related database mode tests: `25 passed`.
@@ -18,7 +18,18 @@ inheriting runtime environment variables.
 
 ## Server verification
 
-Pending final release synchronization and post-deployment checks. The runtime
-canary performed before this follow-up confirmed that a synthetic PostgreSQL
-session is readable before expiry, hidden after its expiry timestamp is moved
-into the past, and removed in a `finally` cleanup block.
+Release `8af54559b57a43fee7b54ba5c3428fb13470a388` reached the server and local and
+public health both reported Redis/PostgreSQL healthy with the matching runtime
+version. Direct origin HTTP and HTTPS remained denied with `403`.
+
+The production-container session tests passed `10` tests, but revealed a test
+helper side effect: helpers constructed the default `UserService` before
+changing its data directory, which created an empty `backend/data/users.json`
+in the live bind mount. Runtime policy and API health remained PostgreSQL-only;
+the empty file was detected by the R129 remaining-JSON gate. The follow-up adds
+an initialization-time `data_dir` parameter, migrates all affected helpers, and
+passes the expanded backend suite with `472` tests before final redeployment.
+
+The runtime canary confirmed that a synthetic PostgreSQL session is readable
+before expiry, hidden after its expiry timestamp is moved into the past, and
+removed in a `finally` cleanup block.

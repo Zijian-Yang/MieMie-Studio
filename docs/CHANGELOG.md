@@ -6,6 +6,8 @@
 ## [Unreleased]
 
 ### 修复 (Fixed)
+- PostgreSQL-only 容器测试副作用：`UserService` 新增初始化前的 `data_dir` 注入，数据库/session 测试不再先构造默认服务后改写路径，避免容器内回归在真实 bind mount 生成空 `backend/data/users.json`；全局夹具和六组辅助测试已统一使用隔离构造入口。
+- Compose 服务器运维口径：pre 文档明确所有 `config/build/up/ps/logs/exec` 命令必须显式带 `--env-file compose.env`，避免端口和运行策略回落到默认值。
 - PostgreSQL 测试隔离：全局 pytest 夹具会先建立 file-only 数据基线，数据库专项测试再显式启用 PostgreSQL，避免在生产容器内执行回归时继承运行态 PostgreSQL-only 开关并访问真实业务库。
 - PostgreSQL session 有效期：PostgreSQL repository 的单条/列表读取现在按 `expires_at` 过滤，`UserService` 同时正确处理带时区与不带时区的 `created_at`，避免时区感知时间戳因 datetime 类型不匹配而绕过 7 天过期检查；相关测试不再使用会随日期腐化的固定有效时间。
 - PostgreSQL operational cron：生成的定时命令会在日志重定向前创建 `logs/` 与 `validation-artifacts/`，修复仓库没有运行时日志目录时 cron 在脚本启动前失败的问题；R126 已通过真实 cron daemon 的三类 `trigger=cron` 严格证据门禁。

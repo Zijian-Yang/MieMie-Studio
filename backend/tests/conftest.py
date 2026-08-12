@@ -8,7 +8,6 @@ import json
 import os
 import shutil
 import tempfile
-import threading
 from pathlib import Path
 
 import pytest
@@ -42,15 +41,10 @@ def isolated_data_dir(tmp_path, monkeypatch):
     with us_mod._service_lock:
         us_mod._user_service = None
 
-    # 创建新的 UserService，使用临时目录
+    # 创建新的 UserService，并在初始化前绑定临时目录。
     from app.services.user_service import UserService
-    svc = UserService.__new__(UserService)
-    svc.data_dir = _test_data_dir
-    svc.users_file = _test_data_dir / "users.json"
-    svc.sessions = {}
-    svc._lock = threading.RLock()
+    svc = UserService(data_dir=_test_data_dir)
     svc._redis_sessions = None
-    svc._ensure_data_dir()
 
     with us_mod._service_lock:
         us_mod._user_service = svc

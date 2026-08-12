@@ -42,12 +42,8 @@ class _SessionPrimaryRepository:
 
 
 def _user_service(tmp_path) -> UserService:
-    service = UserService()
-    service.data_dir = Path(tmp_path)
-    service.users_file = service.data_dir / "users.json"
-    service.sessions = {}
+    service = UserService(data_dir=Path(tmp_path))
     service._redis_sessions = None
-    service._ensure_data_dir()
     return service
 
 

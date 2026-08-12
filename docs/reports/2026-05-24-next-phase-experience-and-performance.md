@@ -1128,6 +1128,7 @@ pre 部署复验：
 - 同轮完整发布候选回归通过：后端 `471 passed`；前端 typecheck/lint/build/chunk 与四个策略测试通过；Playwright helper `2 passed`、E2E `9 passed`。
 - PostgreSQL session 查询现在按 `expires_at` 过滤，并正确处理带时区/不带时区时间戳，避免过期 token 被错误接受。
 - R128 在生产 PostgreSQL-only 环境变量下复跑 session 测试时发现测试夹具会继承真实运行策略；现已在全局夹具中先固定 file-only 隔离基线，数据库专项用例仍可按需显式开启 PostgreSQL。生产式环境变量回归为 `10 passed`，后端全量回归为 `471 passed`。
+- R129 首轮 operational readiness 的新备份与独立恢复演练通过，但 remaining JSON 门禁发现容器内 pytest 在默认 `UserService()` 构造阶段生成了空 `{}` 的真实挂载 `backend/data/users.json`。根因已通过文件时间、内容和测试调用链确认；`UserService(data_dir=...)` 现在会在初始化前绑定隔离目录，六组数据库/session 测试辅助函数和全局夹具均已迁移，后端全量回归提升为 `472 passed`。该空文件只做可恢复隔离后再重跑门禁。
 - 真实告警 webhook 仍是外部运维配置项；Cloudflare `h3` 广告保留为非阻断观察项。
 
 后续建议继续拆分：

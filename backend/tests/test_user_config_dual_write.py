@@ -31,12 +31,7 @@ class _ConfigShadowRepository:
 
 
 def _user_service(tmp_path) -> UserService:
-    service = UserService()
-    service.data_dir = Path(tmp_path)
-    service.users_file = service.data_dir / "users.json"
-    service.sessions = {}
-    service._ensure_data_dir()
-    return service
+    return UserService(data_dir=Path(tmp_path))
 
 
 def _enable_dual_write(monkeypatch):

@@ -45,12 +45,7 @@ class _ConfigPrimaryRepository:
 
 
 def _user_service(tmp_path) -> UserService:
-    service = UserService()
-    service.data_dir = Path(tmp_path)
-    service.users_file = service.data_dir / "users.json"
-    service.sessions = {}
-    service._ensure_data_dir()
-    return service
+    return UserService(data_dir=Path(tmp_path))
 
 
 def _enable_primary(monkeypatch):
@@ -61,6 +56,14 @@ def _enable_primary(monkeypatch):
 
 def _read_users(path):
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_user_service_binds_custom_data_dir_before_initialization(tmp_path):
+    service = UserService(data_dir=tmp_path)
+
+    assert service.data_dir == tmp_path
+    assert service.users_file == tmp_path / "users.json"
+    assert service.users_file.exists()
 
 
 def test_user_primary_write_is_disabled_by_default(tmp_path, monkeypatch):

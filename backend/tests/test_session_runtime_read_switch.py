@@ -41,12 +41,8 @@ def _active_session_created_at() -> str:
 
 
 def _user_service(tmp_path, *users: User) -> UserService:
-    service = UserService()
-    service.data_dir = Path(tmp_path)
-    service.users_file = service.data_dir / "users.json"
-    service.sessions = {}
+    service = UserService(data_dir=Path(tmp_path))
     service._redis_sessions = None
-    service._ensure_data_dir()
     _write_json(service.users_file, {user.id: user.model_dump(mode="json") for user in users})
     return service
 
