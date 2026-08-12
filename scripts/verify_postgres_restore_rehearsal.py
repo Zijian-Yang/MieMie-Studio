@@ -25,6 +25,7 @@ def main() -> int:
     content = SCRIPT.read_text(encoding="utf-8")
     required = [
         "cleanup_restore_database",
+        'COMPOSE_FILE_2="${COMPOSE_FILE_2-docker-compose.pre.override.yml}"',
         "trap cleanup_restore_database EXIT",
         'od -An -N5 -c "$DUMP_FILE"',
         '"PGDMP"',

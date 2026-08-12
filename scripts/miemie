@@ -53,16 +53,10 @@ cmd_restart() {
 
 cmd_backup() {
   miemie_lock
-  miemie_compose run --rm -T worker-ops python - <<'PY'
-from app.services.ops_runner import build_ops_runner
-from app.services.platform_operations import build_platform_operations_service
-ops = build_platform_operations_service()
-run, _ = ops.queue_operation(operation_type="backup", source="cli")
-result = build_ops_runner().run_backup(run.id)
-if result is None or result.status != "succeeded":
-    raise SystemExit("backup failed")
-print(f"backup succeeded: {result.id} {result.local_path_relative}")
-PY
+  local output backup_id relative checksum
+  output="$(miemie_create_backup)" || { echo "backup failed" >&2; return 1; }
+  IFS=$'\t' read -r backup_id relative checksum <<< "$output"
+  printf 'backup succeeded: %s %s sha256=%s\n' "$backup_id" "$relative" "$checksum"
 }
 
 cmd_backups() {
@@ -98,12 +92,177 @@ cmd_admin() {
 
 cmd_uninstall() {
   if [[ "${1:-}" == "--purge" ]]; then
-    echo "destructive uninstall is implemented by the lifecycle module and requires the exact phrase DELETE MIEMIE DATA" >&2
-    return 2
+    miemie_confirm_purge
+    if [[ "${MIEMIE_LIFECYCLE_DRY_RUN:-false}" == "true" ]]; then
+      echo "stage=purge state=dry_run volumes=config,source,backups"
+      return 0
+    fi
+    miemie_lock
+    local resolved_root config_dir state_dir log_dir
+    resolved_root="$(miemie_assert_safe_purge_path "$MIEMIE_INSTALL_ROOT")"
+    config_dir="$(miemie_assert_safe_purge_path "$(dirname "$MIEMIE_CONFIG_FILE")")"
+    state_dir="$(miemie_assert_safe_purge_path "$MIEMIE_RELEASE_STATE_DIR")"
+    log_dir="$(miemie_assert_safe_purge_path "${MIEMIE_INSTALL_LOG_DIR:-/var/log/miemie}")"
+    miemie_compose down -v --remove-orphans
+    rm -f "${MIEMIE_INSTALL_BIN_DIR:-/usr/local/bin}/miemie"
+    rm -rf "$resolved_root" "$config_dir" "$state_dir" "$log_dir"
+    echo "stage=purge state=passed"
+    return 0
   fi
   miemie_lock
   miemie_compose stop
   echo "services stopped; source, compose.env, backups, and named volumes were preserved"
+}
+
+lifecycle_dry_run() {
+  local action="$1"
+  echo "stage=$action state=dry_run"
+  case "$action" in
+    update) echo "fetch fast_forward backup build migrate switch health rollback" ;;
+    rollback) echo "backup recorded_image switch health schema_forward_only" ;;
+    restore) echo "checksum isolated_rehearsal safety_backup stop_writers replace migrate health" ;;
+  esac
+}
+
+cmd_update() {
+  local mode="${1:---check}" current target git_head old_image new_image timestamp manifest backup backup_id backup_path checksum runtime_uid runtime_gid
+  [[ "$mode" == "--check" || "$mode" == "--apply" ]] || { echo "use update --check or update --apply" >&2; return 2; }
+  [[ -z "$(git status --porcelain --untracked-files=no)" ]] || { echo "tracked worktree is dirty" >&2; return 2; }
+  timeout 120 git fetch origin pre
+  current="$(miemie_current_commit)"
+  git_head="$(git rev-parse HEAD)"
+  [[ "$current" == "$git_head" ]] || { echo "release state and source commit differ" >&2; return 2; }
+  target="$(git rev-parse origin/pre)"
+  git merge-base --is-ancestor "$current" "$target" || { echo "origin/pre is not a fast-forward" >&2; return 2; }
+  printf 'current=%s\nlatest=%s\n' "$current" "$target"
+  [[ "$mode" == "--apply" ]] || return 0
+  [[ "$current" != "$target" ]] || { echo "state=unchanged"; return 0; }
+  miemie_lock
+  if [[ "${MIEMIE_LIFECYCLE_DRY_RUN:-false}" == "true" ]]; then lifecycle_dry_run update; return 0; fi
+
+  old_image="$(miemie_current_image)"
+  new_image="miemie-studio:pre-${target:0:12}"
+  runtime_uid="$(miemie_env_value MIEMIE_RUNTIME_UID)"
+  runtime_gid="$(miemie_env_value MIEMIE_RUNTIME_GID)"
+  runtime_uid="${runtime_uid:-10001}"
+  runtime_gid="${runtime_gid:-10001}"
+  backup="$(miemie_create_backup)" || { echo "stage=backup state=failed" >&2; return 1; }
+  IFS=$'\t' read -r backup_id backup_path checksum <<< "$backup"
+  timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  manifest="$MIEMIE_RELEASE_STATE_DIR/release-${timestamp}-${target:0:12}.env"
+  miemie_write_release_manifest "$manifest" "$target" "$new_image" "$current" "$old_image" "$backup_id" "$backup_path" "preparing" ""
+
+  if ! git switch --detach "$target" \
+    || ! miemie_set_env MIEMIE_IMAGE "$new_image" \
+    || ! miemie_set_env MIEMIE_RUNTIME_GIT_COMMIT "$target" \
+    || ! chown -R "$runtime_uid:$runtime_gid" backend/data backend/logs backups \
+    || ! miemie_compose build migrate api worker worker-video worker-ops scheduler \
+    || ! miemie_compose run --rm -T migrate \
+    || ! miemie_compose up -d --remove-orphans \
+    || ! miemie_wait_health "${MIEMIE_HEALTH_ATTEMPTS:-60}" \
+    || ! miemie_workers_healthy; then
+    echo "stage=update state=failed action=application_rollback" >&2
+    miemie_set_env MIEMIE_IMAGE "$old_image" || true
+    miemie_set_env MIEMIE_RUNTIME_GIT_COMMIT "$current" || true
+    git switch --detach "$current" || true
+    miemie_compose up -d --remove-orphans || true
+    miemie_write_release_manifest "$manifest" "$target" "$new_image" "$current" "$old_image" "$backup_id" "$backup_path" "rolled_back" "$(miemie_migration_head)"
+    echo "database schema is forward-only; restore $backup_path only when compatibility requires it" >&2
+    return 1
+  fi
+  miemie_write_release_manifest "$manifest" "$target" "$new_image" "$current" "$old_image" "$backup_id" "$backup_path" "healthy" "$(miemie_migration_head)"
+  miemie_activate_release "$manifest"
+  install -m 0755 "$MIEMIE_INSTALL_ROOT/scripts/miemie" "${MIEMIE_INSTALL_BIN_DIR:-/usr/local/bin}/miemie"
+  echo "stage=update state=passed commit=$target"
+}
+
+cmd_rollback() {
+  local requested="${1:-}" current_commit current_image target_commit target_image target_manifest manifest backup backup_id backup_path checksum timestamp
+  miemie_lock
+  current_commit="$(miemie_current_commit)"
+  current_image="$(miemie_current_image)"
+  if [[ -z "$requested" ]]; then
+    target_commit="$(miemie_state_value previous_commit)"
+    target_image="$(miemie_state_value previous_image)"
+  elif [[ -f "$MIEMIE_RELEASE_STATE_DIR/$requested" ]]; then
+    target_manifest="$MIEMIE_RELEASE_STATE_DIR/$requested"
+    target_commit="$(miemie_state_value commit "$target_manifest")"
+    target_image="$(miemie_state_value image "$target_manifest")"
+  else
+    target_commit="$requested"
+  fi
+  [[ "$target_commit" =~ ^[0-9a-f]{40}$ ]] || { echo "recorded rollback commit required" >&2; return 2; }
+  target_image="${target_image:-miemie-studio:pre-${target_commit:0:12}}"
+  if [[ "${MIEMIE_LIFECYCLE_DRY_RUN:-false}" == "true" ]]; then lifecycle_dry_run rollback; return 0; fi
+  docker image inspect "$target_image" >/dev/null 2>&1 || { echo "recorded image is unavailable: $target_image" >&2; return 2; }
+  backup="$(miemie_create_backup)" || { echo "stage=backup state=failed" >&2; return 1; }
+  IFS=$'\t' read -r backup_id backup_path checksum <<< "$backup"
+  if ! git cat-file -e "$target_commit^{commit}" \
+    || ! git switch --detach "$target_commit" \
+    || ! miemie_set_env MIEMIE_IMAGE "$target_image" \
+    || ! miemie_set_env MIEMIE_RUNTIME_GIT_COMMIT "$target_commit" \
+    || ! miemie_compose up -d --no-build --remove-orphans \
+    || ! miemie_wait_health "${MIEMIE_HEALTH_ATTEMPTS:-60}" \
+    || ! miemie_workers_healthy; then
+    echo "stage=rollback state=failed action=restore_pre_rollback_release" >&2
+    miemie_set_env MIEMIE_IMAGE "$current_image" || true
+    miemie_set_env MIEMIE_RUNTIME_GIT_COMMIT "$current_commit" || true
+    git switch --detach "$current_commit" || true
+    miemie_compose up -d --no-build --remove-orphans || true
+    return 1
+  fi
+  timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  manifest="$MIEMIE_RELEASE_STATE_DIR/release-${timestamp}-${target_commit:0:12}.env"
+  miemie_write_release_manifest "$manifest" "$target_commit" "$target_image" "$current_commit" "$current_image" "$backup_id" "$backup_path" "healthy_rollback" "$(miemie_migration_head)"
+  miemie_activate_release "$manifest"
+  install -m 0755 "$MIEMIE_INSTALL_ROOT/scripts/miemie" "${MIEMIE_INSTALL_BIN_DIR:-/usr/local/bin}/miemie"
+  echo "stage=rollback state=passed schema=forward_only"
+}
+
+replace_production_database() {
+  local backup="$1" database_name="$2"
+  miemie_compose stop api worker worker-video worker-ops scheduler || return 1
+  miemie_compose exec -T postgres sh -lc \
+    'dropdb -U "$POSTGRES_USER" --force --if-exists "$0" && createdb -U "$POSTGRES_USER" "$0"' \
+    "$database_name" || return 1
+  if [[ "$(LC_ALL=C od -An -N5 -c "$backup" | tr -d ' \n')" == "PGDMP" ]]; then
+    miemie_compose exec -T postgres sh -lc 'pg_restore --exit-on-error --no-owner --no-privileges -U "$POSTGRES_USER" -d "$0"' "$database_name" < "$backup" || return 1
+  else
+    miemie_compose exec -T postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$0" -v ON_ERROR_STOP=1' "$database_name" < "$backup" || return 1
+  fi
+}
+
+cmd_restore() {
+  local requested="${1:-}" backup checksum expected safety safety_id safety_path safety_checksum database_name
+  [[ -n "$requested" ]] || { echo "backup path required" >&2; return 2; }
+  backup="$(miemie_resolve_backup "$requested")"
+  miemie_confirm_restore "$(basename "$backup")"
+  miemie_lock
+  if [[ "${MIEMIE_LIFECYCLE_DRY_RUN:-false}" == "true" ]]; then lifecycle_dry_run restore; return 0; fi
+  checksum="$(miemie_sha256 "$backup")"
+  if [[ -f "$backup.sha256" ]]; then
+    expected="$(awk '{print $1}' "$backup.sha256")"
+    [[ "$checksum" == "$expected" ]] || { echo "backup checksum mismatch" >&2; return 1; }
+  fi
+  if [[ "$(LC_ALL=C od -An -N5 -c "$backup" | tr -d ' \n')" == "PGDMP" ]]; then
+    miemie_compose exec -T postgres pg_restore --list < "$backup" >/dev/null
+  fi
+  PROJECT_NAME="$MIEMIE_PROJECT_NAME" ENV_FILE="$MIEMIE_ENV_FILE" COMPOSE_FILE_1="$MIEMIE_COMPOSE_FILE" COMPOSE_FILE_2= \
+    bash "$MIEMIE_INSTALL_ROOT/scripts/postgres_restore_rehearsal.sh" "$backup"
+  safety="$(miemie_create_backup)" || { echo "safety backup failed" >&2; return 1; }
+  IFS=$'\t' read -r safety_id safety_path safety_checksum <<< "$safety"
+  database_name="$(miemie_env_value MIEMIE_POSTGRES_DB)"
+  database_name="${database_name:-miemie}"
+  [[ "$database_name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || { echo "invalid database name" >&2; return 2; }
+  if ! replace_production_database "$backup" "$database_name"; then
+    echo "stage=restore state=failed safety_backup=$safety_path action=inspect_database_before_retry" >&2
+    return 1
+  fi
+  if ! miemie_compose run --rm -T migrate || ! miemie_compose up -d --remove-orphans || ! miemie_wait_health "${MIEMIE_HEALTH_ATTEMPTS:-60}" || ! miemie_workers_healthy; then
+    echo "stage=restore state=failed safety_backup=$safety_path writers=stopped_or_unhealthy" >&2
+    return 1
+  fi
+  echo "stage=restore state=passed sha256=$checksum safety_backup=$safety_path"
 }
 
 main() {
@@ -120,7 +279,9 @@ main() {
     backup) cmd_backup "$@" ;;
     backups) cmd_backups "$@" ;;
     admin) cmd_admin "$@" ;;
-    update|rollback|restore) echo "$command lifecycle command is not installed yet" >&2; return 2 ;;
+    update) cmd_update "$@" ;;
+    rollback) cmd_rollback "$@" ;;
+    restore) cmd_restore "$@" ;;
     uninstall) cmd_uninstall "$@" ;;
     *) usage; return 2 ;;
   esac

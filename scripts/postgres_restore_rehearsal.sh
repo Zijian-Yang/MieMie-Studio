@@ -5,7 +5,8 @@ DUMP_FILE="${1:-}"
 PROJECT_NAME="${PROJECT_NAME:-miemie-pre}"
 ENV_FILE="${ENV_FILE:-compose.env}"
 COMPOSE_FILE_1="${COMPOSE_FILE_1:-docker-compose.yml}"
-COMPOSE_FILE_2="${COMPOSE_FILE_2:-docker-compose.pre.override.yml}"
+# An explicitly empty COMPOSE_FILE_2 disables the legacy second Compose file.
+COMPOSE_FILE_2="${COMPOSE_FILE_2-docker-compose.pre.override.yml}"
 RESTORE_DB="${RESTORE_DB:-miemie_restore_check}"
 
 if [ -z "$DUMP_FILE" ] || [ ! -s "$DUMP_FILE" ]; then

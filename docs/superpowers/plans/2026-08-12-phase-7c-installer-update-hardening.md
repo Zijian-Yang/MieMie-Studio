@@ -31,7 +31,7 @@
 - [x] Run Dockerfile/Compose static verifier, `docker compose config`, backend focused tests, and production frontend build.
   - `verify_self_hosted_compose.py` passed, Docker runtime regression `7 passed`, and rendered Compose config is valid.
   - Installer/update must chown legacy bind directories to `10001:10001` before switching existing deployments.
-- [ ] Commit the runtime hardening slice.
+- [x] Commit the runtime hardening slice (`9e91dd1`).
 
 ## Task 2: Idempotent Production Installer
 
@@ -45,7 +45,7 @@
 - [x] Install `/etc/miemie/miemie.conf` and `/usr/local/bin/miemie` atomically; repeat install must converge without data reset.
 - [x] Run installer verifier and isolated temporary-root rehearsal.
   - Offline dry-run verifier passes and confirms no install-root mutation; real clean-host Compose execution remains in Task 5/7D.
-- [ ] Commit the installer slice.
+- [x] Commit the installer slice (`af17ce3`, shared with the CLI foundation).
 
 ## Task 3: Operator CLI Foundations
 
@@ -59,19 +59,20 @@
 - [x] Implement restart/logs and preserved-data uninstall.
 - [x] Run CLI verifier, shell syntax, ShellCheck when available, and Compose contract tests.
   - Fake Docker/curl execution proves canonical env/project flags, service validation, lock use, preserved-data stop, and secret-safe administrator invocation.
-- [ ] Commit the CLI foundation slice.
+- [x] Commit the CLI foundation slice (`af17ce3`).
 
 ## Task 4: Transactional Update, Rollback, Restore, And Destructive Uninstall
 
 **Files:** `scripts/miemie`, `scripts/miemie_lib.sh`, `scripts/verify_miemie_lifecycle.py`, `docs/playbooks/SELF_HOSTED_UPGRADE_ROLLBACK.md`, `docs/playbooks/SELF_HOSTED_BACKUP_RESTORE.md`
 
-- [ ] Write state-machine tests for update check, dirty-tree block, non-fast-forward block, backup failure, build failure, migration failure, health failure image rollback, explicit release rollback, restore confirmation, isolated validation failure, safety backup, and destructive confirmation.
-- [ ] Implement release manifests under root-only `/var/lib/miemie/releases/` with commit, image, migration head, backup id, timestamp, state, and previous release.
-- [ ] Implement update check/apply with fetch timeout, commit pin, pre-update dump, build, migration, service switch, health/worker gates, and application rollback.
-- [ ] Implement rollback to a recorded local image/source commit without automatic schema downgrade; report when database restore is required.
-- [ ] Implement restore with checksum/list validation, temporary database rehearsal, safety backup, writer stop, production replacement, migration, health, and failure instructions.
-- [ ] Implement destructive uninstall only with exact confirmation and explicit removal of volumes/config/source/backups.
+- [x] Write state-machine tests for update check, dirty-tree block, non-fast-forward block, backup failure, build failure, migration failure, health failure image rollback, explicit release rollback, restore confirmation, isolated validation failure, safety backup, and destructive confirmation.
+- [x] Implement release manifests under root-only `/var/lib/miemie/releases/` with commit, image, migration head, backup id, timestamp, state, and previous release.
+- [x] Implement update check/apply with fetch timeout, commit pin, pre-update dump, build, migration, service switch, health/worker gates, and application rollback.
+- [x] Implement rollback to a recorded local image/source commit without automatic schema downgrade; report when database restore is required.
+- [x] Implement restore with checksum/list validation, temporary database rehearsal, safety backup, writer stop, production replacement, migration, health, and failure instructions.
+- [x] Implement destructive uninstall only with exact confirmation and explicit removal of volumes/config/source/backups.
 - [ ] Run lifecycle verifier and isolated Compose update/failure/restore rehearsals.
+  - Offline lifecycle state machine passes; real isolated Compose update/failure/restore rehearsals remain part of Task 5 server qualification.
 - [ ] Commit the lifecycle slice.
 
 ## Task 5: Production Documentation And Server Qualification

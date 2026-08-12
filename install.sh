@@ -56,7 +56,7 @@ mkdir -p "$MIEMIE_INSTALL_LOG_DIR"
 chmod 700 "$MIEMIE_INSTALL_LOG_DIR"
 exec > >(tee -a "$MIEMIE_INSTALL_LOG_DIR/install.log") 2>&1
 
-trap 'rc=$?; if [[ $rc -ne 0 ]]; then printf "[miemie] stage=%s state=failed reason=exit_%s next=sudo_%s/install.sh\n" "${MIEMIE_CURRENT_STAGE:-unknown}" "$rc" "$SOURCE_ROOT"; fi' EXIT
+trap 'rc=$?; if [[ $rc -ne 0 ]]; then printf "[miemie] stage=%s state=failed reason=exit_%s retry=%s/install.sh\n" "${MIEMIE_CURRENT_STAGE:-unknown}" "$rc" "$SOURCE_ROOT"; fi' EXIT
 
 miemie_stage host-preflight
 miemie_supported_host || miemie_fail "unsupported_host"
@@ -160,6 +160,8 @@ MIEMIE_INSTALL_ROOT=$MIEMIE_INSTALL_ROOT
 MIEMIE_PROJECT_NAME=$MIEMIE_PROJECT_NAME
 MIEMIE_ENV_FILE=$MIEMIE_ENV_FILE
 MIEMIE_RELEASE_STATE_DIR=$MIEMIE_INSTALL_STATE_DIR
+MIEMIE_INSTALL_LOG_DIR=$MIEMIE_INSTALL_LOG_DIR
+MIEMIE_INSTALL_BIN_DIR=$MIEMIE_INSTALL_BIN_DIR
 EOF
 chmod 600 "$MIEMIE_INSTALL_CONFIG_DIR/miemie.conf.tmp"
 mv "$MIEMIE_INSTALL_CONFIG_DIR/miemie.conf.tmp" "$MIEMIE_INSTALL_CONFIG_DIR/miemie.conf"

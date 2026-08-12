@@ -126,6 +126,11 @@ def test_backup_uses_private_env_validates_checksums_and_atomically_finishes(
     assert result.pruned_relative_paths == []
     assert not list(result.local_path.parent.glob("*.tmp-*"))
     assert oct(result.local_path.stat().st_mode & 0o777) == "0o600"
+    checksum_path = result.local_path.with_name(result.local_path.name + ".sha256")
+    assert checksum_path.read_text(encoding="ascii") == (
+        f"{result.sha256}  {result.local_path.name}\n"
+    )
+    assert oct(checksum_path.stat().st_mode & 0o777) == "0o600"
 
     entries = [json.loads(line) for line in log.read_text().splitlines()]
     dump_entry, restore_entry = entries
@@ -207,6 +212,30 @@ def test_restore_validation_failure_never_publishes_invalid_dump(
     assert not list((tmp_path / "backups").rglob("*.tmp-*"))
 
 
+def test_checksum_publication_failure_removes_partially_published_backup(
+    tmp_path, fake_postgres_tools, monkeypatch
+):
+    executor, _ = _executor(tmp_path / "backups", fake_postgres_tools, monkeypatch)
+    real_replace = os.replace
+    calls = 0
+
+    def fail_second_replace(source, target):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("simulated checksum publication failure")
+        return real_replace(source, target)
+
+    monkeypatch.setattr("app.services.postgres_backup.os.replace", fail_second_replace)
+
+    with pytest.raises(OSError, match="checksum publication failure"):
+        executor.run("run-partial", _settings())
+
+    assert not list((tmp_path / "backups").rglob("*.dump"))
+    assert not list((tmp_path / "backups").rglob("*.sha256"))
+    assert not list((tmp_path / "backups").rglob("*.tmp-*"))
+
+
 def test_client_server_major_mismatch_stops_before_dump(
     tmp_path, fake_postgres_tools, monkeypatch
 ):
@@ -233,6 +262,9 @@ def test_retention_keeps_minimum_and_recent_backups_deterministically(
     for index, modified in enumerate((old_time, old_time + 1, recent_time)):
         path = target / f"miemie-postgres-existing-{index}.dump"
         path.write_bytes(b"PGDMPexisting")
+        path.with_name(path.name + ".sha256").write_text(
+            f"{'a' * 64}  {path.name}\n", encoding="ascii"
+        )
         os.utime(path, (modified, modified))
         files.append(path)
     unrelated = target / "do-not-delete.sql"
@@ -250,7 +282,10 @@ def test_retention_keeps_minimum_and_recent_backups_deterministically(
     ]
     assert not files[0].exists()
     assert not files[1].exists()
+    assert not files[0].with_name(files[0].name + ".sha256").exists()
+    assert not files[1].with_name(files[1].name + ".sha256").exists()
     assert files[2].exists()
+    assert files[2].with_name(files[2].name + ".sha256").exists()
     assert unrelated.exists()
 
 

@@ -81,7 +81,9 @@ def main() -> int:
     for fragment in (
         "flock",
         "status) cmd_status",
-        "update|rollback|restore)",
+        "update) cmd_update",
+        "rollback) cmd_rollback",
+        "restore) cmd_restore",
         "app.cli.admin",
         "app.services.platform_operations",
         "build_ops_runner",

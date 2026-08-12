@@ -204,7 +204,10 @@ class PostgresBackupExecutor:
             if index < min_keep or path.stat().st_mtime >= threshold:
                 continue
             relative = path.relative_to(root).as_posix()
+            checksum_path = path.with_name(f"{path.name}.sha256")
             path.unlink()
+            if checksum_path.is_file() and not checksum_path.is_symlink():
+                checksum_path.unlink()
             pruned.append(relative)
         if pruned:
             self._fsync_directory(directory)
@@ -222,6 +225,8 @@ class PostgresBackupExecutor:
         timestamp = now.astimezone(timezone.utc).strftime("%Y%m%d-%H%M%S")
         final_path = directory / f"miemie-postgres-{timestamp}-{run_id}.dump"
         temporary_path = directory / f".{final_path.name}.tmp-{uuid.uuid4().hex}"
+        checksum_path = final_path.with_name(f"{final_path.name}.sha256")
+        temporary_checksum_path = directory / f".{checksum_path.name}.tmp-{uuid.uuid4().hex}"
 
         try:
             self._execute(
@@ -248,12 +253,23 @@ class PostgresBackupExecutor:
             )
             checksum = self._checksum(temporary_path)
             size_bytes = temporary_path.stat().st_size
+            temporary_checksum_path.write_text(
+                f"{checksum}  {final_path.name}\n",
+                encoding="ascii",
+            )
+            os.chmod(temporary_checksum_path, 0o600)
             self._fsync_file(temporary_path)
+            self._fsync_file(temporary_checksum_path)
             os.replace(temporary_path, final_path)
+            os.replace(temporary_checksum_path, checksum_path)
             os.utime(final_path, (now.timestamp(), now.timestamp()))
+            os.utime(checksum_path, (now.timestamp(), now.timestamp()))
             self._fsync_directory(directory)
         except Exception:
             temporary_path.unlink(missing_ok=True)
+            temporary_checksum_path.unlink(missing_ok=True)
+            final_path.unlink(missing_ok=True)
+            checksum_path.unlink(missing_ok=True)
             raise
 
         pruned = self._apply_retention(
