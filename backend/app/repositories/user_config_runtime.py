@@ -139,6 +139,12 @@ def build_admin_audit_repository():
     return AdminAuditRepository(_runtime_engine())
 
 
+def build_operation_run_repository():
+    from app.repositories.platform_admin import OperationRunRepository
+
+    return OperationRunRepository(_runtime_engine())
+
+
 def _user_lookup_repository() -> PostgresUserRepository:
     if user_config_primary_write_enabled():
         return build_user_primary_repository()

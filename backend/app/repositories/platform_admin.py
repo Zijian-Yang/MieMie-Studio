@@ -10,8 +10,9 @@ import uuid
 from sqlalchemy import and_, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
-from app.db.schema.platform_admin import admin_audit_logs, platform_settings
+from app.db.schema.platform_admin import admin_audit_logs, operation_runs, platform_settings
 from app.db.schema.user_config import users
+from app.models.platform_operations import OperationRun, OperationRunPage
 from app.models.user import User
 from app.repositories.base import RepositoryWriteError
 from app.repositories.user_config import row_to_user, user_to_row
@@ -429,6 +430,146 @@ class PlatformSettingsRepository:
             )
             conn.execute(insert(admin_audit_logs).values(**_audit_row(event, now=now)))
         return enabled
+
+    def get_operations_row(self) -> dict[str, Any]:
+        with self._engine.connect() as conn:
+            row = conn.execute(
+                select(platform_settings).where(platform_settings.c.id == "platform")
+            ).mappings().one()
+        return dict(row)
+
+    def mutate_operations(self, mutator, event: AdminAuditEvent):
+        """Apply a validated patch while holding the singleton settings row lock."""
+        now = datetime.now(timezone.utc)
+        with self._engine.begin() as conn:
+            row = conn.execute(
+                select(platform_settings)
+                .where(platform_settings.c.id == "platform")
+                .with_for_update()
+            ).mappings().one()
+            values, result = mutator(dict(row))
+            if values:
+                conn.execute(
+                    update(platform_settings)
+                    .where(platform_settings.c.id == "platform")
+                    .values(**values, updated_at=now, updated_by=event.actor_user_id)
+                )
+            conn.execute(insert(admin_audit_logs).values(**_audit_row(event, now=now)))
+        return result
+
+
+def _operation_row(run: OperationRun) -> dict[str, Any]:
+    return run.model_dump()
+
+
+def _row_to_operation(row) -> OperationRun:
+    return OperationRun(**dict(row))
+
+
+class OperationRunRepository:
+    """Transactional state machine and idempotent creation for ops jobs."""
+
+    def __init__(self, engine):
+        self._engine = engine
+
+    def create(self, run: OperationRun) -> tuple[OperationRun, bool]:
+        try:
+            with self._engine.begin() as conn:
+                conn.execute(insert(operation_runs).values(**_operation_row(run)))
+            return run, True
+        except IntegrityError as exc:
+            if not run.idempotency_key:
+                raise RepositoryWriteError("Failed to create operation run") from exc
+            with self._engine.connect() as conn:
+                row = conn.execute(
+                    select(operation_runs).where(
+                        operation_runs.c.idempotency_key == run.idempotency_key
+                    )
+                ).mappings().first()
+            if row is None:
+                raise RepositoryWriteError("Failed to create operation run") from exc
+            return _row_to_operation(row), False
+
+    def get(self, run_id: str) -> OperationRun | None:
+        with self._engine.connect() as conn:
+            row = conn.execute(
+                select(operation_runs).where(operation_runs.c.id == run_id)
+            ).mappings().first()
+        return _row_to_operation(row) if row else None
+
+    def list(
+        self,
+        *,
+        page: int,
+        page_size: int,
+        operation_type: str | None = None,
+        status: str | None = None,
+    ) -> OperationRunPage:
+        conditions = []
+        if operation_type:
+            conditions.append(operation_runs.c.operation_type == operation_type)
+        if status:
+            conditions.append(operation_runs.c.status == status)
+        count_query = select(func.count()).select_from(operation_runs)
+        list_query = select(operation_runs)
+        if conditions:
+            clause = and_(*conditions)
+            count_query = count_query.where(clause)
+            list_query = list_query.where(clause)
+        with self._engine.connect() as conn:
+            total = int(conn.execute(count_query).scalar_one())
+            rows = conn.execute(
+                list_query.order_by(operation_runs.c.created_at.desc())
+                .limit(page_size)
+                .offset((page - 1) * page_size)
+            ).mappings().all()
+        return OperationRunPage(items=[_row_to_operation(row) for row in rows], total=total)
+
+    def claim(self, run_id: str) -> OperationRun | None:
+        now = datetime.now(timezone.utc)
+        with self._engine.begin() as conn:
+            row = conn.execute(
+                update(operation_runs)
+                .where(operation_runs.c.id == run_id, operation_runs.c.status == "queued")
+                .values(status="running", started_at=now, updated_at=now)
+                .returning(operation_runs)
+            ).mappings().first()
+        return _row_to_operation(row) if row else None
+
+    def finish(self, run_id: str, *, succeeded: bool, values: dict[str, Any]) -> OperationRun:
+        now = datetime.now(timezone.utc)
+        safe_values = {
+            key: value
+            for key, value in values.items()
+            if key
+            in {
+                "local_status",
+                "oss_status",
+                "local_path_relative",
+                "oss_object_key",
+                "oss_etag",
+                "sha256",
+                "size_bytes",
+                "summary",
+                "error_category",
+                "artifact_relative_path",
+            }
+        }
+        with self._engine.begin() as conn:
+            row = conn.execute(
+                update(operation_runs)
+                .where(operation_runs.c.id == run_id, operation_runs.c.status == "running")
+                .values(
+                    **safe_values,
+                    status="succeeded" if succeeded else "failed",
+                    finished_at=now,
+                    updated_at=now,
+                )
+                .returning(operation_runs)
+            ).mappings().first()
+        if row is None:
+            raise RepositoryWriteError("Operation run is not running")
+        return _row_to_operation(row)
 
 
 class AdminAuditRepository:

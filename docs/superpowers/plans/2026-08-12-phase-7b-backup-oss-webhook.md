@@ -48,7 +48,9 @@
 - [x] **Step 5: Run crypto/schema/migration tests and secret-value leak assertions**
   - Focused schema/crypto/admin regression: `12 passed`.
   - Alembic offline upgrade and `20260812_0011 -> 20260812_0010` downgrade SQL compiled successfully.
-- [ ] **Step 6: Commit the schema and crypto slice**
+- [x] **Step 6: Commit the schema and crypto slice**
+  - Schema/crypto slice: `404c516`; review hardening: `40cdc8b`.
+  - Strict canonical URL-safe Base64 key parsing and executable offline migration upgrade/downgrade coverage now pass.
 
 ### Task 2: Settings And Operation Repositories
 
@@ -64,11 +66,12 @@
 - Produces `PlatformOperationsSettings`, `MaskedPlatformOperationsSettings`, and `OperationRun` models.
 - Produces `PlatformOperationsService.get_settings()`, `update_settings(actor, patch, request_id)`, `queue_operation(type, source, actor_id, idempotency_key)`, `claim_run(id)`, `complete_run(...)`, `fail_run(...)`, and paginated history.
 
-- [ ] **Step 1: Write repository tests for encrypted round-trip, partial secret preservation, clear-secret flags, pagination, state transitions, and idempotency conflicts**
-- [ ] **Step 2: Run focused tests and confirm missing repository/service contracts fail**
-- [ ] **Step 3: Implement path, schedule, retention, timeout, retry, endpoint, prefix, and configuration completeness validation**
-- [ ] **Step 4: Implement transactional settings/audit updates and operation state transitions without plaintext secrets in audit rows**
-- [ ] **Step 5: Run focused tests including wrong/missing encryption key and concurrent idempotency behavior**
+- [x] **Step 1: Write repository tests for encrypted round-trip, partial secret preservation, clear-secret flags, pagination, state transitions, and idempotency conflicts**
+- [x] **Step 2: Run focused tests and confirm missing repository/service contracts fail**
+- [x] **Step 3: Implement path, schedule, retention, timeout, retry, endpoint, prefix, and configuration completeness validation**
+- [x] **Step 4: Implement transactional settings/audit updates and operation state transitions without plaintext secrets in audit rows**
+- [x] **Step 5: Run focused tests including wrong/missing encryption key and concurrent idempotency behavior**
+  - Focused operations model/repository/service/schema/crypto suite covers encrypted preservation/replacement/clear, secret-free audit flags, wrong-key failure, conditional state transitions, pagination, and unique-key conflict recovery.
 - [ ] **Step 6: Commit the repository and service slice**
 
 ### Task 3: Generic Webhook Delivery
