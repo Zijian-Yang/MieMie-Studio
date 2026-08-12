@@ -315,6 +315,8 @@ class UserService:
         with self._lock:
             users = self._load_users()
             user = self._read_user_by_username(username)
+            if user and user.status != "active":
+                return None
             if user and self._verify_password(password, user.password):
                 # 渐进式迁移：明文密码自动升级为 bcrypt 哈希
                 if not self._is_hashed(user.password):
@@ -394,6 +396,9 @@ class UserService:
             
             user = self._read_user(user_id)
             if user:
+                if user.status != "active":
+                    self._delete_session(token)
+                    return None
                 if token not in self.sessions:
                     self._save_session(
                         token,
@@ -485,6 +490,16 @@ class UserService:
     def get_user_data_path(self, user_id: str) -> Path:
         """获取用户数据目录路径"""
         return self.data_dir / "users" / user_id
+
+    def ensure_user_data_dir(self, user_id: str) -> None:
+        """Create the standard private data directories for a platform user."""
+        with self._lock:
+            self._ensure_user_data_dir(user_id)
+
+    def revoke_user_sessions(self, user_id: str) -> None:
+        """Revoke every current session for one user across configured stores."""
+        with self._lock:
+            self._delete_user_sessions(user_id)
 
     def list_user_ids(self) -> list[str]:
         """列出当前所有用户 ID"""

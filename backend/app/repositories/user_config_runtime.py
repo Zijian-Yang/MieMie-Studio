@@ -121,6 +121,24 @@ def build_user_config_primary_repository() -> PostgresUserConfigRepository:
     return PostgresUserConfigRepository(_runtime_engine())
 
 
+def build_admin_user_repository():
+    from app.repositories.platform_admin import PostgresAdminUserRepository
+
+    return PostgresAdminUserRepository(_runtime_engine())
+
+
+def build_platform_settings_repository():
+    from app.repositories.platform_admin import PlatformSettingsRepository
+
+    return PlatformSettingsRepository(_runtime_engine())
+
+
+def build_admin_audit_repository():
+    from app.repositories.platform_admin import AdminAuditRepository
+
+    return AdminAuditRepository(_runtime_engine())
+
+
 def _user_lookup_repository() -> PostgresUserRepository:
     if user_config_primary_write_enabled():
         return build_user_primary_repository()

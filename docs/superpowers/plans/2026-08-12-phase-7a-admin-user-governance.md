@@ -44,7 +44,7 @@
 - [x] **Step 5: Run focused tests and Alembic offline upgrade/downgrade SQL rehearsal**
   - Focused and compatibility regression: `82 passed`.
   - Live PostgreSQL upgrade/downgrade remains part of Task 7 staging verification.
-- [ ] **Step 6: Commit the schema slice**
+- [x] **Step 6: Commit the schema slice** (`863fade`)
 
 ### Task 2: Administrator Repository And Invariants
 
@@ -63,12 +63,14 @@
 - Produces: `AdminAuditRepository.append()` and paginated `list()`.
 - Consumes: existing session runtime deletion by user ID.
 
-- [ ] **Step 1: Write failing tests for CRUD, pagination, duplicate usernames, self-protection, last-admin protection, soft deletion, and session revocation**
-- [ ] **Step 2: Run focused tests and confirm service/repository absence fails**
-- [ ] **Step 3: Implement repository queries and transaction-safe active-admin checks**
-- [ ] **Step 4: Implement service mutations and sanitized audit payloads**
-- [ ] **Step 5: Reject disabled/deleted users during login and token recovery**
-- [ ] **Step 6: Run focused and existing auth/user repository regression tests**
+- [x] **Step 1: Write failing tests for CRUD, pagination, duplicate usernames, self-protection, last-admin protection, soft deletion, and session revocation**
+- [x] **Step 2: Run focused tests and confirm service/repository absence fails**
+- [x] **Step 3: Implement repository queries and transaction-safe active-admin checks**
+  - Administrator mutations serialize on the singleton platform settings row before locking target users.
+- [x] **Step 4: Implement service mutations and sanitized audit payloads**
+- [x] **Step 5: Reject disabled/deleted users during login and token recovery**
+- [x] **Step 6: Run focused and existing auth/user repository regression tests**
+  - Backend full suite: `491 passed`.
 - [ ] **Step 7: Commit the service slice**
 
 ### Task 3: Bootstrap, Registration Policy, And Admin Authorization
