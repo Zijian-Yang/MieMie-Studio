@@ -322,7 +322,9 @@ class UserService:
                     logger.info(f"用户 {username} 密码已自动迁移为 bcrypt 哈希")
 
                 # 更新最后登录时间
-                user.last_login = datetime.now().isoformat()
+                now = datetime.now().isoformat()
+                user.last_login = now
+                user.updated_at = now
                 self._save_user_record(users, user)
 
                 # 生成 token（带过期时间）
@@ -416,7 +418,11 @@ class UserService:
             id=user.id,
             username=user.username,
             display_name=user.display_name or user.username,
+            role=user.role,
+            status=user.status,
+            must_change_password=user.must_change_password,
             created_at=user.created_at,
+            updated_at=user.updated_at,
             last_login=user.last_login
         )
     
@@ -452,6 +458,8 @@ class UserService:
 
             # 更新密码（bcrypt 哈希）
             user.password = self._hash_password(new_password)
+            user.must_change_password = False
+            user.updated_at = datetime.now().isoformat()
             self._save_user_record(users, user)
             self._delete_user_sessions(user_id)
             

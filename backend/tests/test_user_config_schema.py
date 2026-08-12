@@ -13,6 +13,9 @@ def test_users_schema_columns_defaults_and_sensitive_naming():
         "username",
         "password_hash",
         "display_name",
+        "role",
+        "status",
+        "must_change_password",
         "raw_user_snapshot",
         "created_at",
         "updated_at",
@@ -24,6 +27,9 @@ def test_users_schema_columns_defaults_and_sensitive_naming():
     assert not users.c.username.nullable
     assert not users.c.password_hash.nullable
     assert not users.c.raw_user_snapshot.nullable
+    assert str(users.c.role.server_default.arg) == "'member'"
+    assert str(users.c.status.server_default.arg) == "'active'"
+    assert str(users.c.must_change_password.server_default.arg) == "false"
     assert str(users.c.raw_user_snapshot.server_default.arg) == "'{}'::jsonb"
 
 
@@ -54,6 +60,9 @@ def test_user_config_postgresql_ddl_contains_jsonb_timestamptz_and_booleans():
 
     assert "CREATE TABLE users" in users_ddl
     assert "password_hash TEXT NOT NULL" in users_ddl
+    assert "role TEXT DEFAULT 'member' NOT NULL" in users_ddl
+    assert "status TEXT DEFAULT 'active' NOT NULL" in users_ddl
+    assert "must_change_password BOOLEAN DEFAULT false NOT NULL" in users_ddl
     assert "raw_user_snapshot JSONB DEFAULT '{}'::jsonb NOT NULL" in users_ddl
     assert "created_at TIMESTAMP WITH TIME ZONE NOT NULL" in users_ddl
     assert "last_login TIMESTAMP WITH TIME ZONE" in users_ddl
@@ -77,11 +86,15 @@ def test_user_config_partial_indexes():
     assert set(user_indexes) == {
         "idx_users_username_active_unique",
         "idx_users_updated",
+        "idx_users_role_status_updated",
     }
     assert "UNIQUE" in user_indexes["idx_users_username_active_unique"]
     assert "username" in user_indexes["idx_users_username_active_unique"]
     assert "WHERE deleted_at IS NULL" in user_indexes["idx_users_username_active_unique"]
     assert "updated_at DESC" in user_indexes["idx_users_updated"]
+    assert "role, status, updated_at DESC" in user_indexes[
+        "idx_users_role_status_updated"
+    ]
 
     assert set(config_indexes) == {
         "idx_user_configs_updated",

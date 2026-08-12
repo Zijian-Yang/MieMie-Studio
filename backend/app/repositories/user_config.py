@@ -34,12 +34,15 @@ def user_to_row(user: User) -> dict[str, Any]:
 
     created_at = _parse_datetime(user.created_at) or datetime.now(timezone.utc)
     last_login = _parse_datetime(user.last_login)
-    updated_at = last_login or created_at
+    updated_at = _parse_datetime(user.updated_at) or last_login or created_at
     return {
         "id": user.id,
         "username": user.username,
         "password_hash": user.password,
         "display_name": user.display_name,
+        "role": user.role,
+        "status": user.status,
+        "must_change_password": user.must_change_password,
         "raw_user_snapshot": user.model_dump(mode="json"),
         "created_at": created_at,
         "updated_at": updated_at,
@@ -53,6 +56,17 @@ def row_to_user(row: Mapping[str, Any]) -> User:
 
     snapshot = row.get("raw_user_snapshot")
     if snapshot:
+        snapshot = {
+            **snapshot,
+            "role": row.get("role") or "member",
+            "status": row.get("status") or "active",
+            "must_change_password": bool(row.get("must_change_password", False)),
+        }
+        updated_at = row.get("updated_at")
+        if updated_at is not None:
+            snapshot["updated_at"] = (
+                updated_at.isoformat() if isinstance(updated_at, datetime) else updated_at
+            )
         return User(**snapshot)
     created_at = row["created_at"]
     last_login = row.get("last_login")
@@ -61,7 +75,15 @@ def row_to_user(row: Mapping[str, Any]) -> User:
         username=row["username"],
         password=row["password_hash"],
         display_name=row.get("display_name"),
+        role=row.get("role") or "member",
+        status=row.get("status") or "active",
+        must_change_password=bool(row.get("must_change_password", False)),
         created_at=created_at.isoformat() if isinstance(created_at, datetime) else created_at,
+        updated_at=(
+            row["updated_at"].isoformat()
+            if isinstance(row.get("updated_at"), datetime)
+            else row.get("updated_at")
+        ),
         last_login=last_login.isoformat() if isinstance(last_login, datetime) else last_login,
     )
 

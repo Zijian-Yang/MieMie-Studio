@@ -37,11 +37,13 @@
 - Produces: `platform_settings` and `admin_audit_logs` SQLAlchemy tables.
 - Produces migration revision `20260812_0010` after `20260617_0009`.
 
-- [ ] **Step 1: Write failing model, schema, and migration contract tests**
-- [ ] **Step 2: Run focused tests and confirm missing fields/tables fail**
-- [ ] **Step 3: Add enum-constrained Pydantic fields, SQL columns, indexes, platform settings, audit schema, and migration**
-- [ ] **Step 4: Update row mapping so snapshots and indexed security columns stay consistent**
-- [ ] **Step 5: Run focused tests and Alembic upgrade/downgrade rehearsal**
+- [x] **Step 1: Write failing model, schema, and migration contract tests**
+- [x] **Step 2: Run focused tests and confirm missing fields/tables fail**
+- [x] **Step 3: Add enum-constrained Pydantic fields, SQL columns, indexes, platform settings, audit schema, and migration**
+- [x] **Step 4: Update row mapping so snapshots and indexed security columns stay consistent**
+- [x] **Step 5: Run focused tests and Alembic offline upgrade/downgrade SQL rehearsal**
+  - Focused and compatibility regression: `82 passed`.
+  - Live PostgreSQL upgrade/downgrade remains part of Task 7 staging verification.
 - [ ] **Step 6: Commit the schema slice**
 
 ### Task 2: Administrator Repository And Invariants
