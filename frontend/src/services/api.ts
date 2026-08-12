@@ -1,6 +1,17 @@
 import { api } from './apiClient'
 import type { VideoCapabilityModel } from './videoStudioApi'
 export { type ApiError } from './apiClient'
+export { adminApi } from './adminApi'
+export type {
+  AdminAuditItem,
+  AdminAuditPage,
+  AdminUser,
+  AdminUserCreateInput,
+  AdminUserFilters,
+  AdminUserPage,
+  AdminUserUpdateInput,
+  BootstrapStatus,
+} from './adminApi'
 
 // ============ 设置 API ============
 
@@ -2112,7 +2123,11 @@ export interface UserInfo {
   id: string
   username: string
   display_name: string
+  role: 'admin' | 'member'
+  status: 'active' | 'disabled'
+  must_change_password: boolean
   created_at: string
+  updated_at: string
   last_login?: string
 }
 

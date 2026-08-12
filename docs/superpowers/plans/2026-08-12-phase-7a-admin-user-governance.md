@@ -125,7 +125,7 @@
   - OpenAPI response-schema audit passed for all administrator routes.
 - [x] **Step 6: Run focused API tests and backend full suite**
   - Backend full suite: `514 passed`.
-- [ ] **Step 7: Commit the API slice**
+- [x] **Step 7: Commit the API slice** (`0c57727`)
 
 ### Task 5: Typed Frontend Admin Boundary
 
@@ -145,12 +145,13 @@
 - Produces `AdminRoute` based on server-returned user role.
 - Consumes new user response role/status/must-change-password fields.
 
-- [ ] **Step 1: Write failing static contract test for typed admin API, route guard, hidden navigation, and registration bootstrap behavior**
-- [ ] **Step 2: Run the test and confirm missing boundary fails**
-- [ ] **Step 3: Extend auth state and typed API contracts**
-- [ ] **Step 4: Add `/admin` lazy routes and backend-derived admin guard**
-- [ ] **Step 5: Hide registration form when bootstrap status disables it and preserve clear empty/error states**
-- [ ] **Step 6: Run typecheck, lint, and focused policy test**
+- [x] **Step 1: Write failing static contract test for typed admin API, route guard, hidden navigation, and registration bootstrap behavior**
+- [x] **Step 2: Run the test and confirm missing boundary fails**
+- [x] **Step 3: Extend auth state and typed API contracts**
+- [x] **Step 4: Add `/admin` lazy routes and backend-derived admin guard**
+- [x] **Step 5: Hide registration form when bootstrap status disables it and preserve clear empty/error states**
+- [x] **Step 6: Run typecheck, lint, and focused policy test**
+  - Typecheck, lint, production build, chunk check, and admin route policy passed.
 - [ ] **Step 7: Commit the frontend boundary slice**
 
 ### Task 6: Administrator User Management UI

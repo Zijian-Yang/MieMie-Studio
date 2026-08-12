@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import MainLayout from './components/Layout/MainLayout'
 import { useAuthStore } from './stores/authStore'
 import ErrorBoundary from './components/ErrorBoundary'
+import AdminRoute from './components/AdminRoute'
 
 const ProjectsPage = lazy(() => import('./pages/Projects/ProjectsPage'))
 const SettingsPage = lazy(() => import('./pages/Settings/SettingsPage'))
@@ -27,6 +28,8 @@ const ImageBenchmarkSharePage = lazy(() => import('./pages/ImageBenchmarkShare/I
 const VideoBenchmarkPage = lazy(() => import('./pages/VideoBenchmark/VideoBenchmarkPage'))
 const VideoBenchmarkDatasetsPage = lazy(() => import('./pages/VideoBenchmarkDatasets/VideoBenchmarkDatasetsPage'))
 const LoginPage = lazy(() => import('./pages/Login/LoginPage'))
+const AdminUsersPage = lazy(() => import('./pages/Admin/AdminUsersPage'))
+const AdminAuditPage = lazy(() => import('./pages/Admin/AdminAuditPage'))
 
 // 路由保护组件
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -62,6 +65,11 @@ function App() {
               <Route index element={<Navigate to="/projects" replace />} />
               <Route path="projects" element={<ProjectsPage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="admin">
+                <Route index element={<Navigate to="/admin/users" replace />} />
+                <Route path="users" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
+                <Route path="audit" element={<AdminRoute><AdminAuditPage /></AdminRoute>} />
+              </Route>
               <Route path="project/:projectId">
                 <Route path="script" element={<ScriptPage />} />
                 <Route path="styles" element={<StylesPage />} />

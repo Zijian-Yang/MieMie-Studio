@@ -1,10 +1,10 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Form, Input, Button, message, Typography, Space } from 'antd'
 import { UserOutlined, LockOutlined, LoginOutlined, UserAddOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../stores/authStore'
 import { useThemeStore } from '../../stores/themeStore'
-import { authApi } from '../../services/api'
+import { adminApi, authApi } from '../../services/api'
 import { getApiErrorMessage } from '../../utils/apiError'
 import './LoginPage.css'
 
@@ -16,7 +16,22 @@ const LoginPage: React.FC = () => {
   const mode = useThemeStore((s) => s.mode)
   const [loading, setLoading] = useState(false)
   const [isRegister, setIsRegister] = useState(false)
+  const [registrationEnabled, setRegistrationEnabled] = useState(false)
   const [form] = Form.useForm()
+
+  useEffect(() => {
+    let active = true
+    adminApi.bootstrapStatus()
+      .then((status) => {
+        if (active) setRegistrationEnabled(status.registration_enabled)
+      })
+      .catch(() => {
+        if (active) setRegistrationEnabled(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   const handleSubmit = async (values: { username: string; password: string; display_name?: string }) => {
     setLoading(true)
@@ -39,6 +54,7 @@ const LoginPage: React.FC = () => {
   }
 
   const toggleMode = () => {
+    if (!registrationEnabled && !isRegister) return
     setIsRegister(!isRegister)
     form.resetFields()
   }
@@ -124,14 +140,14 @@ const LoginPage: React.FC = () => {
             </Button>
           </Form.Item>
 
-          <div className="login-footer">
+          {registrationEnabled && <div className="login-footer">
             <Space>
               <Text type="secondary">{isRegister ? '已有账号？' : '没有账号？'}</Text>
               <Button type="link" onClick={toggleMode} className="toggle-button">
                 {isRegister ? '立即登录' : '立即注册'}
               </Button>
             </Space>
-          </div>
+          </div>}
         </Form>
       </div>
 

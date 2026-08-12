@@ -22,6 +22,7 @@ import {
   LogoutOutlined,
   SunOutlined,
   MoonOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { useAuthStore } from '../../stores/authStore'
@@ -101,6 +102,9 @@ const MainLayout = () => {
     ...projectSectionItems,
     { key: 'divider-settings', type: 'divider' },
     { key: '/settings', icon: <SettingOutlined />, label: '设置' },
+    ...(user?.role === 'admin'
+      ? [{ key: '/admin/users', icon: <SafetyCertificateOutlined />, label: '平台管理' }]
+      : []),
   ]
 
   const handleMenuClick: MenuProps['onClick'] = (e) => {

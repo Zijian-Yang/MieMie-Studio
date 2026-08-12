@@ -9,7 +9,11 @@ export interface User {
   id: string
   username: string
   display_name: string
+  role: 'admin' | 'member'
+  status: 'active' | 'disabled'
+  must_change_password: boolean
   created_at: string
+  updated_at: string
   last_login?: string
 }
 
@@ -32,7 +36,17 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       
       login: (token: string, user: User) => {
-        set({ token, user, isAuthenticated: true })
+        set({
+          token,
+          user: {
+            ...user,
+            role: user.role || 'member',
+            status: user.status || 'active',
+            must_change_password: user.must_change_password || false,
+            updated_at: user.updated_at || user.created_at,
+          },
+          isAuthenticated: true,
+        })
       },
       
       logout: () => {
@@ -64,4 +78,3 @@ export const getAuthHeader = (): Record<string, string> => {
   }
   return {}
 }
-
