@@ -18,6 +18,7 @@ from app.services.platform_crypto import PlatformSecretCipher
 
 
 _PLAIN_FIELDS = {
+    "registration_enabled",
     "backup_enabled",
     "backup_schedule",
     "backup_retention_days",
@@ -45,7 +46,10 @@ class PlatformOperationsService:
             value = row.get(name)
             return self._cipher.decrypt(value) if value else None
 
-        values = {name: row.get(name) for name in _PLAIN_FIELDS}
+        values = PlatformOperationsSettings().model_dump()
+        values.update(
+            {name: row[name] for name in _PLAIN_FIELDS if row.get(name) is not None}
+        )
         values.update(
             backup_oss_access_key_id=decrypt("backup_oss_access_key_id_encrypted"),
             backup_oss_access_key_secret=decrypt("backup_oss_access_key_secret_encrypted"),

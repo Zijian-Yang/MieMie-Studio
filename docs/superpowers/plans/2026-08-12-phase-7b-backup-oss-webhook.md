@@ -139,7 +139,8 @@
 - [x] **Step 5: Implement a signal-aware minute loop and transactional idempotent scheduling**
   - Focused worker/scheduler/backup regression: `36 passed`.
   - Unexpected executor, OSS, or Webhook errors are converted to stable categories so claimed operations cannot remain permanently `running`.
-- [ ] **Step 6: Run focused tests and commit worker/scheduler slice**
+- [x] **Step 6: Run focused tests and commit worker/scheduler slice**
+  - Worker/scheduler slice: `2a801b5`.
 
 ### Task 6: Administrator Operations APIs
 
@@ -155,11 +156,14 @@
 - `GET/PATCH /api/admin/platform-settings` returns/updates masked settings.
 - `POST/GET /api/admin/backups`, `POST /api/admin/backups/test-oss`, and `POST /api/admin/alerts/test` enqueue or list runs.
 
-- [ ] **Step 1: Write API tests for admin-only access, masked response, validation errors, enqueue-only behavior, rate limits, pagination, and no restore endpoint**
-- [ ] **Step 2: Run focused tests and confirm missing routes fail**
-- [ ] **Step 3: Implement typed request/response models and stable error codes**
-- [ ] **Step 4: Implement APIs with transactional audit and queue-after-commit behavior**
-- [ ] **Step 5: Run API/OpenAPI tests and scan schema for secret response fields**
+- [x] **Step 1: Write API tests for admin-only access, masked response, validation errors, enqueue-only behavior, rate limits, pagination, and no restore endpoint**
+- [x] **Step 2: Run focused tests and confirm missing routes fail**
+- [x] **Step 3: Implement typed request/response models and stable error codes**
+- [x] **Step 4: Implement APIs with transactional audit and queue-after-commit behavior**
+- [x] **Step 5: Run API/OpenAPI tests and scan schema for secret response fields**
+  - Backend admin operations regression: `29 passed`; frontend service contract typecheck passed.
+  - Legacy registration-only `PUT` remains compatible while the management UI uses unified masked `GET/PATCH` settings.
+  - Queue dispatch failures transition the committed run to `failed` with a stable public error; no restore route is exposed under `/api/admin`.
 - [ ] **Step 6: Commit the API slice**
 
 ### Task 7: Administrator Overview, Backup, And Alert UI

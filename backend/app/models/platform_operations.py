@@ -64,6 +64,7 @@ def validate_webhook_url(value: str | None) -> str | None:
 
 
 class PlatformOperationsSettings(BaseModel):
+    registration_enabled: bool = False
     backup_enabled: bool = False
     backup_schedule: str = "03:00"
     backup_retention_days: int = Field(default=30, ge=1, le=3650)
@@ -131,6 +132,7 @@ class PlatformOperationsSettings(BaseModel):
 
 
 class PlatformOperationsSettingsPatch(BaseModel):
+    registration_enabled: bool | None = None
     backup_enabled: bool | None = None
     backup_schedule: str | None = None
     backup_retention_days: int | None = Field(default=None, ge=1, le=3650)
@@ -149,6 +151,33 @@ class PlatformOperationsSettingsPatch(BaseModel):
     webhook_timeout_seconds: int | None = Field(default=None, ge=1, le=30)
     webhook_retry_count: int | None = Field(default=None, ge=0, le=3)
     webhook_alert_on_warning: bool | None = None
+
+    @field_validator("backup_schedule")
+    @classmethod
+    def validate_schedule(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return PlatformOperationsSettings.validate_schedule(value)
+
+    @field_validator("backup_local_subdirectory")
+    @classmethod
+    def validate_subdirectory(cls, value: str | None) -> str | None:
+        return validate_backup_subdirectory(value) if value is not None else None
+
+    @field_validator("backup_oss_prefix")
+    @classmethod
+    def validate_prefix(cls, value: str | None) -> str | None:
+        return validate_oss_prefix(value) if value is not None else None
+
+    @field_validator("backup_oss_endpoint")
+    @classmethod
+    def validate_endpoint(cls, value: str | None) -> str | None:
+        return validate_https_endpoint(value)
+
+    @field_validator("webhook_url")
+    @classmethod
+    def validate_webhook(cls, value: str | None) -> str | None:
+        return validate_webhook_url(value)
 
     @model_validator(mode="after")
     def validate_patch(self):
@@ -170,6 +199,7 @@ class PlatformOperationsSettingsPatch(BaseModel):
 
 
 class MaskedPlatformOperationsSettings(BaseModel):
+    registration_enabled: bool
     backup_enabled: bool
     backup_schedule: str
     backup_retention_days: int

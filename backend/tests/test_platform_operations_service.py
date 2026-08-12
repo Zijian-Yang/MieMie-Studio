@@ -23,6 +23,7 @@ def _cipher(byte: int = 17) -> PlatformSecretCipher:
 
 def _settings_row(cipher: PlatformSecretCipher) -> dict:
     return {
+        "registration_enabled": False,
         "backup_enabled": False,
         "backup_schedule": "03:00",
         "backup_retention_days": 30,
@@ -144,6 +145,7 @@ def test_plain_update_preserves_encrypted_secrets_and_sanitizes_audit():
     result = service.update_settings(
         actor=_admin(),
         patch=PlatformOperationsSettingsPatch(
+            registration_enabled=True,
             backup_enabled=True,
             backup_schedule="04:25",
         ),
@@ -151,9 +153,11 @@ def test_plain_update_preserves_encrypted_secrets_and_sanitizes_audit():
     )
 
     assert result.backup_enabled is True
+    assert result.registration_enabled is True
     assert result.backup_schedule == "04:25"
     assert {key: repository.row[key] for key in encrypted_before} == encrypted_before
     assert repository.events[0].changes == {
+        "registration_enabled": True,
         "backup_enabled": True,
         "backup_schedule": "04:25",
     }

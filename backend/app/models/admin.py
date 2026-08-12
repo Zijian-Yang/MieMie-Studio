@@ -8,6 +8,11 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, model_validator
 
 from app.models.user import UserResponse
+from app.models.platform_operations import (
+    MaskedPlatformOperationsSettings,
+    OperationRun,
+    PlatformOperationsSettingsPatch,
+)
 
 
 class AdminUserCreateRequest(BaseModel):
@@ -49,6 +54,21 @@ class PlatformSettingsResponse(BaseModel):
 
 class PlatformSettingsUpdateRequest(BaseModel):
     registration_enabled: bool
+
+
+class PlatformOperationsSettingsResponse(MaskedPlatformOperationsSettings):
+    pass
+
+
+class PlatformOperationsSettingsPatchRequest(PlatformOperationsSettingsPatch):
+    pass
+
+
+class OperationRunPageResponse(BaseModel):
+    items: list[OperationRun]
+    page: int
+    page_size: int
+    total: int
 
 
 class AdminAuditItemResponse(BaseModel):

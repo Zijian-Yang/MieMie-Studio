@@ -51,6 +51,80 @@ export interface AdminUserFilters {
   status?: AdminUser['status']
 }
 
+export interface PlatformOperationsSettings {
+  registration_enabled: boolean
+  backup_enabled: boolean
+  backup_schedule: string
+  backup_retention_days: number
+  backup_min_keep: number
+  backup_local_subdirectory: string
+  backup_oss_enabled: boolean
+  backup_oss_endpoint?: string | null
+  backup_oss_bucket_name?: string | null
+  backup_oss_prefix: string
+  backup_oss_credentials_configured: boolean
+  backup_oss_access_key_id_masked: string
+  webhook_enabled: boolean
+  webhook_configured: boolean
+  webhook_url_masked: string
+  webhook_timeout_seconds: number
+  webhook_retry_count: number
+  webhook_alert_on_warning: boolean
+}
+
+export interface PlatformOperationsSettingsPatch {
+  registration_enabled?: boolean
+  backup_enabled?: boolean
+  backup_schedule?: string
+  backup_retention_days?: number
+  backup_min_keep?: number
+  backup_local_subdirectory?: string
+  backup_oss_enabled?: boolean
+  backup_oss_endpoint?: string
+  backup_oss_bucket_name?: string
+  backup_oss_prefix?: string
+  backup_oss_access_key_id?: string
+  backup_oss_access_key_secret?: string
+  clear_backup_oss_credentials?: boolean
+  webhook_enabled?: boolean
+  webhook_url?: string
+  clear_webhook_url?: boolean
+  webhook_timeout_seconds?: number
+  webhook_retry_count?: number
+  webhook_alert_on_warning?: boolean
+}
+
+export type OperationType = 'backup' | 'oss_test' | 'webhook_test' | 'restore_rehearsal'
+export type OperationStatus = 'queued' | 'running' | 'succeeded' | 'failed'
+
+export interface OperationRun {
+  id: string
+  operation_type: OperationType
+  status: OperationStatus
+  trigger_source: 'manual' | 'scheduled' | 'cli'
+  requested_by?: string | null
+  local_status: 'pending' | 'succeeded' | 'failed' | 'skipped'
+  oss_status: 'pending' | 'succeeded' | 'failed' | 'skipped'
+  local_path_relative?: string | null
+  oss_object_key?: string | null
+  oss_etag?: string | null
+  sha256?: string | null
+  size_bytes?: number | null
+  summary: Record<string, unknown>
+  error_category?: string | null
+  created_at: string
+  started_at?: string | null
+  finished_at?: string | null
+  updated_at: string
+}
+
+export interface OperationRunPage {
+  items: OperationRun[]
+  page: number
+  page_size: number
+  total: number
+}
+
 export interface AdminUserCreateInput {
   username: string
   password: string
@@ -86,12 +160,28 @@ export const adminApi = {
   deleteUser: (userId: string) => api.delete<never, AdminUser>(`/admin/users/${userId}`),
 
   getPlatformSettings: () =>
-    api.get<never, { registration_enabled: boolean }>('/admin/platform-settings'),
+    api.get<never, PlatformOperationsSettings>('/admin/platform-settings'),
+
+  patchPlatformSettings: (data: PlatformOperationsSettingsPatch) =>
+    api.patch<never, PlatformOperationsSettings>('/admin/platform-settings', data),
 
   updatePlatformSettings: (registrationEnabled: boolean) =>
     api.put<never, { registration_enabled: boolean }>('/admin/platform-settings', {
       registration_enabled: registrationEnabled,
     }),
+
+  createBackup: () => api.post<never, OperationRun>('/admin/backups'),
+
+  testBackupOss: () => api.post<never, OperationRun>('/admin/backups/test-oss'),
+
+  testWebhook: () => api.post<never, OperationRun>('/admin/alerts/test'),
+
+  listOperationRuns: (params: {
+    page?: number
+    page_size?: number
+    operation_type?: OperationType
+    status?: OperationStatus
+  }) => api.get<never, OperationRunPage>('/admin/backups', { params }),
 
   listAuditLogs: (params: { page?: number; page_size?: number; action?: string }) =>
     api.get<never, AdminAuditPage>('/admin/audit-logs', { params }),

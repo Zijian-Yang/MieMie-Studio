@@ -7,6 +7,7 @@ import pytest
 
 from app.dependencies import require_admin
 from app.models.user import User
+from app.models.platform_operations import MaskedPlatformOperationsSettings
 
 
 @dataclass
@@ -27,6 +28,29 @@ class _SettingsRepository:
         self.enabled = enabled
         self.events.append(event)
         return enabled
+
+
+class _OperationsService:
+    def __init__(self, settings):
+        self.settings = settings
+
+    def get_settings(self):
+        return MaskedPlatformOperationsSettings(
+            registration_enabled=self.settings.enabled,
+            backup_enabled=False,
+            backup_schedule="03:00",
+            backup_retention_days=30,
+            backup_min_keep=7,
+            backup_local_subdirectory="postgres",
+            backup_oss_enabled=False,
+            backup_oss_prefix="miemie/backups",
+            backup_oss_credentials_configured=False,
+            webhook_enabled=False,
+            webhook_configured=False,
+            webhook_timeout_seconds=10,
+            webhook_retry_count=2,
+            webhook_alert_on_warning=False,
+        )
 
 
 class _AuditRepository:
@@ -70,6 +94,10 @@ def platform_api(client, monkeypatch):
         lambda: settings,
     )
     monkeypatch.setattr(
+        "app.routers.admin_platform.build_platform_operations_service",
+        lambda: _OperationsService(settings),
+    )
+    monkeypatch.setattr(
         "app.routers.admin_platform.build_admin_audit_repository",
         lambda: audit,
     )
@@ -88,7 +116,8 @@ def test_get_and_update_registration_setting_are_typed_and_audited(platform_api)
         json={"registration_enabled": True},
     )
 
-    assert before.json() == {"registration_enabled": False}
+    assert before.json()["registration_enabled"] is False
+    assert before.json()["backup_enabled"] is False
     assert updated.json() == {"registration_enabled": True}
     assert settings.events[0].request_id == "req-setting"
     assert settings.events[0].changes == {"registration_enabled": True}
