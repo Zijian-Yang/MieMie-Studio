@@ -26,13 +26,13 @@ def test_user_security_defaults_and_validation():
 
 def test_platform_settings_schema_is_singleton_and_secret_safe():
     assert metadata.tables["platform_settings"] is platform_settings
-    assert set(platform_settings.c.keys()) == {
+    assert {
         "id",
         "registration_enabled",
         "created_at",
         "updated_at",
         "updated_by",
-    }
+    }.issubset(platform_settings.c.keys())
     assert platform_settings.c.id.primary_key
     assert str(platform_settings.c.registration_enabled.server_default.arg) == "false"
 

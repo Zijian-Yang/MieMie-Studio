@@ -41,11 +41,13 @@
 - Produces `PlatformSecretCipher.encrypt(str) -> str`, `decrypt(str) -> str`, `mask(str) -> str`, and `build_platform_secret_cipher()`.
 - Produces `operation_runs` and operational columns on `platform_settings`.
 
-- [ ] **Step 1: Write schema tests for every operational setting, operation status field, indexes, constraints, and unique idempotency key**
-- [ ] **Step 2: Run focused schema tests and confirm the missing migration/schema fails**
-- [ ] **Step 3: Add `cryptography>=42,<46`, AES-256-GCM envelope versioning, strict URL-safe base64 key parsing, and secret-free errors**
-- [ ] **Step 4: Add migration `20260812_0011` with safe defaults and compile upgrade/downgrade SQL**
-- [ ] **Step 5: Run crypto/schema/migration tests and secret-value leak assertions**
+- [x] **Step 1: Write schema tests for every operational setting, operation status field, indexes, constraints, and unique idempotency key**
+- [x] **Step 2: Run focused schema tests and confirm the missing migration/schema fails**
+- [x] **Step 3: Add `cryptography>=42,<46`, AES-256-GCM envelope versioning, strict URL-safe base64 key parsing, and secret-free errors**
+- [x] **Step 4: Add migration `20260812_0011` with safe defaults and compile upgrade/downgrade SQL**
+- [x] **Step 5: Run crypto/schema/migration tests and secret-value leak assertions**
+  - Focused schema/crypto/admin regression: `12 passed`.
+  - Alembic offline upgrade and `20260812_0011 -> 20260812_0010` downgrade SQL compiled successfully.
 - [ ] **Step 6: Commit the schema and crypto slice**
 
 ### Task 2: Settings And Operation Repositories

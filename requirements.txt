@@ -34,6 +34,7 @@ opencv-python-headless>=4.8.0
 
 # 安全
 bcrypt>=4.0.0
+cryptography>=42.0.0,<46.0.0
 
 # 工具库
 python-dotenv>=1.0.0
