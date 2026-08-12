@@ -37,26 +37,28 @@
 
 **Files:** `install.sh`, `scripts/install_lib.sh`, `scripts/verify_self_hosted_installer.py`, `docs/reports/artifacts/2026-08-12-phase-7c-self-hosted-release/README.md`
 
-- [ ] Write dry-run and fake-command tests for supported OS/arch, root check, resources, prerequisites, port collision, install root, mode-600 env generation, key preservation, commit image tag, staged failure, and repeat install.
-- [ ] Implement structured stage logging to `/var/log/miemie/install.log` without secret values.
-- [ ] Implement opt-in prerequisite installation for Ubuntu 22.04/24.04 and Debian 12 using Docker's official repository; default tests remain offline.
-- [ ] Generate secure instance id, PostgreSQL password, platform encryption key, release state, Compose project, and loopback port.
-- [ ] Build/start/migrate/bootstrap/health in safe order; support hidden administrator prompt and automation-only environment input.
-- [ ] Install `/etc/miemie/miemie.conf` and `/usr/local/bin/miemie` atomically; repeat install must converge without data reset.
-- [ ] Run installer verifier and isolated temporary-root rehearsal.
+- [x] Write dry-run and fake-command tests for supported OS/arch, root check, resources, prerequisites, port collision, install root, mode-600 env generation, key preservation, commit image tag, staged failure, and repeat install.
+- [x] Implement structured stage logging to `/var/log/miemie/install.log` without secret values.
+- [x] Implement opt-in prerequisite installation for Ubuntu 22.04/24.04 and Debian 12 using Docker's official repository; default tests remain offline.
+- [x] Generate secure instance id, PostgreSQL password, platform encryption key, release state, Compose project, and loopback port.
+- [x] Build/start/migrate/bootstrap/health in safe order; support hidden administrator prompt and automation-only environment input.
+- [x] Install `/etc/miemie/miemie.conf` and `/usr/local/bin/miemie` atomically; repeat install must converge without data reset.
+- [x] Run installer verifier and isolated temporary-root rehearsal.
+  - Offline dry-run verifier passes and confirms no install-root mutation; real clean-host Compose execution remains in Task 5/7D.
 - [ ] Commit the installer slice.
 
 ## Task 3: Operator CLI Foundations
 
 **Files:** `scripts/miemie`, `scripts/miemie_lib.sh`, `scripts/verify_miemie_cli.py`
 
-- [ ] Write fake-Compose tests for `status`, `logs`, `doctor`, `restart`, `backup --wait`, `backups`, administrator bootstrap/promote/reset-password, and preserved-data uninstall.
-- [ ] Implement safe config discovery, root/permission checks, one canonical Compose command, stable exit codes, locking, and redacted log helpers.
-- [ ] Implement status/version/health/worker/database/backup-root checks and actionable doctor warnings for CPU/RAM/disk/time/ports.
-- [ ] Implement operations API-independent backup enqueue/wait through application services in an ephemeral container; list sanitized backup history.
-- [ ] Implement administrator commands using hidden prompt/environment secrets, never plaintext argv.
-- [ ] Implement restart/logs and preserved-data uninstall.
-- [ ] Run CLI verifier, shell syntax, ShellCheck when available, and Compose contract tests.
+- [x] Write fake-Compose tests for `status`, `logs`, `doctor`, `restart`, `backup --wait`, `backups`, administrator bootstrap/promote/reset-password, and preserved-data uninstall.
+- [x] Implement safe config discovery, root/permission checks, one canonical Compose command, stable exit codes, locking, and redacted log helpers.
+- [x] Implement status/version/health/worker/database/backup-root checks and actionable doctor warnings for CPU/RAM/disk/time/ports.
+- [x] Implement operations API-independent backup enqueue/wait through application services in an ephemeral container; list sanitized backup history.
+- [x] Implement administrator commands using hidden prompt/environment secrets, never plaintext argv.
+- [x] Implement restart/logs and preserved-data uninstall.
+- [x] Run CLI verifier, shell syntax, ShellCheck when available, and Compose contract tests.
+  - Fake Docker/curl execution proves canonical env/project flags, service validation, lock use, preserved-data stop, and secret-safe administrator invocation.
 - [ ] Commit the CLI foundation slice.
 
 ## Task 4: Transactional Update, Rollback, Restore, And Destructive Uninstall

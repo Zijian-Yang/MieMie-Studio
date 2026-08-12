@@ -68,6 +68,8 @@ def check_safety_contract() -> None:
     content = SCRIPT.read_text(encoding="utf-8")
     required_fragments = [
         'DOCTOR_PROFILE="${DOCTOR_PROFILE:-all}"',
+        'if [[ "$DOCTOR_PROFILE" != "compose" ]]',
+        'check_command_exists "openssl" "openssl" "true"',
         'MIEMIE_DEPLOY_DOCTOR_DRY_RUN="${MIEMIE_DEPLOY_DOCTOR_DRY_RUN:-false}"',
         "compose.env.example",
         "replace-with-strong-password",

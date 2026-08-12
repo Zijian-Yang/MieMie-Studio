@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIBRARY="$SCRIPT_DIR/miemie_lib.sh"
+if [[ ! -f "$LIBRARY" ]]; then LIBRARY="${MIEMIE_INSTALL_ROOT:-/opt/miemie-studio}/scripts/miemie_lib.sh"; fi
+# shellcheck source=scripts/miemie_lib.sh
+source "$LIBRARY"
+
+usage() {
+  cat <<'EOF'
+Usage: miemie <command>
+  status | logs [service] | doctor | restart [service]
+  backup [--wait] | backups
+  admin bootstrap|promote|reset-password [username]
+  update --check|--apply | rollback [release] | restore <backup>
+  uninstall [--purge]
+EOF
+}
+
+cmd_status() {
+  miemie_compose ps --format json
+  curl -fsS --connect-timeout 3 --max-time 10 "http://127.0.0.1:$(miemie_host_port)/api/health"
+  printf '\ncommit=%s\n' "$(miemie_current_commit)"
+}
+
+cmd_logs() {
+  local service="${1:-api}"
+  miemie_validate_service "$service" || { echo "unsupported service" >&2; return 2; }
+  miemie_compose logs --tail=200 "$service"
+}
+
+cmd_doctor() {
+  DOCTOR_PROFILE=compose COMPOSE_ENV_FILE="$MIEMIE_ENV_FILE" ARTIFACT_DIR="${MIEMIE_DOCTOR_ARTIFACT_DIR:-/tmp/miemie-doctor}" bash "$MIEMIE_INSTALL_ROOT/scripts/deploy_doctor.sh"
+  for service in api worker worker-video worker-ops scheduler; do
+    local identity
+    identity="$(miemie_compose exec -T "$service" id -u)"
+    [[ "$identity" != "0" ]] || { echo "$service runs as root" >&2; return 1; }
+  done
+  echo "no-new-privileges runtime policy is declared in Compose"
+}
+
+cmd_restart() {
+  local service="${1:-}"
+  miemie_lock
+  if [[ -n "$service" ]]; then
+    miemie_validate_service "$service" || { echo "unsupported service" >&2; return 2; }
+    miemie_compose restart "$service"
+  else
+    miemie_compose restart api worker worker-video worker-ops scheduler
+  fi
+}
+
+cmd_backup() {
+  miemie_lock
+  miemie_compose run --rm -T worker-ops python - <<'PY'
+from app.services.ops_runner import build_ops_runner
+from app.services.platform_operations import build_platform_operations_service
+ops = build_platform_operations_service()
+run, _ = ops.queue_operation(operation_type="backup", source="cli")
+result = build_ops_runner().run_backup(run.id)
+if result is None or result.status != "succeeded":
+    raise SystemExit("backup failed")
+print(f"backup succeeded: {result.id} {result.local_path_relative}")
+PY
+}
+
+cmd_backups() {
+  miemie_compose run --rm -T worker-ops python - <<'PY'
+from app.services.platform_operations import build_platform_operations_service
+page = build_platform_operations_service().list_runs(page=1, page_size=20, operation_type="backup")
+for run in page.items:
+    print("\t".join([run.id, run.status, run.local_status, run.oss_status, run.local_path_relative or "-"]))
+PY
+}
+
+cmd_admin() {
+  local action="${1:-}" username="${2:-}"
+  case "$action" in
+    bootstrap)
+      [[ -n "$username" ]] || { read -r -p "Administrator username: " username; }
+      miemie_secure_password
+      miemie_compose run --rm -T -e MIEMIE_ADMIN_PASSWORD api python -m app.cli.admin bootstrap --username "$username"
+      ;;
+    promote)
+      [[ -n "$username" ]] || { echo "username required" >&2; return 2; }
+      miemie_compose run --rm -T api python -m app.cli.admin promote "$username"
+      ;;
+    reset-password)
+      [[ -n "$username" ]] || { echo "username required" >&2; return 2; }
+      miemie_secure_password
+      miemie_compose run --rm -T -e MIEMIE_ADMIN_PASSWORD api python -m app.cli.admin reset-password "$username"
+      ;;
+    *) echo "admin action must be bootstrap, promote, or reset-password" >&2; return 2 ;;
+  esac
+  unset MIEMIE_ADMIN_PASSWORD || true
+}
+
+cmd_uninstall() {
+  if [[ "${1:-}" == "--purge" ]]; then
+    echo "destructive uninstall is implemented by the lifecycle module and requires the exact phrase DELETE MIEMIE DATA" >&2
+    return 2
+  fi
+  miemie_lock
+  miemie_compose stop
+  echo "services stopped; source, compose.env, backups, and named volumes were preserved"
+}
+
+main() {
+  miemie_load_config
+  miemie_require_root
+  cd "$MIEMIE_INSTALL_ROOT"
+  local command="${1:-}"
+  shift || true
+  case "$command" in
+    status) cmd_status "$@" ;;
+    logs) cmd_logs "$@" ;;
+    doctor) cmd_doctor "$@" ;;
+    restart) cmd_restart "$@" ;;
+    backup) cmd_backup "$@" ;;
+    backups) cmd_backups "$@" ;;
+    admin) cmd_admin "$@" ;;
+    update|rollback|restore) echo "$command lifecycle command is not installed yet" >&2; return 2 ;;
+    uninstall) cmd_uninstall "$@" ;;
+    *) usage; return 2 ;;
+  esac
+}
+
+main "$@"

@@ -247,20 +247,17 @@ check_compose_env() {
 
   if [[ -z "$platform_encryption_key" || "$platform_encryption_key" == "replace-with-urlsafe-base64-32-byte-key" ]]; then
     warn_or_block_for_compose "compose_env:platform_encryption_key" "MIEMIE_PLATFORM_ENCRYPTION_KEY is missing or placeholder"
-  elif ! PLATFORM_ENCRYPTION_KEY="$platform_encryption_key" python3 - <<'PY' >/dev/null 2>&1
-import base64
-import os
-import re
-
-value = os.environ["PLATFORM_ENCRYPTION_KEY"]
-assert re.fullmatch(r"[A-Za-z0-9_-]+={0,2}", value)
-raw = base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
-assert len(raw) == 32
-assert value in {
-    base64.urlsafe_b64encode(raw).decode("ascii"),
-    base64.urlsafe_b64encode(raw).decode("ascii").rstrip("="),
-}
-PY
+  elif ! MIEMIE_KEY_TO_CHECK="$platform_encryption_key" bash -c '
+    value="$MIEMIE_KEY_TO_CHECK"
+    [[ "$value" =~ ^[A-Za-z0-9_-]+={0,2}$ ]] || exit 1
+    padded="$value"
+    case $((${#padded} % 4)) in
+      2) padded="${padded}==" ;;
+      3) padded="${padded}=" ;;
+      1) exit 1 ;;
+    esac
+    printf "%s" "$padded" | tr "_-" "/+" | openssl base64 -d -A 2>/dev/null | wc -c | grep -qx "32"
+  ' >/dev/null 2>&1
   then
     warn_or_block_for_compose "compose_env:platform_encryption_key" "MIEMIE_PLATFORM_ENCRYPTION_KEY is not a canonical 32-byte URL-safe Base64 key"
   else
@@ -372,10 +369,13 @@ main() {
   record_result "profile" "passed" "$DOCTOR_PROFILE"
 
   check_command_exists "git" "git" "true"
-  check_python
-  check_node
-  check_command_exists "npm" "npm" "true"
+  if [[ "$DOCTOR_PROFILE" != "compose" ]]; then
+    check_python
+    check_node
+    check_command_exists "npm" "npm" "true"
+  fi
   check_command_exists "curl" "curl" "true"
+  check_command_exists "openssl" "openssl" "true"
   check_command_exists "screen" "screen" "false"
   check_command_exists "lsof" "lsof" "false"
   check_required_files
