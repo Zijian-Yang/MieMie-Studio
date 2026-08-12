@@ -100,13 +100,17 @@ class PostgresSessionRepository:
         statement = select(sessions).where(
             sessions.c.token_hash == token_sha256(token),
             sessions.c.deleted_at.is_(None),
+            sessions.c.expires_at > datetime.now(timezone.utc),
         )
         with self._engine.connect() as conn:
             row = conn.execute(statement).mappings().first()
         return row_to_session_record(row) if row else None
 
     def list_all(self) -> dict[str, SessionRecord]:
-        statement = select(sessions).where(sessions.c.deleted_at.is_(None))
+        statement = select(sessions).where(
+            sessions.c.deleted_at.is_(None),
+            sessions.c.expires_at > datetime.now(timezone.utc),
+        )
         with self._engine.connect() as conn:
             rows = conn.execute(statement).mappings().all()
         return {

@@ -11,7 +11,7 @@ import threading
 import fcntl
 from pathlib import Path
 from typing import Optional, Dict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import bcrypt
 
@@ -153,7 +153,10 @@ class UserService:
             migrated = False
             for token, val in list(raw.items()):
                 if isinstance(val, str):
-                    raw[token] = {"user_id": val, "created_at": datetime.now().isoformat()}
+                    raw[token] = {
+                        "user_id": val,
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                    }
                     migrated = True
             self.sessions = raw
             if migrated:
@@ -227,21 +230,28 @@ class UserService:
     
     def _cleanup_expired_sessions(self):
         """清理过期的会话"""
-        now = datetime.now()
         expired = []
         for token, session in self.sessions.items():
-            created_str = session.get("created_at", "")
-            try:
-                created_at = datetime.fromisoformat(created_str)
-                if now - created_at > timedelta(days=TOKEN_EXPIRE_DAYS):
-                    expired.append(token)
-            except (ValueError, TypeError):
+            if self._session_is_expired(session.get("created_at", "")):
                 expired.append(token)
         if expired:
             for token in expired:
                 del self.sessions[token]
             self._save_sessions()
             logger.info(f"已清理 {len(expired)} 个过期会话")
+
+    @staticmethod
+    def _session_is_expired(created_value: object) -> bool:
+        try:
+            created_at = datetime.fromisoformat(str(created_value))
+        except (ValueError, TypeError):
+            return True
+
+        if created_at.tzinfo is None:
+            return datetime.now() - created_at > timedelta(days=TOKEN_EXPIRE_DAYS)
+        return datetime.now(timezone.utc) - created_at.astimezone(timezone.utc) > timedelta(
+            days=TOKEN_EXPIRE_DAYS
+        )
     
     @staticmethod
     def _hash_password(password: str) -> str:
@@ -319,7 +329,7 @@ class UserService:
                 token = self._generate_token(user.id)
                 self._save_session(token, {
                     "user_id": user.id,
-                    "created_at": datetime.now().isoformat()
+                    "created_at": datetime.now(timezone.utc).isoformat()
                 })
 
                 return token, user
@@ -373,13 +383,9 @@ class UserService:
             else:
                 user_id = session.get("user_id")
                 created_str = session.get("created_at", "")
-                try:
-                    created_at = datetime.fromisoformat(created_str)
-                    if datetime.now() - created_at > timedelta(days=TOKEN_EXPIRE_DAYS):
-                        self._delete_session(token)
-                        return None
-                except (ValueError, TypeError):
-                    pass
+                if self._session_is_expired(created_str):
+                    self._delete_session(token)
+                    return None
             
             if not user_id:
                 return None
@@ -387,7 +393,15 @@ class UserService:
             user = self._read_user(user_id)
             if user:
                 if token not in self.sessions:
-                    self._save_session(token, {"user_id": user_id, "created_at": session.get("created_at", datetime.now().isoformat())})
+                    self._save_session(
+                        token,
+                        {
+                            "user_id": user_id,
+                            "created_at": session.get(
+                                "created_at", datetime.now(timezone.utc).isoformat()
+                            ),
+                        },
+                    )
                 return user
             return None
     

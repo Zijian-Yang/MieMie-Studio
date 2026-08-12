@@ -203,6 +203,10 @@ bash scripts/postgres_operational_cron_sequence.sh
 
 2026-06-20 R123 已补 trigger source：cron 任务写入 `trigger=cron`，手动 sequence 写入 `trigger=manual_sequence`，evidence gate 可用 `CRON_EVIDENCE_REQUIRED_TRIGGER` 过滤来源。服务器 cron 已刷新到带 `trigger=cron` 的版本；当前 `CRON_EVIDENCE_REQUIRED_TRIGGER=cron` 检查为 `waiting`，等待首次新版自然 cron artifact。
 
+2026-08-12 R126 已完成自然 cron 复验。根因是 cron shell 在脚本执行前重定向到不存在的 `logs/*.log`，因此 scheduler 虽然触发，任务本体没有启动。安装器现在会在进入 install root 后先创建 `logs/` 与 `validation-artifacts/`；刷新正式 cron 后，真实 cron daemon 生成的 operational readiness、backup retention 和 database snapshot 三类 `trigger=cron` artifact 均通过 `not_before + strict_wait + required_trigger` 门禁。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r126-postgres-cron-natural-evidence-after-fix-20260812/`。
+
+服务器尚未配置 `/etc/miemie-postgres-ops-alert.env`。这不影响巡检任务执行和 artifact 生成，但在正式生产告警接收地址确定后，应只在服务器本地写入 webhook 并执行一次受控发送；不得把 URL 写入仓库或 artifact。
+
 ## 数据库运营快照
 
 采集只读 PostgreSQL 运营快照：

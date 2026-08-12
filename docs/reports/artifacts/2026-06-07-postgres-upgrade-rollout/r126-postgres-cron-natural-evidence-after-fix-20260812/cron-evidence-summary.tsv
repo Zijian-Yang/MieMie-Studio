@@ -1,0 +1,6 @@
+check	state	path	detail
+cron_file	present	/etc/cron.d/miemie-postgres-ops	-
+cron_service	active	docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r126-postgres-cron-natural-evidence-after-fix-20260812/cron-service-status.txt	-
+operational_readiness	passed	validation-artifacts/postgres-ops-20260812-005601/status.json	trigger=cron
+backup_retention	passed	validation-artifacts/postgres-backup-retention-20260812-005701/status.json	trigger=cron; deleted 1 expired backups
+database_snapshot	passed	validation-artifacts/postgres-database-snapshot-20260812-005801/status.json	trigger=cron

@@ -1,0 +1,10 @@
+{
+  "run_id": "r126-postgres-cron-daemon-proof-install-20260812",
+  "state": "passed",
+  "stage": "done",
+  "reason": "installed cron file",
+  "cron_file": "/etc/cron.d/miemie-postgres-ops-r126-proof",
+  "install_root": "/opt/miemie-pre",
+  "cron_preview": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r126-postgres-cron-daemon-proof-install-20260812/miemie-postgres-ops.cron",
+  "updated_at": "2026-08-11T16:55:15Z"
+}

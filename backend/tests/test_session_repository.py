@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from app.repositories.sessions import (
+    PostgresSessionRepository,
     row_to_session_record,
     session_to_row,
     token_sha256,
@@ -47,3 +48,49 @@ def test_session_row_mapping_handles_legacy_blank_created_at():
         user_id="user-1",
         created_at=row["created_at"].isoformat(),
     )
+
+
+class _Result:
+    def mappings(self):
+        return self
+
+    def first(self):
+        return None
+
+    def all(self):
+        return []
+
+
+class _Connection:
+    def __init__(self):
+        self.statements = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        return False
+
+    def execute(self, statement):
+        self.statements.append(statement)
+        return _Result()
+
+
+class _Engine:
+    def __init__(self):
+        self.connection = _Connection()
+
+    def connect(self):
+        return self.connection
+
+
+def test_postgres_session_reads_filter_deleted_and_expired_rows():
+    engine = _Engine()
+    repository = PostgresSessionRepository(engine)
+
+    repository.get("raw-token")
+    repository.list_all()
+
+    sql = [str(statement) for statement in engine.connection.statements]
+    assert all("sessions.deleted_at IS NULL" in statement for statement in sql)
+    assert all("sessions.expires_at >" in statement for statement in sql)

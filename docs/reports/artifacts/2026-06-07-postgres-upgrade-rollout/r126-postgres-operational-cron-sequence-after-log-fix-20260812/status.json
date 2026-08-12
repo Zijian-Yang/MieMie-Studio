@@ -1,0 +1,10 @@
+{
+  "run_id": "r126-postgres-operational-cron-sequence-after-log-fix-20260812",
+  "state": "passed",
+  "stage": "done",
+  "reason": "cron-equivalent PostgreSQL operational sequence passed",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r126-postgres-operational-cron-sequence-after-log-fix-20260812",
+  "confirm": "run",
+  "validation_root": "validation-artifacts",
+  "updated_at": "2026-08-11T16:54:46Z"
+}

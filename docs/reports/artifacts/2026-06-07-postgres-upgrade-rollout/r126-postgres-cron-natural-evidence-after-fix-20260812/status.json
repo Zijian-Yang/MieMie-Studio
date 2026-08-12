@@ -1,0 +1,32 @@
+{
+  "run_id": "r126-postgres-cron-natural-evidence-after-fix-20260812",
+  "state": "passed",
+  "stage": "done",
+  "reason": "",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r126-postgres-cron-natural-evidence-after-fix-20260812",
+  "validation_root": "validation-artifacts",
+  "cron_file": "/etc/cron.d/miemie-postgres-ops",
+  "cron_service_state": "active",
+  "operational_readiness": {
+    "status_path": "validation-artifacts/postgres-ops-20260812-005601/status.json",
+    "state": "passed",
+    "trigger": "cron",
+    "updated_at": "2026-08-11T16:56:05Z"
+  },
+  "backup_retention": {
+    "status_path": "validation-artifacts/postgres-backup-retention-20260812-005701/status.json",
+    "state": "passed",
+    "trigger": "cron",
+    "updated_at": "2026-08-11T16:57:01Z"
+  },
+  "database_snapshot": {
+    "status_path": "validation-artifacts/postgres-database-snapshot-20260812-005801/status.json",
+    "state": "passed",
+    "trigger": "cron",
+    "updated_at": "2026-08-11T16:58:02Z"
+  },
+  "not_before": "2026-08-11T16:55:00Z",
+  "strict_wait": true,
+  "required_trigger": "cron",
+  "updated_at": "2026-08-11T16:58:34Z"
+}

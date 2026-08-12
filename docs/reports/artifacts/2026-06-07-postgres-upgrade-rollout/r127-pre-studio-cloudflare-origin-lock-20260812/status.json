@@ -1,0 +1,14 @@
+{
+  "run_id": "r127-pre-studio-cloudflare-origin-lock-20260812",
+  "state": "passed",
+  "stage": "done",
+  "reason": "Cloudflare public path remained healthy while direct origin HTTP and HTTPS were denied",
+  "public_health_status": 200,
+  "direct_http_status": 403,
+  "direct_https_status": 403,
+  "direct_well_known_probe_status": 404,
+  "nginx_config_test": "passed",
+  "config_sha256": "46a517a0c3fd8c8c2c62a18f7fab916015323d3a8ec209bb6f1a8b944ed3888a",
+  "temporary_proof_cron_removed": true,
+  "updated_at": "2026-08-11T17:19:03Z"
+}

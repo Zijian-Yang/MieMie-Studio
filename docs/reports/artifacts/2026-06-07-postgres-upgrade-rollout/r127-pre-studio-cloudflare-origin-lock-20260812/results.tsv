@@ -1,0 +1,8 @@
+check	state	detail
+public_health	passed	HTTP 200; server=cloudflare; cf-cache-status=DYNAMIC; cache-control=no-store
+direct_origin_http	passed	HTTP 403
+direct_origin_https	passed	HTTP 403
+direct_well_known_probe	passed	HTTP 404
+nginx_config_test	passed	syntax ok
+config_checksum	passed	local and installed SHA256 matched
+temporary_proof_cron	passed	absent from /etc/cron.d

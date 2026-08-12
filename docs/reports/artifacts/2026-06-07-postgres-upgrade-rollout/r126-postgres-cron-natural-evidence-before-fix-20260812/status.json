@@ -1,0 +1,32 @@
+{
+  "run_id": "r126-postgres-cron-natural-evidence-before-fix-20260812",
+  "state": "waiting",
+  "stage": "done",
+  "reason": "no operational readiness cron artifact yet; no backup retention cron artifact yet; no database snapshot cron artifact yet",
+  "artifact_dir": "docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r126-postgres-cron-natural-evidence-before-fix-20260812",
+  "validation_root": "validation-artifacts",
+  "cron_file": "/etc/cron.d/miemie-postgres-ops",
+  "cron_service_state": "active",
+  "operational_readiness": {
+    "status_path": "",
+    "state": "",
+    "trigger": "",
+    "updated_at": ""
+  },
+  "backup_retention": {
+    "status_path": "",
+    "state": "",
+    "trigger": "",
+    "updated_at": ""
+  },
+  "database_snapshot": {
+    "status_path": "",
+    "state": "",
+    "trigger": "",
+    "updated_at": ""
+  },
+  "not_before": "",
+  "strict_wait": false,
+  "required_trigger": "cron",
+  "updated_at": "2026-08-11T16:50:28Z"
+}

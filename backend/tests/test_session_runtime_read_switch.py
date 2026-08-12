@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.models.user import User
@@ -35,6 +36,10 @@ def _user(user_id: str, username: str) -> User:
     )
 
 
+def _active_session_created_at() -> str:
+    return datetime.now().isoformat()
+
+
 def _user_service(tmp_path, *users: User) -> UserService:
     service = UserService()
     service.data_dir = Path(tmp_path)
@@ -53,9 +58,10 @@ def _enable_read(monkeypatch):
 
 
 def test_session_read_switch_is_disabled_by_default(tmp_path, monkeypatch):
+    created_at = _active_session_created_at()
     json_user = _user("json-user-id", "json-user")
     postgres_user = _user("postgres-user-id", "postgres-user")
-    repo = _SessionReadRepository(records={"token": SessionRecord(user_id=postgres_user.id, created_at="2026-06-17T08:00:00")})
+    repo = _SessionReadRepository(records={"token": SessionRecord(user_id=postgres_user.id, created_at=created_at)})
     monkeypatch.setattr(
         "app.repositories.session_runtime.build_session_read_repository",
         lambda: repo,
@@ -63,7 +69,7 @@ def test_session_read_switch_is_disabled_by_default(tmp_path, monkeypatch):
     service = _user_service(tmp_path, json_user, postgres_user)
     _write_json(
         tmp_path / "sessions.json",
-        {"token": {"user_id": json_user.id, "created_at": "2026-06-17T08:00:00"}},
+        {"token": {"user_id": json_user.id, "created_at": created_at}},
     )
 
     result = service.get_user_by_token("token")
@@ -74,9 +80,10 @@ def test_session_read_switch_is_disabled_by_default(tmp_path, monkeypatch):
 
 def test_session_read_switch_prefers_postgres_session(tmp_path, monkeypatch):
     _enable_read(monkeypatch)
+    created_at = _active_session_created_at()
     json_user = _user("json-user-id", "json-user")
     postgres_user = _user("postgres-user-id", "postgres-user")
-    repo = _SessionReadRepository(records={"token": SessionRecord(user_id=postgres_user.id, created_at="2026-06-17T08:00:00")})
+    repo = _SessionReadRepository(records={"token": SessionRecord(user_id=postgres_user.id, created_at=created_at)})
     monkeypatch.setattr(
         "app.repositories.session_runtime.build_session_read_repository",
         lambda: repo,
@@ -84,7 +91,7 @@ def test_session_read_switch_prefers_postgres_session(tmp_path, monkeypatch):
     service = _user_service(tmp_path, json_user, postgres_user)
     _write_json(
         tmp_path / "sessions.json",
-        {"token": {"user_id": json_user.id, "created_at": "2026-06-17T08:00:00"}},
+        {"token": {"user_id": json_user.id, "created_at": created_at}},
     )
 
     result = service.get_user_by_token("token")
@@ -96,6 +103,7 @@ def test_session_read_switch_prefers_postgres_session(tmp_path, monkeypatch):
 def test_session_read_switch_falls_back_to_file_on_miss_when_enabled(tmp_path, monkeypatch):
     _enable_read(monkeypatch)
     monkeypatch.setenv("MIEMIE_DATABASE_JSON_FALLBACK_READ", "true")
+    created_at = _active_session_created_at()
     json_user = _user("json-user-id", "json-user")
     repo = _SessionReadRepository()
     monkeypatch.setattr(
@@ -105,7 +113,7 @@ def test_session_read_switch_falls_back_to_file_on_miss_when_enabled(tmp_path, m
     service = _user_service(tmp_path, json_user)
     _write_json(
         tmp_path / "sessions.json",
-        {"token": {"user_id": json_user.id, "created_at": "2026-06-17T08:00:00"}},
+        {"token": {"user_id": json_user.id, "created_at": created_at}},
     )
 
     result = service.get_user_by_token("token")
@@ -117,6 +125,7 @@ def test_session_read_switch_falls_back_to_file_on_miss_when_enabled(tmp_path, m
 def test_session_read_switch_falls_back_to_file_on_error_when_enabled(tmp_path, monkeypatch):
     _enable_read(monkeypatch)
     monkeypatch.setenv("MIEMIE_DATABASE_JSON_FALLBACK_READ", "true")
+    created_at = _active_session_created_at()
     json_user = _user("json-user-id", "json-user")
     repo = _SessionReadRepository(fail=True)
     monkeypatch.setattr(
@@ -126,9 +135,36 @@ def test_session_read_switch_falls_back_to_file_on_error_when_enabled(tmp_path, 
     service = _user_service(tmp_path, json_user)
     _write_json(
         tmp_path / "sessions.json",
-        {"token": {"user_id": json_user.id, "created_at": "2026-06-17T08:00:00"}},
+        {"token": {"user_id": json_user.id, "created_at": created_at}},
     )
 
     result = service.get_user_by_token("token")
 
     assert result.username == "json-user"
+
+
+def test_session_read_switch_rejects_expired_timezone_aware_postgres_session(tmp_path, monkeypatch):
+    _enable_read(monkeypatch)
+    expired_at = (datetime.now(timezone.utc) - timedelta(days=8)).isoformat()
+    postgres_user = _user("postgres-user-id", "postgres-user")
+    repo = _SessionReadRepository(
+        records={"token": SessionRecord(user_id=postgres_user.id, created_at=expired_at)}
+    )
+    monkeypatch.setattr(
+        "app.repositories.session_runtime.build_session_read_repository",
+        lambda: repo,
+    )
+    service = _user_service(tmp_path, postgres_user)
+
+    assert service.get_user_by_token("token") is None
+
+
+def test_login_creates_timezone_aware_utc_session(tmp_path):
+    service = _user_service(tmp_path)
+    user = service.register("utc-session-user", "secure-password")
+
+    token, logged_in_user = service.login(user.username, "secure-password")
+    created_at = datetime.fromisoformat(service.sessions[token]["created_at"])
+
+    assert logged_in_user.id == user.id
+    assert created_at.utcoffset() == timedelta(0)

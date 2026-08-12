@@ -1,0 +1,12 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# MieMie PostgreSQL-only operational readiness.
+# Runs a fresh backup plus restore rehearsal. Outputs stay on the server.
+56 0 12 8 * root cd "/opt/miemie-pre" || exit 1; mkdir -p logs validation-artifacts || exit 1; if [ -f "/etc/miemie-postgres-ops-alert.env" ]; then set -a; . "/etc/miemie-postgres-ops-alert.env"; set +a; fi; RUN_STAMP=$(date +\%Y\%m\%d-\%H\%M\%S); POSTGRES_OPS_TRIGGER=cron RUN_ID=postgres-ops-$RUN_STAMP ARTIFACT_DIR=validation-artifacts/postgres-ops-$RUN_STAMP CONFIRM_POSTGRES_OPERATIONAL_READINESS=run POSTGRES_OPS_BACKUP_RESTORE=run bash scripts/postgres_operational_readiness.sh >> logs/postgres-operational-readiness-cron.log 2>&1
+
+# Prunes old PostgreSQL dumps after the readiness gate creates a fresh one.
+57 0 12 8 * root cd "/opt/miemie-pre" || exit 1; mkdir -p logs validation-artifacts || exit 1; if [ -f "/etc/miemie-postgres-ops-alert.env" ]; then set -a; . "/etc/miemie-postgres-ops-alert.env"; set +a; fi; RUN_STAMP=$(date +\%Y\%m\%d-\%H\%M\%S); POSTGRES_OPS_TRIGGER=cron RUN_ID=postgres-backup-retention-$RUN_STAMP ARTIFACT_DIR=validation-artifacts/postgres-backup-retention-$RUN_STAMP RETENTION_DAYS=14 MIN_KEEP=3 CONFIRM_POSTGRES_BACKUP_RETENTION=prune bash scripts/postgres_backup_retention.sh >> logs/postgres-backup-retention-cron.log 2>&1
+
+# Captures read-only PostgreSQL database operational metadata.
+58 0 12 8 * root cd "/opt/miemie-pre" || exit 1; mkdir -p logs validation-artifacts || exit 1; if [ -f "/etc/miemie-postgres-ops-alert.env" ]; then set -a; . "/etc/miemie-postgres-ops-alert.env"; set +a; fi; RUN_STAMP=$(date +\%Y\%m\%d-\%H\%M\%S); POSTGRES_OPS_TRIGGER=cron RUN_ID=postgres-database-snapshot-$RUN_STAMP ARTIFACT_DIR=validation-artifacts/postgres-database-snapshot-$RUN_STAMP CONFIRM_POSTGRES_DATABASE_SNAPSHOT=run bash scripts/postgres_database_snapshot.sh >> logs/postgres-database-snapshot-cron.log 2>&1

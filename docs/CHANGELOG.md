@@ -6,6 +6,8 @@
 ## [Unreleased]
 
 ### 修复 (Fixed)
+- PostgreSQL session 有效期：PostgreSQL repository 的单条/列表读取现在按 `expires_at` 过滤，`UserService` 同时正确处理带时区与不带时区的 `created_at`，避免时区感知时间戳因 datetime 类型不匹配而绕过 7 天过期检查；相关测试不再使用会随日期腐化的固定有效时间。
+- PostgreSQL operational cron：生成的定时命令会在日志重定向前创建 `logs/` 与 `validation-artifacts/`，修复仓库没有运行时日志目录时 cron 在脚本启动前失败的问题；R126 已通过真实 cron daemon 的三类 `trigger=cron` 严格证据门禁。
 - PostgreSQL primary-write 账号运行态：当 `MIEMIE_DATABASE_WRITE_MODE=postgres` 且 `MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=false` 时，`UserService` 不再自动创建根级 `backend/data/users.json`，避免最终 JSON 退场后服务重启又生成空用户 JSON；相关 user/config/session 回归为 `28 passed`。
 - PostgreSQL health gate：`/api/health` 的数据库探针改为复用按 URL/超时缓存的 SQLAlchemy engine，避免 final exit 后 30 VU health gate 每请求新建 engine/连接导致 P95 超标；R102 k6 S1 read gate 从 R101 的 P95 `471.68ms` 降至 `65.84ms`。
 - `miemie-pre` StorageService 修复部署：运行版本 `00091f21f5ee207f78a1092e7e5e164ab4567c7f` 复跑 Cloudflare `100 VU / 120s` 后 API 侧观察类 GET 为 `200 19263`、无 500；Cloudflare timeout 仍独立存在，证据归档到 `docs/reports/artifacts/2026-06-01-w2-storage-fix-cloudflare-rerun/`。
@@ -27,6 +29,7 @@
 - 视频工作室后台提交与状态协调器改为显式使用目标用户存储，避免后台协程在测试或异步边界下依赖 `contextvars` 代理导致任务状态写入错误目录。
 
 ### 安全 (Security)
+- `pre-studio` 源站收口：新增 aaPanel Nginx site extension，只允许 loopback 与 Cloudflare 官方代理网段访问 `pre-studio.miemie.co` 源站 server block；公网 Cloudflare health 保持 `200`，源站 IP 的 HTTP/HTTPS 直连均返回 `403`，ACME challenge location 保持可达。
 - **密码哈希**: 用户密码从明文存储改为 bcrypt 哈希，新注册用户自动使用 bcrypt，已有明文密码在首次登录时自动迁移
 - **认证中间件**: 从 Starlette `BaseHTTPMiddleware` 重写为纯 ASGI 实现，修复 `contextvars` 在并发请求间泄漏的问题
 - **原子文件写入**: `storage.py`、`config.py`、`user_service.py` 的 JSON 写入改为 temp→fsync→os.replace 原子操作，防止进程崩溃导致数据文件损坏
