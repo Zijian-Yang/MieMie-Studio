@@ -92,7 +92,8 @@
 - [x] **Step 4: Ensure logs/errors contain host-independent categories, not URL, response body, or event private data**
 - [x] **Step 5: Run focused tests and payload secret scan**
   - Focused Webhook suite: `9 passed`; fixed schema forbids extra private fields and all delivery results exclude target URL and response body.
-- [ ] **Step 6: Commit the Webhook slice**
+- [x] **Step 6: Commit the Webhook slice**
+  - Webhook slice: `af42fc0`.
 
 ### Task 4: PostgreSQL Backup, Retention, And Aliyun OSS
 
@@ -106,11 +107,13 @@
 - Produces `PostgresBackupExecutor.run(run_id, settings) -> BackupResult`.
 - Produces `BackupOSSClient.test(settings)` and `upload(local_path, object_key, settings) -> OSSUploadResult`.
 
-- [ ] **Step 1: Write fake-binary tests for pg_dump arguments/env privacy, temporary-file cleanup, fsync/rename, pg_restore validation, SHA-256, retention minimum, and path traversal**
-- [ ] **Step 2: Write fake OSS tests for dedicated credentials, deterministic object key, ETag, test object cleanup, and secret-free failures**
-- [ ] **Step 3: Run tests and confirm both services are absent**
-- [ ] **Step 4: Implement custom-format dump through `pg_dump`, validation through `pg_restore --list`, and deterministic retention**
-- [ ] **Step 5: Implement dedicated `oss2` client and test/upload paths without reusing per-user config context**
+- [x] **Step 1: Write fake-binary tests for pg_dump arguments/env privacy, temporary-file cleanup, fsync/rename, pg_restore validation, SHA-256, retention minimum, and path traversal**
+- [x] **Step 2: Write fake OSS tests for dedicated credentials, deterministic object key, ETag, test object cleanup, and secret-free failures**
+- [x] **Step 3: Run tests and confirm both services are absent**
+- [x] **Step 4: Implement custom-format dump through `pg_dump`, validation through `pg_restore --list`, and deterministic retention**
+- [x] **Step 5: Implement dedicated `oss2` client and test/upload paths without reusing per-user config context**
+  - Custom-format backup uses direct PostgreSQL client binaries, environment-only credentials, `pg_restore --list`, SHA-256, fsync, atomic rename, fixed-root path containment, and deterministic retention.
+  - Platform OSS uses only encrypted platform settings and returns stable secret-free error categories.
 - [ ] **Step 6: Run focused tests and commit the backup engine slice**
 
 ### Task 5: Ops Celery Worker And Daily Scheduler
