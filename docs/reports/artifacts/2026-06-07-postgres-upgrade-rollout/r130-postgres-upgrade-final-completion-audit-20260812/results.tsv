@@ -1,0 +1,13 @@
+check	state	detail
+final_exit_completion	passed	R103 postgres_only_complete
+domain_coverage	passed	9 migrated; 0 pending
+migration_head	passed	database and code at 20260617_0009
+operational_readiness	passed	24 passed; 0 warn; 0 blocked; 0 failed
+backup_restore	passed	fresh backup and isolated restore rehearsal
+database_snapshot	passed	3/50 connections; 0 long transactions; 0 waiting locks; 0 missing tables; 0 warnings
+s1_health_load	passed	1727 requests; failure rate 0; P95 63.70ms; P99 101.31ms
+natural_cron	passed	readiness, retention and snapshot trigger=cron passed
+remaining_json	passed	config.example.json only
+runtime_health	passed	API, Redis, PostgreSQL and workers running
+origin_protection	passed	Cloudflare public healthy; direct origin denied
+real_alert_webhook	optional	not configured; server-local external notification enhancement

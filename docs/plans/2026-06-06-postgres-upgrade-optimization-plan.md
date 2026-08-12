@@ -8,6 +8,8 @@
 
 **Tech Stack:** Docker Compose PostgreSQL 16、FastAPI、Pydantic、SQLAlchemy Core/ORM 2.x、Alembic、psycopg 3、pytest、现有 k6/Playwright 门禁。
 
+**Status (2026-08-12): COMPLETE.** R130 最终审计为 `postgres_upgrade_complete`；当前运行版本、验证指标和非阻断外部项见本文末尾完成记录。
+
 ---
 
 ## 先解释第 5 个问题
@@ -597,6 +599,8 @@ tar -czf backups/json/backend-data-$(date +%Y%m%d-%H%M%S).tar.gz backend/data
 2026-06-23/25 追加：R125 已新增 `scripts/pre_studio_entrypoint_audit.py` 与 `scripts/verify_pre_studio_entrypoint_audit.py`，用于只读检查公网 Cloudflare 入口、可选本机 origin health、API 响应头和静态资源缓存命中。本地公网审计与服务器同机审计均为 `passed_with_warnings`；硬门禁通过：公网 health `200` 且 Redis/PostgreSQL 正常、`X-Request-ID` 与 `X-Deployment-Version` 存在、API `cf-cache-status=DYNAMIC`、API `cache-control=no-store`、静态资源二次请求 `cf-cache-status=HIT` 且 `cache-control=public, max-age=604800, immutable`。当前 warning 保留为后续收口项：Cloudflare 仍广告 `h3`；本机 origin health 不带 `no-store`；静态资源版本头与 API health 运行版本不一致。bodyless 复跑已改为不归档静态 JS 正文，只保留 headers、SHA256 和字节数；证据归档到 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-server-bodyless-20260625/`。
 
 2026-08-12 追加：R126 已修复 operational cron 对运行时日志目录的隐式依赖，安装器在重定向前创建 `logs/` 与 `validation-artifacts/`；正式 cron 刷新后，真实 cron daemon 生成的 readiness、retention、snapshot 三类 artifact 均通过 `required_trigger=cron` 严格 evidence gate。R127 已用 aaPanel site extension 把 `pre-studio` 源站限制为 loopback 与 Cloudflare 官方代理网段，公网 health 为 `200`、源站 IP HTTP/HTTPS 直连为 `403`、ACME challenge 探针为 `404`。同轮修复 PostgreSQL session 过期过滤和时区处理，本地发布候选回归为后端 `471 passed`、前端静态门禁全通过、E2E `9 passed`。下一步部署 session 修复并执行最终目标级完成审计；真实 webhook 作为服务器本地外部配置单独收口。
+
+2026-08-12 完成：R128/R129 修复并证明 PostgreSQL session 过期过滤、生产式 pytest 环境隔离和 `UserService(data_dir=...)` 初始化前数据目录隔离；容器内 session 回归前后均未生成 `users.json`，后端全量为 `472 passed`。R129 当前发布 operational readiness 为 `24 passed / 0 warn / 0 blocked / 0 failed`，包含新备份、隔离恢复演练、双入口 health、最终 PostgreSQL-only 策略和 remaining JSON 门禁。R130 最终目标审计确认：运行版本 `44754d9fd7cc728a01286318381205ad309feda4`，9 个核心业务域迁移完成且待迁移为 0，数据库/代码 migration head 均为 `20260617_0009`，当前快照无长事务/等待锁/缺表/warning，S1 失败率 `0`、P95 `63.70ms`，正式 cron 当天三类自然证据通过。数据库升级目标已完成；后续新增模型/模块必须直接采用 PostgreSQL repository/migration/runtime 边界，不再新增业务 JSON 主存储。真实 webhook 是可选外部通知增强，不阻断本计划完成。
 
 ## 总体验收
 

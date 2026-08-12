@@ -1,0 +1,20 @@
+{
+  "run_id": "r130-postgres-upgrade-final-completion-audit-20260812",
+  "state": "postgres_upgrade_complete",
+  "release_commit": "44754d9fd7cc728a01286318381205ad309feda4",
+  "historical_final_exit_state": "postgres_only_complete",
+  "migrated_domain_count": 9,
+  "pending_domain_count": 0,
+  "database_migration_head": "20260617_0009",
+  "code_migration_head": "20260617_0009",
+  "operational_readiness_state": "passed",
+  "database_snapshot_state": "passed",
+  "s1_state": "passed",
+  "natural_cron_evidence_state": "passed",
+  "remaining_runtime_json_count": 1,
+  "remaining_runtime_json": [
+    "backend/data/config.example.json"
+  ],
+  "real_alert_webhook": "optional_not_configured",
+  "updated_at": "2026-08-12T03:01:25Z"
+}

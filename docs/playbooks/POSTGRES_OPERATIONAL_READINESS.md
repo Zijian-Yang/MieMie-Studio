@@ -201,7 +201,7 @@ bash scripts/postgres_operational_cron_sequence.sh
 
 2026-06-20 服务器 R122 手动演练已通过：readiness、backup retention、database snapshot 与 strict evidence gate 四步均 `passed`，cron 服务 `active`。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r122-postgres-operational-cron-sequence-server-20260620/`。
 
-2026-06-20 R123 已补 trigger source：cron 任务写入 `trigger=cron`，手动 sequence 写入 `trigger=manual_sequence`，evidence gate 可用 `CRON_EVIDENCE_REQUIRED_TRIGGER` 过滤来源。服务器 cron 已刷新到带 `trigger=cron` 的版本；当前 `CRON_EVIDENCE_REQUIRED_TRIGGER=cron` 检查为 `waiting`，等待首次新版自然 cron artifact。
+2026-06-20 R123 已补 trigger source：cron 任务写入 `trigger=cron`，手动 sequence 写入 `trigger=manual_sequence`，evidence gate 可用 `CRON_EVIDENCE_REQUIRED_TRIGGER` 过滤来源。历史首次检查为 `waiting`；该状态已由后续 R126/R130 自然 cron 通过证据覆盖。
 
 2026-08-12 R126 已完成自然 cron 复验。根因是 cron shell 在脚本执行前重定向到不存在的 `logs/*.log`，因此 scheduler 虽然触发，任务本体没有启动。安装器现在会在进入 install root 后先创建 `logs/` 与 `validation-artifacts/`；刷新正式 cron 后，真实 cron daemon 生成的 operational readiness、backup retention 和 database snapshot 三类 `trigger=cron` artifact 均通过 `not_before + strict_wait + required_trigger` 门禁。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r126-postgres-cron-natural-evidence-after-fix-20260812/`。
 
@@ -227,3 +227,5 @@ bash scripts/postgres_database_snapshot.sh
 - `blocked`：预期表缺失、存在超过阈值的长事务或等待锁。
 
 2026-06-20 服务器 R120 只读快照通过：数据库大小 `10607639` bytes、连接 `3/50`、长事务 `0`、等待锁 `0`、缺失预期表 `0`、warnings `0`。证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r120-postgres-database-snapshot-server-20260620/`。
+
+2026-08-12 R129/R130 当前发布复验：operational readiness 为 `24 passed / 0 warn / 0 blocked / 0 failed`，新备份和隔离恢复演练通过；数据库快照保持连接 `3/50`、长事务 `0`、等待锁 `0`、缺表 `0`、warnings `0`。正式 cron 当天 `03:15` readiness、`03:45` retention、`05:15` snapshot 三类 `trigger=cron` artifact 均通过 evidence gate。

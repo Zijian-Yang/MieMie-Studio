@@ -1,0 +1,10 @@
+check	state	detail
+final_postgres_policy	passed	global postgres read/write; JSON fallback/archive disabled
+health_local	passed	Redis and PostgreSQL healthy
+health_public	passed	Redis and PostgreSQL healthy
+remaining_json	passed	backend/data/config.example.json only
+postgres_backup	passed	fresh SQL dump retained on server only
+postgres_restore_rehearsal	passed	isolated restore completed
+container_session_tests	passed	10 passed
+test_data_dir_isolation	passed	users.json absent before and after container tests
+operational_readiness	passed	24 passed; 0 warn; 0 blocked; 0 failed

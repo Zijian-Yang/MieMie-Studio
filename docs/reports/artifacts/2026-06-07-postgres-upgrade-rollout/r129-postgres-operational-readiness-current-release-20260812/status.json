@@ -1,0 +1,19 @@
+{
+  "run_id": "r129-postgres-operational-readiness-current-release-20260812",
+  "state": "passed",
+  "release_commit": "44754d9fd7cc728a01286318381205ad309feda4",
+  "counts": {
+    "passed": 24,
+    "warn": 0,
+    "blocked": 0,
+    "failed": 0
+  },
+  "fresh_backup": "passed",
+  "restore_rehearsal": "passed",
+  "remaining_runtime_json": [
+    "backend/data/config.example.json"
+  ],
+  "container_session_tests_passed": 10,
+  "users_json_absent_before_and_after_tests": true,
+  "updated_at": "2026-08-12T02:55:12Z"
+}

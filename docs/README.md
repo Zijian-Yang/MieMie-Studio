@@ -38,7 +38,7 @@
 
 - 平台已具备基本自动化验证链：后端 pytest、前端 `typecheck/lint/build`
 - 部署前只读自检已接入 `./run.sh doctor`，可在 Mac / 单服务器 / Compose 路径上提前发现缺失工具、敏感文件误跟踪、`compose.env` 占位值和端口占用
-- `miemie-pre` Compose PostgreSQL final exit 与 post-final JSON 退场已通过：9 个 tracked 核心业务状态域完成 schema/repository/backfill/reconcile/runtime gates，R103 completion audit 输出 `postgres_only_complete`；R105 已归档 70 个 tracked 业务 JSON，R111 已在确认 51 个根级 JSON 用户均存在于 PostgreSQL 后隔离 `users.json`，R114 最终状态显示运行态为 `c948b8116ede4bc3d26df135a1f2a52542ed4710`、PostgreSQL 主读主写、JSON fallback/archive writes 关闭，运行目录外仅剩非运行态样例 `backend/data/config.example.json`；R126 已补齐真实 cron daemon 三类自然运行证据，R127 已把 `pre-studio` 源站限制为 loopback 与 Cloudflare 官方代理网段。真实告警 webhook 仍是服务器本地可选外部配置，不写入仓库。
+- `miemie-pre` Compose PostgreSQL 升级与 JSON 退场已完成：9 个 tracked 核心业务状态域完成 schema/repository/backfill/reconcile/runtime gates，R103 为 `postgres_only_complete`；R105/R111 完成业务 JSON 与根级 `users.json` 隔离。当前运行版本 `44754d9fd7cc728a01286318381205ad309feda4` 保持 PostgreSQL 主读主写、JSON fallback/archive writes 关闭，运行目录外仅有样例 `backend/data/config.example.json`；R129/R130 已复验备份恢复、数据库快照、自然 cron 与 S1 性能，R127 已把源站限制为 loopback 与 Cloudflare 官方代理网段。真实告警 webhook 是服务器本地可选外部配置，不写入仓库。
 - 当前主风险不在“代码完全不可用”，而在：
   - 复杂页面/路由/服务文件过大
   - 前端自动化测试缺口明显
@@ -120,19 +120,19 @@ backend/.venv/bin/pytest backend/tests/test_fixes.py backend/tests/test_video_st
 cd frontend && npm run typecheck
 cd frontend && npm run lint
 cd frontend && npm run build
-docker compose config
+docker compose --env-file compose.env config
 ```
 
 ### 当前验证状态
 
-- 后端全量测试：`./run.sh test`（2026-08-12，本地 471 passed）
+- 后端全量测试：`./run.sh test`（2026-08-12，本地 472 passed）
 - 后端关键测试：`backend/.venv/bin/pytest backend/tests/test_fixes.py backend/tests/test_video_studio_capabilities.py backend/tests/test_video_studio_vace.py -q`
 - 前端验证：`npm run typecheck`、`npm run lint`、`npm run build`、`npm run test:vite-chunks` 与四个视频策略/布局测试（2026-08-12 均通过；build 仅保留 Browserslist 数据陈旧和 Ant Design vendor 包体积提示）
 - E2E helper：`npm run test:e2e:helper`（2026-08-12，2 passed）
 - E2E smoke：`npm run test:e2e`（2026-08-12，9 passed，覆盖登录/未登录跳转、项目列表、旧版视频页迁退提示、视频工作室空态、文生视频/参考素材创建、局部编辑 Mask 和任务详情）
 - 部署前自检：`./run.sh doctor`（2026-06-17，本机实跑 `passed_with_warnings`：`compose.env` 缺失和 Docker daemon 默认跳过为 warning；不安装依赖、不修改配置、不启动服务）
-- Compose 静态校验：`docker compose config`（2026-05-24，通过）
-- 数据库升级状态：`miemie-pre` 已完成服务器 final exit sequence、post JSON exit validation、completion audit、post-final tracked JSON 归档和根级 `users.json` 退场。运行态版本 `c948b8116ede4bc3d26df135a1f2a52542ed4710`，`MIEMIE_DATABASE_WRITE_MODE=postgres`、`MIEMIE_DATABASE_READ_MODE=postgres`、`MIEMIE_DATABASE_JSON_FALLBACK_READ=false`、`MIEMIE_DATABASE_JSON_ARCHIVE_WRITES=false`；R113 k6 S1 read gate 为失败率 `0`、P95 `60.52ms`、P99 `115.69ms`。R114 显示本机/公网 health 均为 `ok`、PostgreSQL/Redis 正常，运行目录外仅剩非运行态样例 `backend/data/config.example.json`。R115 readiness、备份和恢复演练通过；R126 修复 cron 日志目录前置问题后，真实 cron daemon 生成的 readiness、retention、snapshot 三类 `trigger=cron` artifact 均通过严格 evidence gate；R127 公网 Cloudflare health 为 `200`，源站 IP HTTP/HTTPS 直连均为 `403`，前后端版本头不一致 warning 已消失。Cloudflare 仍广告 `h3`，作为非阻断传输观察项；真实告警 webhook 尚未在 `/etc/miemie-postgres-ops-alert.env` 配置。主要证据见 `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r114-post-root-users-retirement-final-state-20260620/`、`r115-postgres-operational-readiness-20260620/`、`r126-postgres-cron-natural-evidence-after-fix-20260812/` 与 `r127-pre-studio-cloudflare-origin-lock-20260812/`。
+- Compose 静态校验：服务器 `docker compose --env-file compose.env config --quiet`（2026-08-12，通过）。
+- 数据库升级状态：**完成**。`miemie-pre` 当前运行版本 `44754d9fd7cc728a01286318381205ad309feda4` 已全局 PostgreSQL 主读主写，JSON fallback/archive writes 均关闭；R103 为 `postgres_only_complete`，当前 coverage 为 `9 migrated / 0 pending`，Alembic 数据库与代码均为 `20260617_0009 (head)`。R129 当前发布门禁为 `24 passed / 0 warn / 0 blocked / 0 failed`，新备份与隔离恢复演练通过，运行目录外仅有非运行态样例 `backend/data/config.example.json`。R130 数据库快照为连接 `3/50`、长事务 `0`、等待锁 `0`、缺表 `0`、warnings `0`；S1 为 `1727` 请求、失败率 `0`、P95 `63.70ms`、P99 `101.31ms`；当天正式 cron 的 readiness、retention、snapshot 三类 `trigger=cron` 证据全部通过。公网 Cloudflare health 与本机 health 正常，源站 IP HTTP/HTTPS 直连为 `403`。真实告警 webhook 尚未配置，是不影响数据库完成状态的可选外部通知增强。
 - 数据库升级 R35：user/config 本地 schema/repository boundary 已新增 `users`、`user_configs`、Alembic migration `20260607_0007` 和安全索引映射；登录、session 和 per-user `config.json` 运行态仍默认走 JSON/Redis/file-only，下一步补 user/config backfill/reconcile。
 - 数据库升级 R36：user/config backfill/reconcile 服务和维护脚本已新增，摘要保持脱敏且不迁移 `sessions.json`；运行态仍默认 JSON/Redis/file-only，下一步补 user/config runtime dual-write/read-switch/primary-write gates。
 - 数据库升级 R37：user/config runtime dual-write 已新增，注册/登录更新/改密码/config 保存默认仍 JSON 主写，显式启用后 shadow 写 PostgreSQL；session 仍保持 Redis + file fallback。

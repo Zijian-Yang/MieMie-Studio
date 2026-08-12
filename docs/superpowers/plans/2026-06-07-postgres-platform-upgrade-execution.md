@@ -8,6 +8,8 @@
 
 **Tech Stack:** Docker Compose, PostgreSQL 16, FastAPI, SQLAlchemy 2.x, psycopg 3, Alembic, pytest, k6, Cloudflare/Nginx pre entry, existing Redis/Celery workers.
 
+**Status (2026-08-12): COMPLETE.** R130 reports `postgres_upgrade_complete` on release `44754d9fd7cc728a01286318381205ad309feda4`; historical task notes below remain as rollout evidence.
+
 ---
 
 ## Execution Assumptions
@@ -703,6 +705,8 @@ K6_VUS=20 K6_DURATION=60s K6_SLEEP_SECONDS=1 MIEMIE_SUBMIT_EVERY=50 k6 run loadt
 2026-06-23/25 note: R125 adds `scripts/pre_studio_entrypoint_audit.py` and `scripts/verify_pre_studio_entrypoint_audit.py` for read-only Cloudflare/Nginx/public-entry validation. Local public and server-side local+public runs both report `passed_with_warnings`: public health is 200 with Redis/PostgreSQL ok, API `cf-cache-status=DYNAMIC`, API `cache-control=no-store`, and hashed static asset second fetch `cf-cache-status=HIT` with `public, max-age=604800, immutable`. The bodyless revision stores only static asset headers, SHA256, and byte size, not JS bundle contents. Remaining warnings are Cloudflare `h3` advertisement, local origin health lacking `no-store`, and static asset `X-Deployment-Version` differing from API health runtime commit. Evidence is archived in `docs/reports/artifacts/2026-06-07-postgres-upgrade-rollout/r125-pre-studio-entrypoint-audit-server-bodyless-20260625/`.
 
 2026-08-12 note: R126 fixes the operational cron runtime-directory contract. Generated commands now create `logs/` and `validation-artifacts/` before shell redirection; after reinstalling the formal cron, the real cron daemon produced readiness, retention, and snapshot artifacts that passed the strict `required_trigger=cron` evidence gate. R127 installs a site-scoped aaPanel Nginx extension that permits only loopback and Cloudflare's published proxy networks for `pre-studio.miemie.co`; public health remains 200, direct origin HTTP/HTTPS return 403, and ACME challenge routing remains reachable. The same release candidate fixes timezone-safe PostgreSQL session expiry enforcement and passes backend `471`, frontend static gates, and E2E `9`. Remaining external configuration is the real alert webhook; it must stay in the server-local env file.
+
+2026-08-12 completion note: R128/R129 fixes production-container pytest isolation and binds `UserService(data_dir=...)` before initialization, so tests no longer create empty JSON files in the live bind mount. Backend regression is `472 passed`; the same container session tests pass with `users.json` absent before and after execution. R129 current-release operational readiness passes `24/24`, including a fresh backup and isolated restore rehearsal. R130 confirms `9 migrated / 0 pending` domains, database and code at Alembic `20260617_0009 (head)`, no missing tables/long transactions/waiting locks/warnings, S1 failure rate `0` with P95 `63.70ms`, and current formal cron evidence passed for readiness, retention, and snapshot. The PostgreSQL/JSON-exit goal is complete on release `44754d9fd7cc728a01286318381205ad309feda4`; the real webhook remains an optional server-local notification integration.
 
 ## Goal-Mode Operating Rule
 
