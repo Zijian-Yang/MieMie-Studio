@@ -152,7 +152,7 @@
 - [x] **Step 5: Hide registration form when bootstrap status disables it and preserve clear empty/error states**
 - [x] **Step 6: Run typecheck, lint, and focused policy test**
   - Typecheck, lint, production build, chunk check, and admin route policy passed.
-- [ ] **Step 7: Commit the frontend boundary slice**
+- [x] **Step 7: Commit the frontend boundary slice** (`6aec8d4`)
 
 ### Task 6: Administrator User Management UI
 
@@ -169,12 +169,13 @@
 - Consumes: typed `adminApi`.
 - Produces: dense user table, filters, create/edit drawer, password reset, disable/enable, delete confirmation, and audit table.
 
-- [ ] **Step 1: Write failing UI contract and Playwright fixtures for admin/member roles**
-- [ ] **Step 2: Run focused test and confirm missing pages/actions fail**
-- [ ] **Step 3: Implement admin layout and stable responsive table dimensions**
-- [ ] **Step 4: Implement create/edit forms and invariant-aware action states**
-- [ ] **Step 5: Implement reset, disable/enable, delete confirmation, pagination, errors, and audit view**
-- [ ] **Step 6: Run focused tests, typecheck, lint, build, chunk and Playwright E2E**
+- [x] **Step 1: Write failing UI contract and Playwright fixtures for admin/member roles**
+- [x] **Step 2: Run focused test and confirm missing pages/actions fail**
+- [x] **Step 3: Implement admin layout and stable responsive table dimensions**
+- [x] **Step 4: Implement create/edit forms and invariant-aware action states**
+- [x] **Step 5: Implement reset, disable/enable, delete confirmation, pagination, errors, and audit view**
+- [x] **Step 6: Run focused tests, typecheck, lint, build, chunk and Playwright E2E**
+  - Full E2E passed `12/12`; focused admin desktop/member/mobile E2E was reconfirmed `3/3` after Chromium helper validation.
 - [ ] **Step 7: Commit the admin UI slice**
 
 ### Task 7: Compose Migration And Staging Verification

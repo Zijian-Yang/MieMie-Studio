@@ -30,6 +30,7 @@ const VideoBenchmarkDatasetsPage = lazy(() => import('./pages/VideoBenchmarkData
 const LoginPage = lazy(() => import('./pages/Login/LoginPage'))
 const AdminUsersPage = lazy(() => import('./pages/Admin/AdminUsersPage'))
 const AdminAuditPage = lazy(() => import('./pages/Admin/AdminAuditPage'))
+const AdminLayout = lazy(() => import('./pages/Admin/AdminLayout'))
 
 // 路由保护组件
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -65,10 +66,10 @@ function App() {
               <Route index element={<Navigate to="/projects" replace />} />
               <Route path="projects" element={<ProjectsPage />} />
               <Route path="settings" element={<SettingsPage />} />
-              <Route path="admin">
+              <Route path="admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
                 <Route index element={<Navigate to="/admin/users" replace />} />
-                <Route path="users" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
-                <Route path="audit" element={<AdminRoute><AdminAuditPage /></AdminRoute>} />
+                <Route path="users" element={<AdminUsersPage />} />
+                <Route path="audit" element={<AdminAuditPage />} />
               </Route>
               <Route path="project/:projectId">
                 <Route path="script" element={<ScriptPage />} />

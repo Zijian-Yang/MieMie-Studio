@@ -16,6 +16,13 @@ export function getApiErrorMessage(error: unknown, fallback = '请求失败'): s
       return detail
     }
 
+    if (detail && typeof detail === 'object') {
+      const detailMessage = (detail as { message?: unknown }).message
+      if (typeof detailMessage === 'string' && detailMessage.trim()) {
+        return detailMessage
+      }
+    }
+
     if (typeof maybeError.message === 'string' && maybeError.message.trim()) {
       return maybeError.message
     }

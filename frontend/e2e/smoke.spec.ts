@@ -44,6 +44,88 @@ async function seedAuth(page: Page) {
   }, AUTH_STATE)
 }
 
+async function mockBootstrapStatus(page: Page) {
+  await page.route('**/api/bootstrap/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ admin_configured: true, registration_enabled: false }),
+    })
+  })
+}
+
+async function seedAdminAuth(page: Page) {
+  await page.addInitScript((authState) => {
+    window.localStorage.setItem('auth-storage', JSON.stringify({
+      state: authState,
+      version: 0,
+    }))
+  }, {
+    ...AUTH_STATE,
+    user: {
+      ...AUTH_STATE.user,
+      role: 'admin',
+      status: 'active',
+      must_change_password: false,
+      updated_at: '2026-08-12T00:00:00',
+    },
+  })
+}
+
+async function mockAdminApis(page: Page) {
+  const users = [
+    {
+      id: 'user-1', username: 'playwright', display_name: 'Playwright Admin',
+      role: 'admin', status: 'active', must_change_password: false,
+      created_at: '2026-04-23T00:00:00', updated_at: '2026-08-12T00:00:00',
+      last_login: '2026-08-12T00:00:00',
+    },
+    {
+      id: 'user-2', username: 'member', display_name: '普通成员',
+      role: 'member', status: 'active', must_change_password: true,
+      created_at: '2026-08-01T00:00:00', updated_at: '2026-08-12T00:00:00',
+      last_login: null,
+    },
+  ]
+
+  await page.route('**/api/admin/**', async (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (path === '/api/admin/users') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items: users, page: 1, page_size: 20, total: users.length }),
+      })
+      return
+    }
+    if (path === '/api/admin/platform-settings') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ registration_enabled: false }),
+      })
+      return
+    }
+    if (path === '/api/admin/audit-logs') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: [{
+            id: 'audit-1', actor_user_id: 'user-1', action: 'admin.user.update',
+            target_type: 'user', target_id: 'user-2', request_id: 'req-admin-1',
+            result: 'success', changes: { status: 'disabled' },
+            created_at: '2026-08-12T00:00:00Z',
+          }],
+          page: 1, page_size: 20, total: 1,
+        }),
+      })
+      return
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+  })
+}
+
 function createVideoStudioSmokeTask() {
   return {
     id: 'video-task-1',
@@ -496,6 +578,7 @@ async function mockProjectApis(
 
 test('登录页可以正常渲染', async () => {
   await withPage(async (page) => {
+    await mockBootstrapStatus(page)
     await page.goto('/login')
     await expect(page.getByRole('heading', { name: 'MieMie Studio' })).toBeVisible()
     await expect(page.getByRole('button', { name: '登录' })).toBeVisible()
@@ -504,6 +587,7 @@ test('登录页可以正常渲染', async () => {
 
 test('未登录访问受保护路由会跳转到登录页', async () => {
   await withPage(async (page) => {
+    await mockBootstrapStatus(page)
     await page.goto('/projects')
     await expect(page).toHaveURL(/\/login$/)
   })
@@ -523,6 +607,55 @@ test('项目列表可渲染已有项目', async () => {
     await expect(page.getByText('角色数：2')).toBeVisible()
     await expect(page.getByRole('button', { name: '打开' })).toBeVisible()
     await expect(page.getByRole('button', { name: '删除' })).toBeVisible()
+  })
+})
+
+test('管理员用户页和审计页可渲染', async () => {
+  await withPage(async (page) => {
+    await seedAdminAuth(page)
+    await mockAdminApis(page)
+    await page.goto('/admin/users')
+
+    await expect(page.getByRole('heading', { name: '平台管理' })).toBeVisible()
+    await expect(page.getByText('Playwright Admin')).toBeVisible()
+    await expect(page.getByText('普通成员')).toBeVisible()
+    await expect(page.getByRole('button', { name: '创建用户' })).toBeVisible()
+    await expect(page.getByText('公开注册')).toBeVisible()
+
+    await page.getByText('审计记录').click()
+    await expect(page).toHaveURL(/\/admin\/audit$/)
+    await expect(page.getByText('admin.user.update')).toBeVisible()
+    await expect(page.getByText('req-admin-1')).toBeVisible()
+  })
+})
+
+test('普通用户不能进入平台管理页', async () => {
+  await withPage(async (page) => {
+    await seedAuth(page)
+    await mockProjectApis(page)
+    await page.goto('/admin/users')
+
+    await expect(page).toHaveURL(/\/projects$/)
+    await expect(page.getByRole('heading', { name: '项目列表' })).toBeVisible()
+  })
+})
+
+test('窄屏管理员用户表保持稳定横向滚动', async () => {
+  await withPage(async (page) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await seedAdminAuth(page)
+    await mockAdminApis(page)
+    await page.goto('/admin/users')
+
+    await expect(page.getByRole('heading', { name: '平台管理' })).toBeVisible()
+    const tableContent = page.locator('.ant-table-content')
+    await expect(tableContent).toBeVisible()
+    const dimensions = await tableContent.evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    }))
+    expect(dimensions.scrollWidth).toBeGreaterThan(dimensions.clientWidth)
+    await expect(page.getByRole('button', { name: '创建用户' })).toBeVisible()
   })
 })
 
