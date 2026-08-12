@@ -33,6 +33,9 @@ celery_app.conf.update(
     task_routes={
         "studio.generate": {"queue": "studio"},
         "video_studio.generate": {"queue": "video_studio"},
+        "ops.backup": {"queue": "ops"},
+        "ops.test_oss": {"queue": "ops"},
+        "ops.test_webhook": {"queue": "ops"},
     },
     task_acks_late=True,
     worker_prefetch_multiplier=1,

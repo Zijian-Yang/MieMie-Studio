@@ -113,8 +113,7 @@ class BackupOSSClient:
         try:
             bucket.delete_object(key)
         except Exception as exc:
-            if failure is None:
-                raise BackupOSSError("oss_test_cleanup_failed") from exc
+            raise BackupOSSError("oss_test_cleanup_failed") from exc
         if failure is not None:
             raise failure
         return OSSOperationResult(succeeded=True, object_key=key, etag=etag)

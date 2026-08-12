@@ -114,7 +114,9 @@
 - [x] **Step 5: Implement dedicated `oss2` client and test/upload paths without reusing per-user config context**
   - Custom-format backup uses direct PostgreSQL client binaries, environment-only credentials, `pg_restore --list`, SHA-256, fsync, atomic rename, fixed-root path containment, and deterministic retention.
   - Platform OSS uses only encrypted platform settings and returns stable secret-free error categories.
-- [ ] **Step 6: Run focused tests and commit the backup engine slice**
+- [x] **Step 6: Run focused tests and commit the backup engine slice**
+  - Backup engine slice: `c5520f8`.
+  - Focused suite: `20 passed`; PostgreSQL child process receives only minimal environment plus PG connection fields and never inherits platform/provider secrets.
 
 ### Task 5: Ops Celery Worker And Daily Scheduler
 
@@ -130,11 +132,13 @@
 - Produces Celery tasks `ops.backup`, `ops.test_oss`, and `ops.test_webhook` routed only to queue `ops`.
 - Produces one scheduler tick that queues `scheduled-backup:<YYYY-MM-DD>` once after the configured `HH:MM`.
 
-- [ ] **Step 1: Write task-route and runner orchestration tests for success, local-only success, OSS failure, backup failure, alert failure, and operation state updates**
-- [ ] **Step 2: Write scheduler tests for disabled, before due, due, restart duplication, timezone, and next-day behavior**
-- [ ] **Step 3: Run tests and confirm missing runner/scheduler fails**
-- [ ] **Step 4: Implement worker orchestration and stable error classes without provider calls**
-- [ ] **Step 5: Implement a signal-aware minute loop and transactional idempotent scheduling**
+- [x] **Step 1: Write task-route and runner orchestration tests for success, local-only success, OSS failure, backup failure, alert failure, and operation state updates**
+- [x] **Step 2: Write scheduler tests for disabled, before due, due, restart duplication, timezone, and next-day behavior**
+- [x] **Step 3: Run tests and confirm missing runner/scheduler fails**
+- [x] **Step 4: Implement worker orchestration and stable error classes without provider calls**
+- [x] **Step 5: Implement a signal-aware minute loop and transactional idempotent scheduling**
+  - Focused worker/scheduler/backup regression: `36 passed`.
+  - Unexpected executor, OSS, or Webhook errors are converted to stable categories so claimed operations cannot remain permanently `running`.
 - [ ] **Step 6: Run focused tests and commit worker/scheduler slice**
 
 ### Task 6: Administrator Operations APIs

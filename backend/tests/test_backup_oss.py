@@ -120,6 +120,18 @@ def test_cleanup_failure_is_reported_without_leaking_details():
     assert str(exc.value) == "oss_test_cleanup_failed"
 
 
+def test_cleanup_failure_takes_precedence_when_verification_also_failed():
+    bucket = _Bucket(fail_head=True, fail_delete=True)
+    client = BackupOSSClient(
+        bucket_factory=_Factory(bucket), id_factory=lambda: "check-both-failed"
+    )
+
+    with pytest.raises(BackupOSSError) as exc:
+        client.test(_settings())
+
+    assert exc.value.category == "oss_test_cleanup_failed"
+
+
 def test_upload_uses_deterministic_object_key_and_returns_etag(tmp_path):
     path = tmp_path / "miemie-postgres-20260812-030405-run.dump"
     path.write_bytes(b"PGDMPbackup")
