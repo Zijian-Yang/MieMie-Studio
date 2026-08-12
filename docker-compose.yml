@@ -1,9 +1,30 @@
 services:
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: "${MIEMIE_IMAGE:-miemie-studio:local}"
+    restart: "no"
+    command:
+      - /opt/venv/bin/alembic
+      - -c
+      - /app/backend/alembic.ini
+      - upgrade
+      - head
+    working_dir: /app
+    environment:
+      TZ: "${TZ:-Asia/Shanghai}"
+      MIEMIE_DATABASE_ENABLED: "true"
+      MIEMIE_DATABASE_URL: "${MIEMIE_DATABASE_URL:-postgresql+psycopg://miemie:${MIEMIE_POSTGRES_PASSWORD:-}@postgres:5432/miemie}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   api:
     build:
       context: .
       dockerfile: Dockerfile
-    image: miemie-studio:local
+    image: "${MIEMIE_IMAGE:-miemie-studio:local}"
     restart: unless-stopped
     ports:
       - "${MIEMIE_HOST_BIND:-127.0.0.1}:${MIEMIE_HOST_PORT:-8000}:8000"
@@ -22,19 +43,21 @@ services:
       MIEMIE_CELERY_BROKER_URL: "${MIEMIE_CELERY_BROKER_URL:-redis://redis:6379/2}"
       MIEMIE_CELERY_RESULT_BACKEND: "${MIEMIE_CELERY_RESULT_BACKEND:-redis://redis:6379/3}"
       MIEMIE_STUDIO_GENERATION_STALE_SECONDS: "${MIEMIE_STUDIO_GENERATION_STALE_SECONDS:-1800}"
-      MIEMIE_DATABASE_ENABLED: "${MIEMIE_DATABASE_ENABLED:-false}"
+      MIEMIE_DATABASE_ENABLED: "${MIEMIE_DATABASE_ENABLED:-true}"
       MIEMIE_DATABASE_URL: "${MIEMIE_DATABASE_URL:-postgresql+psycopg://miemie:${MIEMIE_POSTGRES_PASSWORD:-}@postgres:5432/miemie}"
-      MIEMIE_DATABASE_WRITE_MODE: "${MIEMIE_DATABASE_WRITE_MODE:-file}"
-      MIEMIE_DATABASE_READ_MODE: "${MIEMIE_DATABASE_READ_MODE:-file}"
+      MIEMIE_DATABASE_WRITE_MODE: "${MIEMIE_DATABASE_WRITE_MODE:-postgres}"
+      MIEMIE_DATABASE_READ_MODE: "${MIEMIE_DATABASE_READ_MODE:-postgres}"
       MIEMIE_DATABASE_DUAL_WRITE_DOMAINS: "${MIEMIE_DATABASE_DUAL_WRITE_DOMAINS:-}"
       MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS: "${MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS:-}"
       MIEMIE_DATABASE_READ_DOMAINS: "${MIEMIE_DATABASE_READ_DOMAINS:-}"
-      MIEMIE_DATABASE_JSON_FALLBACK_READ: "${MIEMIE_DATABASE_JSON_FALLBACK_READ:-true}"
+      MIEMIE_DATABASE_JSON_FALLBACK_READ: "${MIEMIE_DATABASE_JSON_FALLBACK_READ:-false}"
       MIEMIE_DATABASE_JSON_ARCHIVE_WRITES: "${MIEMIE_DATABASE_JSON_ARCHIVE_WRITES:-false}"
-      MIEMIE_DATABASE_RECONCILE_STRICT: "${MIEMIE_DATABASE_RECONCILE_STRICT:-false}"
+      MIEMIE_DATABASE_RECONCILE_STRICT: "${MIEMIE_DATABASE_RECONCILE_STRICT:-true}"
     depends_on:
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - ./backend/data:/app/backend/data
       - ./backend/logs:/app/backend/logs
@@ -49,7 +72,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: miemie-studio:local
+    image: "${MIEMIE_IMAGE:-miemie-studio:local}"
     restart: unless-stopped
     command: ["/opt/venv/bin/celery", "-A", "app.celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=${MIEMIE_WORKER_CONCURRENCY:-1}", "-Q", "studio"]
     working_dir: /app/backend
@@ -63,19 +86,21 @@ services:
       MIEMIE_CELERY_BROKER_URL: "${MIEMIE_CELERY_BROKER_URL:-redis://redis:6379/2}"
       MIEMIE_CELERY_RESULT_BACKEND: "${MIEMIE_CELERY_RESULT_BACKEND:-redis://redis:6379/3}"
       MIEMIE_STUDIO_GENERATION_STALE_SECONDS: "${MIEMIE_STUDIO_GENERATION_STALE_SECONDS:-1800}"
-      MIEMIE_DATABASE_ENABLED: "${MIEMIE_DATABASE_ENABLED:-false}"
+      MIEMIE_DATABASE_ENABLED: "${MIEMIE_DATABASE_ENABLED:-true}"
       MIEMIE_DATABASE_URL: "${MIEMIE_DATABASE_URL:-postgresql+psycopg://miemie:${MIEMIE_POSTGRES_PASSWORD:-}@postgres:5432/miemie}"
-      MIEMIE_DATABASE_WRITE_MODE: "${MIEMIE_DATABASE_WRITE_MODE:-file}"
-      MIEMIE_DATABASE_READ_MODE: "${MIEMIE_DATABASE_READ_MODE:-file}"
+      MIEMIE_DATABASE_WRITE_MODE: "${MIEMIE_DATABASE_WRITE_MODE:-postgres}"
+      MIEMIE_DATABASE_READ_MODE: "${MIEMIE_DATABASE_READ_MODE:-postgres}"
       MIEMIE_DATABASE_DUAL_WRITE_DOMAINS: "${MIEMIE_DATABASE_DUAL_WRITE_DOMAINS:-}"
       MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS: "${MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS:-}"
       MIEMIE_DATABASE_READ_DOMAINS: "${MIEMIE_DATABASE_READ_DOMAINS:-}"
-      MIEMIE_DATABASE_JSON_FALLBACK_READ: "${MIEMIE_DATABASE_JSON_FALLBACK_READ:-true}"
+      MIEMIE_DATABASE_JSON_FALLBACK_READ: "${MIEMIE_DATABASE_JSON_FALLBACK_READ:-false}"
       MIEMIE_DATABASE_JSON_ARCHIVE_WRITES: "${MIEMIE_DATABASE_JSON_ARCHIVE_WRITES:-false}"
-      MIEMIE_DATABASE_RECONCILE_STRICT: "${MIEMIE_DATABASE_RECONCILE_STRICT:-false}"
+      MIEMIE_DATABASE_RECONCILE_STRICT: "${MIEMIE_DATABASE_RECONCILE_STRICT:-true}"
     depends_on:
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - ./backend/data:/app/backend/data
       - ./backend/logs:/app/backend/logs
@@ -84,7 +109,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: miemie-studio:local
+    image: "${MIEMIE_IMAGE:-miemie-studio:local}"
     restart: unless-stopped
     command: ["/opt/venv/bin/celery", "-A", "app.celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=${MIEMIE_VIDEO_WORKER_CONCURRENCY:-1}", "-Q", "video_studio", "--hostname=video@%h"]
     working_dir: /app/backend
@@ -102,19 +127,21 @@ services:
       MIEMIE_VIDEO_STUDIO_WORKER_STALE_SECONDS: "${MIEMIE_VIDEO_STUDIO_WORKER_STALE_SECONDS:-180}"
       MIEMIE_WORKER_TASK_TIME_LIMIT: "${MIEMIE_VIDEO_WORKER_TASK_TIME_LIMIT:-3600}"
       MIEMIE_WORKER_TASK_SOFT_TIME_LIMIT: "${MIEMIE_VIDEO_WORKER_TASK_SOFT_TIME_LIMIT:-3300}"
-      MIEMIE_DATABASE_ENABLED: "${MIEMIE_DATABASE_ENABLED:-false}"
+      MIEMIE_DATABASE_ENABLED: "${MIEMIE_DATABASE_ENABLED:-true}"
       MIEMIE_DATABASE_URL: "${MIEMIE_DATABASE_URL:-postgresql+psycopg://miemie:${MIEMIE_POSTGRES_PASSWORD:-}@postgres:5432/miemie}"
-      MIEMIE_DATABASE_WRITE_MODE: "${MIEMIE_DATABASE_WRITE_MODE:-file}"
-      MIEMIE_DATABASE_READ_MODE: "${MIEMIE_DATABASE_READ_MODE:-file}"
+      MIEMIE_DATABASE_WRITE_MODE: "${MIEMIE_DATABASE_WRITE_MODE:-postgres}"
+      MIEMIE_DATABASE_READ_MODE: "${MIEMIE_DATABASE_READ_MODE:-postgres}"
       MIEMIE_DATABASE_DUAL_WRITE_DOMAINS: "${MIEMIE_DATABASE_DUAL_WRITE_DOMAINS:-}"
       MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS: "${MIEMIE_DATABASE_PRIMARY_WRITE_DOMAINS:-}"
       MIEMIE_DATABASE_READ_DOMAINS: "${MIEMIE_DATABASE_READ_DOMAINS:-}"
-      MIEMIE_DATABASE_JSON_FALLBACK_READ: "${MIEMIE_DATABASE_JSON_FALLBACK_READ:-true}"
+      MIEMIE_DATABASE_JSON_FALLBACK_READ: "${MIEMIE_DATABASE_JSON_FALLBACK_READ:-false}"
       MIEMIE_DATABASE_JSON_ARCHIVE_WRITES: "${MIEMIE_DATABASE_JSON_ARCHIVE_WRITES:-false}"
-      MIEMIE_DATABASE_RECONCILE_STRICT: "${MIEMIE_DATABASE_RECONCILE_STRICT:-false}"
+      MIEMIE_DATABASE_RECONCILE_STRICT: "${MIEMIE_DATABASE_RECONCILE_STRICT:-true}"
     depends_on:
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - ./backend/data:/app/backend/data
       - ./backend/logs:/app/backend/logs

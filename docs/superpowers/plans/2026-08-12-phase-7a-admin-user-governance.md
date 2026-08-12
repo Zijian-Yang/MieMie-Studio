@@ -176,7 +176,7 @@
 - [x] **Step 5: Implement reset, disable/enable, delete confirmation, pagination, errors, and audit view**
 - [x] **Step 6: Run focused tests, typecheck, lint, build, chunk and Playwright E2E**
   - Full E2E passed `12/12`; focused admin desktop/member/mobile E2E was reconfirmed `3/3` after Chromium helper validation.
-- [ ] **Step 7: Commit the admin UI slice**
+- [x] **Step 7: Commit the admin UI slice** (`9afb237`)
 
 ### Task 7: Compose Migration And Staging Verification
 
@@ -194,9 +194,12 @@
 - Produces a provider-free server smoke that creates a temporary member, exercises lifecycle and audit, and cleans sessions/data safely.
 - Consumes migration `20260812_0010` and all 7A APIs.
 
-- [ ] **Step 1: Write failing verifier for smoke privacy, cleanup, and invariant coverage**
-- [ ] **Step 2: Implement provider-free smoke and sanitized artifact output**
-- [ ] **Step 3: Run local full backend/frontend gates**
+- [x] **Step 1: Write failing verifier for smoke privacy, cleanup, and invariant coverage**
+- [x] **Step 2: Implement provider-free smoke and sanitized artifact output**
+- [x] **Step 3: Run local full backend/frontend gates**
+  - Backend full suite: `517 passed`.
+  - Frontend typecheck, lint, production build, chunk gate, admin route policy, and admin user-management contract passed.
+  - Compose config, migration dependency contract, and provider-free smoke verifier passed.
 - [ ] **Step 4: Back up staging, deploy migration and current commit, and bootstrap the approved existing administrator explicitly**
 - [ ] **Step 5: Run local/public health, admin smoke, member-denial smoke, session revocation, Compose status, database snapshot, and S1 gate**
 - [ ] **Step 6: Archive sanitized evidence and update docs/status**

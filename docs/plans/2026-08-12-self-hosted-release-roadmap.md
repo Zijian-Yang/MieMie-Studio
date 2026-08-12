@@ -22,6 +22,8 @@
 
 详细计划：`docs/superpowers/plans/2026-08-12-phase-7a-admin-user-governance.md`
 
+当前状态：**进行中**。代码、管理界面、Compose migration 门禁和本地完整回归已通过；`pre` 服务器备份、部署和真实治理 smoke 待执行。
+
 交付结果：
 
 - `users` 具备角色、状态、强制改密和更新时间字段。
