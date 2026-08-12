@@ -169,7 +169,11 @@ def run_smoke() -> dict[str, Any]:
         expect_status(status, 202, f"{expected_type}_queue")
         if queued.get("operation_type") != expected_type or queued.get("status") != "queued":
             raise SmokeFailure(f"{expected_type}_queued_payload_invalid")
-        operations.append(safe_run_summary(wait_for_run(str(queued["id"]))))
+        completed = wait_for_run(str(queued["id"]))
+        operations.append(safe_run_summary(completed))
+        if completed.get("status") != "succeeded":
+            category = str(completed.get("error_category") or "operation_failed")
+            raise SmokeFailure(f"{expected_type}_failed:{category}")
 
     return {
         "state": "passed",
