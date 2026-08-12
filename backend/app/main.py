@@ -21,7 +21,8 @@ init_logging()
 from app.routers import (
     settings, scripts, characters, scenes, props, frames, videos, projects, 
     styles, gallery, studio, audio, video_library, text_library, video_studio,
-    audio_studio, models, auth, image_benchmark, video_benchmark
+    audio_studio, models, auth, image_benchmark, video_benchmark,
+    admin_users, admin_platform,
 )
 from app.middleware.auth import AuthMiddleware
 from app.db.engine import database_health
@@ -177,6 +178,8 @@ app.include_router(audio_studio.router, prefix="/api/audio-studio", tags=["音�
 app.include_router(image_benchmark.router, prefix="/api/image-benchmark", tags=["图片测评"])
 app.include_router(video_benchmark.router, prefix="/api/video-benchmark", tags=["视频测评"])
 app.include_router(models.router, prefix="/api/models", tags=["模型配置"])
+app.include_router(admin_users.router, prefix="/api/admin", tags=["平台用户管理"])
+app.include_router(admin_platform.router, prefix="/api/admin", tags=["平台管理"])
 
 
 @app.get("/api/health")

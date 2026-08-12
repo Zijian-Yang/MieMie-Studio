@@ -100,7 +100,7 @@
   - Password input is interactive or supplied through `MIEMIE_ADMIN_PASSWORD`; no plaintext password CLI argument exists.
 - [x] **Step 6: Run auth, middleware, CLI, and registration regressions**
   - Backend full suite: `505 passed`.
-- [ ] **Step 7: Commit the authorization slice**
+- [x] **Step 7: Commit the authorization slice** (`2c79b40`)
 
 ### Task 4: Admin User And Audit APIs
 
@@ -117,12 +117,14 @@
 - Produces paginated `{items,page,page_size,total}` responses.
 - Consumes: `require_admin`, `AdminUserService`, and platform repositories.
 
-- [ ] **Step 1: Write failing router tests for every endpoint, validation error, permission denial, invariant conflict, and audit row**
-- [ ] **Step 2: Run tests and confirm missing routes fail**
-- [ ] **Step 3: Implement typed request/response models and stable error mapping**
-- [ ] **Step 4: Implement routers with admin dependency and focused rate limits**
-- [ ] **Step 5: Verify no password hash, session token, secret, or raw snapshot appears in responses/audits**
-- [ ] **Step 6: Run focused API tests and backend full suite**
+- [x] **Step 1: Write failing router tests for every endpoint, validation error, permission denial, invariant conflict, and audit row**
+- [x] **Step 2: Run tests and confirm missing routes fail**
+- [x] **Step 3: Implement typed request/response models and stable error mapping**
+- [x] **Step 4: Implement routers with admin dependency and focused rate limits**
+- [x] **Step 5: Verify no password hash, session token, secret, or raw snapshot appears in responses/audits**
+  - OpenAPI response-schema audit passed for all administrator routes.
+- [x] **Step 6: Run focused API tests and backend full suite**
+  - Backend full suite: `514 passed`.
 - [ ] **Step 7: Commit the API slice**
 
 ### Task 5: Typed Frontend Admin Boundary
