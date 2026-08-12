@@ -31,6 +31,7 @@ PUBLIC_PATHS = [
     "/api/health",
     "/api/auth/login",
     "/api/auth/register",
+    "/api/bootstrap/status",
     "/api/image-benchmark/public",
     "/assets",      # 后端静态资源
     "/_static",     # 前端构建产物

@@ -12,9 +12,11 @@ from app.models.user import (
     UserResponse, LoginResponse, ChangePasswordRequest
 )
 from app.services.user_service import get_user_service
+from app.services.admin_bootstrap import bootstrap_status, registration_enabled
 from app.services.rate_limit import create_limiter
 
 router = APIRouter()
+public_router = APIRouter()
 limiter = create_limiter(key_func=get_remote_address, key_prefix="miemie-auth")
 
 
@@ -22,6 +24,14 @@ limiter = create_limiter(key_func=get_remote_address, key_prefix="miemie-auth")
 @limiter.limit("3/minute")
 async def register(data: UserRegisterRequest, request: Request):
     """用户注册"""
+    if not registration_enabled():
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "registration_disabled",
+                "message": "管理员已关闭公开注册",
+            },
+        )
     service = get_user_service()
 
     user = service.register(
@@ -126,3 +136,9 @@ async def change_password(
         raise HTTPException(status_code=400, detail=message)
     
     return {"success": True, "message": message}
+
+
+@public_router.get("/api/bootstrap/status")
+async def get_bootstrap_status():
+    """Return only public registration and administrator bootstrap state."""
+    return bootstrap_status()

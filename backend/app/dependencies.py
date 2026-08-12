@@ -47,6 +47,22 @@ async def get_optional_user(authorization: Optional[str] = Header(None)) -> Opti
     return service.get_user_by_token(token)
 
 
+def require_admin(request: Request) -> User:
+    """Require an active administrator already authenticated by middleware."""
+    user = getattr(request.state, "user", None)
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail={"code": "authentication_required", "message": "请先登录"},
+        )
+    if user.role != "admin" or user.status != "active":
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "admin_required", "message": "需要平台管理员权限"},
+        )
+    return user
+
+
 def get_user_data_path(user: User) -> Path:
     """获取用户数据目录路径"""
     service = get_user_service()
@@ -134,4 +150,3 @@ async def get_storage(user: User = Depends(get_current_user)) -> StorageService:
             projects = storage.list_projects()
     """
     return get_user_storage(user.id)
-

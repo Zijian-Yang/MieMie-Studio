@@ -157,6 +157,7 @@ app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
 
 # 注册路由
 app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
+app.include_router(auth.public_router, tags=["引导状态"])
 app.include_router(settings.router, prefix="/api/settings", tags=["设置"])
 app.include_router(projects.router, prefix="/api/projects", tags=["项目"])
 app.include_router(scripts.router, prefix="/api/scripts", tags=["分镜脚本"])

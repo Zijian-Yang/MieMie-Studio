@@ -35,6 +35,8 @@ def isolated_data_dir(tmp_path, monkeypatch):
     monkeypatch.setenv("MIEMIE_DATABASE_JSON_FALLBACK_READ", "false")
     monkeypatch.setenv("MIEMIE_DATABASE_JSON_ARCHIVE_WRITES", "false")
     monkeypatch.setenv("MIEMIE_DATABASE_RECONCILE_STRICT", "false")
+    # Legacy API tests opt into registration; production defaults remain closed.
+    monkeypatch.setenv("MIEMIE_REGISTRATION_ENABLED", "true")
 
     # 重置全局单例，确保每个测试独立
     import app.services.user_service as us_mod

@@ -33,6 +33,14 @@ class LastActiveAdmin(AdminRepositoryError):
     """Raised when a mutation would remove the final active administrator."""
 
 
+class BootstrapAlreadyConfigured(AdminRepositoryError):
+    """Raised when bootstrap is attempted after another administrator exists."""
+
+
+class ExistingUserRequiresPromotion(AdminRepositoryError):
+    """Raised when bootstrap names an existing non-administrator account."""
+
+
 @dataclass(frozen=True)
 class AdminAuditEvent:
     actor_user_id: str
@@ -54,6 +62,12 @@ class UserPage:
 class AuditPage:
     items: list[dict[str, Any]]
     total: int
+
+
+@dataclass(frozen=True)
+class BootstrapStatus:
+    active_admin_count: int
+    registration_enabled: bool
 
 
 def _audit_row(event: AdminAuditEvent, *, now: datetime) -> dict[str, Any]:
@@ -153,6 +167,154 @@ class PostgresAdminUserRepository:
                 .offset(offset)
             ).mappings().all()
         return UserPage(items=[row_to_user(row) for row in rows], total=total)
+
+    def bootstrap_status(self) -> BootstrapStatus:
+        with self._engine.connect() as conn:
+            active_admin_count = int(
+                conn.execute(
+                    select(func.count())
+                    .select_from(users)
+                    .where(
+                        users.c.role == "admin",
+                        users.c.status == "active",
+                        _active_user_clause(),
+                    )
+                ).scalar_one()
+            )
+            registration_enabled = bool(
+                conn.execute(
+                    select(platform_settings.c.registration_enabled).where(
+                        platform_settings.c.id == "platform"
+                    )
+                ).scalar_one()
+            )
+        return BootstrapStatus(
+            active_admin_count=active_admin_count,
+            registration_enabled=registration_enabled,
+        )
+
+    def bootstrap_admin(
+        self,
+        user: User,
+        event: AdminAuditEvent,
+    ) -> tuple[User, bool]:
+        now = datetime.now(timezone.utc)
+        try:
+            with self._engine.begin() as conn:
+                _lock_governance(conn)
+                active_admins = conn.execute(
+                    select(users)
+                    .where(
+                        users.c.role == "admin",
+                        users.c.status == "active",
+                        _active_user_clause(),
+                    )
+                    .with_for_update()
+                ).mappings().all()
+                named_row = conn.execute(
+                    select(users)
+                    .where(users.c.username == user.username, _active_user_clause())
+                    .with_for_update()
+                ).mappings().first()
+                if active_admins:
+                    if (
+                        named_row
+                        and named_row["role"] == "admin"
+                        and named_row["status"] == "active"
+                    ):
+                        return row_to_user(named_row), False
+                    raise BootstrapAlreadyConfigured(user.username)
+                if named_row:
+                    raise ExistingUserRequiresPromotion(user.username)
+                conn.execute(insert(users).values(**user_to_row(user)))
+                conn.execute(insert(admin_audit_logs).values(**_audit_row(event, now=now)))
+        except IntegrityError as exc:
+            raise DuplicateUsername(user.username) from exc
+        except Exception as exc:
+            if isinstance(exc, AdminRepositoryError):
+                raise
+            raise RepositoryWriteError(f"Failed to bootstrap administrator: {exc}") from exc
+        return user, True
+
+    def promote_user(self, username: str, event_factory) -> User | None:
+        now = datetime.now(timezone.utc)
+        with self._engine.begin() as conn:
+            _lock_governance(conn)
+            row = conn.execute(
+                select(users)
+                .where(users.c.username == username, _active_user_clause())
+                .with_for_update()
+            ).mappings().first()
+            if row is None:
+                return None
+            current = row_to_user(row)
+            promoted = User(
+                **{
+                    **current.model_dump(),
+                    "role": "admin",
+                    "status": "active",
+                    "updated_at": now.isoformat(),
+                }
+            )
+            values = user_to_row(promoted)
+            conn.execute(
+                update(users)
+                .where(users.c.id == promoted.id)
+                .values(
+                    role=promoted.role,
+                    status=promoted.status,
+                    raw_user_snapshot=values["raw_user_snapshot"],
+                    updated_at=now,
+                )
+            )
+            conn.execute(
+                insert(admin_audit_logs).values(
+                    **_audit_row(event_factory(promoted.id), now=now)
+                )
+            )
+        return promoted
+
+    def reset_admin_password(self, username: str, password_hash: str, event_factory) -> User | None:
+        now = datetime.now(timezone.utc)
+        with self._engine.begin() as conn:
+            _lock_governance(conn)
+            row = conn.execute(
+                select(users)
+                .where(
+                    users.c.username == username,
+                    users.c.role == "admin",
+                    _active_user_clause(),
+                )
+                .with_for_update()
+            ).mappings().first()
+            if row is None:
+                return None
+            current = row_to_user(row)
+            reset = User(
+                **{
+                    **current.model_dump(),
+                    "password": password_hash,
+                    "must_change_password": True,
+                    "updated_at": now.isoformat(),
+                }
+            )
+            values = user_to_row(reset)
+            conn.execute(
+                update(users)
+                .where(users.c.id == reset.id)
+                .values(
+                    password_hash=password_hash,
+                    must_change_password=True,
+                    raw_user_snapshot=values["raw_user_snapshot"],
+                    updated_at=now,
+                )
+            )
+            conn.execute(
+                insert(admin_audit_logs).values(
+                    **_audit_row(event_factory(reset.id), now=now)
+                )
+            )
+        return reset
 
     def create_user(self, user: User, event: AdminAuditEvent) -> User:
         now = datetime.now(timezone.utc)

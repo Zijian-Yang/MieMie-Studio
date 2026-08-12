@@ -71,14 +71,14 @@
 - [x] **Step 5: Reject disabled/deleted users during login and token recovery**
 - [x] **Step 6: Run focused and existing auth/user repository regression tests**
   - Backend full suite: `491 passed`.
-- [ ] **Step 7: Commit the service slice**
+- [x] **Step 7: Commit the service slice** (`bde44d5`)
 
 ### Task 3: Bootstrap, Registration Policy, And Admin Authorization
 
 **Files:**
 - Create: `backend/app/services/admin_bootstrap.py`
 - Create: `backend/app/cli/admin.py`
-- Create: `backend/app/dependencies/admin.py`
+- Modify: `backend/app/dependencies.py`
 - Modify: `backend/app/routers/auth.py`
 - Modify: `backend/app/middleware/auth.py`
 - Modify: `backend/app/main.py`
@@ -92,12 +92,14 @@
 - Produces: `require_admin(request: Request) -> User` dependency.
 - Consumes: `PlatformSettingsRepository` and `AdminUserService`.
 
-- [ ] **Step 1: Write failing tests for closed registration, bootstrap status, idempotent first admin, explicit legacy promotion, and member 403**
-- [ ] **Step 2: Run tests and confirm policy/CLI/dependency failures**
-- [ ] **Step 3: Implement public bootstrap status and registration gate with stable error code**
-- [ ] **Step 4: Implement request-state administrator dependency**
-- [ ] **Step 5: Implement secure CLI input and idempotent bootstrap/promote/reset commands**
-- [ ] **Step 6: Run auth, middleware, CLI, and registration regressions**
+- [x] **Step 1: Write failing tests for closed registration, bootstrap status, idempotent first admin, explicit legacy promotion, and member 403**
+- [x] **Step 2: Run tests and confirm policy/CLI/dependency failures**
+- [x] **Step 3: Implement public bootstrap status and registration gate with stable error code**
+- [x] **Step 4: Implement request-state administrator dependency**
+- [x] **Step 5: Implement secure CLI input and idempotent bootstrap/promote/reset commands**
+  - Password input is interactive or supplied through `MIEMIE_ADMIN_PASSWORD`; no plaintext password CLI argument exists.
+- [x] **Step 6: Run auth, middleware, CLI, and registration regressions**
+  - Backend full suite: `505 passed`.
 - [ ] **Step 7: Commit the authorization slice**
 
 ### Task 4: Admin User And Audit APIs
