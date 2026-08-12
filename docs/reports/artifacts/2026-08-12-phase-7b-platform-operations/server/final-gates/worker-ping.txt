@@ -1,0 +1,8 @@
+->  video@29e4fe0883c6: OK
+        pong
+->  celery@d14ba50c9bd5: OK
+        pong
+->  celery@650cefe273c9: OK
+        pong
+
+3 nodes online.

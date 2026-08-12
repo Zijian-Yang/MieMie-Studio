@@ -40,6 +40,7 @@
 - 部署前只读自检已接入 `./run.sh doctor`，可在 Mac / 单服务器 / Compose 路径上提前发现缺失工具、敏感文件误跟踪、`compose.env` 占位值和端口占用
 - `miemie-pre` Compose PostgreSQL 升级与 JSON 退场已完成：9 个 tracked 核心业务状态域完成 schema/repository/backfill/reconcile/runtime gates，R103 为 `postgres_only_complete`；R105/R111 完成业务 JSON 与根级 `users.json` 隔离。当前运行版本 `44754d9fd7cc728a01286318381205ad309feda4` 保持 PostgreSQL 主读主写、JSON fallback/archive writes 关闭，运行目录外仅有样例 `backend/data/config.example.json`；R129/R130 已复验备份恢复、数据库快照、自然 cron 与 S1 性能，R127 已把源站限制为 loopback 与 Cloudflare 官方代理网段。真实告警 webhook 是服务器本地可选外部配置，不写入仓库。
 - 自托管发行阶段 7A 已完成：管理员角色、关闭注册、用户治理 API/UI、审计、首位管理员 CLI 和 Compose migration 启动门禁通过本地完整回归，并部署到 `miemie-pre` 的 `8ed4d10`；Alembic `20260812_0010`、本机/Cloudflare health、治理 smoke、数据库快照、两个 worker 和 S1 `30 VU / 60s` 均通过。
+- 自托管发行阶段 7B 的代码与服务器可执行项已完成：平台加密设置、管理员备份/告警页面、PostgreSQL 16 custom dump、隔离恢复、真实通用 Webhook、独立 ops worker、两日期调度幂等与旧 cron 退役均通过。服务器没有任何完整阿里云 OSS 凭据，因此真实云端上传明确留到 7D 外部验收；当前进入 7C 一键安装、更新、回滚、诊断与非 root 容器加固。
 - 当前主风险不在“代码完全不可用”，而在：
   - 复杂页面/路由/服务文件过大
   - 前端自动化测试缺口明显
@@ -84,6 +85,7 @@
 | [ADR-0004 自托管服务发行边界](./adr/ADR-0004-self-hosted-service-release-boundary.md) | 明确项目只交付本地端口服务，反向代理由用户管理；高权限更新/恢复留在 CLI，Web 管理面不接管宿主机 |
 | [自托管发行实施路线](./plans/2026-08-12-self-hosted-release-roadmap.md) | 7A 管理员治理、7B 备份告警、7C 一键安装升级、7D 发布验收的依赖关系与最终完成定义 |
 | [阶段 7A 实施计划](./superpowers/plans/2026-08-12-phase-7a-admin-user-governance.md) | 管理员角色、关闭注册、用户 CRUD、审计、管理前端和服务器验证的测试先行任务 |
+| [阶段 7B 实施计划](./superpowers/plans/2026-08-12-phase-7b-backup-oss-webhook.md) | 平台备份、阿里云 OSS、通用 Webhook、运维 worker、调度切换和服务器证据 |
 | [容量基线与压测手册](./playbooks/CAPACITY_BASELINE_AND_LOADTEST.md) | Step 00 的压测执行方法、字段要求与结果模板 |
 | [运行模式矩阵](./playbooks/RUNTIME_MODE_MATRIX.md) | 开发环境、脚本生产模式、Compose 生产模式的边界对比 |
 | [观测与轮询盘点](./reviews/2026-04-step-00-observability-and-polling-inventory.md) | 当前轮询热点、状态接口副作用与最小观测缺口 |

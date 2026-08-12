@@ -1,0 +1,8 @@
+miemie-pre-api-1|0.18%|309.2MiB / 3.417GiB
+miemie-pre-worker-ops-1|0.17%|115.6MiB / 3.417GiB
+miemie-pre-worker-1|0.12%|57MiB / 3.417GiB
+miemie-pre-worker-video-1|0.17%|56.74MiB / 3.417GiB
+miemie-pre-scheduler-1|0.00%|71.77MiB / 3.417GiB
+miemie-pre-postgres-1|0.00%|49.18MiB / 3.417GiB
+miemie-pre-redis-1|0.46%|9.801MiB / 3.417GiB
+miemie-studio-ha-lab-api-1|0.17%|200.1MiB / 3.417GiB

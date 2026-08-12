@@ -6,6 +6,7 @@
 ## [Unreleased]
 
 ### 修复 (Fixed)
+- 平台备份恢复契约：运行镜像固定 PostgreSQL 16 客户端并在 dump 前校验客户端/服务端主版本；隔离恢复脚本自动识别 custom archive 与历史纯 SQL，失败时也会清理临时数据库；运维 smoke 现在要求异步任务最终成功，避免排队成功掩盖任务失败。
 - PostgreSQL-only 容器测试副作用：`UserService` 新增初始化前的 `data_dir` 注入，数据库/session 测试不再先构造默认服务后改写路径，避免容器内回归在真实 bind mount 生成空 `backend/data/users.json`；全局夹具和六组辅助测试已统一使用隔离构造入口。
 - Compose 服务器运维口径：pre 文档明确所有 `config/build/up/ps/logs/exec` 命令必须显式带 `--env-file compose.env`，避免端口和运行策略回落到默认值。
 - PostgreSQL 测试隔离：全局 pytest 夹具会先建立 file-only 数据基线，数据库专项测试再显式启用 PostgreSQL，避免在生产容器内执行回归时继承运行态 PostgreSQL-only 开关并访问真实业务库。
@@ -40,6 +41,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 自托管发行阶段 7B：新增平台级加密运维设置、管理员备份/告警/概览页面、PostgreSQL custom-format 本地备份与保留策略、独立 ops worker、阿里云 OSS 客户端、通用 Webhook 和 Asia/Shanghai 每日幂等调度。服务器已通过真实备份隔离恢复、真实 Webhook、两日期调度和旧 cron 退役；真实 OSS 上传因无批准凭据保留为 7D 外部验收项。
 - 管理员与用户治理阶段 7A：PostgreSQL 用户增加角色、状态、强制改密和更新时间，新增关闭注册、显式首位管理员 CLI、管理员用户 CRUD、会话撤销、最后管理员保护、脱敏审计及 `/admin` 管理界面；Compose 新增 Alembic migration 启动门禁，新安装默认 PostgreSQL-only，并提供不调用供应商的脱敏治理 smoke。
 - 阶段 7 实施路线：将已批准的自托管发行设计拆为 7A 管理员与用户治理、7B 备份/阿里云 OSS/通用 Webhook、7C 一键安装升级与容器加固、7D 干净服务器发行验收；阶段 7A 已落盘到逐文件、逐测试和服务器门禁计划。
 - 自托管发行与管理控制面设计：接受 `pre` 作为后续替代 `main` 的发行线，明确项目只提供本地回环应用端口、反向代理由部署者管理；后续按管理员用户治理、PostgreSQL 本地/阿里云 OSS 备份、通用 Webhook、幂等安装/升级 CLI 和干净服务器验收四阶段实施，并禁止 Web 管理面直接获取 Docker 或宿主机 root 权限。

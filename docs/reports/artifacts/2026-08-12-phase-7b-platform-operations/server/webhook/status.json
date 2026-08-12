@@ -1,0 +1,25 @@
+{
+  "run_id": "server-webhook-20260812",
+  "state": "passed",
+  "stage": "complete",
+  "health_ok": true,
+  "database_ok": true,
+  "redis_ok": true,
+  "settings_masked": true,
+  "settings_round_trip": true,
+  "member_admin_denied": null,
+  "operations": [
+    {
+      "operation_type": "webhook_test",
+      "status": "failed",
+      "local_status": "skipped",
+      "oss_status": "skipped",
+      "error_category": "webhook_network_error",
+      "has_checksum": false,
+      "size_bytes": null
+    }
+  ],
+  "provider_calls": 0,
+  "secrets_persisted": false,
+  "updated_at": "2026-08-12T13:25:18Z"
+}

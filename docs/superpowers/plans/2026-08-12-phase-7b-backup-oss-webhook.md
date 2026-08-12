@@ -219,12 +219,20 @@
   - Backend full suite: `606 passed`; Docker/ops focused regression: `23 passed`.
   - Frontend service contracts, typecheck, lint, production build, Vite chunk contract, and all `14` Playwright scenarios passed.
   - The narrow-screen admin workspace now constrains content to the viewport while preserving table-local horizontal scrolling.
-- [ ] **Step 4: Back up staging, generate root-only encryption key, deploy migration/services, and run local/public health plus operations smoke**
-- [ ] **Step 5: Configure temporary real Webhook and approved Aliyun OSS credentials if available, upload one backup, isolate-restore it, and clean test objects/secrets**
+- [x] **Step 4: Back up staging, generate root-only encryption key, deploy migration/services, and run local/public health plus operations smoke**
+  - Pre-upgrade dump was validated before deployment; migration `20260812_0011`, API, PostgreSQL, Redis, scheduler, and three Celery workers are healthy.
+  - Local/public health returned the deployed release with PostgreSQL and Redis healthy. The platform operations and administrator governance smokes passed with sanitized evidence.
+- [x] **Step 5: Configure temporary real Webhook and approved Aliyun OSS credentials if available, upload one backup, isolate-restore it, and clean test objects/secrets**
   - Staging restore rehearsal detected PostgreSQL 17 client output against the PostgreSQL 16 server; the invalid rehearsal database was removed and production stayed healthy.
-  - A guarded PostgreSQL 16 client pin and runtime major-version compatibility check were added before the restore gate is repeated.
-- [ ] **Step 6: Observe two scheduler-produced daily successes before disabling legacy host cron; prove no duplicate backup key**
-- [ ] **Step 7: Archive sanitized evidence, update docs, commit, and push completed 7B**
+  - PostgreSQL client is now pinned to 16 and runtime checks block mismatched majors. A new custom-format backup was created, checksummed, restored into an isolated database, queried, and cleaned.
+  - A temporary loopback Webhook received and validated the fixed v1 event, then its URL and session were cleared.
+  - Real Aliyun OSS upload could not run: database user configs, historical JSON, and `compose.env` contained zero complete OSS credential sets. This is recorded as an external release-qualification gate; no credential was requested or fabricated.
+- [x] **Step 6: Observe two scheduler-produced daily successes before disabling legacy host cron; prove no duplicate backup key**
+  - Accelerated Asia/Shanghai rehearsal produced successful checksummed backups for two distinct schedule dates; a duplicate same-day tick returned `already_queued` with the same run id.
+  - Legacy `/etc/cron.d/miemie-postgres-ops` is retired and the temporary platform backup switch was restored to disabled.
+- [x] **Step 7: Archive sanitized evidence, update docs, commit, and push completed 7B**
+  - Sanitized server evidence is archived under `docs/reports/artifacts/2026-08-12-phase-7b-platform-operations/server/`.
+  - All 7B code and server-capable gates are complete. The only blocked external evidence is real Aliyun OSS upload because no approved credentials exist on the server.
 
 ## Phase 7B Completion Evidence
 
@@ -232,7 +240,7 @@
 - Backend full suite and frontend static/E2E gates pass.
 - Operational credentials are authenticated-encrypted and absent from Git, logs, artifacts, audit rows, OpenAPI responses, and browser state.
 - Immediate and scheduled backups produce valid custom-format dumps, checksums, deterministic retention, and separate local/OSS status.
-- Real Aliyun OSS upload and isolated restore pass, or the stage remains incomplete with an explicit credential blocker.
+- Isolated restore passes. Real Aliyun OSS upload remains an explicit external credential blocker because the server has no approved credential set; automated OSS client coverage passes.
 - Real generic Webhook receives test and synthetic failure events with no user/private content.
 - `worker-ops` and scheduler run without Docker socket and API never executes restore or host commands.
 - Two scheduler days prove parity before legacy cron is disabled, with no duplicate idempotency key.

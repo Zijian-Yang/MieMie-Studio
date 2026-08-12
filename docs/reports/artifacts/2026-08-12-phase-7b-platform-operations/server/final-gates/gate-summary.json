@@ -1,0 +1,11 @@
+{
+  "state": "passed",
+  "requests": 1724,
+  "checks_pass_rate": 1,
+  "failure_rate": 0,
+  "p95_ms": 79.10518579999996,
+  "p99_ms": 129.00304264,
+  "local_commit": "183b58963b5ece12f0330b8862701107fbc6b354",
+  "public_commit": "183b58963b5ece12f0330b8862701107fbc6b354",
+  "worker_ping_files": 3
+}

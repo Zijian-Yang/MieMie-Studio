@@ -1,0 +1,25 @@
+{
+  "run_id": "server-pg16-backup-20260812",
+  "state": "passed",
+  "stage": "complete",
+  "health_ok": true,
+  "database_ok": true,
+  "redis_ok": true,
+  "settings_masked": true,
+  "settings_round_trip": true,
+  "member_admin_denied": null,
+  "operations": [
+    {
+      "operation_type": "backup",
+      "status": "succeeded",
+      "local_status": "succeeded",
+      "oss_status": "skipped",
+      "error_category": null,
+      "has_checksum": true,
+      "size_bytes": 92519
+    }
+  ],
+  "provider_calls": 0,
+  "secrets_persisted": false,
+  "updated_at": "2026-08-12T13:23:16Z"
+}
