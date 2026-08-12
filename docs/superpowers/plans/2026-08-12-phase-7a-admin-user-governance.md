@@ -200,9 +200,12 @@
   - Backend full suite: `517 passed`.
   - Frontend typecheck, lint, production build, chunk gate, admin route policy, and admin user-management contract passed.
   - Compose config, migration dependency contract, and provider-free smoke verifier passed.
-- [ ] **Step 4: Back up staging, deploy migration and current commit, and bootstrap the approved existing administrator explicitly**
-- [ ] **Step 5: Run local/public health, admin smoke, member-denial smoke, session revocation, Compose status, database snapshot, and S1 gate**
-- [ ] **Step 6: Archive sanitized evidence and update docs/status**
+- [x] **Step 4: Back up staging, deploy migration and current commit, and bootstrap the approved existing administrator explicitly**
+  - The server contained only historical test accounts, so a dedicated `platform_admin` was explicitly bootstrapped; its initial credential is root-only on the server and is not stored in Git or artifacts.
+- [x] **Step 5: Run local/public health, admin smoke, member-denial smoke, session revocation, Compose status, database snapshot, and S1 gate**
+  - Local/public health passed on `8ed4d10`; database and Redis probes passed; both Celery nodes returned `pong`.
+  - Provider-free governance smoke passed; S1 completed 1744 requests with 0 failures and P95 `65.099ms`.
+- [x] **Step 6: Archive sanitized evidence and update docs/status**
 - [ ] **Step 7: Commit and push the completed 7A stage**
 
 ## Phase 7A Completion Evidence

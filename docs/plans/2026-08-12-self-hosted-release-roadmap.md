@@ -22,7 +22,7 @@
 
 详细计划：`docs/superpowers/plans/2026-08-12-phase-7a-admin-user-governance.md`
 
-当前状态：**进行中**。代码、管理界面、Compose migration 门禁和本地完整回归已通过；`pre` 服务器备份、部署和真实治理 smoke 待执行。
+当前状态：**已完成**。本地完整回归和 `pre` 服务器备份、migration、管理员 bootstrap、治理 smoke、数据库快照与 S1 门禁均通过；脱敏证据归档于 `docs/reports/artifacts/2026-08-12-phase-7a-admin-governance/`。
 
 交付结果：
 

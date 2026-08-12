@@ -1,0 +1,1 @@
+{"status":"ok","git_commit":"8ed4d1021b31f1a41ed0189790cf87bf73baacef","run_mode":"prod","serve_frontend":true,"started_at":"2026-08-12T08:13:29Z","redis":{"configured":true,"ok":true},"database":{"configured":true,"ok":true}}

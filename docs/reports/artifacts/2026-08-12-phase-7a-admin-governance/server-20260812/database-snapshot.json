@@ -1,0 +1,22 @@
+{
+  "run_id": "r7a-postdeploy-20260812161731-db-snapshot",
+  "state": "passed",
+  "stage": "done",
+  "reason": "",
+  "trigger": "manual",
+  "artifact_dir": "/tmp/r7a-postdeploy-20260812161731/database-snapshot",
+  "database_size_bytes": 10779671,
+  "max_connections": 50,
+  "total_connections": 3,
+  "long_transaction_count": 0,
+  "waiting_lock_count": 0,
+  "missing_tables": [],
+  "warnings": [],
+  "thresholds": {
+    "long_transaction_seconds": 300,
+    "dead_tuple_warn_ratio": 0.2,
+    "dead_tuple_warn_min": 1000,
+    "connection_warn_ratio": 0.7
+  },
+  "updated_at": "2026-08-12T08:17:33Z"
+}

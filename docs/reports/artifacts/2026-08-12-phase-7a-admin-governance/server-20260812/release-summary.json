@@ -1,0 +1,34 @@
+{
+  "state": "passed",
+  "release_before": "96661113bfa154157db8de59170d2b37298ea49a",
+  "release_after": "8ed4d1021b31f1a41ed0189790cf87bf73baacef",
+  "database_head": "20260812_0010",
+  "migration": "passed",
+  "rollback_used": false,
+  "pre_upgrade_backup": {
+    "created": true,
+    "sha256": "da64bb258444edb21c4c3b6a87371922bf9d6a4dd06c24082ffcbb0e08ca8d61"
+  },
+  "health": {
+    "local": "passed",
+    "public_cloudflare": "passed",
+    "redis": "passed",
+    "database": "passed"
+  },
+  "workers": {
+    "studio": "pong",
+    "video_studio": "pong"
+  },
+  "s1": {
+    "vus": 30,
+    "duration": "60s",
+    "requests": 1744,
+    "failed_rate": 0.0,
+    "p95_ms": 65.099,
+    "checks_passed": 5232,
+    "checks_failed": 0
+  },
+  "admin_governance_smoke": "passed",
+  "provider_calls": 0,
+  "secrets_persisted": false
+}

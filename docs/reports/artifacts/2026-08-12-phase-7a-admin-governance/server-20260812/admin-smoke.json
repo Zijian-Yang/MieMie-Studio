@@ -1,0 +1,19 @@
+{
+  "run_id": "r7a-admin-governance-20260812161700",
+  "state": "passed",
+  "stage": "complete",
+  "health_ok": true,
+  "admin_configured": true,
+  "registration_enabled": false,
+  "member_admin_denied": true,
+  "session_revocation_checks": 3,
+  "disabled_login_denied": true,
+  "deleted_login_denied": true,
+  "self_disable_protected": true,
+  "audit_action_types_verified": 4,
+  "temporary_user_soft_deleted": true,
+  "business_data_preserved_by_policy": true,
+  "provider_calls": 0,
+  "secrets_persisted": false,
+  "updated_at": "2026-08-12T08:17:02Z"
+}

@@ -39,7 +39,7 @@
 - 平台已具备基本自动化验证链：后端 pytest、前端 `typecheck/lint/build`
 - 部署前只读自检已接入 `./run.sh doctor`，可在 Mac / 单服务器 / Compose 路径上提前发现缺失工具、敏感文件误跟踪、`compose.env` 占位值和端口占用
 - `miemie-pre` Compose PostgreSQL 升级与 JSON 退场已完成：9 个 tracked 核心业务状态域完成 schema/repository/backfill/reconcile/runtime gates，R103 为 `postgres_only_complete`；R105/R111 完成业务 JSON 与根级 `users.json` 隔离。当前运行版本 `44754d9fd7cc728a01286318381205ad309feda4` 保持 PostgreSQL 主读主写、JSON fallback/archive writes 关闭，运行目录外仅有样例 `backend/data/config.example.json`；R129/R130 已复验备份恢复、数据库快照、自然 cron 与 S1 性能，R127 已把源站限制为 loopback 与 Cloudflare 官方代理网段。真实告警 webhook 是服务器本地可选外部配置，不写入仓库。
-- 自托管发行阶段 7A 的管理员角色、关闭注册、用户治理 API/UI、审计、首位管理员 CLI 和 Compose migration 启动门禁已完成本地实现；完整后端 `517 passed`，前端类型/lint/build/分包/管理员契约与 provider-free 冒烟 verifier 均通过，服务器部署证据仍在执行中。
+- 自托管发行阶段 7A 已完成：管理员角色、关闭注册、用户治理 API/UI、审计、首位管理员 CLI 和 Compose migration 启动门禁通过本地完整回归，并部署到 `miemie-pre` 的 `8ed4d10`；Alembic `20260812_0010`、本机/Cloudflare health、治理 smoke、数据库快照、两个 worker 和 S1 `30 VU / 60s` 均通过。
 - 当前主风险不在“代码完全不可用”，而在：
   - 复杂页面/路由/服务文件过大
   - 前端自动化测试缺口明显
