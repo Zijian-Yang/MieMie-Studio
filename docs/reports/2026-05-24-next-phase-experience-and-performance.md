@@ -1137,7 +1137,8 @@ pre 部署复验：
 - 新增幂等 `install.sh` 与稳定 `miemie` CLI。安装器生成 root-only 配置、commit 固定本地镜像、首位管理员和健康服务；CLI 覆盖状态、日志、体检、管理员修复、备份、更新、回滚、恢复和保留数据卸载。
 - 更新使用 clean tracked tree、120 秒 fetch、fast-forward、更新前 PostgreSQL custom dump、固定 commit 镜像、Alembic、健康/worker 门禁；任一步失败返切旧源码和镜像，数据库 schema 不自动降级。
 - 恢复只接受备份根内文件，校验 `.sha256` 与 `pg_restore --list`，先恢复临时数据库，再创建生产安全备份，双确认后停写并替换生产库。永久删除另需精确口令与安全路径检查，Web 管理面没有这些权限。
-- 专用验证覆盖 dirty tree、非快进、备份/构建/migration/health 失败、显式回滚成功与失败返切、恢复确认/隔离失败/成功顺序和 purge 确认；PostgreSQL 备份相关回归 `32 passed`。真实 Compose 服务器演练与完整前后端回归属于 7C 最后门禁。
+- 专用验证覆盖 dirty tree、非快进、备份/构建/migration/health 失败、显式回滚成功与失败返切、恢复确认/隔离失败/成功顺序和 purge 确认；PostgreSQL 备份相关回归 `32 passed`。
+- 2026-08-25 Ubuntu 24.04 预发布服务器完成 7C：安装接管、`10001:10001` 非 root/read-only 运行、依赖锁 `pip check`、重复安装、真实备份/隔离恢复、故障注入更新返切、正常更新、显式回滚往返、完整生产恢复、保留数据卸载与 `miemie start` 全部通过。最终 S1 为 `1729` 请求、失败率 `0`、P95 `82.78ms`、P99 `124.52ms`；三个 Celery 队列和 scheduler 健康，容器重启计数均为 `0`。阶段 7C 完成，外部系统与供应商门禁进入 7D。
 
 后续建议继续拆分：
 

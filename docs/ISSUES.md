@@ -5,9 +5,9 @@
 
 ## 自托管正式发行尚未完成
 
-**状态**: 进行中（阶段 7A、7B 完成；阶段 7C 本地实现完成、服务器验收待执行；阶段 7D 待执行）
+**状态**: 进行中（阶段 7A、7B、7C 完成；阶段 7D 进行中）
 
-管理员用户治理、平台备份、通用 Webhook、两日调度和管理面已经实现并通过服务器验证。一键安装、稳定 CLI、事务化更新/回滚/恢复、非 root/read-only Compose 与生产优先 README 已完成本地测试。当前仍需完成 7C 预发布服务器升级、失败返切、备份恢复和全量回归；真实阿里云 OSS、当前发行真实图片/视频、三种干净系统与 `arm64`、Cloudflare 当前发行容量门禁属于 7D。`pre` 在这些证据齐全前仍是 release candidate。
+管理员用户治理、平台备份、通用 Webhook、两日调度和管理面已经实现并通过服务器验证。一键安装、稳定 CLI、事务化更新/回滚/恢复、非 root/read-only Compose、重复安装、保留数据卸载恢复和生产优先 README 已通过本地与 Ubuntu 24.04 预发布服务器门禁。当前未完成项均属于 7D：真实阿里云 OSS、当前发行真实图片/视频、Ubuntu 22.04 与 Debian 12 干净系统、`arm64`、Cloudflare 当前发行容量门禁和最终安全审计。`pre` 在这些证据齐全前仍是 release candidate。
 
 执行入口：`docs/plans/2026-08-12-self-hosted-release-roadmap.md`
 

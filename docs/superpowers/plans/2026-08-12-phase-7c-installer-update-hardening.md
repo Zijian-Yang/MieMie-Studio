@@ -71,9 +71,9 @@
 - [x] Implement rollback to a recorded local image/source commit without automatic schema downgrade; report when database restore is required.
 - [x] Implement restore with checksum/list validation, temporary database rehearsal, safety backup, writer stop, production replacement, migration, health, and failure instructions.
 - [x] Implement destructive uninstall only with exact confirmation and explicit removal of volumes/config/source/backups.
-- [ ] Run lifecycle verifier and isolated Compose update/failure/restore rehearsals.
-  - Offline lifecycle state machine passes; real isolated Compose update/failure/restore rehearsals remain part of Task 5 server qualification.
-- [ ] Commit the lifecycle slice.
+- [x] Run lifecycle verifier and isolated Compose update/failure/restore rehearsals.
+  - Offline lifecycle state machine and real server backup, injected update failure rollback, explicit rollback round trip, isolated restore, and full restore all passed.
+- [x] Commit the lifecycle slice (`04914ae`, with server-discovered fixes through `b38e3c0`).
 
 ## Task 5: Production Documentation And Server Qualification
 
@@ -83,10 +83,10 @@
 - [x] Document supported hosts, resource floor, local port output, reverse-proxy boundary, first admin, update/rollback, backup/restore, and uninstall.
 - [x] Run backend full suite; frontend typecheck/lint/build/chunk/contracts/E2E; installer/CLI/lifecycle verifiers; secret scan.
   - Backend `609 passed`; frontend static/build/contracts passed; Playwright helper `2 passed`, browser E2E `14 passed`; installer/CLI/lifecycle/Compose/restore verifiers and secret/artifact scans passed.
-- [ ] Run current staging upgrade through the new CLI, confirm non-root application services, local/public health, all worker pings, S1, backup and isolated restore.
-- [ ] Run repeat-install, failed-update rollback, preserved-data uninstall simulation, and release-state evidence without touching production data destructively.
-- [ ] Archive sanitized evidence and mark 7C complete; any clean-OS matrix work moves explicitly to 7D.
-- [ ] Commit and push completed 7C.
+- [x] Run current staging upgrade through the new CLI, confirm non-root application services, local/public health, all worker pings, S1, backup and isolated restore.
+- [x] Run repeat-install, failed-update rollback, preserved-data uninstall simulation, and release-state evidence without losing production data.
+- [x] Archive sanitized evidence and mark 7C complete; clean-OS matrix work moves explicitly to 7D.
+- [x] Commit and push completed 7C.
 
 ## Completion Evidence
 

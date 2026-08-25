@@ -42,7 +42,7 @@
 - `miemie-pre` Compose PostgreSQL 升级与 JSON 退场已完成：9 个 tracked 核心业务状态域完成 schema/repository/backfill/reconcile/runtime gates，R103 为 `postgres_only_complete`；R105/R111 完成业务 JSON 与根级 `users.json` 隔离。当前运行版本 `44754d9fd7cc728a01286318381205ad309feda4` 保持 PostgreSQL 主读主写、JSON fallback/archive writes 关闭，运行目录外仅有样例 `backend/data/config.example.json`；R129/R130 已复验备份恢复、数据库快照、自然 cron 与 S1 性能，R127 已把源站限制为 loopback 与 Cloudflare 官方代理网段。真实告警 webhook 是服务器本地可选外部配置，不写入仓库。
 - 自托管发行阶段 7A 已完成：管理员角色、关闭注册、用户治理 API/UI、审计、首位管理员 CLI 和 Compose migration 启动门禁通过本地完整回归，并部署到 `miemie-pre` 的 `8ed4d10`；Alembic `20260812_0010`、本机/Cloudflare health、治理 smoke、数据库快照、两个 worker 和 S1 `30 VU / 60s` 均通过。
 - 自托管发行阶段 7B 的代码与服务器可执行项已完成：平台加密设置、管理员备份/告警页面、PostgreSQL 16 custom dump、隔离恢复、真实通用 Webhook、独立 ops worker、两日期调度幂等与旧 cron 退役均通过。服务器没有任何完整阿里云 OSS 凭据，因此真实云端上传明确留到 7D 外部验收；当前进入 7C 一键安装、更新、回滚、诊断与非 root 容器加固。
-- 自托管发行阶段 7C 的本地实现已完成：`install.sh`、稳定 `miemie` CLI、固定非 root UID/GID、read-only/no-new-privileges、commit 固定镜像、更新前备份、失败应用返切、显式回滚、双确认隔离恢复和安全卸载均有专用验证；README 已将生产安装置于第一入口。当前剩余 7C 服务器升级/故障演练和完整回归，之后进入 7D 干净系统矩阵与真实供应商/OSS/容量发行验收。
+- 自托管发行阶段 7C 已完成：`install.sh`、稳定 `miemie` CLI、固定非 root UID/GID、read-only/no-new-privileges、摘要/依赖锁定镜像、更新前备份、失败应用返切、显式回滚、双确认完整恢复、安全卸载与整套服务重启均通过专用验证和 Ubuntu 24.04 预发布服务器实跑。重复安装保持环境/数据/回滚指针，S1 `30 VU / 60s` 为失败率 `0`、P95 `82.78ms`；当前进入 7D 干净系统矩阵与真实供应商/OSS/容量发行验收。
 - 当前主风险不在“代码完全不可用”，而在：
   - 复杂页面/路由/服务文件过大
   - 前端自动化测试缺口明显
@@ -148,7 +148,7 @@ docker compose --env-file compose.env config
 - 部署前自检：`./run.sh doctor`（2026-06-17，本机实跑 `passed_with_warnings`：`compose.env` 缺失和 Docker daemon 默认跳过为 warning；不安装依赖、不修改配置、不启动服务）
 - Compose 静态校验：服务器 `docker compose --env-file compose.env config --quiet`（2026-08-12，通过）。
 - 数据库升级状态：**完成**。`miemie-pre` 当前运行版本 `44754d9fd7cc728a01286318381205ad309feda4` 已全局 PostgreSQL 主读主写，JSON fallback/archive writes 均关闭；R103 为 `postgres_only_complete`，当前 coverage 为 `9 migrated / 0 pending`，Alembic 数据库与代码均为 `20260617_0009 (head)`。R129 当前发布门禁为 `24 passed / 0 warn / 0 blocked / 0 failed`，新备份与隔离恢复演练通过，运行目录外仅有非运行态样例 `backend/data/config.example.json`。R130 数据库快照为连接 `3/50`、长事务 `0`、等待锁 `0`、缺表 `0`、warnings `0`；S1 为 `1727` 请求、失败率 `0`、P95 `63.70ms`、P99 `101.31ms`；当天正式 cron 的 readiness、retention、snapshot 三类 `trigger=cron` 证据全部通过。公网 Cloudflare health 与本机 health 正常，源站 IP HTTP/HTTPS 直连为 `403`。真实告警 webhook 尚未配置，是不影响数据库完成状态的可选外部通知增强。
-- 下一发行阶段：**设计已批准，待实施**。`pre` 将建设为最终替代 `main` 的单机自托管服务发行线，项目只提供 `127.0.0.1:<port>` 应用入口，HTTPS/Cloudflare/Nginx/Caddy 由用户管理；按 7A 管理员与用户治理、7B 本地/阿里云 OSS 备份与通用 Webhook、7C 幂等安装/升级/回滚 CLI、7D 干净服务器发布验收推进。Web 管理面不获得 Docker、Git、root、数据库恢复或永久删除权限。
+- 下一发行阶段：**7D 发行验收进行中**。7A 管理员治理、7B 备份/告警和 7C 幂等安装/升级/回滚已经完成；继续验证 Ubuntu 22.04、Debian 12、arm64、真实供应商/OSS 与 Cloudflare 当前发行容量。项目仍只提供 `127.0.0.1:<port>` 应用入口，Web 管理面不获得 Docker、Git、root、数据库恢复或永久删除权限。
 - 数据库升级 R35：user/config 本地 schema/repository boundary 已新增 `users`、`user_configs`、Alembic migration `20260607_0007` 和安全索引映射；登录、session 和 per-user `config.json` 运行态仍默认走 JSON/Redis/file-only，下一步补 user/config backfill/reconcile。
 - 数据库升级 R36：user/config backfill/reconcile 服务和维护脚本已新增，摘要保持脱敏且不迁移 `sessions.json`；运行态仍默认 JSON/Redis/file-only，下一步补 user/config runtime dual-write/read-switch/primary-write gates。
 - 数据库升级 R37：user/config runtime dual-write 已新增，注册/登录更新/改密码/config 保存默认仍 JSON 主写，显式启用后 shadow 写 PostgreSQL；session 仍保持 Redis + file fallback。

@@ -13,6 +13,8 @@ This artifact directory records sanitized evidence for the self-hosted installer
 - `6c9550a`: relocatable operator CLI and paired library installation.
 - `901ebbd`: digest-pinned base images and production Python dependency lock.
 - `cd4e7d2`: repeat-install preservation of the recorded rollback target.
+- `e1c5dd2`: sanitized server qualification checkpoint used as the real update target.
+- `b38e3c0`: health-gated full-stack `miemie start` command for preserved-data recovery.
 
 ## Local focused verification
 
@@ -47,10 +49,19 @@ On 2026-08-25, the existing `miemie-pre` deployment at `/opt/miemie-pre` was tak
 
 No credential, token, environment value, database dump, username, or private row data is stored in this artifact.
 
-## Remaining 7C evidence
+## Final lifecycle qualification
 
-- Failed-update automatic rollback followed by successful CLI update.
-- Preserved-data uninstall and restart simulation.
-- S1 staging gate, final worker health, and sanitized final state.
+- An injected image-build failure caused `miemie update --apply` to return non-zero after its pre-update backup; source, environment, image, health, and current release remained on the previous commit, while a `rolled_back` manifest was retained.
+- The next normal `miemie update --apply` advanced to the intended commit, recorded its backup and previous release, ran migration, and passed API plus worker health gates.
+- Explicit rollback completed a healthy round trip from the new release to the recorded previous image and back, with forward-only schema reporting.
+- Default `miemie uninstall` stopped every service while preserving byte-identical environment/release files, backup contents, named volumes, and core row counts. `miemie start` restored the entire stack and passed health/worker gates.
+- Full `miemie restore` passed checksum/list validation, temporary database restore, safety backup, writer stop, production replacement, migration, and post-restore health; user, project, and platform-setting row counts were unchanged.
+- Final local S1 used `30 VU / 60s`: `1729` requests, `0` failed requests, `5187/5187` checks, P95 `82.78ms`, and P99 `124.52ms` against the `300ms` gate.
+- Celery inspection found exactly three live queue roles: `studio`, `video_studio`, and `ops`; scheduler, API, PostgreSQL, Redis, and all workers were running with restart count `0` after the gate.
+- Final runtime commit for this checkpoint was `b38e3c0875f8850011cbb1a0bdbdc7c599a6660c`; local and Cloudflare health returned `200` with matching deployment identifiers.
+
+## Phase result
+
+Phase 7C is complete. The remaining release-candidate work is phase 7D: clean supported-OS qualification, arm64 evidence or an explicit limitation, current-release provider/OSS smoke, and Cloudflare capacity gates.
 
 Real Aliyun OSS, real provider generation, clean OS matrix, arm64, and current-release Cloudflare S4/W2 belong to phase 7D.

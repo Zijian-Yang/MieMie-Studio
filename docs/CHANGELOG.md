@@ -42,6 +42,7 @@
 - **接口限流**: 登录接口添加 slowapi 限流 5次/分钟，注册接口 3次/分钟，防止暴力破解
 
 ### 新增 (Added)
+- 自托管发行阶段 7C 完成：生产镜像固定基础镜像摘要和 Python 完整依赖锁；`miemie start` 可在保留数据卸载后健康门禁式恢复整套服务。Ubuntu 24.04 服务器已通过安装接管、重复安装、真实备份/恢复、更新失败自动返切、正常更新、显式回滚往返、保留数据卸载恢复、非 root 运行时与 S1。
 - 自托管发行阶段 7C：新增支持 Ubuntu 22.04/24.04 与 Debian 12 的幂等 `install.sh`、固定非 root/read-only/no-new-privileges Compose 运行时，以及 `/usr/local/bin/miemie` 状态、日志、诊断、管理员、备份、更新、回滚、恢复和安全卸载命令。更新采用 fast-forward + commit 固定镜像 + 更新前备份 + migration/health/worker 门禁，失败返切旧应用；恢复要求 checksum/list、临时数据库演练、安全备份和双确认。根 README 已改为生产安装优先，并新增安装、管理员、反代、更新回滚和备份恢复手册。
 - 自托管发行阶段 7B：新增平台级加密运维设置、管理员备份/告警/概览页面、PostgreSQL custom-format 本地备份与保留策略、独立 ops worker、阿里云 OSS 客户端、通用 Webhook 和 Asia/Shanghai 每日幂等调度。服务器已通过真实备份隔离恢复、真实 Webhook、两日期调度和旧 cron 退役；真实 OSS 上传因无批准凭据保留为 7D 外部验收项。
 - 管理员与用户治理阶段 7A：PostgreSQL 用户增加角色、状态、强制改密和更新时间，新增关闭注册、显式首位管理员 CLI、管理员用户 CRUD、会话撤销、最后管理员保护、脱敏审计及 `/admin` 管理界面；Compose 新增 Alembic migration 启动门禁，新安装默认 PostgreSQL-only，并提供不调用供应商的脱敏治理 smoke。
