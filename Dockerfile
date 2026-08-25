@@ -1,4 +1,4 @@
-FROM node:20-bookworm-slim AS frontend-builder
+FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS frontend-builder
 
 WORKDIR /app/frontend
 
@@ -9,7 +9,7 @@ COPY frontend ./
 RUN npm run build
 
 
-FROM python:3.12-slim-bookworm AS runtime
+FROM python:3.12-slim-bookworm@sha256:b64e9d3a71eddaa1b3f80c04abf292b3139e3b7c4dd272d19c31dc1f91194d1b AS runtime
 
 ARG POSTGRESQL_CLIENT_MAJOR=16
 
@@ -32,10 +32,10 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY requirements.txt ./
+COPY requirements.txt requirements.lock.txt ./
 RUN python -m venv /opt/venv \
     && /opt/venv/bin/pip install --upgrade pip \
-    && /opt/venv/bin/pip install -r requirements.txt
+    && /opt/venv/bin/pip install -r requirements.lock.txt
 
 COPY backend ./backend
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist

@@ -14,6 +14,14 @@ APP_SERVICES = ("migrate", "api", "worker", "worker-video", "worker-ops", "sched
 
 def main() -> int:
     dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert dockerfile.count("@sha256:") == 2
+    assert "requirements.lock.txt" in dockerfile
+    assert "pip install -r requirements.lock.txt" in dockerfile
+    lock_lines = [
+        line for line in (ROOT / "requirements.lock.txt").read_text(encoding="utf-8").splitlines()
+        if line and not line.startswith("#")
+    ]
+    assert lock_lines and all("==" in line for line in lock_lines)
     compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
     env = (ROOT / "compose.env.example").read_text(encoding="utf-8")
     services = compose["services"]
