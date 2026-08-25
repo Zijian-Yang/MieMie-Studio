@@ -120,13 +120,9 @@ if [[ ! -f "$MIEMIE_ENV_FILE" ]]; then
   miemie_set_env "$MIEMIE_ENV_FILE" MIEMIE_PLATFORM_ENCRYPTION_KEY "$platform_key"
   miemie_set_env "$MIEMIE_ENV_FILE" MIEMIE_INSTANCE_ID "$instance_id"
 else
-  if [[ -f "$MIEMIE_INSTALL_STATE_DIR/current.env" ]]; then
-    previous_commit="$(miemie_env_value commit "$MIEMIE_INSTALL_STATE_DIR/current.env")"
-    previous_image="$(miemie_env_value image "$MIEMIE_INSTALL_STATE_DIR/current.env")"
-  else
-    previous_commit="$(miemie_env_value MIEMIE_RUNTIME_GIT_COMMIT "$MIEMIE_ENV_FILE")"
-    previous_image="$(miemie_env_value MIEMIE_IMAGE "$MIEMIE_ENV_FILE")"
-  fi
+  IFS=$'\t' read -r previous_commit previous_image < <(
+    miemie_previous_release_values "$MIEMIE_INSTALL_STATE_DIR/current.env" "$MIEMIE_ENV_FILE" "$install_commit"
+  )
 fi
 chmod 600 "$MIEMIE_ENV_FILE"
 image="miemie-studio:pre-${install_commit:0:12}"

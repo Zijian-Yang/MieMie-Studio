@@ -60,6 +60,34 @@ def main() -> int:
         ):
             assert stage in commands
 
+        state = temp / "current.env"
+        env_file = temp / "compose.env"
+        env_file.write_text(
+            "MIEMIE_RUNTIME_GIT_COMMIT=legacy-commit\nMIEMIE_IMAGE=legacy-image\n",
+            encoding="utf-8",
+        )
+        same_commit = "a" * 40
+        state.write_text(
+            f"commit={same_commit}\nimage=current-image\n"
+            f"previous_commit={'b' * 40}\nprevious_image=previous-image\n",
+            encoding="utf-8",
+        )
+        command = (
+            f"source {LIBRARY!s}; "
+            f"miemie_previous_release_values {state!s} {env_file!s} {same_commit}"
+        )
+        result = subprocess.run(["bash", "-c", command], capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == f"{'b' * 40}\tprevious-image"
+
+        result = subprocess.run(
+            ["bash", "-c", command.rsplit(" ", 1)[0] + f" {'c' * 40}"],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == f"{same_commit}\tcurrent-image"
+
     source = INSTALLER.read_text(encoding="utf-8") + LIBRARY.read_text(encoding="utf-8")
     compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
     required = (
