@@ -186,6 +186,7 @@ EOF
 chmod 600 "$MIEMIE_INSTALL_CONFIG_DIR/miemie.conf.tmp"
 mv "$MIEMIE_INSTALL_CONFIG_DIR/miemie.conf.tmp" "$MIEMIE_INSTALL_CONFIG_DIR/miemie.conf"
 install -m 0755 "$MIEMIE_INSTALL_ROOT/scripts/miemie" "$MIEMIE_INSTALL_BIN_DIR/miemie"
+install -m 0644 "$MIEMIE_INSTALL_ROOT/scripts/miemie_lib.sh" "$MIEMIE_INSTALL_BIN_DIR/miemie_lib.sh"
 cat > "$MIEMIE_INSTALL_STATE_DIR/current.env.tmp" <<EOF
 commit=$install_commit
 image=$image

@@ -104,7 +104,7 @@ cmd_uninstall() {
     state_dir="$(miemie_assert_safe_purge_path "$MIEMIE_RELEASE_STATE_DIR")"
     log_dir="$(miemie_assert_safe_purge_path "${MIEMIE_INSTALL_LOG_DIR:-/var/log/miemie}")"
     miemie_compose down -v --remove-orphans
-    rm -f "${MIEMIE_INSTALL_BIN_DIR:-/usr/local/bin}/miemie"
+    rm -f "${MIEMIE_INSTALL_BIN_DIR:-/usr/local/bin}/miemie" "${MIEMIE_INSTALL_BIN_DIR:-/usr/local/bin}/miemie_lib.sh"
     rm -rf "$resolved_root" "$config_dir" "$state_dir" "$log_dir"
     echo "stage=purge state=passed"
     return 0
@@ -173,6 +173,7 @@ cmd_update() {
   miemie_write_release_manifest "$manifest" "$target" "$new_image" "$current" "$old_image" "$backup_id" "$backup_path" "healthy" "$(miemie_migration_head)"
   miemie_activate_release "$manifest"
   install -m 0755 "$MIEMIE_INSTALL_ROOT/scripts/miemie" "${MIEMIE_INSTALL_BIN_DIR:-/usr/local/bin}/miemie"
+  install -m 0644 "$MIEMIE_INSTALL_ROOT/scripts/miemie_lib.sh" "${MIEMIE_INSTALL_BIN_DIR:-/usr/local/bin}/miemie_lib.sh"
   echo "stage=update state=passed commit=$target"
 }
 
@@ -216,6 +217,7 @@ cmd_rollback() {
   miemie_write_release_manifest "$manifest" "$target_commit" "$target_image" "$current_commit" "$current_image" "$backup_id" "$backup_path" "healthy_rollback" "$(miemie_migration_head)"
   miemie_activate_release "$manifest"
   install -m 0755 "$MIEMIE_INSTALL_ROOT/scripts/miemie" "${MIEMIE_INSTALL_BIN_DIR:-/usr/local/bin}/miemie"
+  install -m 0644 "$MIEMIE_INSTALL_ROOT/scripts/miemie_lib.sh" "${MIEMIE_INSTALL_BIN_DIR:-/usr/local/bin}/miemie_lib.sh"
   echo "stage=rollback state=passed schema=forward_only"
 }
 

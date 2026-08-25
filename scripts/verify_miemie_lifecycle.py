@@ -39,6 +39,7 @@ def fixture(temp: Path) -> tuple[dict[str, str], Path, Path, Path]:
         directory.mkdir(parents=True, exist_ok=True)
     shutil.copy(ROOT / "scripts/postgres_restore_rehearsal.sh", install / "scripts")
     shutil.copy(ROOT / "scripts/miemie", install / "scripts")
+    shutil.copy(ROOT / "scripts/miemie_lib.sh", install / "scripts")
     (install / "docker-compose.yml").write_text("services: {}\n", encoding="utf-8")
     (install / "compose.env").write_text(
         "MIEMIE_HOST_PORT=18100\n"
@@ -154,6 +155,7 @@ def test_update_guards_and_success() -> None:
         current = (state / "current.env").read_text(encoding="utf-8")
         assert f"commit={NEW_COMMIT}" in current and "state=healthy" in current
         assert (Path(env["MIEMIE_INSTALL_BIN_DIR"]) / "miemie").exists()
+        assert (Path(env["MIEMIE_INSTALL_BIN_DIR"]) / "miemie_lib.sh").exists()
         assert "MIEMIE_IMAGE=miemie-studio:pre-bbbbbbbbbbbb" in (install / "compose.env").read_text()
         log = calls.read_text(encoding="utf-8")
         assert "build migrate api worker worker-video worker-ops scheduler" in log

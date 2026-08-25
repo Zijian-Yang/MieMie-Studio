@@ -83,6 +83,8 @@ def main() -> int:
         "app.cli.admin",
         "/api/health",
         "install -m 0755",
+        "install -m 0644",
+        "miemie_lib.sh",
         "docker compose",
         "previous_commit=",
         "migration_head=",

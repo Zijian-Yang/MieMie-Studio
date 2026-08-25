@@ -90,6 +90,7 @@ def main() -> int:
         "MIEMIE_ADMIN_PASSWORD",
         "deploy_doctor.sh",
         "no-new-privileges",
+        'MIEMIE_INSTALL_BIN_DIR:-/usr/local/bin}/miemie_lib.sh',
     ):
         assert fragment in source, fragment
     for forbidden in ("set -x", "docker system prune", "git reset --hard"):
