@@ -89,6 +89,7 @@
 | [阶段 7A 实施计划](./superpowers/plans/2026-08-12-phase-7a-admin-user-governance.md) | 管理员角色、关闭注册、用户 CRUD、审计、管理前端和服务器验证的测试先行任务 |
 | [阶段 7B 实施计划](./superpowers/plans/2026-08-12-phase-7b-backup-oss-webhook.md) | 平台备份、阿里云 OSS、通用 Webhook、运维 worker、调度切换和服务器证据 |
 | [阶段 7C 实施计划](./superpowers/plans/2026-08-12-phase-7c-installer-update-hardening.md) | 一键安装、非 root Compose、管理 CLI、事务化更新/回滚/恢复与服务器资格验收 |
+| [阶段 7D 发行验收计划](./superpowers/plans/2026-08-25-phase-7d-release-qualification.md) | 干净系统/arm64、管理员 E2E、真实供应商/OSS、Cloudflare 容量、安全审计与最终发布判定 |
 | [自托管安装](./playbooks/SELF_HOSTED_INSTALL.md) | 支持系统、安装命令、首次管理员、路径与故障处理 |
 | [自托管管理员](./playbooks/SELF_HOSTED_ADMIN.md) | 用户治理、平台运维设置、CLI 修复与 Web 权限边界 |
 | [自托管反向代理](./playbooks/SELF_HOSTED_REVERSE_PROXY.md) | Nginx/Cloudflare 最低配置、缓存、源站和验证边界 |
