@@ -238,6 +238,12 @@ sudo miemie rollback
 sudo miemie uninstall
 ```
 
+需要恢复这套保留数据的服务时执行：
+
+```bash
+sudo miemie start
+```
+
 永久删除必须显式执行 `sudo miemie uninstall --purge` 并输入精确确认口令。先阅读[更新与回滚](docs/playbooks/SELF_HOSTED_UPGRADE_ROLLBACK.md)和[备份与恢复](docs/playbooks/SELF_HOSTED_BACKUP_RESTORE.md)。
 
 ---

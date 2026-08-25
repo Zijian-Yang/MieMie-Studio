@@ -56,7 +56,7 @@
 - [x] Implement status/version/health/worker/database/backup-root checks and actionable doctor warnings for CPU/RAM/disk/time/ports.
 - [x] Implement operations API-independent backup enqueue/wait through application services in an ephemeral container; list sanitized backup history.
 - [x] Implement administrator commands using hidden prompt/environment secrets, never plaintext argv.
-- [x] Implement restart/logs and preserved-data uninstall.
+- [x] Implement start/restart/logs and preserved-data uninstall.
 - [x] Run CLI verifier, shell syntax, ShellCheck when available, and Compose contract tests.
   - Fake Docker/curl execution proves canonical env/project flags, service validation, lock use, preserved-data stop, and secret-safe administrator invocation.
 - [x] Commit the CLI foundation slice (`af17ce3`).

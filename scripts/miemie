@@ -10,7 +10,7 @@ source "$LIBRARY"
 usage() {
   cat <<'EOF'
 Usage: miemie <command>
-  status | logs [service] | doctor | restart [service]
+  status | start | logs [service] | doctor | restart [service]
   backup [--wait] | backups
   admin bootstrap|promote|reset-password [username]
   update --check|--apply | rollback [release] | restore <backup>
@@ -38,6 +38,20 @@ cmd_doctor() {
     [[ "$identity" != "0" ]] || { echo "$service runs as root" >&2; return 1; }
   done
   echo "no-new-privileges runtime policy is declared in Compose"
+}
+
+cmd_start() {
+  miemie_lock
+  miemie_compose up -d --remove-orphans
+  miemie_wait_health "${MIEMIE_HEALTH_ATTEMPTS:-60}" || {
+    echo "stage=start state=failed reason=health_failed" >&2
+    return 1
+  }
+  miemie_workers_healthy || {
+    echo "stage=start state=failed reason=workers_unhealthy" >&2
+    return 1
+  }
+  echo "stage=start state=passed"
 }
 
 cmd_restart() {
@@ -275,6 +289,7 @@ main() {
   shift || true
   case "$command" in
     status) cmd_status "$@" ;;
+    start) cmd_start "$@" ;;
     logs) cmd_logs "$@" ;;
     doctor) cmd_doctor "$@" ;;
     restart) cmd_restart "$@" ;;

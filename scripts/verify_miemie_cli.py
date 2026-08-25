@@ -42,7 +42,10 @@ def main() -> int:
         calls = temp / "calls.log"
         (fake_bin / "docker").write_text(
             "#!/bin/sh\nprintf 'docker %s\\n' \"$*\" >> \"$MIEMIE_VERIFY_CALLS\"\n"
-            "case \"$*\" in *'ps --format json'*) printf '%s\\n' '{\"Service\":\"api\",\"State\":\"running\",\"Health\":\"healthy\"}' ;; esac\n",
+            "case \"$*\" in "
+            "*'ps --format json'*) printf '%s\\n' '{\"Service\":\"api\",\"State\":\"running\",\"Health\":\"healthy\"}' ;; "
+            "*'ps --status running -q '*) printf '%s\\n' 'container-id' ;; "
+            "esac\n",
             encoding="utf-8",
         )
         (fake_bin / "curl").write_text(
@@ -61,6 +64,7 @@ def main() -> int:
         }
         for args in (
             ["status"],
+            ["start"],
             ["restart", "worker"],
             ["logs", "api"],
             ["doctor"],
@@ -72,6 +76,7 @@ def main() -> int:
             assert result.returncode == 0, f"{args}: {result.stdout}\n{result.stderr}"
         call_log = calls.read_text(encoding="utf-8")
         assert "--env-file" in call_log
+        assert "up -d --remove-orphans" in call_log
         assert "restart worker" in call_log
         assert "logs --tail=200 api" in call_log
         assert "stop" in call_log
@@ -81,6 +86,7 @@ def main() -> int:
     for fragment in (
         "flock",
         "status) cmd_status",
+        "start) cmd_start",
         "update) cmd_update",
         "rollback) cmd_rollback",
         "restore) cmd_restore",

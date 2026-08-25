@@ -251,6 +251,7 @@ sudo ./install.sh
 
 ```text
 miemie status
+miemie start
 miemie logs [service]
 miemie doctor
 miemie restart [service]

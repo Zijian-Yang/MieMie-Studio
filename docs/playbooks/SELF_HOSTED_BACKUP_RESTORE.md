@@ -45,6 +45,12 @@ sudo miemie restore postgres/miemie-postgres-YYYYMMDD-HHMMSS-RUN.dump
 sudo miemie uninstall
 ```
 
+重新启动保留数据的整套服务：
+
+```bash
+sudo miemie start
+```
+
 永久删除需要：
 
 ```bash
